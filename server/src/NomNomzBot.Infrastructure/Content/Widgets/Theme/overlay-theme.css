@@ -90,6 +90,35 @@
   --nnz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Classic: the first chat box look. A dark see-through panel, a thin accent edge, soft corners, system type. */
+[data-nnz-theme='classic'] {
+  --nnz-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --nnz-accent: #9146ff;
+  --nnz-on-accent: #ffffff;
+  --nnz-surface: rgba(12, 12, 18, 0.82);
+  --nnz-text: #ffffff;
+  --nnz-muted: rgba(255, 255, 255, 0.7);
+  --nnz-line: color-mix(in srgb, var(--nnz-accent) 30%, transparent);
+  --nnz-border: 1px solid var(--nnz-line);
+  --nnz-radius: 10px;
+  --nnz-radius-inner: 6px;
+  --nnz-radius-pill: 10px;
+  --nnz-shadow: none;
+  --nnz-chip-bg: var(--nnz-accent);
+  --nnz-chip-text: #ffffff;
+  --nnz-row-bg: rgba(255, 255, 255, 0.06);
+  --nnz-row-first-bg: color-mix(in srgb, var(--nnz-accent) 22%, transparent);
+  --nnz-row-radius: 6px;
+  --nnz-row-shadow: none;
+  --nnz-num-bg: var(--nnz-accent);
+  --nnz-num-text: #ffffff;
+  --nnz-track: rgba(255, 255, 255, 0.14);
+  --nnz-fill: var(--nnz-accent);
+  --nnz-title-shadow: none;
+  --nnz-tilt: 0deg;
+  --nnz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* Print: an acid-lime poster with black type, halftone dots, sharp corners and a hard black shadow. */
 [data-nnz-theme='print'] {
   --nnz-accent: #ff2d6f;

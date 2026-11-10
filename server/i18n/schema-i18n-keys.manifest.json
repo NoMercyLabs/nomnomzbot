@@ -1496,6 +1496,7 @@
     "widget.option.providers.bttv",
     "widget.option.providers.ffz",
     "widget.option.providers.twitch",
+    "widget.option.theme.classic",
     "widget.option.theme.ink",
     "widget.option.theme.print",
     "widget.option.theme.sticker",

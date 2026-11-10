@@ -475,9 +475,7 @@ onUnmounted(() => {
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
         <span v-if="l.provider !== 'twitch'" class="platform" :class="'platform-' + l.provider">{{ PROVIDER_LABEL[l.provider] || l.provider }}</span>
         <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
-        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
-        <span v-if="l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
-        <span class="name">{{ l.name }}</span>
+        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">        <span class="name">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
         <span v-if="l.isCheer && l.bitsAmount > 0" class="line-cheer-bits">{{ l.bitsAmount }} bits</span>
       </span>
@@ -539,10 +537,12 @@ onUnmounted(() => {
   left: 16px;
   bottom: 16px;
   width: min(420px, 40vw);
+  zoom: var(--nnz-zoom);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 16px;
+  padding: 0 12px 12px 0;
   pointer-events: none;
   font-size: 16px;
   line-height: 1.5;
@@ -558,42 +558,33 @@ onUnmounted(() => {
 .line.faded {
   opacity: 0;
 }
-/* dark and light both sit on the theme surface now: the overlay theme picks light (sticker) or dark (ink, print). */
+/* dark and light are one theme surface each: the same outline, shadow and radius as every other widget's card. */
 .theme-dark .line,
 .theme-light .line {
   color: var(--nnz-text);
   background: var(--nnz-surface);
-  border: 2px solid var(--nnz-line);
+  border: var(--nnz-border);
+  box-shadow: var(--nnz-shadow);
+}
+.nnz-chatbox.theme-transparent {
+  gap: 4px;
 }
 .theme-transparent .line {
   color: #fff; /* theme-exempt: the transparent setting asks for bare text on the stream */
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); /* theme-exempt: keeps bare text readable on the stream */
   background: transparent;
   border: none;
+  box-shadow: none;
   padding: 2px 0;
 }
-/* Role accents: a subtle left border in the role's conventional colour so a mod/VIP/sub/broadcaster
-   message reads at a glance, without fighting the theme's own line background. */
-.line.role-broadcaster {
-  border-left: 4px solid #e91916; /* theme-exempt: Twitch's broadcaster role color */
-}
-.line.role-moderator {
-  border-left: 4px solid #00ad03; /* theme-exempt: Twitch's moderator role color */
-}
-.line.role-vip {
-  border-left: 4px solid #e005b9; /* theme-exempt: Twitch's VIP role color */
-}
-.line.role-subscriber {
-  border-left: 4px solid #9146ff; /* theme-exempt: Twitch's subscriber role color */
-}
-.line.cheer {
-  border-left: 4px solid var(--nnz-accent);
-}
-/* The look a channel gave a bot overlay line: a highlight token (--hl) as the left edge plus a soft wash laid over
-   whatever background the theme or the channel set, and a larger size. */
+/* The role badge and the bits chip mark a line; the line itself keeps one even border on all sides.
+   The look a channel gave a bot overlay line: a soft wash in its highlight token (--hl), and a larger size. */
 .line[data-highlight] {
-  border-left: 4px solid var(--hl);
   box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--hl) 12%, transparent); /* theme-exempt: a wash in the channel's own highlight color */
+}
+.theme-dark .line[data-highlight],
+.theme-light .line[data-highlight] {
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--hl) 12%, transparent), var(--nnz-shadow); /* theme-exempt: the channel's highlight wash over the theme shadow */
 }
 .line[data-size='large'] {
   font-size: 1.35em;
@@ -605,28 +596,6 @@ onUnmounted(() => {
   font-size: 0.8em;
   line-height: 1.2;
   opacity: 0.7;
-}
-.role-badge {
-  font-size: 0.65em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  padding: 1px 5px;
-  border-radius: 4px;
-  color: #fff; /* theme-exempt: white on Twitch's own role colors */
-  flex: none;
-}
-.role-badge-broadcaster {
-  background: #e91916; /* theme-exempt: Twitch's broadcaster role color */
-}
-.role-badge-moderator {
-  background: #00ad03; /* theme-exempt: Twitch's moderator role color */
-}
-.role-badge-vip {
-  background: #e005b9; /* theme-exempt: Twitch's VIP role color */
-}
-.role-badge-subscriber {
-  background: #9146ff; /* theme-exempt: Twitch's subscriber role color */
 }
 .line-cheer-bits {
   font-size: 0.75em;
@@ -706,7 +675,7 @@ onUnmounted(() => {
    contrast, so the name and pronouns inherit it instead of taking the accent colour. */
 .head-colored {
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: calc(var(--nnz-radius-inner) / 2);
 }
 .head-colored .name,
 .head-colored .pron {

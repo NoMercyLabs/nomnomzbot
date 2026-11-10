@@ -5311,6 +5311,7 @@
     <string name="widget_option_theme_sticker">Sticker (white card, bold outline)</string>
     <string name="widget_option_theme_ink">Ink (black pills, quiet)</string>
     <string name="widget_option_theme_print">Print (lime poster, halftone dots)</string>
+    <string name="widget_option_theme_classic">Classic (dark see-through panel)</string>
     <string name="widget_goal_bar_metric_option_followers">Followers</string>
     <string name="widget_goal_bar_metric_option_subs">Subscribers</string>
     <string name="widget_goal_bar_metric_option_bits">Bits</string>

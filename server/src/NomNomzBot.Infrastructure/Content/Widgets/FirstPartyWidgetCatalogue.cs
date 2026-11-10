@@ -110,7 +110,7 @@ public static class FirstPartyWidgetCatalogue
     public const string ThemeSettingKey = "overlayTheme";
 
     /// <summary>The looks in <c>Content/Widgets/Theme/overlay-theme.css</c>; the first is the default.</summary>
-    public static readonly IReadOnlyList<string> Themes = ["sticker", "ink", "print"];
+    public static readonly IReadOnlyList<string> Themes = ["sticker", "ink", "print", "classic"];
 
     private static readonly FirstPartyWidgetDefinition[] Authored =
     [

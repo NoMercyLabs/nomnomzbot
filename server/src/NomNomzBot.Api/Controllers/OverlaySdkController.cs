@@ -153,7 +153,7 @@ public sealed class OverlaySdkController : ControllerBase
           // The look: the widget's `overlayTheme` setting picks the token set in /overlay/theme.css (a `theme`
           // parameter in the address wins, for a preview), and an accent colour the streamer chose replaces the
           // theme's own. An empty accent, or a default accent from before the themes, means "the theme's accent".
-          var THEMES = ["sticker", "ink", "print"];
+          var THEMES = ["sticker", "ink", "print", "classic"];
           var LEGACY_ACCENTS = ["#9146ff", "#f4b942"];
           function applyTheme(s) {
             var root = typeof document === "undefined" ? null : document.documentElement;

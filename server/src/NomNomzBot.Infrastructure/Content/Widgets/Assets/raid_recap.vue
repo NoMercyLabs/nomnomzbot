@@ -219,7 +219,7 @@ const baseHue = computed<number>(() => {
 
 const rootStyle = computed<Record<string, string>>(() => {
   const style: Record<string, string> = { '--base': `${baseHue.value}deg` };
-  if (cfg.accentColor) style['--accent'] = cfg.accentColor;
+  if (cfg.accentColor) style['--nnz-accent'] = cfg.accentColor;
   return style;
 });
 
@@ -506,17 +506,17 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- The type comes from /overlay/theme.css; the colors stay on the recap's own hue engine (the hueByDay setting). -->
-  <div v-if="recap" ref="root" class="nnz-widget recap":data-visible="visible ? 'true' : 'false'" :data-layout="cfg.layout" :data-motion="motion" :style="rootStyle">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); hueByDay only changes the accent. -->
+  <div v-if="recap" ref="root" class="nnz-widget recap" :data-visible="visible ? 'true' : 'false'" :data-layout="cfg.layout" :data-motion="motion" :data-hue="cfg.hueByDay ? 'day' : undefined" :style="rootStyle">
     <div v-if="cfg.layout === 'credits'" class="credits">
-      <header class="top">
-        <img v-if="avatarUrl" class="avatar" :src="avatarUrl" crossorigin="anonymous" alt="" />
+      <header class="nnz-card top">
+        <img v-if="avatarUrl" class="nnz-avatar avatar" :src="avatarUrl" crossorigin="anonymous" alt="" />
         <div class="who">
-          <h1 class="title">{{ label('title') }}</h1>
+          <h1 class="nnz-title title">{{ label('title') }}</h1>
           <div v-if="channelName" class="channel">{{ channelName }}</div>
           <div class="meta">
             <span class="date">{{ dateText }}</span>
-            <span class="live">{{ liveText }}</span>
+            <span class="nnz-accent-text live">{{ liveText }}</span>
           </div>
         </div>
       </header>
@@ -525,10 +525,10 @@ onUnmounted(() => {
         <div class="roll" :style="rollStyle">
           <div v-for="copy in copies" :key="copy" class="track" :aria-hidden="copy > 0 ? 'true' : undefined">
             <section v-for="s in sections" :key="s.key" class="credit" :data-section="s.key">
-              <h2>{{ s.heading }}</h2>
+              <h2 class="nnz-chip">{{ s.heading }}</h2>
               <template v-for="(r, ri) in s.rows" :key="ri">
                 <h3 v-if="r.kind === 'heading'" class="group">{{ r.name }}</h3>
-                <div v-else class="entry">
+                <div v-else class="nnz-row entry">
                   <span class="n">{{ r.name }}</span>
                   <span v-if="r.value" class="v">{{ r.value }}</span>
                 </div>
@@ -543,38 +543,38 @@ onUnmounted(() => {
 
     <div v-else class="wrap">
       <header>
-        <div class="brand">
+        <div class="nnz-card brand">
           <svg class="logo" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M49.9746 104.882C45.1151 108.166 42.6854 109.807 40.6684 109.696C38.9115 109.598 37.2859 108.735 36.2217 107.334C35 105.725 35 102.792 35 96.9276V33.0725C35 27.2077 35 24.2753 36.2217 22.6666C37.2859 21.2653 38.9115 20.4018 40.6684 20.3045C42.6854 20.1929 45.1151 21.8346 49.9747 25.1181L97.2274 57.0456C101.17 59.7098 103.142 61.0419 103.831 62.7154C104.434 64.1789 104.434 65.8212 103.831 67.2847C103.142 68.9583 101.17 70.2904 97.2274 72.9545L49.9746 104.882ZM126 21.0001C128.209 21.0001 130 22.7909 130 25.0001V105C130 107.209 128.209 109 126 109H116.5C114.291 109 112.5 107.209 112.5 105V25.0001C112.5 22.7909 114.291 21.0001 116.5 21.0001H126Z" style="fill: var(--color-600)" />
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M9.35914 108.676C5.3744 111.369 0 108.514 0 103.705V26.2953C0 21.4863 5.37442 18.6314 9.35916 21.3238L66.6421 60.0285C70.1633 62.4077 70.1633 67.5925 66.6421 69.9716L9.35914 108.676ZM91 21.0001C93.2091 21.0001 95 22.7909 95 25.0001V105C95 107.209 93.2091 109 91 109H81.5C79.2909 109 77.5 107.209 77.5 105V25.0001C77.5 22.7909 79.2909 21.0001 81.5 21.0001H91Z" style="fill: var(--color-200)" />
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M49.9746 104.882C45.1151 108.166 42.6854 109.807 40.6684 109.696C38.9115 109.598 37.2859 108.735 36.2217 107.334C35 105.725 35 102.792 35 96.9276V33.0725C35 27.2077 35 24.2753 36.2217 22.6666C37.2859 21.2653 38.9115 20.4018 40.6684 20.3045C42.6854 20.1929 45.1151 21.8346 49.9747 25.1181L97.2274 57.0456C101.17 59.7098 103.142 61.0419 103.831 62.7154C104.434 64.1789 104.434 65.8212 103.831 67.2847C103.142 68.9583 101.17 70.2904 97.2274 72.9545L49.9746 104.882ZM126 21.0001C128.209 21.0001 130 22.7909 130 25.0001V105C130 107.209 128.209 109 126 109H116.5C114.291 109 112.5 107.209 112.5 105V25.0001C112.5 22.7909 114.291 21.0001 116.5 21.0001H126Z" style="fill: var(--nnz-accent)" />
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M9.35914 108.676C5.3744 111.369 0 108.514 0 103.705V26.2953C0 21.4863 5.37442 18.6314 9.35916 21.3238L66.6421 60.0285C70.1633 62.4077 70.1633 67.5925 66.6421 69.9716L9.35914 108.676ZM91 21.0001C93.2091 21.0001 95 22.7909 95 25.0001V105C95 107.209 93.2091 109 91 109H81.5C79.2909 109 77.5 107.209 77.5 105V25.0001C77.5 22.7909 79.2909 21.0001 81.5 21.0001H91Z" style="fill: var(--nnz-text)" />
           </svg>
           <div>
-            <h1>{{ label('title') }}</h1>
-            <div class="sub">{{ subtitle }}</div>
+            <h1 class="nnz-title">{{ label('title') }}</h1>
+            <div class="nnz-sub sub">{{ subtitle }}</div>
           </div>
         </div>
         <div v-if="thanks" class="thanks">{{ thanks }}</div>
       </header>
 
       <section class="kpis">
-        <div v-for="k in kpis" :key="k.key" class="card kpi" :class="{ lead: k.lead }" :data-block="k.key">
-          <div class="label">{{ label('kpi.' + k.key) }}</div>
-          <div class="num">{{ k.value }}</div>
+        <div v-for="k in kpis" :key="k.key" class="nnz-card card kpi" :class="{ lead: k.lead }" :data-block="k.key">
+          <div class="nnz-chip label">{{ label('kpi.' + k.key) }}</div>
+          <div class="nnz-title num">{{ k.value }}</div>
           <div v-if="k.note" class="note">{{ k.note }}</div>
         </div>
       </section>
 
       <section class="grid" :style="gridStyle">
-        <div v-for="p in placed" :key="p.card.key" class="card block" :class="{ sparse: p.card.rows.length <= 3, bare: p.card.rows.length === 0 }" :data-block="p.card.key" :style="cellStyle(p)">
+        <div v-for="p in placed" :key="p.card.key" class="nnz-card card block" :class="{ sparse: p.card.rows.length <= 3, bare: p.card.rows.length === 0 }" :data-block="p.card.key" :style="cellStyle(p)">
           <img v-if="p.watermark && avatarUrl" class="watermark" :src="avatarUrl" crossorigin="anonymous" alt="" />
-          <div class="label">{{ label('block.' + p.card.key) }}</div>
-          <div v-if="p.card.big" class="big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
+          <div class="nnz-chip label">{{ label('block.' + p.card.key) }}</div>
+          <div v-if="p.card.big" class="nnz-title big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
           <div v-if="p.card.rows.length" class="scroll" :class="{ fit: p.card.note }">
             <div class="list">
               <template v-for="(r, ri) in p.card.rows.slice(0, shown[p.card.key] ?? p.card.rows.length)" :key="ri">
                 <div v-if="r.kind === 'heading'" class="sect">{{ r.name }}</div>
-                <div v-else class="row">
-                  <span v-if="r.rank" class="r">{{ r.rank }}</span>
+                <div v-else class="nnz-row row">
+                  <span v-if="r.rank" class="nnz-num r">{{ r.rank }}</span>
                   <span class="n">{{ r.name }}</span>
                   <span class="v">{{ r.value }}</span>
                 </div>
@@ -589,26 +589,25 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Shared: the hue engine (one hue --base, five shades), the full-screen frame and the fade in. */
+/* Shared: the full-screen theme surface, the accent (hueByDay swaps only the accent) and the fade in. */
 .recap {
   --base: 0deg;
-  --color-100: hsl(var(--base), 100%, 90%); /* theme-exempt: hue computed from the stream date (hueByDay) */
-  --color-200: hsl(var(--base), 100%, 80%); /* theme-exempt: hue computed from the stream date (hueByDay) */
-  --color-300: hsl(var(--base), 100%, 70%); /* theme-exempt: hue computed from the stream date (hueByDay) */
-  --color-600: hsl(var(--base), 100%, 40%); /* theme-exempt: hue computed from the stream date (hueByDay) */
-  --color-900: hsl(var(--base), 100%, 10%); /* theme-exempt: hue computed from the stream date (hueByDay) */
-  --accent: var(--color-300);
-  --line: hsl(from var(--color-200) h s l / 25%); /* theme-exempt: hue computed from the stream date (hueByDay) */
-  --mute: hsl(from var(--color-100) h s l / 70%); /* theme-exempt: hue computed from the stream date (hueByDay) */
   position: fixed;
   inset: 0;
-  color: #fff; /* theme-exempt: text on the recap's own full-screen dark hue backdrop */
-  background: radial-gradient(1400px 800px at 15% 0%, hsl(from var(--color-900) h s 14%) 0, hsl(from var(--color-900) h 40% 4%) 75%); /* theme-exempt: hue backdrop from the stream date */
+  color: var(--nnz-text);
+  background: color-mix(in srgb, var(--nnz-surface) 90%, var(--nnz-accent));
   opacity: 0;
   transition: opacity 0.8s ease;
 }
+.recap[data-hue='day'] { --nnz-accent: hsl(var(--base) 100% 45%); } /* theme-exempt: the accent computed from the stream date (hueByDay) */
+[data-nnz-theme='ink'] .recap[data-hue='day'] { --nnz-accent: hsl(var(--base) 100% 62%); } /* theme-exempt: the stream-date accent, lighter on the black surface */
+/* The theme tokens that read the accent are set again here, so a day hue or the streamer's accentColor reaches them. */
+:root:not([data-nnz-theme]) .recap,
+[data-nnz-theme='sticker'] .recap { --nnz-shadow: 6px 6px 0 var(--nnz-accent), 6px 6px 0 4px var(--nnz-line); --nnz-num-text: var(--nnz-accent); }
+[data-nnz-theme='ink'] .recap { --nnz-num-bg: var(--nnz-accent); }
+.recap .nnz-card { zoom: 1; }
 .recap[data-visible='true'] { opacity: 1; }
-.hype { font-weight: 500; color: var(--mute); }
+.hype { font-weight: 500; color: var(--nnz-muted); }
 
 /* Credits layout: the look knobs are the variables below; the type sizes follow the 1920 x 1080 scene. */
 .recap[data-layout='credits'] {
@@ -620,68 +619,62 @@ onUnmounted(() => {
   --title-size: 64px;
   --name-size: 38px;
   --heading-size: 22px;
-  background: hsl(from var(--color-900) h 18% 6%); /* theme-exempt: hue backdrop from the stream date */
 }
 .credits { position: absolute; inset: var(--page-pad); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 32px; }
-.top { justify-content: flex-start; align-items: center; gap: 32px; }
-.avatar { width: var(--avatar); height: var(--avatar); border-radius: 50%; object-fit: cover; flex: none; }
-.title { font-size: var(--title-size); color: inherit; }
-.channel { margin-top: 10px; font-size: 30px; font-weight: 600; }
-.meta { margin-top: 8px; display: flex; gap: 24px; font-size: 24px; font-weight: 500; color: var(--mute); }
-.meta .live { color: var(--accent); font-weight: 800; }
+.top { justify-content: flex-start; align-items: center; gap: 32px; padding: 24px 32px; justify-self: start; }
+.avatar { width: var(--avatar); height: var(--avatar); }
+.title { font-size: var(--title-size); }
+.channel { margin-top: 10px; font-size: 30px; font-weight: 700; }
+.meta { margin-top: 8px; display: flex; gap: 24px; font-size: 24px; font-weight: 600; color: var(--nnz-muted); }
+.meta .live { font-weight: 800; }
 .stage { position: relative; overflow: hidden; container-type: size; mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%); } /* theme-exempt: a fade mask, not a visible color */
 .roll { display: flex; flex-direction: column; align-items: center; }
 .track { width: min(100%, var(--column)); min-height: 100cqh; padding-bottom: var(--gap); display: flex; flex-direction: column; align-items: stretch; }
 .credit { text-align: center; margin-bottom: var(--gap); }
-.credit h2 { margin: 0 0 20px; font-size: var(--heading-size); font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--mute); }
-.group { margin: 20px 0 8px; font-size: 18px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--mute); }
-.entry { display: flex; justify-content: center; align-items: baseline; gap: 16px; font-size: var(--name-size); font-weight: 700; line-height: 1.5; }
+.credit h2 { margin: 0 0 20px; padding: 8px 16px; font-size: var(--heading-size); letter-spacing: 3px; text-transform: uppercase; }
+.group { margin: 20px 0 8px; font-size: 18px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--nnz-muted); }
+.entry { justify-content: center; align-items: baseline; gap: 16px; padding: 2px 20px; font-size: var(--name-size); font-weight: 700; line-height: 1.5; }
 .entry .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.entry .v { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--mute); }
+.entry .v { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--nnz-muted); }
 .credits .hype { text-align: center; font-size: 26px; margin: 0 0 var(--gap); }
 .credits .thanks { text-align: center; font-size: 34px; font-weight: 700; margin: 0; }
 .recap[data-motion='roll'] .roll { animation: roll var(--roll-seconds) linear infinite; will-change: transform; }
 .recap[data-motion='still'] .stage { mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%); } /* theme-exempt: a fade mask, not a visible color */
-.recap[data-motion='reduced'] .stage { overflow-y: auto; mask-image: none; }
+.recap[data-motion='reduced'] .stage { overflow-y: auto; mask-image: none; scrollbar-width: none; }
+.stage::-webkit-scrollbar { display: none; }
 @keyframes roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
 
-/* Grid layout (Stoney's own look): the five-shade cards in a 12-column grid. */
-.wrap { position: absolute; inset: 48px 64px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 24px; }
+/* Grid layout (Stoney's own look): theme cards in a 12-column grid. */
+.wrap { position: absolute; inset: 48px 64px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 28px; }
 header { display: flex; align-items: flex-end; justify-content: space-between; }
-.brand { display: flex; align-items: center; gap: 24px; }
+.brand { display: flex; align-items: center; gap: 24px; padding: 20px 28px; }
 .logo { width: 110px; height: 110px; flex: none; transform: skewX(-1deg); }
-h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; color: var(--color-100); margin: 0; }
-.sub { margin-top: 10px; font-size: 26px; color: var(--mute); font-weight: 500; }
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; min-height: 0; }
+h1 { font-size: 64px; letter-spacing: -1px; line-height: 1; margin: 0; }
+.sub { margin-top: 10px; font-size: 26px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; min-height: 0; padding: 0 10px 10px 0; }
 .block { position: relative; }
 .block > :not(.watermark) { position: relative; }
 .watermark { position: absolute; left: -8%; bottom: -12%; height: 90%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; filter: grayscale(1); opacity: 0.12; pointer-events: none; }
 .card {
-  background: linear-gradient(45deg, hsl(from var(--color-300) h s l / 50%), hsl(from var(--color-600) h s l / 50%) 15%, hsl(from var(--color-900) h s l / 75%)); /* theme-exempt: hue card from the stream date (hueByDay) */
-  backdrop-filter: blur(24px);
-  border-radius: 14px;
   padding: 20px 24px;
-  border: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
 }
-.label { font-size: 17px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin-bottom: 10px; }
-.kpi .num { font-size: 60px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
-.kpi.lead { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
-.kpi.lead .label { color: var(--accent); }
-.kpi.lead .num { font-size: 76px; }
-.kpi .note { margin-top: 8px; font-size: 18px; color: var(--mute); font-weight: 500; }
-.big { font-size: 44px; font-weight: 900; line-height: 1; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
-.big small { font-size: 20px; font-weight: 600; color: var(--mute); margin-left: 8px; }
+.label { align-self: flex-start; font-size: 17px; letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 12px; }
+.kpi .num { font-size: 60px; line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi.lead .num { font-size: 76px; color: var(--nnz-accent); }
+.kpi .note { margin-top: 8px; font-size: 18px; color: var(--nnz-muted); font-weight: 600; }
+.big { font-size: 44px; line-height: 1; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+.big small { font-size: 20px; font-weight: 600; color: var(--nnz-muted); margin-left: 8px; }
 .list { display: grid; gap: 6px; padding-bottom: 6px; }
-.row { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; background: hsl(from var(--color-900) h s l / 55%); backdrop-filter: blur(4px); border-radius: 6px; padding: 6px 12px; } /* theme-exempt: hue row from the stream date (hueByDay) */
+.list .nnz-row + .nnz-row { margin-top: 0; }
+.row { font-size: 20px; font-weight: 700; padding: 6px 12px; }
 .row .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .row .v { font-weight: 800; font-variant-numeric: tabular-nums; }
-.row .r { width: 18px; color: var(--mute); font-weight: 900; text-align: center; }
-.sect { font-size: 15px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin: 14px 0 8px; }
+.row .r { min-width: 28px; height: 28px; font-size: 15px; }
+.sect { font-size: 15px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--nnz-muted); margin: 14px 0 8px; }
 .scroll { flex: 1; min-height: 0; overflow: hidden; }
 .scroll.fit { flex: 0 1 auto; }
 .wrap .hype { margin-top: 12px; font-size: 19px; }

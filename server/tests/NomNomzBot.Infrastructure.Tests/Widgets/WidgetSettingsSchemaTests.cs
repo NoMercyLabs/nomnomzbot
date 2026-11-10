@@ -102,7 +102,10 @@ public sealed class WidgetSettingsSchemaTests
                 .NotBeNull($"'{schema.WidgetKey}' draws, so the streamer picks its theme");
             theme.Type.Should().Be("select");
             theme.Default.Should().Be("sticker");
-            theme.Options!.Select(o => o.Value).Should().Equal("sticker", "ink", "print");
+            theme
+                .Options!.Select(o => o.Value)
+                .Should()
+                .Equal("sticker", "ink", "print", "classic");
             theme.Label.Key.Should().Be("widget.shared.theme.label");
         }
     }
