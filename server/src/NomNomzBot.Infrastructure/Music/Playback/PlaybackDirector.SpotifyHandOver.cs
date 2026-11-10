@@ -30,6 +30,9 @@ public sealed partial class PlaybackDirector
     /// <summary>True while Spotify is paused by the director for a YouTube run; it resumes at the run's end.</summary>
     private bool _spotifyHeldForYouTube;
 
+    /// <summary>The owner skipped the paused song to reach the video, so Spotify moves on and never resumes it.</summary>
+    private bool _heldTrackWasSkipped;
+
     /// <summary>The item whose one renewal while Spotify is paused is used; null when none.</summary>
     private string? _renewedWhilePausedId;
 
@@ -167,9 +170,9 @@ public sealed partial class PlaybackDirector
     /// </summary>
     private async Task ReturnToSpotifyAsync(string inputName, CancellationToken ct)
     {
-        ReleaseSpotifyHold();
+        bool skipped = ReleaseSpotifyHold();
         EngineReport? paused = _reports.GetValueOrDefault(EngineKind.Spotify);
-        bool skip = LinedUpRow() is { } waiting && paused?.Uri != waiting.Uri;
+        bool skip = skipped || LinedUpRow() is { } waiting && paused?.Uri != waiting.Uri;
         await SendSpotifyReturnAsync(1, skip, ct);
         // After a skip Spotify plays a track no report has named yet; the next poll names it.
         _ownerReport = skip || paused is null ? null : paused with { IsPlaying = true };
@@ -180,11 +183,16 @@ public sealed partial class PlaybackDirector
         );
     }
 
-    private void ReleaseSpotifyHold()
+    /// <summary>Ends the hold. True when the held song was skipped, so the return must be a Skip.</summary>
+    private bool ReleaseSpotifyHold()
     {
+        bool skipped = _heldTrackWasSkipped;
+        _heldTrackWasSkipped = false;
         _spotifyHeldForYouTube = false;
         _memory = null;
         _pausedForHandOver = null;
+
+        return skipped;
     }
 
     /// <summary>The item waits in the queue of a Spotify the director paused: a start alone would not play it.</summary>
@@ -225,9 +233,9 @@ public sealed partial class PlaybackDirector
         }
 
         _renewedWhilePausedId = null;
-        ReleaseSpotifyHold();
-        await SendSpotifyReturnAsync(1, false, ct);
-        _ownerReport = last is null ? null : last with { IsPlaying = true };
+        bool skip = ReleaseSpotifyHold();
+        await SendSpotifyReturnAsync(1, skip, ct);
+        _ownerReport = skip || last is null ? null : last with { IsPlaying = true };
         await MoveAsync(
             PlaybackState.Playing(item.Engine, null),
             inputName,

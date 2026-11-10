@@ -174,9 +174,9 @@ public sealed partial class PlaybackDirector
     /// </summary>
     private async Task<EngineReport?> GiveHeldSpotifyBackAsync(CancellationToken ct)
     {
-        ReleaseSpotifyHold();
+        bool skip = ReleaseSpotifyHold();
         _reports.Remove(EngineKind.YouTube);
-        await SendSpotifyReturnAsync(1, false, ct);
+        await SendSpotifyReturnAsync(1, skip, ct);
 
         return _reports.GetValueOrDefault(EngineKind.Spotify) is { } last
             ? last with

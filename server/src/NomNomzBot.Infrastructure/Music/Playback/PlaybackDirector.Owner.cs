@@ -89,10 +89,13 @@ public sealed partial class PlaybackDirector
                 return;
             }
 
-            if (State.Item is null && head.Engine != engine)
+            bool skippedSpotifyRequest =
+                State.Item is not null && engine == EngineKind.Spotify && head.Engine != engine;
+            if ((State.Item is null || skippedSpotifyRequest) && head.Engine != engine)
                 _memory = new(engine, true);
 
-            await BeginStartHoldingSpotifyAsync(head, name, "owner_skip", engine, ct);
+            bool held = await BeginStartHoldingSpotifyAsync(head, name, "owner_skip", engine, ct);
+            _heldTrackWasSkipped = held && skippedSpotifyRequest;
             return;
         }
 
@@ -179,7 +182,8 @@ public sealed partial class PlaybackDirector
 
         if (current is not null)
             _queue.RequeueAtHead(current);
-        else if (previous.Engine != engine)
+
+        if (previous.Engine != engine && (current is null || engine == EngineKind.Spotify))
             _memory = new(engine, true);
 
         _queue.RequeueAtHead(previous);
