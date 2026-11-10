@@ -110,6 +110,12 @@ public sealed partial class PlaybackDirector
             or DuckEnd:
                 await OnOwnerIntentAsync(input, ct);
                 break;
+            case OwnerResume when State.Engine == EngineKind.YouTube && _spotifyHeldForYouTube:
+                await GiveUpVideoForSpotifyAsync(input, ct);
+                break;
+            case OwnerResume when State.Engine == EngineKind.Spotify && _spotifyReturn is not null:
+                await OwnerResumesSpotifyReturnAsync(input, ct);
+                break;
             case OutputAttached attached when State.Engine is { } engine:
                 await ReattachOutputAsync(engine, attached, ct);
                 break;
@@ -151,6 +157,12 @@ public sealed partial class PlaybackDirector
         {
             await MoveAsync(PlaybackState.Idle, input, "music_playing");
             await OnReportAsync(playing, ct);
+            return;
+        }
+
+        if (_spotifyReturnGaveUp && input is OwnerResume)
+        {
+            await OwnerResumesSpotifyReturnAsync(input, ct);
             return;
         }
 

@@ -79,14 +79,32 @@ public sealed partial class PlaybackDirector
     private async Task ObserveSpotifyReturnAsync(PlaybackInput input, CancellationToken ct)
     {
         _spotifyReturnGaveUp &= State.Kind == PlaybackStateKind.Blocked;
-        bool ended =
-            input
-            is EngineReport { Engine: EngineKind.Spotify, IsPlaying: true }
-                or OwnerPause
-                or OwnerSkip
-                or OwnerPrevious;
-        if (_spotifyReturn is not null && ended)
+        if (_spotifyReturn is null)
+            return;
+
+        if (input is EngineReport { Engine: EngineKind.Spotify, IsPlaying: true })
+            await SpotifyProvedPlayingAsync(ct);
+        else if (input is OwnerPause or OwnerSkip or OwnerPrevious)
             await EndSpotifyReturnAsync(ct);
+    }
+
+    /// <summary>The Resume has taken effect, so a pause from here on is the owner's, not its echo.</summary>
+    private Task SpotifyProvedPlayingAsync(CancellationToken ct)
+    {
+        _lastSent.Remove(EngineKind.Spotify);
+
+        return EndSpotifyReturnAsync(ct);
+    }
+
+    /// <summary>The owner asks for the music now: one send at once, with a fresh set of retries.</summary>
+    private async Task OwnerResumesSpotifyReturnAsync(PlaybackInput input, CancellationToken ct)
+    {
+        await SendSpotifyReturnAsync(1, _spotifyReturn is { SkipOwed: true }, ct);
+        await MoveAsync(
+            PlaybackState.Playing(EngineKind.Spotify, State.Item),
+            input,
+            "owner_resume"
+        );
     }
 
     private Task EndSpotifyReturnAsync(CancellationToken ct)
@@ -109,7 +127,7 @@ public sealed partial class PlaybackDirector
             _reports[EngineKind.Spotify] = found;
             if (State.Item is null)
                 _ownerReport = found;
-            await EndSpotifyReturnAsync(ct);
+            await SpotifyProvedPlayingAsync(ct);
             return;
         }
 

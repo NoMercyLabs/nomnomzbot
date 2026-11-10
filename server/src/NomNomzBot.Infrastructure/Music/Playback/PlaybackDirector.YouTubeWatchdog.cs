@@ -107,6 +107,37 @@ public sealed partial class PlaybackDirector
         await EndOfQueueAsync(EngineKind.YouTube, ReportTimeoutInput, ct);
     }
 
+    /// <summary>The owner chose Spotify over the video the director holds it for: the hold ends here.</summary>
+    private async Task GiveUpVideoForSpotifyAsync(PlaybackInput input, CancellationToken ct)
+    {
+        await StopBestEffortAsync(EngineKind.YouTube, ct);
+        _reports.Remove(EngineKind.YouTube);
+        await ReturnToSpotifyAsync(input.GetType().Name, ct);
+    }
+
+    /// <summary>
+    /// Spotify plays while the video is past its deadline: the owner started it, so it is followed.
+    /// Runs before the deadline is raised, which would send a Resume or a Skip to the playing Spotify.
+    /// </summary>
+    private async Task FollowSpotifyOverLostVideoAsync(PlaybackInput input, CancellationToken ct)
+    {
+        if (input is not EngineReport { Engine: EngineKind.Spotify, IsPlaying: true } report)
+            return;
+
+        if (!ReportDeadlinePassed())
+            return;
+
+        await StopBestEffortAsync(EngineKind.YouTube, ct);
+        _reports.Remove(EngineKind.YouTube);
+        ReleaseSpotifyHold();
+        _ownerReport = report;
+        await MoveAsync(
+            PlaybackState.Playing(EngineKind.Spotify, null),
+            nameof(EngineReport),
+            "owner_music_over_lost_video"
+        );
+    }
+
     /// <summary>
     /// A stop that cannot reach the page must not hold the music. It skips CommandAsync on purpose: a
     /// missing page would move the director to Blocked and leave Spotify paused.

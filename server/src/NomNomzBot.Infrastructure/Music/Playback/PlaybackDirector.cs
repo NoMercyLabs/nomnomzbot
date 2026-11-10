@@ -116,6 +116,7 @@ public sealed partial class PlaybackDirector : IDisposable
             await ObserveHeldRecoveryAsync(input, ct);
             await ObserveSpotifyReturnAsync(input, ct);
             RenewReportDeadline(input);
+            await FollowSpotifyOverLostVideoAsync(input, ct);
             await RaiseDueDeadlinesAsync(ct);
             _ignored = WaitsForHeldRecovery(input);
             if (!_ignored)
