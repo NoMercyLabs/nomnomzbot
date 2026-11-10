@@ -1654,6 +1654,59 @@ Seen live: the bot wrote "@케이라라"; the viewer's login is keiraravt.
 
 ## OWNER BUG 2026-10-08 — the auto shoutout repeats a shoutout that was already given by hand
 
+## OWNER REQUEST 2026-11-10 — YouTube matches Twitch: members, analytics, clips; Google verifies every scope
+
+Owner, verbatim: "we have been aproved but we do get the unverified warning so please tell me what and
+where" and "prepare all the work properly and then implement them, we need analytics and all those
+features we have from twitch to match".
+
+Counted 2026-11-10. The Google project lists 7 sensitive scopes (owner's Data Access screenshot):
+`youtube.readonly`, `youtube`, `youtube.force-ssl`, `youtubepartner`, `youtube.upload`,
+`youtube.channel-memberships.creator`, `yt-analytics-monetary.readonly`. The code requests 3
+(`OAuthProviderRegistry.cs`, scope sets `youtube.manage` and `youtube.readonly`). Google verifies a scope
+only when the demo video shows it in use, so 4 of 7 have no feature to show.
+
+What Twitch has and YouTube lacks (read from the callers of `ITwitchSubscriptionsApi` and `ITwitchClipsApi`):
+the subscriber count (dashboard home, the labels widget, the stream template helpers), the subscriber list
+and the subscriber standing (Community, `TwitchStandingSnapshotBuilder`), and clip creation (`LiveOpsController`).
+The Analytics page shows the bot's own numbers only; it reads nothing from a platform.
+
+Facts from the live Google docs, read 2026-11-10:
+- `members.list` and `membershipsLevels.list` need `youtube.channel-memberships.creator`, cost 2 and 1 quota
+  units, and answer 400 `channelMembershipsNotEnabled` for a channel without memberships. `members.list` also
+  says access must be requested from a Google or YouTube representative, so it ships with graceful degradation.
+- `reports.query` (`youtubeanalytics.googleapis.com/v2/reports`) needs `youtube.readonly` plus an analytics
+  scope; revenue metrics need `yt-analytics-monetary.readonly`.
+- `videos.insert` accepts the `youtube` scope, so `youtube.upload` adds nothing. The Data API has no method
+  that makes a clip of a live stream.
+- `youtubepartner` is for content owners (networks, labels). No streamer feature uses it.
+
+Decision proposed to the owner: remove `youtubepartner` and `youtube.upload` from the Google project, keep 5.
+
+- **S-YT-SCOPES** Two new YouTube scope sets, asked for on their own so nobody who is connected has to
+  reconnect: `youtube.members` (`youtube.channel-memberships.creator`) and `youtube.analytics`
+  (`yt-analytics-monetary.readonly`). The Integrations page names each in plain words and offers the grant.
+  Done-when: a test connects with the old scopes and sees both sets offered, not granted; a test with the new
+  scopes sees them granted.
+- **S-YT-MEMBERS** The YouTube channel members are the YouTube subscribers of the bot: the member count
+  (dashboard home, the labels widget, the template helper), the member list with level and member-since in
+  Community, and the member standing that member-only commands read. The levels come from
+  `membershipsLevels.list`. A channel without memberships, without the grant, or without Google's access
+  shows a plain reason, never an error. Done-when: tests cover the list (paged), the count, the standing of a
+  member and of a non-member, and each of the three refusals.
+- **S-YT-ANALYTICS** The Analytics page gets a YouTube part: views, watch time, subscribers gained and lost,
+  and estimated revenue, per day for the chosen range, from `reports.query`. A channel that is not monetised
+  shows the other numbers and says revenue is not available. Done-when: a test maps a real `resultTable`
+  answer (column headers plus rows) to the page's series; a test covers the missing grant and the empty answer.
+- **S-YT-CLIP-UPLOAD** A Twitch clip goes to the streamer's YouTube channel: the clip's download address
+  (`GetClipDownloadUrlsAsync`) is streamed into `videos.insert` with a title, a description and a privacy
+  choice (private by default). The upload has its own quota (100 a day), so the page shows what is left.
+  Done-when: a test streams a clip into the upload and the result holds the new video id; a test covers the
+  quota refusal.
+- **S-YT-VERIFY-FILM** The shooting script for Google's demo video: one shot per scope, each ending on the
+  YouTube tab, with the consent screen in English. Done-when: every shot was run on dev first, and the owner
+  has the script and the justification text.
+
 ## OWNER REQUEST 2026-11-10 — the admin section authors the platform's stream content
 
 Owner, verbatim: "i have created a new overlay widget but it does not actually finish the creation. the
