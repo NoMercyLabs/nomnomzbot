@@ -59,7 +59,29 @@
         "overview": "Overview",
         "streams": "Streams",
         "chat": "Chat",
+        "youtube": "YouTube",
         "recaps": "Recaps"
+      },
+      "youtube": {
+        "title": "Your YouTube channel",
+        "description": "Per day, newest first. The numbers come from YouTube and can be two days behind.",
+        "empty": "YouTube has no numbers for this range.",
+        "takeaway": "{views} views, {time} watched, {subscribers} subscribers net.",
+        "notMonetised": "YouTube gives no revenue for this channel. Revenue needs the YouTube Partner Program.",
+        "noRevenue": "None",
+        "columns": {
+          "day": "Day",
+          "views": "Views",
+          "watched": "Watch time",
+          "gained": "Subscribers gained",
+          "lost": "Subscribers lost",
+          "revenue": "Estimated revenue"
+        },
+        "blocked": {
+          "not_connected": "This channel is not connected to YouTube. Connect it to see its numbers here.",
+          "not_allowed": "The bot may not read your YouTube analytics yet. Open Details on the YouTube row and allow \"See your YouTube analytics\".",
+          "open": "Open connected services"
+        }
       },
       "recaps": {
         "title": "Stream recaps",

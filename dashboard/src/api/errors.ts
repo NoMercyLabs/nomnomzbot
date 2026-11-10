@@ -158,6 +158,7 @@ export const apiOperations = {
   'analytics daily': 'analytics',
   'analytics chat hours': 'analytics',
   'analytics streams': 'analytics',
+  'analytics youtube': 'analytics',
   'chat emotes': 'chat',
   'chat search': 'chat',
   'chat thread': 'chat',

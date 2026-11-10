@@ -63,7 +63,13 @@ public sealed class AnalyticsControllerSelfOrGate2Tests
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(Caller.ToString());
 
-        AnalyticsController controller = new(channelAnalytics, viewerAnalytics, gate2, currentUser);
+        AnalyticsController controller = new(
+            channelAnalytics,
+            viewerAnalytics,
+            Substitute.For<IYouTubeAnalyticsService>(),
+            gate2,
+            currentUser
+        );
         return new(controller, viewerAnalytics, gate2);
     }
 

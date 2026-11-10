@@ -6493,6 +6493,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/analytics/youtube/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the channel's own YouTube numbers per day: views, watch time, subscribers gained and lost, and
+         *     estimated revenue. Needs the YouTube analytics permission; the revenue is null for a channel that is
+         *     not in the YouTube Partner Program.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfYouTubeAnalytics"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/analytics/channel/chat-hours": {
         parameters: {
             query?: never;
@@ -104989,6 +105089,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfYouTubeAnalytics: {
+            status?: string;
+            data?: null | components["schemas"]["YouTubeAnalytics"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         /**
          * @description One stream's per-stream aggregates — the "stream by stream, not all-time" analytics view. Counts are
          *     window-folded from the raw activity between DateTimeOffset? StreamAnalyticsDto.StartedAt and DateTimeOffset? StreamAnalyticsDto.EndedAt (or now,
@@ -108108,6 +108221,30 @@ export interface components {
             compiledAt?: null | string;
             /** Format: date-time */
             createdAt: string;
+        };
+        /**
+         * @description The channel's YouTube activity per day, and whether YouTube reports revenue for it.
+         *     Access is one of YouTubeAnalyticsAccess.
+         */
+        YouTubeAnalytics: {
+            access: string;
+            days: components["schemas"]["YouTubeAnalyticsDay"][];
+            revenueAvailable: boolean;
+        };
+        /** @description One day of the channel's YouTube activity. The revenue is null when YouTube gives none. */
+        YouTubeAnalyticsDay: {
+            /** Format: date */
+            day: string;
+            /** Format: int64 */
+            views: number | string;
+            /** Format: int64 */
+            minutesWatched: number | string;
+            /** Format: int64 */
+            subscribersGained: number | string;
+            /** Format: int64 */
+            subscribersLost: number | string;
+            /** Format: double */
+            estimatedRevenue?: null | number | string;
         };
     };
     responses: never;

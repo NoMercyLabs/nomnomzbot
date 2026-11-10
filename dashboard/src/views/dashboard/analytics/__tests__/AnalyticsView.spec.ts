@@ -120,8 +120,35 @@ const streams = [
   stream('s3', '2026-08-01T18:00:00Z', 3600, 'Just Chatting'),
 ];
 
+const youtubeDay = (
+  date: string,
+  views: number,
+  minutesWatched: number,
+  subscribersGained: number,
+  subscribersLost: number,
+  estimatedRevenue: number | null,
+) => ({
+  day: date,
+  views,
+  minutesWatched,
+  subscribersGained,
+  subscribersLost,
+  estimatedRevenue,
+}) as const satisfies Record<string, unknown>;
+
+const youtube = {
+  answer: {
+    access: 'not_connected',
+    revenueAvailable: false,
+    days: [] as ReturnType<typeof youtubeDay>[],
+  },
+};
+
 function answer(path: string, options: Options | undefined): unknown {
   calls.push({ path, query: options?.params?.query });
+
+  if (path.endsWith('/analytics/youtube/daily'))
+    return { data: { data: onTheWire(youtube.answer) }, response: { ok: true, status: 200 } };
 
   if (path.endsWith('/analytics/channel/summary'))
     return { data: { data: onTheWire(summary) }, response: { ok: true, status: 200 } };
@@ -207,11 +234,18 @@ const settle = async (): Promise<void> => {
 async function open(to = '/app/analytics'): Promise<void> {
   const router: Router = createRouter({
     history: createMemoryHistory(),
-    routes: [{
-      path: '/app/analytics',
-      name: 'dashboard-analytics',
-      component: { template: '<div />' },
-    }],
+    routes: [
+      {
+        path: '/app/analytics',
+        name: 'dashboard-analytics',
+        component: { template: '<div />' },
+      },
+      {
+        path: '/app/settings/integrations',
+        name: 'dashboard-settings-integrations',
+        component: { template: '<div />' },
+      },
+    ],
   });
 
   await router.push(to);
@@ -337,6 +371,78 @@ describe('the Streams tab', () => {
     // Twitch sent no peak for this stream, so the cell says so instead of showing 0.
     expect(rows[1]).toContain('Not known');
   });
+});
+
+// Stoney 2026-11-10: "we need analytics and all those features we have from twitch to match".
+describe('the YouTube tab', () => {
+  it('lists the channel\'s YouTube days, newest first, with the totals and the revenue', async () => {
+    youtube.answer = {
+      access: 'allowed',
+      revenueAvailable: true,
+      days: [
+        youtubeDay('2026-10-01', 120, 340, 5, 1, 2.75),
+        youtubeDay('2026-10-10', 80, 150, 2, 0, 1.1),
+      ],
+    };
+
+    await open('/app/analytics?view=youtube');
+
+    expect(asked('/analytics/youtube/daily').map((call) => call.query)).toEqual([
+      { from: '2026-09-15', to: '2026-10-14' },
+    ]);
+
+    const panel = document.body.querySelector('[data-analytics-youtube]')?.textContent ?? '';
+
+    expect(panel).toContain('200 views, 8 hr 10 min watched, 6 subscribers net.');
+    expect(panel).toContain('Estimated revenue');
+    expect(document.body.querySelector('[data-youtube-no-revenue]')).toBeNull();
+
+    const rows = textOf('[data-youtube-day]');
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('Sat, Oct 10');
+    expect(rows[0]).toContain('2 hr 30 min');
+    expect(rows[0]).toContain('1.10');
+    expect(rows[1]).toContain('Thu, Oct 1');
+    expect(rows[1]).toContain('2.75');
+  });
+
+  it('says revenue is not available and hides its column for a channel YouTube gives no revenue', async () => {
+    youtube.answer = {
+      access: 'allowed',
+      revenueAvailable: false,
+      days: [youtubeDay('2026-10-10', 80, 150, 2, 0, null)],
+    };
+
+    await open('/app/analytics?view=youtube');
+
+    const panel = document.body.querySelector('[data-analytics-youtube]')?.textContent ?? '';
+
+    expect(panel).toContain(en.dashboard.analytics.youtube.notMonetised);
+    expect(panel).not.toContain('Estimated revenue');
+  });
+
+  it.each(['not_connected', 'not_allowed'] as const)(
+    'gives the reason and the way to the connected services when access is %s',
+    async (access) => {
+      youtube.answer = {
+        access,
+        revenueAvailable: false,
+        days: [],
+      };
+
+      await open('/app/analytics?view=youtube');
+
+      const blocked = document.body.querySelector('[data-youtube-blocked]');
+
+      expect(blocked?.textContent).toContain(en.dashboard.analytics.youtube.blocked[access]);
+
+      expect(blocked?.querySelector('a')?.textContent?.trim())
+        .toBe(en.dashboard.analytics.youtube.blocked.open);
+
+      expect(document.body.querySelector('[data-youtube-day]')).toBeNull();
+    },
+  );
 });
 
 describe('the Chat tab', () => {

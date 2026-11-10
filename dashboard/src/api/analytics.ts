@@ -22,6 +22,8 @@ export type AnalyticsDay = components['schemas']['ChannelAnalyticsDaily'];
 export type StreamRow = components['schemas']['StreamListItem'];
 export type ChatHours = components['schemas']['ChannelChatHours'];
 export type ChatHourCell = components['schemas']['ChatHourCell'];
+export type YouTubeAnalytics = components['schemas']['YouTubeAnalytics'];
+export type YouTubeDay = components['schemas']['YouTubeAnalyticsDay'];
 
 // The ranges the page offers, as the number of days back from today.
 export const ANALYTICS_RANGES = {
@@ -160,6 +162,26 @@ export function useAnalyticsDays(
   range: MaybeRefOrGetter<AnalyticsRange>,
 ): UseQueryReturnType<AnalyticsDay[], Error> {
   return rangeQuery(channelId, range, 'daily', readDays);
+}
+
+async function readYouTube(channelId: string, dates: RangeDates): Promise<YouTubeAnalytics | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/analytics/youtube/daily',
+    { params: { path: { version, channelId }, query: dates } },
+  );
+
+  if (error !== undefined)
+    throw failed('analytics youtube', response.status, error);
+
+  return data?.data ?? null;
+}
+
+// The channel's own YouTube numbers per day. `access` says why there are none: not connected, or not allowed yet.
+export function useYouTubeAnalytics(
+  channelId: MaybeRefOrGetter<string | null>,
+  range: MaybeRefOrGetter<AnalyticsRange>,
+): UseQueryReturnType<YouTubeAnalytics | null, Error> {
+  return rangeQuery(channelId, range, 'youtube', readYouTube);
 }
 
 export function useStreamsInRange(

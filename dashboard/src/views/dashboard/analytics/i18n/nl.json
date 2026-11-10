@@ -59,7 +59,29 @@
         "overview": "Overzicht",
         "streams": "Streams",
         "chat": "Chat",
+        "youtube": "YouTube",
         "recaps": "Terugblikken"
+      },
+      "youtube": {
+        "title": "Je YouTube-kanaal",
+        "description": "Per dag, nieuwste eerst. De cijfers komen van YouTube en kunnen twee dagen achterlopen.",
+        "empty": "YouTube heeft geen cijfers voor deze periode.",
+        "takeaway": "{views} weergaven, {time} gekeken, {subscribers} abonnees netto.",
+        "notMonetised": "YouTube geeft geen inkomsten voor dit kanaal. Inkomsten vragen om het YouTube-partnerprogramma.",
+        "noRevenue": "Geen",
+        "columns": {
+          "day": "Dag",
+          "views": "Weergaven",
+          "watched": "Kijktijd",
+          "gained": "Abonnees erbij",
+          "lost": "Abonnees eraf",
+          "revenue": "Geschatte inkomsten"
+        },
+        "blocked": {
+          "not_connected": "Dit kanaal is niet met YouTube verbonden. Verbind het om de cijfers hier te zien.",
+          "not_allowed": "De bot mag je YouTube-statistieken nog niet lezen. Open Details bij YouTube en sta \"Je YouTube-statistieken zien\" toe.",
+          "open": "Verbonden diensten openen"
+        }
       },
       "recaps": {
         "title": "Terugblikken op streams",

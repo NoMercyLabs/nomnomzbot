@@ -28,11 +28,12 @@ import AnalyticsChat from './AnalyticsChat.vue';
 import AnalyticsOverview from './AnalyticsOverview.vue';
 import AnalyticsRecaps from './AnalyticsRecaps.vue';
 import AnalyticsStreams from './AnalyticsStreams.vue';
+import AnalyticsYouTube from './AnalyticsYouTube.vue';
 
 const { t } = useI18n();
 const { can } = useCan();
 
-const VIEWS = ['overview', 'streams', 'chat', 'recaps'] as const satisfies readonly string[];
+const VIEWS = ['overview', 'streams', 'chat', 'youtube', 'recaps'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
 const views = computed<PageTab[]>(() =>
   VIEWS.map((value) => ({ value, label: t(`dashboard.analytics.views.${value}`) })));
@@ -66,6 +67,7 @@ const rangeOptions = computed(() =>
   <template v-if="can('analytics:read')">
     <AnalyticsStreams v-if="view === 'streams'" :range="range" />
     <AnalyticsChat v-else-if="view === 'chat'" :range="range" />
+    <AnalyticsYouTube v-else-if="view === 'youtube'" :range="range" />
     <AnalyticsRecaps v-else-if="view === 'recaps'" />
     <AnalyticsOverview v-else :range="range" />
   </template>

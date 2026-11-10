@@ -34,6 +34,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class AnalyticsController(
     IChannelAnalyticsService channelAnalytics,
     IViewerAnalyticsService viewerAnalytics,
+    IYouTubeAnalyticsService youTubeAnalytics,
     IActionAuthorizationService authorization,
     ICurrentUserService currentUser
 ) : BaseController
@@ -76,6 +77,21 @@ public class AnalyticsController(
         [FromQuery] DateOnly to,
         CancellationToken ct
     ) => ResultResponse(await channelAnalytics.GetPlatformSummaryAsync(channelId, from, to, ct));
+
+    /// <summary>
+    /// Read the channel's own YouTube numbers per day: views, watch time, subscribers gained and lost, and
+    /// estimated revenue. Needs the YouTube analytics permission; the revenue is null for a channel that is
+    /// not in the YouTube Partner Program.
+    /// </summary>
+    [HttpGet("youtube/daily")]
+    [RequireAction("analytics:read")]
+    [ProducesResponseType<StatusResponseDto<YouTubeAnalyticsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetYouTubeDaily(
+        Guid channelId,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct
+    ) => ResultResponse(await youTubeAnalytics.GetDailyAsync(channelId, from, to, ct));
 
     /// <summary>Read when the channel's chat is busy: weekday x hour message cells for a date range.</summary>
     [HttpGet("channel/chat-hours")]
