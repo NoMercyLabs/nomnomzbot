@@ -332,6 +332,26 @@ describe('Integrations page', () => {
     vi.unstubAllGlobals();
   });
 
+  // Stoney 2026-11-10: "and the server is not asking for more youtube permissions". Reconnect asked for the
+  // two base permissions only, and the extra ones sat behind Details.
+  it('asks for the base and every extra YouTube permission when a connected channel reconnects', async () => {
+    vi.stubGlobal('location', {
+      ...window.location,
+      href: 'http://app/settings',
+      assign: vi.fn<(url: string) => void>(),
+    });
+
+    vi.stubGlobal('open', vi.fn<typeof window.open>().mockReturnValue(null));
+
+    await open();
+    await click(action('youtube', 'connect'));
+
+    const [, init] = http.POST.mock.calls[0] as [string, Call['init']];
+
+    expect(init.body).toMatchObject({ scopeSetKey: 'youtube.manage+youtube.members+youtube.analytics' });
+    vi.unstubAllGlobals();
+  });
+
   it('offers no extra permission on a service that is not connected', async () => {
     await open();
 

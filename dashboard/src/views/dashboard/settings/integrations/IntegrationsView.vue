@@ -22,6 +22,7 @@ import { useConnections, type IntegrationStatus } from '@/api/home';
 import {
   connectScopeSets,
   extraScopeSets,
+  reconnectScopeSet,
   useConnectProvider,
   useDisconnectBlastRadius,
   useDisconnectIntegration,
@@ -181,7 +182,9 @@ async function open(row: ChannelIntegration, scopeSetKey?: string): Promise<void
     const url = row.id in connectScopeSets
       ? await connect.mutateAsync({
           provider: row.id,
-          scopeSetKey,
+          scopeSetKey: scopeSetKey ?? (row.connected
+            ? reconnectScopeSet(row.id)
+            : undefined),
           shopDomain: needsShop(row)
             ? shopDomain.value.trim()
             : undefined,

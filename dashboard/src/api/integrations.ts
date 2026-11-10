@@ -152,6 +152,17 @@ export const extraScopeSets: Record<string, readonly string[]> = {
   youtube: ['youtube.members', 'youtube.analytics'],
 };
 
+// A reconnect is a new consent page, so it asks for the base set and every extra one in one go.
+// The streamer can still untick one on the service's own page.
+export function reconnectScopeSet(provider: string): string | undefined {
+  const base = (connectScopeSets as Record<string, string>)[provider];
+
+  if (!base)
+    return undefined;
+
+  return [base, ...(extraScopeSets[provider] ?? [])].join('+');
+}
+
 export interface ConnectRequest {
   provider: string;
   shopDomain?: string;
