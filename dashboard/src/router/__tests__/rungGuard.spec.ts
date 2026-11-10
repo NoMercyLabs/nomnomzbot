@@ -188,6 +188,29 @@ describe('the shell follows the keys held in the named channel', () => {
     expect(router.currentRoute.value.query.id).toBe('777');
   });
 
+  it.each([true, false])(
+    'keeps the operator page of a moderated channel not entered yet (on the bot: %s)',
+    async (onBot) => {
+      queryClient.setQueryData(['channels', 'moderated'], [
+        {
+          id: '777',
+          login: 'x',
+          displayName: 'X',
+          isOnboarded: onBot,
+        },
+      ]);
+
+      directoryHas([listed('c2', 'x', onBot)]);
+      queryClient.setQueryData(channelAccessKey('c2'), holding([]));
+      const router = makeRouter();
+
+      await router.push('/app/u/x/commands');
+
+      expect(router.currentRoute.value.name).toBe('u:dashboard-commands');
+      expect(router.currentRoute.value.params.channelName).toBe('x');
+    },
+  );
+
   it('reads a channel of the person from their own list, with no directory call', async () => {
     queryClient.setQueryData(channelAccessKey('c1'), holding(['dashboard:read']));
     const router = makeRouter();

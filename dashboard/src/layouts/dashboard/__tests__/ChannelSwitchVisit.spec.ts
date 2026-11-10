@@ -85,6 +85,11 @@ function buildRouter() {
         component: page,
       },
       {
+        path: '/me/:channel/chat',
+        name: 'viewer-chat',
+        component: page,
+      },
+      {
         path: '/me/:channel/twitch',
         name: 'viewer-external-chat',
         component: page,
@@ -131,13 +136,13 @@ describe('the channel switch Visit a channel group on a page that is not chat', 
     wrapper.unmount();
   });
 
-  it('opens an on-bot channel at its viewer home /me/<login>', async () => {
+  it('opens an on-bot channel at its chat /me/<login>/chat', async () => {
     const { router, wrapper } = await openSwitch();
 
     document.body.querySelector<HTMLElement>('[data-slot="directory-channel"]')?.click();
     await flushPromises();
 
-    expect(router.currentRoute.value.fullPath).toBe('/me/kitte');
+    expect(router.currentRoute.value.fullPath).toBe('/me/kitte/chat');
 
     wrapper.unmount();
   });

@@ -22,8 +22,6 @@ import { initials } from '@/lib/text';
 
 import { useChannelSearch } from './useChannelSearch';
 
-const { target = 'chat' } = defineProps<{ target?: 'chat' | 'home' }>();
-
 const emit = defineEmits<{ picked: [] }>();
 
 const { t } = useI18n();
@@ -64,11 +62,9 @@ async function open(row: RecentChannel): Promise<void> {
     return;
   }
 
-  // The home target opens the channel as its visitor; the route guard forwards a managed channel to its operator shell.
+  // A channel the person does not manage opens at its chat: everyone can reach every chat as a viewer.
   await router.push({
-    name: target === 'home'
-      ? 'viewer-me'
-      : 'viewer-chat',
+    name: 'viewer-chat',
     params: { channel: row.login },
   });
 }

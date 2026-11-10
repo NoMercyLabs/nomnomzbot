@@ -193,7 +193,7 @@ async function pick(row: ChannelChoice): Promise<void> {
               </span>
             </CommandItem>
           </CommandGroup>
-          <ViewerChannelGroups :target="viewerChat ? 'chat' : 'home'" @picked="open = false" />
+          <ViewerChannelGroups @picked="open = false" />
         </CommandList>
       </Command>
     </ResponsivePopoverContent>

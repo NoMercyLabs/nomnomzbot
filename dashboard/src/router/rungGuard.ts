@@ -18,29 +18,32 @@ import {
   myChannelsQuery,
 } from '@/api/channels';
 import { ensureQuery } from '@/api/queryClient';
-import { channelChoices } from '@/composables/useCurrentChannel';
+import { channelChoices, type ChannelChoice } from '@/composables/useCurrentChannel';
 import { heldManagementPage } from '@/layouts/dashboard/heldManagementPage';
 
 import { channelParam } from './channelRoutes';
 
 type Named = { channelId: string; onBot: boolean };
 
-async function ownChannelId(login: string): Promise<string | null> {
+async function managedChoice(login: string): Promise<ChannelChoice | undefined> {
   const [mine, moderated] = await Promise.all([
     ensureQuery(myChannelsQuery),
     ensureQuery(moderatedChannelsQuery),
   ]);
 
-  return channelChoices(mine, moderated).find((row) => row.login.toLowerCase() === login)
-    ?.channelId ?? null;
+  return channelChoices(mine, moderated).find((row) => row.login.toLowerCase() === login);
 }
 
 // Any channel by its login: the person's own and moderated lists first, then the public directory.
+// A moderated channel not entered yet stays on the operator page, which enters it (useRouteChannel).
 async function resolveChannel(login: string): Promise<Named | null> {
-  const own = await ownChannelId(login);
+  const managed = await managedChoice(login);
 
-  if (own !== null)
-    return { channelId: own, onBot: true };
+  if (managed?.channelId === null)
+    return null;
+
+  if (managed !== undefined)
+    return { channelId: managed.channelId, onBot: true };
 
   const rows = await ensureQuery(channelDirectoryOptions(login));
   const found = rows.find((row) => row.login.toLowerCase() === login);
