@@ -54,7 +54,9 @@ public sealed class ChannelsControllerOnboardTests
             Substitute.For<IChannelDeletePreviewService>(),
             Substitute.For<ICurrentUserService>(),
             Substitute.For<IViewAsScope>(),
-            Substitute.For<IModeratorChatReaders>()
+            Substitute.For<IModeratorChatReaders>(),
+            Substitute.For<ITwitchUsersApi>(),
+            Substitute.For<ITwitchStreamsApi>()
         )
         {
             ControllerContext = new()

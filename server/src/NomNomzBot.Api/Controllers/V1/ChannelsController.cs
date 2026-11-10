@@ -46,6 +46,8 @@ public class ChannelsController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IViewAsScope _viewAs;
     private readonly IModeratorChatReaders _moderatorChat;
+    private readonly ITwitchUsersApi _twitchUsers;
+    private readonly ITwitchStreamsApi _twitchStreams;
 
     public ChannelsController(
         IChannelService channelService,
@@ -57,10 +59,14 @@ public class ChannelsController : BaseController
         IChannelDeletePreviewService deletePreview,
         ICurrentUserService currentUser,
         IViewAsScope viewAs,
-        IModeratorChatReaders moderatorChat
+        IModeratorChatReaders moderatorChat,
+        ITwitchUsersApi twitchUsers,
+        ITwitchStreamsApi twitchStreams
     )
     {
         _moderatorChat = moderatorChat;
+        _twitchUsers = twitchUsers;
+        _twitchStreams = twitchStreams;
         _channelService = channelService;
         _db = db;
         _moderators = moderators;
@@ -289,24 +295,80 @@ public class ChannelsController : BaseController
             .Select(c => c.TwitchChannelId!)
             .ToHashSetAsync(ct);
 
+        Dictionary<string, string> pictures = await TwitchPicturesAsync(allIds, ct);
+        HashSet<string>? liveIds = await TwitchLiveIdsAsync(allIds, ct);
+
         List<ModeratedChannelDto> dtos =
         [
             .. moderated.Select(m => new ModeratedChannelDto(
                 m.BroadcasterId,
                 m.BroadcasterLogin,
                 m.BroadcasterName,
-                onboardedIds.Contains(m.BroadcasterId)
+                onboardedIds.Contains(m.BroadcasterId),
+                pictures.GetValueOrDefault(m.BroadcasterId),
+                liveIds?.Contains(m.BroadcasterId)
             )),
         ];
 
         return Ok(new StatusResponseDto<List<ModeratedChannelDto>> { Data = dtos });
     }
 
+    // The Twitch profile picture of each channel; a channel Twitch gives no record for has none.
+    private async Task<Dictionary<string, string>> TwitchPicturesAsync(
+        List<string> twitchIds,
+        CancellationToken ct
+    )
+    {
+        if (twitchIds.Count == 0)
+            return [];
+
+        Result<IReadOnlyList<TwitchUser>> users = await _twitchUsers.GetUsersByIdsAsync(
+            twitchIds,
+            ct
+        );
+
+        return users.IsSuccess
+            ? users
+                .Value.Where(user => !string.IsNullOrEmpty(user.ProfileImageUrl))
+                .ToDictionary(user => user.Id, user => user.ProfileImageUrl)
+            : [];
+    }
+
+    // The channels that are live now. Null when Twitch did not answer, so the list shows no live state
+    // instead of a false "offline".
+    private async Task<HashSet<string>?> TwitchLiveIdsAsync(
+        List<string> twitchIds,
+        CancellationToken ct
+    )
+    {
+        if (twitchIds.Count == 0)
+            return [];
+
+        Result<TwitchPage<TwitchStream>> streams = await _twitchStreams.GetStreamsAsync(
+            new(UserIds: twitchIds),
+            new(),
+            ct
+        );
+
+        return streams.IsSuccess
+            ? streams.Value.Items.Select(stream => stream.UserId).ToHashSet()
+            : null;
+    }
+
+    /// <summary>One Twitch channel the caller moderates.</summary>
+    /// <param name="Id">The Twitch channel id.</param>
+    /// <param name="Login">The Twitch login.</param>
+    /// <param name="DisplayName">The Twitch display name.</param>
+    /// <param name="IsOnboarded">True when the channel has set up this bot.</param>
+    /// <param name="ProfileImageUrl">The Twitch profile picture, or null when Twitch gave none.</param>
+    /// <param name="IsLive">True when the channel streams now; null when Twitch did not answer.</param>
     public record ModeratedChannelDto(
         string Id,
         string Login,
         string DisplayName,
-        bool IsOnboarded
+        bool IsOnboarded,
+        string? ProfileImageUrl,
+        bool? IsLive
     );
 
     /// <summary>

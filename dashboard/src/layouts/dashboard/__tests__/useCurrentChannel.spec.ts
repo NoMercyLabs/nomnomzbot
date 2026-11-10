@@ -55,6 +55,8 @@ vi.mock('@/api/channels', () => ({
         login: 'newplace',
         displayName: 'NewPlace',
         isOnboarded: false,
+        profileImageUrl: 'https://cdn.example/newplace.png',
+        isLive: true,
       },
     ]),
   }),
@@ -86,6 +88,15 @@ describe('the channel being managed', () => {
       ['friend', 'moderated', 'mod-id'],
       ['newplace', 'moderated', null],
     ]);
+  });
+
+  it('shows the Twitch picture and live state of a moderated channel that is not set up', () => {
+    const newPlace = useCurrentChannel().channels.value.find((row) => row.login === 'newplace');
+
+    expect(newPlace).toMatchObject({
+      profileImageUrl: 'https://cdn.example/newplace.png',
+      isLive: true,
+    });
   });
 
   it('writes the chosen channel to nnz.channel and makes it the current one', async () => {

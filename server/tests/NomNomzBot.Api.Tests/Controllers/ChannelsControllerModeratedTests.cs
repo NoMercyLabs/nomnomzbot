@@ -112,6 +112,132 @@ public sealed class ChannelsControllerModeratedTests
     }
 
     [Fact]
+    public async Task GetModeratedChannels_carries_the_twitch_picture_and_live_state_of_each_channel()
+    {
+        (
+            ChannelsController controller,
+            ITwitchModeratorsApi moderators,
+            IChannelAccessService access,
+            _
+        ) = Build();
+        ModeratesTwoChannels(moderators, access);
+        _users
+            .GetUsersByIdsAsync(
+                Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "999", "888" })),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    TwitchUserWithPicture("999", "https://cdn.example/999.png"),
+                ])
+            );
+        _streams
+            .GetStreamsAsync(
+                Arg.Is<TwitchStreamsFilter>(filter =>
+                    filter.UserIds!.SequenceEqual(new[] { "999", "888" })
+                ),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchStream>([LiveStream("888")], NextCursor: null, Total: 1)
+                )
+            );
+
+        List<ChannelsController.ModeratedChannelDto> rows = await ModeratedRows(controller);
+
+        rows.Single(row => row.Id == "999")
+            .Should()
+            .BeEquivalentTo(
+                new { ProfileImageUrl = "https://cdn.example/999.png", IsLive = (bool?)false }
+            );
+        // Twitch gave no user record for 888: no picture, and the live state still stands.
+        rows.Single(row => row.Id == "888")
+            .Should()
+            .BeEquivalentTo(new { ProfileImageUrl = (string?)null, IsLive = (bool?)true });
+    }
+
+    [Fact]
+    public async Task GetModeratedChannels_reports_an_unknown_live_state_when_twitch_does_not_answer()
+    {
+        (
+            ChannelsController controller,
+            ITwitchModeratorsApi moderators,
+            IChannelAccessService access,
+            _
+        ) = Build();
+        ModeratesTwoChannels(moderators, access);
+
+        List<ChannelsController.ModeratedChannelDto> rows = await ModeratedRows(controller);
+
+        rows.Should().HaveCount(2);
+        rows.Should().OnlyContain(row => row.ProfileImageUrl == null && row.IsLive == null);
+    }
+
+    private static void ModeratesTwoChannels(
+        ITwitchModeratorsApi moderators,
+        IChannelAccessService access
+    )
+    {
+        access
+            .ResolveOwnChannelAsync(Caller.ToString(), Arg.Any<CancellationToken>())
+            .Returns(OwnChannel);
+        moderators
+            .GetModeratedChannelsAsync(
+                OwnChannel,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModeratedChannel>(
+                        [
+                            new("999", "coolstreamer", "CoolStreamer"),
+                            new("888", "otherstreamer", "OtherStreamer"),
+                        ],
+                        NextCursor: null,
+                        Total: 2
+                    )
+                )
+            );
+    }
+
+    private static async Task<List<ChannelsController.ModeratedChannelDto>> ModeratedRows(
+        ChannelsController controller
+    )
+    {
+        IActionResult result = await controller.GetModeratedChannels(default);
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+
+        return ok
+            .Value.Should()
+            .BeOfType<StatusResponseDto<List<ChannelsController.ModeratedChannelDto>>>()
+            .Subject.Data!;
+    }
+
+    private static TwitchUser TwitchUserWithPicture(string id, string picture) =>
+        new(id, "login" + id, "Name" + id, "", "", "", picture, "", 0, DateTimeOffset.UnixEpoch);
+
+    private static TwitchStream LiveStream(string userId) =>
+        new(
+            "stream" + userId,
+            userId,
+            "login" + userId,
+            "Name" + userId,
+            "",
+            "",
+            "live",
+            "",
+            [],
+            0,
+            DateTimeOffset.UnixEpoch,
+            "en",
+            "",
+            false
+        );
+
+    [Fact]
     public async Task GetModeratedChannels_starts_the_callers_moderator_chat_readers()
     {
         (ChannelsController controller, _, IChannelAccessService access, _) = Build();
@@ -153,6 +279,9 @@ public sealed class ChannelsControllerModeratedTests
     private readonly Application.Chat.Services.IModeratorChatReaders _moderatorChat =
         Substitute.For<Application.Chat.Services.IModeratorChatReaders>();
 
+    private readonly ITwitchUsersApi _users = Substitute.For<ITwitchUsersApi>();
+    private readonly ITwitchStreamsApi _streams = Substitute.For<ITwitchStreamsApi>();
+
     private (
         ChannelsController Controller,
         ITwitchModeratorsApi Moderators,
@@ -164,6 +293,17 @@ public sealed class ChannelsControllerModeratedTests
         ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
         IChannelAccessService access = Substitute.For<IChannelAccessService>();
         ApiTestDbContext db = ApiTestDbContext.New();
+        // Until a test says otherwise, Twitch does not answer the picture and live-state lookups.
+        _users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("twitch is down"));
+        _streams
+            .GetStreamsAsync(
+                Arg.Any<TwitchStreamsFilter>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchPage<TwitchStream>>("twitch is down"));
 
         ChannelsController controller = new(
             service,
@@ -175,7 +315,9 @@ public sealed class ChannelsControllerModeratedTests
             Substitute.For<IChannelDeletePreviewService>(),
             Substitute.For<ICurrentUserService>(),
             Substitute.For<IViewAsScope>(),
-            _moderatorChat
+            _moderatorChat,
+            _users,
+            _streams
         )
         {
             ControllerContext = new()

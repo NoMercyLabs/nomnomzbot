@@ -124109,18 +124109,37 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "The Twitch channel id."
           },
           "login": {
-            "type": "string"
+            "type": "string",
+            "description": "The Twitch login."
           },
           "displayName": {
-            "type": "string"
+            "type": "string",
+            "description": "The Twitch display name."
           },
           "isOnboarded": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "True when the channel has set up this bot."
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The Twitch profile picture, or null when Twitch gave none."
+          },
+          "isLive": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "True when the channel streams now; null when Twitch did not answer."
           }
-        }
+        },
+        "description": "One Twitch channel the caller moderates."
       },
       "ModerationActionLog": {
         "required": [

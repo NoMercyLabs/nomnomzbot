@@ -93,7 +93,9 @@ public sealed class ChannelsControllerDeletedListTests
             Substitute.For<IChannelDeletePreviewService>(),
             Substitute.For<ICurrentUserService>(),
             Substitute.For<IViewAsScope>(),
-            Substitute.For<Application.Chat.Services.IModeratorChatReaders>()
+            Substitute.For<Application.Chat.Services.IModeratorChatReaders>(),
+            Substitute.For<ITwitchUsersApi>(),
+            Substitute.For<ITwitchStreamsApi>()
         )
         {
             ControllerContext = new()

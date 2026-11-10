@@ -29,7 +29,7 @@ export type ChannelChoice = {
   login: string;
   displayName: string;
   profileImageUrl: string | null;
-  // Null when the bot has no live state for the channel (a Twitch channel the person moderates, not set up here yet).
+  // Null when Twitch gave no live state for a channel the person moderates that is not set up here.
   isLive: boolean | null;
   kind: 'own' | 'moderated';
   // Null until the channel is set up in this bot; choosing it sets it up in moderator mode first.
@@ -78,8 +78,8 @@ export function channelChoices(
     .map((row) => ({
       login: row.login,
       displayName: row.displayName,
-      profileImageUrl: null,
-      isLive: null,
+      profileImageUrl: row.profileImageUrl ?? null,
+      isLive: row.isLive ?? null,
       kind: 'moderated',
       channelId: null,
       twitchId: row.id,

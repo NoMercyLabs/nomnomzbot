@@ -159,7 +159,9 @@ public sealed class ChannelsControllerImpersonationTests
             Substitute.For<IChannelDeletePreviewService>(),
             currentUser,
             Substitute.For<IViewAsScope>(),
-            Substitute.For<IModeratorChatReaders>()
+            Substitute.For<IModeratorChatReaders>(),
+            Substitute.For<ITwitchUsersApi>(),
+            Substitute.For<ITwitchStreamsApi>()
         )
         {
             ControllerContext = new()

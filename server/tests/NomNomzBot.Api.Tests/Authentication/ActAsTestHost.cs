@@ -287,6 +287,8 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         // The outside world (Twitch's moderators API is registered by StartAsync, which keeps it for the tests).
         services.AddSingleton(eventBus);
         services.AddSingleton(Substitute.For<IChannelRegistry>());
+        services.AddSingleton(SilentTwitchUsers());
+        services.AddSingleton(SilentTwitchStreams());
         services.AddSingleton(Substitute.For<ITwitchEventSubService>());
         services.AddSingleton(Substitute.For<IModeratorChatReaders>());
         services.AddSingleton(Substitute.For<IChatProvider>());
@@ -307,5 +309,31 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddSingleton(Substitute.For<ITwitchDeviceCodeService>());
         services.AddSingleton(Substitute.For<IIntegrationTokenVault>());
         services.AddSingleton(Substitute.For<IPlatformOwnerPrincipalMinter>());
+    }
+
+    // Twitch does not answer the picture lookup of the moderated channel list in these tests.
+    private static ITwitchUsersApi SilentTwitchUsers()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("twitch is not reachable"));
+
+        return users;
+    }
+
+    // Twitch does not answer the live-state lookup of the moderated channel list in these tests.
+    private static ITwitchStreamsApi SilentTwitchStreams()
+    {
+        ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
+        streams
+            .GetStreamsAsync(
+                Arg.Any<TwitchStreamsFilter>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchPage<TwitchStream>>("twitch is not reachable"));
+
+        return streams;
     }
 }

@@ -95696,11 +95696,20 @@ export interface components {
             connectionStatus: string;
             scopes: components["schemas"]["MissingScope"][];
         };
+        /** @description One Twitch channel the caller moderates. */
         ModeratedChannel: {
+            /** @description The Twitch channel id. */
             id: string;
+            /** @description The Twitch login. */
             login: string;
+            /** @description The Twitch display name. */
             displayName: string;
+            /** @description True when the channel has set up this bot. */
             isOnboarded: boolean;
+            /** @description The Twitch profile picture, or null when Twitch gave none. */
+            profileImageUrl?: null | string;
+            /** @description True when the channel streams now; null when Twitch did not answer. */
+            isLive?: null | boolean;
         };
         ModerationActionLog: {
             id: string;
