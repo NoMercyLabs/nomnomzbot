@@ -1683,11 +1683,6 @@ Facts from the live Google docs, read 2026-11-10:
 
 Decision proposed to the owner: remove `youtubepartner` and `youtube.upload` from the Google project, keep 5.
 
-- **S-YT-CLIP-UPLOAD** A Twitch clip goes to the streamer's YouTube channel: the clip's download address
-  (`GetClipDownloadUrlsAsync`) is streamed into `videos.insert` with a title, a description and a privacy
-  choice (private by default). The upload has its own quota (100 a day), so the page shows what is left.
-  Done-when: a test streams a clip into the upload and the result holds the new video id; a test covers the
-  quota refusal.
 - **S-YT-VERIFY-FILM** The shooting script for Google's demo video: one shot per scope, each ending on the
   YouTube tab, with the consent screen in English. Done-when: every shot was run on dev first, and the owner
   has the script and the justification text.
