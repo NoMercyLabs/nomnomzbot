@@ -50,7 +50,11 @@ import {
 
 const props = defineProps<{ emotes: readonly ChatEmoteEntry[] }>();
 
-const emit = defineEmits<{ pick: [insert: string]; closed: [] }>();
+const emit = defineEmits<{
+  pick: [insert: string];
+  opened: [];
+  closed: [];
+}>();
 
 const { t } = useI18n();
 const open = ref(false);
@@ -67,6 +71,10 @@ async function fillEmoji(): Promise<void> {
 }
 
 watch(open, (isOpen) => {
+  if (isOpen) {
+    emit('opened');
+  }
+
   if (isOpen && emoji.value.length === 0) {
     void fillEmoji();
   }

@@ -92,6 +92,14 @@ const failed = ref(false);
 const emotes = props.viewer
   ? useViewerChatEmotes(emoteChannel)
   : useChatEmotes(emoteChannel);
+
+// An opened picker shows the emotes you have now: a channel you just subscribed to is in it.
+function readEmotesAgain(): void {
+  if (emotes.isStale.value) {
+    void emotes.refetch();
+  }
+}
+
 const list = useComposerSuggestions(
   text,
   caret,
@@ -449,6 +457,7 @@ async function submit(): Promise<void> {
           <EmotePicker
             :emotes="emotes.data.value ?? []"
             @pick="pickFromPicker"
+            @opened="readEmotesAgain"
             @closed="focusBox"
           />
         </div>

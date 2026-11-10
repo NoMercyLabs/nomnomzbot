@@ -204,17 +204,26 @@ async function readChatEmotes(id: string): Promise<ChatEmoteEntry[]> {
 
 const chatEmotesKey = (channelId: string | null): KeyParts => [...chatKey(channelId), 'emotes'];
 
+// Stoney 2026-11-10: he subscribed to a channel, Twitch showed the new emotes at once and our chat did not.
+// Your emotes change with every subscription. The list is old after half a minute, so a return to the tab or
+// an opened picker reads it again, and an open chat reads it every minute.
+export const emotesFresh = {
+  staleTime: 30_000,
+  refetchInterval: 60_000,
+} as const;
+
 export function chatEmotesOptions(
   id: string,
 ) {
   return {
     queryKey: chatEmotesKey(id),
     queryFn: () => readChatEmotes(id),
-    staleTime: 5 * 60_000,
+    ...emotesFresh,
   } as const satisfies {
     queryKey: KeyParts;
     queryFn: () => Promise<ChatEmoteEntry[]>;
     staleTime: number;
+    refetchInterval: number;
   };
 }
 
@@ -226,7 +235,7 @@ export function useChatEmotes(
     queryFn: () => readChatEmotes(toValue(channelId) as string),
     enabled: computed(() =>
       toValue(channelId) !== null),
-    staleTime: 5 * 60_000,
+    ...emotesFresh,
   });
 }
 
@@ -286,7 +295,7 @@ export function useViewerChatEmotes(
       readViewerChatEmotes(toValue(channelId) as string),
     enabled: computed(() =>
       toValue(channelId) !== null),
-    staleTime: 5 * 60_000,
+    ...emotesFresh,
   });
 }
 

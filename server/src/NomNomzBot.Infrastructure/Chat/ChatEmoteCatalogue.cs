@@ -36,9 +36,10 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     private static readonly TimeSpan TwitchGlobalTtl = TimeSpan.FromHours(6);
     private static readonly TimeSpan TwitchChannelTtl = TimeSpan.FromHours(1);
 
-    // The user's cross-channel emotes track subscription changes; a short TTL matching the channel set keeps them
-    // fresh without a per-request fetch.
-    private static readonly TimeSpan TwitchUserTtl = TwitchChannelTtl;
+    // The user's cross-channel emotes change with every subscription, and Twitch sends no event for it. They are
+    // kept only long enough that a burst of readers costs one Twitch read; the dashboard asks again when the
+    // picker opens, when its tab gets the focus and once a minute.
+    private static readonly TimeSpan TwitchUserTtl = TimeSpan.FromSeconds(30);
 
     // Get User Emotes is cursor-paged; cap the walk so a pathological account can never spin the catalogue. This is a
     // safety backstop, NOT an expected ceiling: a serious multi-channel subscriber genuinely reaches several thousand

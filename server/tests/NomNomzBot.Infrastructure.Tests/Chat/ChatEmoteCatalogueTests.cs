@@ -1116,9 +1116,52 @@ public sealed class ChatEmoteCatalogueTests
         owners.Should().NotContainKey("twitch");
     }
 
+    // Stoney, 2026-11-10: he subscribed to a channel, Twitch showed the new emotes at once and our chat did not.
+    // The operator's own emote list was kept for an hour. It changes with every subscription, so it is kept
+    // only long enough to stop a burst of readers from each asking Twitch.
+    [Fact]
+    public async Task The_operators_own_emotes_are_kept_for_half_a_minute_so_a_new_subscription_shows_up()
+    {
+        FakeCache cache = new();
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([Global("Kappa")]));
+        assets
+            .GetChannelEmotesAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+        assets
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [UserEmote("tempticCute", "404")],
+                        NextCursor: null,
+                        Total: 1
+                    )
+                )
+            );
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, Identity())
+            .GetForChannelAsync(Broadcaster, Operator);
+
+        result.Value.Should().Contain(e => e.Code == "tempticCute");
+        KeyValuePair<string, TimeSpan?> own = cache.Expiries.Single(e =>
+            e.Key.Contains($":twitch:user:{OperatorTwitchId}:", StringComparison.Ordinal)
+        );
+        own.Value.Should().Be(TimeSpan.FromSeconds(30));
+    }
+
     private sealed class FakeCache : ICacheService
     {
         private readonly Dictionary<string, object?> _store = new();
+
+        public Dictionary<string, TimeSpan?> Expiries { get; } = [];
 
         public Task<T?> GetAsync<T>(string key, CancellationToken ct = default) =>
             Task.FromResult(_store.TryGetValue(key, out object? value) ? (T?)value : default);
@@ -1131,6 +1174,7 @@ public sealed class ChatEmoteCatalogueTests
         )
         {
             _store[key] = value;
+            Expiries[key] = expiry;
             return Task.CompletedTask;
         }
 
