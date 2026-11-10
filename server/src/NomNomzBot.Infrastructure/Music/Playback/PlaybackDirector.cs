@@ -47,6 +47,7 @@ public sealed partial class PlaybackDirector : IDisposable
     private readonly Func<EngineSignal, Task> _onSignal;
     private readonly IOutboundSanctionAccessor? _sanctions;
     private readonly IHeldSpotifyStore? _heldSpotify;
+    private readonly IYouTubeOffSwitch? _youTubeOff;
 
     private readonly Dictionary<EngineKind, EngineReport> _reports = [];
     private readonly Dictionary<EngineKind, DateTimeOffset> _lastSent = [];
@@ -80,12 +81,14 @@ public sealed partial class PlaybackDirector : IDisposable
         TimeProvider time,
         IEventBus bus,
         IOutboundSanctionAccessor? sanctions = null,
-        IHeldSpotifyStore? heldSpotify = null
+        IHeldSpotifyStore? heldSpotify = null,
+        IYouTubeOffSwitch? youTubeOff = null
     )
     {
         _broadcasterId = broadcasterId;
         _sanctions = sanctions;
         _heldSpotify = heldSpotify;
+        _youTubeOff = youTubeOff;
         _engines = engines.ToDictionary(e => e.Kind);
         _queue = queue;
         _time = time;
@@ -143,6 +146,7 @@ public sealed partial class PlaybackDirector : IDisposable
         try
         {
             await RaiseDueDeadlinesAsync(ct);
+            await ApplyYouTubeOffSwitchAsync(ct);
             await ForgetFinishedHoldAsync(ct);
         }
         finally

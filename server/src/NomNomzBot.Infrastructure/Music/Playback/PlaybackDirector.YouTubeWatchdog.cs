@@ -92,19 +92,25 @@ public sealed partial class PlaybackDirector
         // Its last report still says playing; left in place it would pass for the owner's music.
         _reports.Remove(EngineKind.YouTube);
         await MoveAsync(State, ReportTimeoutInput, reason, State.Item?.Id);
+        await GiveMusicOnAfterVideoAsync(ReportTimeoutInput, ct);
+    }
+
+    /// <summary>The video is gone: a Spotify the director holds comes back first, then the queue goes on.</summary>
+    private async Task GiveMusicOnAfterVideoAsync(string inputName, CancellationToken ct)
+    {
         if (_spotifyHeldForYouTube)
         {
-            await ReturnToSpotifyAsync(ReportTimeoutInput, ct);
+            await ReturnToSpotifyAsync(inputName, ct);
             return;
         }
 
         if (_memory is not { WasPlaying: true } && _queue.Head is { } next)
         {
-            await BeginStartAsync(LinedUpOr(next), ReportTimeoutInput, "next_item", null, ct);
+            await BeginStartAsync(LinedUpOr(next), inputName, "next_item", null, ct);
             return;
         }
 
-        await EndOfQueueAsync(EngineKind.YouTube, ReportTimeoutInput, ct);
+        await EndOfQueueAsync(EngineKind.YouTube, inputName, ct);
     }
 
     /// <summary>The owner chose Spotify over the video the director holds it for: the hold ends here.</summary>

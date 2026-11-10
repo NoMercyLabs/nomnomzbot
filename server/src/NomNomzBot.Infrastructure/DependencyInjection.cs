@@ -411,6 +411,7 @@ public static class DependencyInjection
         // and the YouTube dispatcher (EngineLease), so no DbContext outlives a command.
         services.AddSingleton<IPlaybackEngineFactory, PlaybackEngineFactory>();
         services.AddSingleton<IHeldSpotifyStore, HeldSpotifyStore>();
+        services.AddSingleton<IYouTubeOffSwitch, YouTubeOffSwitch>();
         services.AddSingleton<PlaybackDirectorRegistry>();
         services.AddSingleton<IPlaybackInputSink>(sp =>
             sp.GetRequiredService<PlaybackDirectorRegistry>()

@@ -43,6 +43,21 @@ public class MusicConfigService : IMusicConfigService
         return Result.Success(config);
     }
 
+    public async Task<bool> IsYouTubeSwitchedOffAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Guid? tenantId = Guid.TryParse(broadcasterId, out Guid g) ? g : null;
+        ChannelConfiguration? entry = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == tenantId && c.Key == ConfigKey,
+            cancellationToken
+        );
+
+        return entry?.Value is { } saved
+            && JsonSerializer.Deserialize<SavedYouTubeChoice>(saved)?.AllowYouTube == false;
+    }
+
     public MusicConfigDto GetDefaults() => ToDto(new());
 
     public async Task<Result<MusicConfigDto>> UpdateConfigAsync(
@@ -181,6 +196,8 @@ public class MusicConfigService : IMusicConfigService
         );
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
+
+    private sealed record SavedYouTubeChoice(bool? AllowYouTube);
 
     private sealed class MusicConfigData
     {

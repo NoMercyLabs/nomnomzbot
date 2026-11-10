@@ -24,6 +24,14 @@ public interface IMusicConfigService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// True only when the channel's saved config holds AllowYouTube false; no saved value is not "off".
+    /// </summary>
+    Task<bool> IsYouTubeSwitchedOffAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(false);
+
     /// <summary>What a channel with no saved config resolves to; the dashboard shows these as the defaults.</summary>
     MusicConfigDto GetDefaults();
 
