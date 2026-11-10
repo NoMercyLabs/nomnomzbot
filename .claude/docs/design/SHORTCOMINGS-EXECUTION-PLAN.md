@@ -1689,10 +1689,6 @@ Decision proposed to the owner: remove `youtubepartner` and `youtube.upload` fro
   `membershipsLevels.list`. A channel without memberships, without the grant, or without Google's access
   shows a plain reason, never an error. Done-when: tests cover the list (paged), the count, the standing of a
   member and of a non-member, and each of the three refusals.
-- **S-YT-ANALYTICS** The Analytics page gets a YouTube part: views, watch time, subscribers gained and lost,
-  and estimated revenue, per day for the chosen range, from `reports.query`. A channel that is not monetised
-  shows the other numbers and says revenue is not available. Done-when: a test maps a real `resultTable`
-  answer (column headers plus rows) to the page's series; a test covers the missing grant and the empty answer.
 - **S-YT-CLIP-UPLOAD** A Twitch clip goes to the streamer's YouTube channel: the clip's download address
   (`GetClipDownloadUrlsAsync`) is streamed into `videos.insert` with a title, a description and a privacy
   choice (private by default). The upload has its own quota (100 a day), so the page shows what is left.
