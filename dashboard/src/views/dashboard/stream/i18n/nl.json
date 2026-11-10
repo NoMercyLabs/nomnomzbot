@@ -87,7 +87,8 @@
         "overview": "Overzicht",
         "schedule": "Schema",
         "raids": "Raidregels",
-        "ads": "Advertenties"
+        "ads": "Advertenties",
+        "clips": "Clips"
       },
       "schedule": {
         "whenIn": "{when} · {category}",
@@ -193,6 +194,38 @@
         "seconds": "{seconds} seconden",
         "run": "Advertentie draaien",
         "started": "De advertentie is gestart."
+      },
+      "clips": {
+        "title": "Clips",
+        "description": "Je Twitch-clips, nieuwste eerst.",
+        "left": "Nog {count} YouTube-upload vandaag | Nog {count} YouTube-uploads vandaag",
+        "empty": "Twitch toont geen clips voor je kanaal.",
+        "error": "De clips konden niet laden.",
+        "detail": "Door {creator} · {date} · {views} keer bekeken",
+        "more": "Meer clips tonen",
+        "uploaded": "De clip staat op je YouTube-kanaal.",
+        "openVideo": "Video openen",
+        "privacy": {
+          "private": "Privé: alleen jij",
+          "unlisted": "Verborgen: iedereen met de link",
+          "public": "Openbaar: iedereen"
+        },
+        "upload": {
+          "open": "Uploaden naar YouTube",
+          "title": "Deze clip naar YouTube uploaden",
+          "description": "De clip gaat als video naar je eigen YouTube-kanaal.",
+          "action": "Uploaden",
+          "videoTitle": "Titel",
+          "videoDescription": "Beschrijving",
+          "privacy": "Wie het kan zien"
+        },
+        "refused": {
+          "not_connected": "Dit kanaal is niet met YouTube verbonden. Verbind het eerst bij verbonden diensten.",
+          "not_allowed": "YouTube weigerde de upload voor je account. Verbind YouTube opnieuw en sta de bot toe je account te beheren.",
+          "clip_unavailable": "Twitch gaf geen download voor deze clip. De bot heeft je toestemming nodig om clips op Twitch te beheren.",
+          "limit_reached": "De uploadlimiet van YouTube voor vandaag is bereikt. Probeer het morgen opnieuw.",
+          "failed": "De upload is niet afgemaakt. Probeer het opnieuw."
+        }
       }
     }
   }

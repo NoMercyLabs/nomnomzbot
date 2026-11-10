@@ -466,6 +466,8 @@ export const apiOperations = {
   'stream history': 'stream',
   categories: 'stream',
   'stream info': 'stream',
+  clips: 'stream',
+  'clip upload': 'stream',
   connect: 'stream',
   'obs connection': 'obs',
   'obs connection status': 'obs',

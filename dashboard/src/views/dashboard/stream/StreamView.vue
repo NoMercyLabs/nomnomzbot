@@ -27,6 +27,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { useTime } from '@/composables/useTime';
 
+import ClipsPanel from './ClipsPanel.vue';
 import CommercialPanel from './CommercialPanel.vue';
 import GoLiveChecklist from './GoLiveChecklist.vue';
 import { formatDuration } from './formatDuration';
@@ -39,13 +40,14 @@ import StreamInfoPanel from './StreamInfoPanel.vue';
 const { t } = useI18n();
 const time = useTime();
 const { channelId } = useCurrentChannel();
-const VIEWS = ['overview', 'schedule', 'raids', 'ads'] as const satisfies readonly string[];
+const VIEWS = ['overview', 'schedule', 'raids', 'ads', 'clips'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
 const viewKeys = {
   overview: ['stream:read', 'integration:read'],
   schedule: ['live-ops:schedule:read'],
   raids: ['live-ops:raids:read'],
   ads: ['live-ops:ads:read'],
+  clips: ['live-ops:clips:write'],
 } as const satisfies Record<(typeof VIEWS)[number], readonly string[]>;
 const { can } = useCan();
 // A tab shows when the person holds the read key of at least one panel on it.
@@ -118,6 +120,7 @@ const panels = computed(() => [
   <div v-if="shown === 'schedule'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><SchedulePanel /></div>
   <div v-else-if="shown === 'raids'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><RaidNowPanel /><RaidRulesPanel /></div>
   <div v-else-if="shown === 'ads'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><CommercialPanel /></div>
+  <div v-else-if="shown === 'clips'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><ClipsPanel /></div>
   <BoardGrid v-else-if="shown === 'overview'" :panels="panels" :rows="2">
     <BoardCell v-if="can('stream:read')" panel="info" :span="8" :rows="2"><StreamInfoPanel /></BoardCell>
     <BoardCell v-if="can('integration:read')" panel="platforms" :span="4"><PlatformRows /></BoardCell>

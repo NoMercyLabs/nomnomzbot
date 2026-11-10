@@ -82,6 +82,7 @@ export const ownerActionKeys = [
   'integration:write',
   'live-ops:ads:read',
   'live-ops:ads:write',
+  'live-ops:clips:write',
   'live-ops:polls:read',
   'live-ops:polls:write',
   'live-ops:predictions:read',

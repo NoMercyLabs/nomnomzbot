@@ -87,7 +87,8 @@
         "overview": "Overview",
         "schedule": "Schedule",
         "raids": "Raid rules",
-        "ads": "Ads"
+        "ads": "Ads",
+        "clips": "Clips"
       },
       "schedule": {
         "whenIn": "{when} · {category}",
@@ -193,6 +194,38 @@
         "seconds": "{seconds} seconds",
         "run": "Run ad",
         "started": "The ad started."
+      },
+      "clips": {
+        "title": "Clips",
+        "description": "Your Twitch clips, newest first.",
+        "left": "{count} YouTube upload left today | {count} YouTube uploads left today",
+        "empty": "Twitch lists no clips for your channel.",
+        "error": "The clips could not load.",
+        "detail": "By {creator} · {date} · {views} views",
+        "more": "Show more clips",
+        "uploaded": "The clip is on your YouTube channel.",
+        "openVideo": "Open the video",
+        "privacy": {
+          "private": "Private: only you",
+          "unlisted": "Unlisted: anyone with the link",
+          "public": "Public: everyone"
+        },
+        "upload": {
+          "open": "Upload to YouTube",
+          "title": "Upload this clip to YouTube",
+          "description": "The clip goes to your own YouTube channel as a video.",
+          "action": "Upload",
+          "videoTitle": "Title",
+          "videoDescription": "Description",
+          "privacy": "Who can see it"
+        },
+        "refused": {
+          "not_connected": "This channel is not connected to YouTube. Connect it under connected services first.",
+          "not_allowed": "YouTube refused the upload for your account. Connect YouTube again and allow the bot to manage your account.",
+          "clip_unavailable": "Twitch gave no download for this clip. The bot needs your permission to manage clips on Twitch.",
+          "limit_reached": "The YouTube upload limit for today is used up. Try again tomorrow.",
+          "failed": "The upload did not finish. Try again."
+        }
       }
     }
   }
