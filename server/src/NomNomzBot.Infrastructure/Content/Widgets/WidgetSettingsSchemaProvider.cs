@@ -70,6 +70,12 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         SharedOption("providers", "7tv"),
     ];
 
+    // The theme choice is the same field on every widget that draws, so its words are shared, not per widget.
+    private static readonly IReadOnlyList<WidgetSettingsFieldOption> ThemeOptions =
+    [
+        .. FirstPartyWidgetCatalogue.Themes.Select(theme => SharedOption("theme", theme)),
+    ];
+
     private readonly IReadOnlyList<WidgetSettingsSchema> _all;
     private readonly Dictionary<string, WidgetSettingsSchema> _byKey;
 
@@ -80,12 +86,32 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             .. FirstPartyWidgetCatalogue.All.Select(definition => new WidgetSettingsSchema(
                 definition.Key,
                 definition.Name,
-                FieldsFor(definition),
+                WithTheme(definition, FieldsFor(definition)),
                 definition.DefaultEventSubscriptions
             )),
         ];
         _byKey = _all.ToDictionary(schema => schema.WidgetKey, StringComparer.Ordinal);
     }
+
+    private static IReadOnlyList<WidgetSettingsField> WithTheme(
+        FirstPartyWidgetDefinition d,
+        IReadOnlyList<WidgetSettingsField> fields
+    ) =>
+        d.DefaultSettings.ContainsKey(FirstPartyWidgetCatalogue.ThemeSettingKey)
+            ?
+            [
+                .. fields,
+                new(
+                    FirstPartyWidgetCatalogue.ThemeSettingKey,
+                    new("widget.shared.theme.label"),
+                    Select,
+                    Appearance,
+                    DefaultOf(d, FirstPartyWidgetCatalogue.ThemeSettingKey),
+                    new("widget.shared.theme.help"),
+                    ThemeOptions
+                ),
+            ]
+            : fields;
 
     public IReadOnlyList<WidgetSettingsSchema> GetAll() => _all;
 

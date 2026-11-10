@@ -88,16 +88,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="items.length" class="nnz-srqueue" :style="{ '--accent': cfg.accentColor }">
-    <div class="header">Up Next</div>
-    <div v-for="(it, i) in items.slice(0, cfg.count)" :key="i" class="row">
-      <span class="pos">#{{ it.number }}</span>
-      <span v-if="it.code" class="code" title="Say this code to name this request, e.g. !wrongsong">{{ it.code }}</span>
-      <span class="title">{{ it.title }}</span>
-      <span v-if="cfg.showRequester && it.requestedBy" class="req">{{ it.requestedBy }}</span>
-      <span v-if="cfg.showDuration && it.durationSec > 0" class="dur">{{ fmtDuration(it.durationSec) }}</span>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
+  <Transition name="nnz">
+    <div v-if="items.length" class="nnz-widget nnz-card nnz-srqueue">
+      <div class="nnz-chip">Up Next</div>
+      <div v-for="(it, i) in items.slice(0, cfg.count)" :key="i" class="nnz-row" :class="{ 'is-first': i === 0 }">
+        <span class="nnz-num">#{{ it.number }}</span>
+        <span v-if="it.code" class="code" title="Say this code to name this request, e.g. !wrongsong">{{ it.code }}</span>
+        <span class="nnz-grow">{{ it.title }}</span>
+        <span v-if="cfg.showRequester && it.requestedBy" class="nnz-end req">{{ it.requestedBy }}</span>
+        <span v-if="cfg.showDuration && it.durationSec > 0" class="nnz-end dur">{{ fmtDuration(it.durationSec) }}</span>
+      </div>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -106,72 +109,24 @@ onUnmounted(() => {
   right: 16px;
   top: 16px;
   width: min(360px, 34vw);
-  padding: 12px 14px;
-  border-radius: 12px;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.85);
-  border: 1px solid color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
-.header {
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--accent, #9146ff);
-  margin-bottom: 8px;
-}
-.row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-.row:first-of-type {
-  border-top: none;
-}
-.pos {
-  flex: none;
-  min-width: 26px;
-  font-weight: 700;
-  color: var(--accent, #9146ff);
 }
 .code {
   flex: none;
-  font-family: ui-monospace, monospace;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 1px;
   padding: 1px 6px;
-  border-radius: 6px;
-  color: var(--accent, #9146ff);
-  background: color-mix(in srgb, var(--accent, #9146ff) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
-}
-.title {
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-radius: var(--nnz-radius-inner);
+  color: var(--nnz-text);
+  background: var(--nnz-track);
 }
 .req {
-  flex: none;
   max-width: 30%;
-  font-size: 12px;
-  opacity: 0.7;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .dur {
-  flex: none;
-  font-size: 12px;
-  font-family: ui-monospace, monospace;
-  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
 }
 </style>

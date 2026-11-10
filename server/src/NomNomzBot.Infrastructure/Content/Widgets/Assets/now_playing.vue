@@ -186,31 +186,31 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    v-if="isPlaying && track"
-    class="nnz-nowplaying"
-    :class="'layout-' + cfg.layout"
-    :style="{ '--accent': cfg.accentColor }"
-  >
-    <img v-if="cfg.showArt && artUrl" class="art" :src="artUrl" alt="">
-    <span v-else class="note">&#9835;</span>
-    <div class="meta">
-      <div ref="titleEl" class="track">
-        <span ref="marqueeEl" class="track-text">{{ track }}</span>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the widget. -->
+  <Transition name="nnz">
+    <div v-if="isPlaying && track" class="nnz-widget nnz-nowplaying" :class="'layout-' + cfg.layout">
+      <div class="box" :class="cfg.layout === 'card' ? 'nnz-card' : 'nnz-pill'">
+        <img v-if="cfg.showArt && artUrl" class="nnz-avatar art" :src="artUrl" alt="">
+        <span v-else class="note nnz-accent-text">&#9835;</span>
+        <div class="meta">
+          <div ref="titleEl" class="track">
+            <span ref="marqueeEl" class="track-text">{{ track }}</span>
+          </div>
+          <div v-if="artist" class="nnz-sub artist">{{ artist }}</div>
+          <div v-if="requestedBy" class="nnz-sub requester">
+            requested by
+            <span class="requester-name" :style="requestedByColor ? { color: requestedByColor } : undefined">{{ requestedBy }}</span>
+          </div>
+          <div v-if="cfg.showProgressBar" class="nnz-track bar"><div class="nnz-fill" :style="{ width: progressPct + '%' }"></div></div>
+        </div>
       </div>
-      <div v-if="artist" class="artist">{{ artist }}</div>
-      <div v-if="requestedBy" class="requester">
-        requested by
-        <span class="requester-name" :style="requestedByColor ? { color: requestedByColor } : undefined">{{ requestedBy }}</span>
-      </div>
-      <div v-if="cfg.showProgressBar" class="bar"><div class="fill" :style="{ width: progressPct + '%' }"></div></div>
+      <span
+        v-if="heartPulse"
+        class="nnz-num heart"
+        :class="{ 'heart-saved': heartIsSaved, 'heart-unsaved': !heartIsSaved }"
+      >&#10084;</span>
     </div>
-    <span
-      v-if="heartPulse"
-      class="heart"
-      :class="{ 'heart-saved': heartIsSaved, 'heart-unsaved': !heartIsSaved }"
-    >&#10084;</span>
-  </div>
+  </Transition>
 
 </template>
 
@@ -219,46 +219,28 @@ onUnmounted(() => {
   position: fixed;
   left: 16px;
   bottom: 16px;
+  max-width: 46vw;
+}
+.box {
   display: flex;
   align-items: center;
-  gap: 10px;
-  max-width: 46vw;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.85);
-  border: 1px solid var(--accent, #9146ff);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
-.layout-pill {
-  padding: 8px 16px;
-  border-radius: 999px;
-}
-.layout-card {
-  padding: 12px 16px;
-  border-radius: 12px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  gap: var(--nnz-gap);
+  max-width: 100%;
 }
 .note {
-  color: var(--accent, #9146ff);
-  font-size: 18px;
-}
-.art {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  object-fit: cover;
   flex: none;
+  font-size: 20px;
 }
 .layout-pill .art {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
 }
 .meta {
   min-width: 0;
 }
 .track {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -278,50 +260,41 @@ onUnmounted(() => {
   100% { transform: translateX(var(--marquee-distance, 0)); opacity: 0; }
 }
 .artist {
-  font-size: 12px;
-  opacity: 0.75;
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .requester {
-  font-size: 11px;
-  opacity: 0.6;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .requester-name {
-  font-weight: 600;
+  font-weight: 800;
 }
 .bar {
   margin-top: 6px;
-  height: 3px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.15);
+  height: 8px;
 }
 .layout-pill .bar {
   display: none; /* the pill stays compact; the progress fill is a card-layout detail */
 }
-.fill {
-  height: 100%;
-  border-radius: 2px;
-  background: var(--accent, #9146ff);
-  transition: width 0.3s linear;
-}
 .heart {
   position: absolute;
-  top: -10px;
-  right: -8px;
-  font-size: 20px;
+  top: -12px;
+  right: -10px;
+  font-size: 16px;
   line-height: 1;
   pointer-events: none;
+  background: var(--nnz-surface);
+  box-shadow: var(--nnz-shadow);
   animation: nnz-heart-pulse 1.6s ease-out forwards;
 }
-.heart-saved { color: #ff4d6d; }
+.heart-saved { color: var(--nnz-accent); }
 .heart-unsaved {
-  color: #8a8a94;
+  color: var(--nnz-muted);
   text-decoration: line-through;
 }
 @keyframes nnz-heart-pulse {

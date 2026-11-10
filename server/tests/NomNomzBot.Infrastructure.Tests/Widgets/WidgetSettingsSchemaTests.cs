@@ -79,6 +79,31 @@ public sealed class WidgetSettingsSchemaTests
     }
 
     [Fact]
+    public void Every_widget_that_draws_offers_the_three_themes_and_a_sound_only_widget_offers_none()
+    {
+        string[] soundOnly = ["audio", "music_player"];
+
+        foreach (WidgetSettingsSchema schema in Provider.GetAll())
+        {
+            WidgetSettingsField? theme = schema.Fields.SingleOrDefault(f =>
+                f.Key == FirstPartyWidgetCatalogue.ThemeSettingKey
+            );
+
+            if (soundOnly.Contains(schema.WidgetKey))
+            {
+                theme.Should().BeNull($"'{schema.WidgetKey}' draws nothing, so it has no look to pick");
+                continue;
+            }
+
+            theme.Should().NotBeNull($"'{schema.WidgetKey}' draws, so the streamer picks its theme");
+            theme.Type.Should().Be("select");
+            theme.Default.Should().Be("sticker");
+            theme.Options!.Select(o => o.Value).Should().Equal("sticker", "ink", "print");
+            theme.Label.Key.Should().Be("widget.shared.theme.label");
+        }
+    }
+
+    [Fact]
     public void Every_first_party_widget_type_has_a_schema()
     {
         HashSet<string> schematised = [.. Provider.GetAll().Select(s => s.WidgetKey)];

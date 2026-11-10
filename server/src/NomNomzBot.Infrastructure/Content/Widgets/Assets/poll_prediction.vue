@@ -171,30 +171,32 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    v-if="mode"
-    class="nnz-pollpred"
-    :class="'pos-' + cfg.position"
-    :style="{
-      '--accent': cfg.accentColor,
-      '--bar': cfg.colors.bar || cfg.accentColor,
-      '--track': cfg.colors.track || 'rgba(255,255,255,0.14)',
-    }"
-  >
-    <div class="head">
-      <span class="kind">{{ mode === 'poll' ? 'POLL' : 'PREDICTION' }}</span>
-      <span v-if="locked" class="state">LOCKED</span>
-      <span v-else-if="ended" class="state">RESULT</span>
-    </div>
-    <div class="title">{{ title }}</div>
-    <div v-for="b in bars" :key="b.id" class="choice" :class="{ won: b.won }">
-      <div class="row">
-        <span class="label">{{ b.label }}</span>
-        <span class="value">{{ pct(b) }}%</span>
+  <!-- The look comes from /overlay/theme.css; the colors setting still wins over the theme when it is set. -->
+  <Transition name="nnz">
+    <div
+      v-if="mode"
+      class="nnz-widget nnz-card nnz-pollpred"
+      :class="'pos-' + cfg.position"
+      :style="{
+        '--bar': cfg.colors.bar || 'var(--nnz-fill)',
+        '--track': cfg.colors.track || 'var(--nnz-track)',
+      }"
+    >
+      <div class="head">
+        <span class="nnz-chip kind">{{ mode === 'poll' ? 'POLL' : 'PREDICTION' }}</span>
+        <span v-if="locked" class="nnz-sub state">LOCKED</span>
+        <span v-else-if="ended" class="nnz-sub state">RESULT</span>
       </div>
-      <div class="track"><div class="fill" :style="{ width: pct(b) + '%' }"></div></div>
+      <div class="nnz-title title">{{ title }}</div>
+      <div v-for="b in bars" :key="b.id" class="choice" :class="{ won: b.won }">
+        <div class="row">
+          <span class="label">{{ b.label }}</span>
+          <span class="value">{{ pct(b) }}%</span>
+        </div>
+        <div class="nnz-track track"><div class="nnz-fill fill" :style="{ width: pct(b) + '%' }"></div></div>
+      </div>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -203,13 +205,6 @@ onUnmounted(() => {
   top: 50%;
   transform: translateY(-50%);
   width: min(340px, 32vw);
-  padding: 14px 16px;
-  border-radius: 12px;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.86);
-  border: 1px solid color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   pointer-events: none;
 }
 .pos-left {
@@ -223,38 +218,29 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
 }
-.kind {
+.state {
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 1.5px;
-  color: var(--accent, #9146ff);
-}
-.state {
-  font-size: 11px;
-  font-weight: 700;
   letter-spacing: 1px;
-  opacity: 0.85;
 }
 .title {
-  margin: 6px 0 10px;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.3;
+  margin: 2px 0 8px;
+  font-size: 20px;
 }
 .choice {
   margin-top: 8px;
 }
 .choice.won .label,
 .choice.won .value {
-  color: var(--accent, #9146ff);
+  color: var(--nnz-accent);
   font-weight: 800;
 }
 .row {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
 }
 .label {
   min-width: 0;
@@ -264,19 +250,13 @@ onUnmounted(() => {
 }
 .value {
   flex: none;
-  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 .track {
   margin-top: 4px;
-  height: 8px;
-  border-radius: 4px;
   background: var(--track);
-  overflow: hidden;
 }
 .fill {
-  height: 100%;
-  border-radius: 4px;
   background: var(--bar);
-  transition: width 0.4s ease;
 }
 </style>

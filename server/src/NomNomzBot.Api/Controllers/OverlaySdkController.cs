@@ -150,9 +150,25 @@ public sealed class OverlaySdkController : ControllerBase
               });
             replaySeed(function (f) { emit(f.eventType, f.data, f.meta); });
           }
+          // The look: the widget's `overlayTheme` setting picks the token set in /overlay/theme.css (a `theme`
+          // parameter in the address wins, for a preview), and an accent colour the streamer chose replaces the
+          // theme's own. An empty accent, or a default accent from before the themes, means "the theme's accent".
+          var THEMES = ["sticker", "ink", "print"];
+          var LEGACY_ACCENTS = ["#9146ff", "#f4b942"];
+          function applyTheme(s) {
+            var root = typeof document === "undefined" ? null : document.documentElement;
+            if (!root || typeof root.setAttribute !== "function" || !root.style) return;
+            var wanted = params.get("theme") || s.overlayTheme;
+            root.setAttribute("data-nnz-theme", THEMES.indexOf(wanted) >= 0 ? wanted : THEMES[0]);
+            var accent = typeof s.accentColor === "string" ? s.accentColor.trim().toLowerCase() : "";
+            if (accent && LEGACY_ACCENTS.indexOf(accent) < 0) root.style.setProperty("--nnz-accent", accent);
+            else root.style.removeProperty("--nnz-accent");
+          }
+          applyTheme(currentSettings);
           function applySettings(s) {
             if (!s || typeof s !== "object") return;
             currentSettings = s;
+            applyTheme(currentSettings);
             settingsHandlers.forEach(function (fn) { run(fn, currentSettings); });
           }
 

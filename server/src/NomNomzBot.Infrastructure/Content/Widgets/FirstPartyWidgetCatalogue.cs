@@ -106,7 +106,13 @@ public static class FirstPartyWidgetCatalogue
     /// </summary>
     private static readonly ObsBrowserSource FullCanvasWithSound = new(1920, 1080, true, false);
 
-    public static readonly IReadOnlyList<FirstPartyWidgetDefinition> All =
+    /// <summary>The setting every widget that draws carries: which look of the overlay theme it wears.</summary>
+    public const string ThemeSettingKey = "overlayTheme";
+
+    /// <summary>The looks in <c>Content/Widgets/Theme/overlay-theme.css</c>; the first is the default.</summary>
+    public static readonly IReadOnlyList<string> Themes = ["sticker", "ink", "print"];
+
+    private static readonly FirstPartyWidgetDefinition[] Authored =
     [
         new(
             Key: "alerts",
@@ -123,7 +129,7 @@ public static class FirstPartyWidgetCatalogue
                 ["minBits"] = 0,
                 ["minGiftCount"] = 0,
                 ["minAmount"] = 0,
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: [.. SupporterAndTwitchEvents]
         ),
@@ -155,7 +161,7 @@ public static class FirstPartyWidgetCatalogue
             {
                 ["label"] = "latest_follower",
                 ["formatString"] = "",
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions:
             [
@@ -174,7 +180,7 @@ public static class FirstPartyWidgetCatalogue
             Name: "Drop Game",
             Description: "The live drop-game round on a horizontal track: the target zone, every chatter's landing "
                 + "marker as they type !drop, and the payout scoreboard when the round resolves.",
-            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultSettings: new() { ["accentColor"] = "", ["hideAfterMs"] = 12000 },
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(
@@ -183,7 +189,7 @@ public static class FirstPartyWidgetCatalogue
             Name: "Raffle",
             Description: "The live raffle round: the entrant roster and climbing pot as chatters type !raffle, and "
                 + "the winner reveal + payout board when one entrant takes the whole pot.",
-            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultSettings: new() { ["accentColor"] = "", ["hideAfterMs"] = 12000 },
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(
@@ -192,7 +198,7 @@ public static class FirstPartyWidgetCatalogue
             Name: "Heist",
             Description: "The live heist round: the crew roster and rising escape odds as chatters type !heist, and "
                 + "each member's getaway outcome + payout when the job resolves.",
-            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultSettings: new() { ["accentColor"] = "", ["hideAfterMs"] = 12000 },
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(
@@ -201,7 +207,7 @@ public static class FirstPartyWidgetCatalogue
             Name: "Crash",
             Description: "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type "
                 + "!crash to lock in their multiplier, and the bust/max reveal + payout board.",
-            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultSettings: new() { ["accentColor"] = "", ["hideAfterMs"] = 12000 },
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(
@@ -215,7 +221,7 @@ public static class FirstPartyWidgetCatalogue
                 ["events"] = new List<string>(SupporterAndTwitchEvents),
                 ["speed"] = 60,
                 ["count"] = 20,
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: [.. SupporterAndTwitchEvents]
         ),
@@ -242,7 +248,7 @@ public static class FirstPartyWidgetCatalogue
                 ["showSevenTvPaints"] = true,
                 ["hideCommands"] = true,
                 ["hideBots"] = true,
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions:
             [
@@ -266,7 +272,7 @@ public static class FirstPartyWidgetCatalogue
                 ["showArt"] = true,
                 ["showProgressBar"] = true,
                 ["provider"] = "",
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["music.nowPlaying", "track_saved_changed"]
         ),
@@ -281,7 +287,7 @@ public static class FirstPartyWidgetCatalogue
                 ["count"] = 5,
                 ["showRequester"] = true,
                 ["showDuration"] = true,
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["sr_queue"]
         ),
@@ -292,7 +298,7 @@ public static class FirstPartyWidgetCatalogue
             Description: "Plays the approved viewer-shared Twitch clips and YouTube videos on stream. The server sends "
                 + "load, play, pause, stop, seek and volume commands and this overlay reports its player state back, "
                 + "so an ended item moves the queue on. Hidden while nothing plays.",
-            DefaultSettings: new() { ["showTitle"] = true, ["accentColor"] = "#9146ff" },
+            DefaultSettings: new() { ["showTitle"] = true, ["accentColor"] = "" },
             DefaultEventSubscriptions: ["media_share_command"]
         ),
         new(
@@ -303,7 +309,7 @@ public static class FirstPartyWidgetCatalogue
                 + "play only from the TTS Caption source. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
                 + "indicator is only for confirming the source is alive during setup. Music plays from the Music Player widget.",
-            DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "#9146ff" },
+            DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "" },
             DefaultEventSubscriptions: ["tts_speak"]
         ),
         new(
@@ -319,7 +325,7 @@ public static class FirstPartyWidgetCatalogue
                 ["volume"] = 100,
                 ["muted"] = false,
                 ["showIndicator"] = false,
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
                 ["enableAudio"] = true,
             },
             DefaultEventSubscriptions: ["now_playing"]
@@ -336,7 +342,7 @@ public static class FirstPartyWidgetCatalogue
                 ["showText"] = true,
                 ["voiceLabel"] = false,
                 ["position"] = "bottom",
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["tts_speak"]
         ),
@@ -347,7 +353,7 @@ public static class FirstPartyWidgetCatalogue
             Description: "A transparent full-screen layer for one-off effects a command or pipeline triggers — a text or "
                 + "emoji running across the screen, confetti, a shake, a flash. Add it once at the full canvas size; "
                 + "it draws nothing while idle.",
-            DefaultSettings: new() { ["intensity"] = 5, ["accentColor"] = "#9146ff" },
+            DefaultSettings: new() { ["intensity"] = 5, ["accentColor"] = "" },
             DefaultEventSubscriptions: [StageSurface.EventType]
         ),
         new(
@@ -360,7 +366,7 @@ public static class FirstPartyWidgetCatalogue
             {
                 ["position"] = "left",
                 ["colors"] = new Dictionary<string, object>(),
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions:
             [
@@ -385,7 +391,7 @@ public static class FirstPartyWidgetCatalogue
                 ["textTemplate"] = "",
                 ["durationMs"] = 6000,
                 ["soundClipId"] = "",
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["reward_redeemed"]
         ),
@@ -401,7 +407,7 @@ public static class FirstPartyWidgetCatalogue
                 ["durationMs"] = 0,
                 ["label"] = "Starting soon",
                 ["onCompleteText"] = "",
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: []
         ),
@@ -417,7 +423,7 @@ public static class FirstPartyWidgetCatalogue
                 ["size"] = 48,
                 ["animation"] = "float",
                 ["providers"] = new List<string>(),
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["ChatMessage", "ChatMessageEnriched"]
         ),
@@ -435,7 +441,7 @@ public static class FirstPartyWidgetCatalogue
                 ["label"] = "",
                 ["min"] = 0,
                 ["max"] = 200,
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["custom.heartrate"]
         ),
@@ -449,7 +455,7 @@ public static class FirstPartyWidgetCatalogue
             {
                 ["count"] = 5,
                 ["title"] = "Recent followers",
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["follow"]
         ),
@@ -459,7 +465,7 @@ public static class FirstPartyWidgetCatalogue
             Name: "Sub Train",
             Description: "A hype counter that spikes on rapid subs and gift subs and cools down on its own — the "
                 + "count of subs still inside a rolling window (a gift of N counts as N), hidden when the train stops.",
-            DefaultSettings: new() { ["windowMs"] = 300000, ["accentColor"] = "#9146ff" },
+            DefaultSettings: new() { ["windowMs"] = 300000, ["accentColor"] = "" },
             DefaultEventSubscriptions: ["subscription", "resub", "gift"]
         ),
         new(
@@ -472,7 +478,7 @@ public static class FirstPartyWidgetCatalogue
             {
                 ["handles"] = new List<object>(),
                 ["rotateMs"] = 8000,
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: []
         ),
@@ -488,7 +494,7 @@ public static class FirstPartyWidgetCatalogue
                 ["title"] = "Top cheerers",
                 ["range"] = "stream",
                 ["resetAt"] = "",
-                ["accentColor"] = "#9146ff",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["cheer"]
         ),
@@ -578,9 +584,22 @@ public static class FirstPartyWidgetCatalogue
                 ["idleText"] = "The feather is hidden…",
                 ["stolenTemplate"] = "",
                 ["bannerDurationMs"] = 5000,
-                ["accentColor"] = "#f4b942",
+                ["accentColor"] = "",
             },
             DefaultEventSubscriptions: []
+        ),
+    ];
+
+    /// <summary>Every shipped widget. One that draws gets the theme choice; a sound-only one has no look.</summary>
+    public static readonly IReadOnlyList<FirstPartyWidgetDefinition> All =
+    [
+        .. Authored.Select(widget =>
+            widget.ObsSetup == SoundOnly
+                ? widget
+                : widget with
+                {
+                    DefaultSettings = new(widget.DefaultSettings) { [ThemeSettingKey] = Themes[0] },
+                }
         ),
     ];
 

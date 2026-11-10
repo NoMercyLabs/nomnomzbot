@@ -126,7 +126,7 @@ function headStyle(l: ChatLine): Record<string, string> {
 }
 
 const rootStyle = computed<Record<string, string>>(() => {
-  const style: Record<string, string> = { '--accent': cfg.accentColor, 'font-size': cfg.fontSize + 'px' }
+  const style: Record<string, string> = { 'font-size': cfg.fontSize + 'px' }
   if (cfg.fontFamily) style['font-family'] = cfg.fontFamily
   return style
 })
@@ -455,7 +455,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <TransitionGroup tag="div" name="chat-line" class="nnz-chatbox" :class="'theme-' + cfg.theme" :style="rootStyle">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the lines. -->
+  <TransitionGroup tag="div" name="nnz" class="nnz-widget nnz-chatbox":class="'theme-' + cfg.theme" :style="rootStyle">
     <div
       v-for="l in lines"
       :key="l.id"
@@ -543,13 +544,13 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 8px;
   pointer-events: none;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.5;
 }
 .line {
+  box-sizing: border-box;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--nnz-radius-inner);
   word-break: break-word;
   opacity: 1;
   transition: opacity 0.6s ease;
@@ -557,19 +558,16 @@ onUnmounted(() => {
 .line.faded {
   opacity: 0;
 }
-.theme-dark .line {
-  color: #fff;
-  background: rgba(12, 12, 18, 0.82);
-  border: 1px solid color-mix(in srgb, var(--accent, #9146ff) 30%, transparent);
-}
+/* dark and light both sit on the theme surface now: the overlay theme picks light (sticker) or dark (ink, print). */
+.theme-dark .line,
 .theme-light .line {
-  color: #17171d;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: var(--nnz-text);
+  background: var(--nnz-surface);
+  border: 2px solid var(--nnz-line);
 }
 .theme-transparent .line {
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  color: #fff; /* theme-exempt: the transparent setting asks for bare text on the stream */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); /* theme-exempt: keeps bare text readable on the stream */
   background: transparent;
   border: none;
   padding: 2px 0;
@@ -577,26 +575,25 @@ onUnmounted(() => {
 /* Role accents: a subtle left border in the role's conventional colour so a mod/VIP/sub/broadcaster
    message reads at a glance, without fighting the theme's own line background. */
 .line.role-broadcaster {
-  border-left: 3px solid #e91916;
+  border-left: 4px solid #e91916; /* theme-exempt: Twitch's broadcaster role color */
 }
 .line.role-moderator {
-  border-left: 3px solid #00ad03;
+  border-left: 4px solid #00ad03; /* theme-exempt: Twitch's moderator role color */
 }
 .line.role-vip {
-  border-left: 3px solid #e005b9;
+  border-left: 4px solid #e005b9; /* theme-exempt: Twitch's VIP role color */
 }
 .line.role-subscriber {
-  border-left: 3px solid #9146ff;
+  border-left: 4px solid #9146ff; /* theme-exempt: Twitch's subscriber role color */
 }
 .line.cheer {
-  border-left: 3px solid #f2b21c;
-  background: color-mix(in srgb, #f2b21c 12%, transparent);
+  border-left: 4px solid var(--nnz-accent);
 }
 /* The look a channel gave a bot overlay line: a highlight token (--hl) as the left edge plus a soft wash laid over
    whatever background the theme or the channel set, and a larger size. */
 .line[data-highlight] {
-  border-left: 3px solid var(--hl);
-  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--hl) 12%, transparent);
+  border-left: 4px solid var(--hl);
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--hl) 12%, transparent); /* theme-exempt: a wash in the channel's own highlight color */
 }
 .line[data-size='large'] {
   font-size: 1.35em;
@@ -616,26 +613,26 @@ onUnmounted(() => {
   letter-spacing: 0.02em;
   padding: 1px 5px;
   border-radius: 4px;
-  color: #fff;
+  color: #fff; /* theme-exempt: white on Twitch's own role colors */
   flex: none;
 }
 .role-badge-broadcaster {
-  background: #e91916;
+  background: #e91916; /* theme-exempt: Twitch's broadcaster role color */
 }
 .role-badge-moderator {
-  background: #00ad03;
+  background: #00ad03; /* theme-exempt: Twitch's moderator role color */
 }
 .role-badge-vip {
-  background: #e005b9;
+  background: #e005b9; /* theme-exempt: Twitch's VIP role color */
 }
 .role-badge-subscriber {
-  background: #9146ff;
+  background: #9146ff; /* theme-exempt: Twitch's subscriber role color */
 }
 .line-cheer-bits {
   font-size: 0.75em;
   font-weight: 700;
-  color: #f2b21c;
-  background: color-mix(in srgb, #f2b21c 20%, transparent);
+  color: var(--nnz-on-accent);
+  background: var(--nnz-accent);
   border-radius: 4px;
   padding: 0 5px;
 }
@@ -646,16 +643,16 @@ onUnmounted(() => {
   letter-spacing: 0.02em;
   padding: 1px 5px;
   border-radius: 4px;
-  color: #fff;
+  color: #fff; /* theme-exempt: white on the platform's own brand color */
   flex: none;
   opacity: 0.9;
 }
 .platform-kick {
-  background: #53fc18;
-  color: #0a0a0a;
+  background: #53fc18; /* theme-exempt: Kick's brand color */
+  color: #0a0a0a; /* theme-exempt: dark text on Kick's brand color */
 }
 .platform-youtube {
-  background: #ff0000;
+  background: #ff0000; /* theme-exempt: YouTube's brand color */
 }
 /* Reply preview: a quoted line above the head row showing who/what this message replies to. */
 .reply-preview {
@@ -696,7 +693,7 @@ onUnmounted(() => {
 }
 .name {
   font-weight: 700;
-  color: var(--accent, #9146ff);
+  color: var(--nnz-accent);
   /* Long display names truncate with an ellipsis instead of stretching/overflowing the head row. */
   display: inline-block;
   max-width: 12em;
@@ -722,7 +719,6 @@ onUnmounted(() => {
 .pron {
   font-size: 12px;
   opacity: 0.75;
-  font-family: ui-monospace, monospace;
 }
 .time {
   font-size: 0.72em;
@@ -750,7 +746,8 @@ onUnmounted(() => {
   max-width: 100%;
   padding: 4px 8px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--nnz-track);
+  color: inherit;
   text-decoration: none;
   vertical-align: middle;
 }
@@ -811,7 +808,7 @@ onUnmounted(() => {
   padding: 0 4px;
 }
 .link {
-  color: var(--accent, #9146ff);
+  color: var(--nnz-accent);
   text-decoration: underline;
 }
 /* Rich HTML fragment: keep it inline and tame runaway media so a message can't blow out the chat column. */
@@ -837,22 +834,10 @@ onUnmounted(() => {
 /* Arrival animation: new lines fade + slide in instead of popping in instantly; departing lines (overflow past
    maxMessages) fade + slide out the same way; remaining lines glide to their new position (TransitionGroup's
    move class). The `fadeAfterMs` fade-OUT-in-place (`.faded`) is a separate, orthogonal effect layered on top. */
-.chat-line-enter-active,
-.chat-line-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-.chat-line-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-.chat-line-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-.chat-line-leave-active {
+.nnz-leave-active {
   position: absolute;
 }
-.chat-line-move {
+.nnz-move {
   transition: transform 0.25s ease;
 }
 </style>

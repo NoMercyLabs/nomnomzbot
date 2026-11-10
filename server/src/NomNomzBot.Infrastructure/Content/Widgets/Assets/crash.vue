@@ -125,33 +125,36 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" class="nnz-crash" :style="{ '--accent': cfg.accentColor }">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
+  <Transition name="nnz">
+  <div v-if="visible" class="nnz-widget nnz-card nnz-crash">
     <div class="head">
-      <span v-if="phase === 'lobby'" class="title">Crash — type <b>!crash</b> to buy in</span>
-      <span v-else-if="phase === 'running'" class="title">Crash — <b>!crash</b> to cash out</span>
-      <span v-else class="title">Crash</span>
+      <span v-if="phase === 'lobby'" class="nnz-chip title">Crash — type !crash to buy in</span>
+      <span v-else-if="phase === 'running'" class="nnz-chip title">Crash — !crash to cash out</span>
+      <span v-else class="nnz-chip title">Crash</span>
     </div>
     <div
-      class="big"
+      class="nnz-title big"
       :class="{ crashed: phase === 'crashed' || (phase === 'resolved' && !capped), win: capped }"
     >
       {{ bigLabel }}
       <span v-if="phase === 'crashed' || (phase === 'resolved' && !capped)" class="tag">BUST</span>
       <span v-else-if="capped" class="tag">MAX</span>
     </div>
-    <div v-if="phase === 'lobby'" class="sub">{{ crewCount }} in</div>
+    <div v-if="phase === 'lobby'" class="nnz-sub sub">{{ crewCount }} in</div>
     <div v-else-if="phase !== 'resolved'" class="cashrow">
       <span v-for="c in cashed" :key="c.player + c.multiplier" class="chip out">
         {{ c.player }} @ {{ c.multiplier.toFixed(2) }}×
       </span>
     </div>
     <div v-else class="board">
-      <div v-for="r in results" :key="r.player" class="row" :class="{ won: r.payout > 0 }">
-        <span class="player">{{ r.player }}</span>
+      <div v-for="r in results" :key="r.player" class="nnz-row" :class="{ 'is-first won': r.payout > 0 }">
+        <span class="nnz-grow player">{{ r.player }}</span>
         <span class="score">{{ r.payout > 0 ? '+' + r.payout : '—' }}</span>
       </div>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -161,45 +164,29 @@ onUnmounted(() => {
   bottom: 32px;
   transform: translateX(-50%);
   width: min(560px, 90vw);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.78);
-  border-radius: 14px;
-  padding: 14px 18px 18px;
   text-align: center;
 }
-.head { margin-bottom: 8px; }
-.title { font-size: 18px; font-weight: 800; letter-spacing: 0.3px; }
-.title b { color: var(--accent, #9146ff); }
+.head { margin-bottom: 4px; }
 .big {
   font-size: 64px;
   font-weight: 900;
   line-height: 1.05;
-  color: var(--accent, #9146ff);
-  text-shadow: 0 2px 24px color-mix(in srgb, var(--accent, #9146ff) 55%, transparent);
+  color: var(--nnz-accent);
 }
-.big.crashed { color: #ff6b6b; text-shadow: 0 2px 24px rgba(255, 107, 107, 0.5); }
-.big.win { color: #3ddc84; text-shadow: 0 2px 24px rgba(61, 220, 132, 0.5); }
-.tag { display: block; font-size: 16px; font-weight: 800; letter-spacing: 2px; }
-.sub { margin-top: 6px; font-size: 15px; font-weight: 700; color: rgba(255, 255, 255, 0.7); }
+.big.crashed { color: var(--nnz-muted); text-shadow: none; }
+.big.win { color: var(--nnz-accent); }
+.tag { display: block; font-size: 16px; font-weight: 800; letter-spacing: 2px; color: var(--nnz-text); }
+.sub { margin-top: 6px; }
 .cashrow { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .chip {
   font-size: 13px;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--nnz-radius-inner);
 }
-.chip.out { color: #3ddc84; background: rgba(61, 220, 132, 0.14); }
-.board { margin-top: 12px; display: grid; gap: 4px; text-align: left; }
-.row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.72);
-}
-.row.won { color: #3ddc84; background: rgba(61, 220, 132, 0.1); }
+.chip.out { color: var(--nnz-on-accent); background: var(--nnz-accent); }
+.board { margin-top: 12px; text-align: left; }
+.nnz-row { color: var(--nnz-muted); }
+.nnz-row.won { color: var(--nnz-text); }
+.score { flex: none; font-variant-numeric: tabular-nums; }
 </style>

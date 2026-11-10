@@ -506,7 +506,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="recap" ref="root" class="recap" :data-visible="visible ? 'true' : 'false'" :data-layout="cfg.layout" :data-motion="motion" :style="rootStyle">
+  <!-- The type comes from /overlay/theme.css; the colors stay on the recap's own hue engine (the hueByDay setting). -->
+  <div v-if="recap" ref="root" class="nnz-widget recap":data-visible="visible ? 'true' : 'false'" :data-layout="cfg.layout" :data-motion="motion" :style="rootStyle">
     <div v-if="cfg.layout === 'credits'" class="credits">
       <header class="top">
         <img v-if="avatarUrl" class="avatar" :src="avatarUrl" crossorigin="anonymous" alt="" />
@@ -591,19 +592,18 @@ onUnmounted(() => {
 /* Shared: the hue engine (one hue --base, five shades), the full-screen frame and the fade in. */
 .recap {
   --base: 0deg;
-  --color-100: hsl(var(--base), 100%, 90%);
-  --color-200: hsl(var(--base), 100%, 80%);
-  --color-300: hsl(var(--base), 100%, 70%);
-  --color-600: hsl(var(--base), 100%, 40%);
-  --color-900: hsl(var(--base), 100%, 10%);
+  --color-100: hsl(var(--base), 100%, 90%); /* theme-exempt: hue computed from the stream date (hueByDay) */
+  --color-200: hsl(var(--base), 100%, 80%); /* theme-exempt: hue computed from the stream date (hueByDay) */
+  --color-300: hsl(var(--base), 100%, 70%); /* theme-exempt: hue computed from the stream date (hueByDay) */
+  --color-600: hsl(var(--base), 100%, 40%); /* theme-exempt: hue computed from the stream date (hueByDay) */
+  --color-900: hsl(var(--base), 100%, 10%); /* theme-exempt: hue computed from the stream date (hueByDay) */
   --accent: var(--color-300);
-  --line: hsl(from var(--color-200) h s l / 25%);
-  --mute: hsl(from var(--color-100) h s l / 70%);
+  --line: hsl(from var(--color-200) h s l / 25%); /* theme-exempt: hue computed from the stream date (hueByDay) */
+  --mute: hsl(from var(--color-100) h s l / 70%); /* theme-exempt: hue computed from the stream date (hueByDay) */
   position: fixed;
   inset: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: radial-gradient(1400px 800px at 15% 0%, hsl(from var(--color-900) h s 14%) 0, hsl(from var(--color-900) h 40% 4%) 75%);
+  color: #fff; /* theme-exempt: text on the recap's own full-screen dark hue backdrop */
+  background: radial-gradient(1400px 800px at 15% 0%, hsl(from var(--color-900) h s 14%) 0, hsl(from var(--color-900) h 40% 4%) 75%); /* theme-exempt: hue backdrop from the stream date */
   opacity: 0;
   transition: opacity 0.8s ease;
 }
@@ -620,16 +620,16 @@ onUnmounted(() => {
   --title-size: 64px;
   --name-size: 38px;
   --heading-size: 22px;
-  background: hsl(from var(--color-900) h 18% 6%);
+  background: hsl(from var(--color-900) h 18% 6%); /* theme-exempt: hue backdrop from the stream date */
 }
 .credits { position: absolute; inset: var(--page-pad); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 32px; }
 .top { justify-content: flex-start; align-items: center; gap: 32px; }
 .avatar { width: var(--avatar); height: var(--avatar); border-radius: 50%; object-fit: cover; flex: none; }
-.title { font-size: var(--title-size); color: #fff; }
+.title { font-size: var(--title-size); color: inherit; }
 .channel { margin-top: 10px; font-size: 30px; font-weight: 600; }
 .meta { margin-top: 8px; display: flex; gap: 24px; font-size: 24px; font-weight: 500; color: var(--mute); }
 .meta .live { color: var(--accent); font-weight: 800; }
-.stage { position: relative; overflow: hidden; container-type: size; mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%); }
+.stage { position: relative; overflow: hidden; container-type: size; mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%); } /* theme-exempt: a fade mask, not a visible color */
 .roll { display: flex; flex-direction: column; align-items: center; }
 .track { width: min(100%, var(--column)); min-height: 100cqh; padding-bottom: var(--gap); display: flex; flex-direction: column; align-items: stretch; }
 .credit { text-align: center; margin-bottom: var(--gap); }
@@ -641,7 +641,7 @@ onUnmounted(() => {
 .credits .hype { text-align: center; font-size: 26px; margin: 0 0 var(--gap); }
 .credits .thanks { text-align: center; font-size: 34px; font-weight: 700; margin: 0; }
 .recap[data-motion='roll'] .roll { animation: roll var(--roll-seconds) linear infinite; will-change: transform; }
-.recap[data-motion='still'] .stage { mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%); }
+.recap[data-motion='still'] .stage { mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%); } /* theme-exempt: a fade mask, not a visible color */
 .recap[data-motion='reduced'] .stage { overflow-y: auto; mask-image: none; }
 @keyframes roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
 
@@ -658,7 +658,7 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .block > :not(.watermark) { position: relative; }
 .watermark { position: absolute; left: -8%; bottom: -12%; height: 90%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; filter: grayscale(1); opacity: 0.12; pointer-events: none; }
 .card {
-  background: linear-gradient(45deg, hsl(from var(--color-300) h s l / 50%), hsl(from var(--color-600) h s l / 50%) 15%, hsl(from var(--color-900) h s l / 75%));
+  background: linear-gradient(45deg, hsl(from var(--color-300) h s l / 50%), hsl(from var(--color-600) h s l / 50%) 15%, hsl(from var(--color-900) h s l / 75%)); /* theme-exempt: hue card from the stream date (hueByDay) */
   backdrop-filter: blur(24px);
   border-radius: 14px;
   padding: 20px 24px;
@@ -670,14 +670,14 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 }
 .label { font-size: 17px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin-bottom: 10px; }
 .kpi .num { font-size: 60px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
-.kpi.lead { border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 30%, transparent); }
+.kpi.lead { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .kpi.lead .label { color: var(--accent); }
 .kpi.lead .num { font-size: 76px; }
 .kpi .note { margin-top: 8px; font-size: 18px; color: var(--mute); font-weight: 500; }
 .big { font-size: 44px; font-weight: 900; line-height: 1; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
 .big small { font-size: 20px; font-weight: 600; color: var(--mute); margin-left: 8px; }
 .list { display: grid; gap: 6px; padding-bottom: 6px; }
-.row { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; background: hsl(from var(--color-900) h s l / 55%); backdrop-filter: blur(4px); border-radius: 6px; padding: 6px 12px; }
+.row { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; background: hsl(from var(--color-900) h s l / 55%); backdrop-filter: blur(4px); border-radius: 6px; padding: 6px 12px; } /* theme-exempt: hue row from the stream date (hueByDay) */
 .row .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .row .v { font-weight: 800; font-variant-numeric: tabular-nums; }
 .row .r { width: 18px; color: var(--mute); font-weight: 900; text-align: center; }
@@ -685,7 +685,7 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .scroll { flex: 1; min-height: 0; overflow: hidden; }
 .scroll.fit { flex: 0 1 auto; }
 .wrap .hype { margin-top: 12px; font-size: 19px; }
-.wrap .thanks { max-width: 760px; text-align: right; font-size: 26px; font-weight: 600; color: #fff; }
+.wrap .thanks { max-width: 760px; text-align: right; font-size: 26px; font-weight: 600; color: inherit; }
 /* A card with three rows or fewer would sit mostly empty at the list size, so its type grows to fill it. */
 .sparse .big { font-size: 64px; }
 .sparse .row { font-size: 28px; padding: 10px 14px; }

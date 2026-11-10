@@ -95,12 +95,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" class="nnz-heist" :style="{ '--accent': cfg.accentColor }">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
+  <Transition name="nnz">
+  <div v-if="visible" class="nnz-widget nnz-card nnz-heist">
     <div class="head">
-      <span v-if="phase === 'lobby'" class="title">Heist — type <b>!heist</b> to join the crew</span>
-      <span v-else-if="phase === 'cancelled'" class="title">Heist — cancelled</span>
-      <span v-else class="title">Heist — the getaway</span>
-      <span v-if="phase !== 'cancelled'" class="odds">{{ Math.round(successChance) }}% escape</span>
+      <span v-if="phase === 'lobby'" class="nnz-title title">Heist — type <b class="nnz-accent-text">!heist</b> to join the crew</span>
+      <span v-else-if="phase === 'cancelled'" class="nnz-title title">Heist — cancelled</span>
+      <span v-else class="nnz-title title">Heist — the getaway</span>
+      <span v-if="phase !== 'cancelled'" class="nnz-chip odds">{{ Math.round(successChance) }}% escape</span>
     </div>
     <div v-if="phase === 'cancelled'" class="roster">
       <span v-if="cancelReason" class="chip">{{ cancelReason }}</span>
@@ -121,6 +123,7 @@ onUnmounted(() => {
       </template>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -130,25 +133,19 @@ onUnmounted(() => {
   bottom: 32px;
   transform: translateX(-50%);
   width: min(720px, 90vw);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.78);
-  border-radius: 14px;
-  padding: 14px 18px 18px;
 }
-.head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; gap: 12px; }
-.title { font-size: 20px; font-weight: 800; letter-spacing: 0.3px; }
-.title b { color: var(--accent, #9146ff); }
-.odds { font-size: 16px; font-weight: 800; color: var(--accent, #9146ff); white-space: nowrap; }
+.head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+.title { font-size: 20px; }
+.odds { flex: none; margin-bottom: 0; font-size: 15px; white-space: nowrap; }
 .roster { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--nnz-radius-inner);
+  background: var(--nnz-track);
+  color: var(--nnz-text);
 }
-.chip.escaped { color: #3ddc84; background: rgba(61, 220, 132, 0.14); }
-.chip.caught { color: #ff6b6b; background: rgba(255, 107, 107, 0.12); }
+.chip.escaped { color: var(--nnz-on-accent); background: var(--nnz-accent); }
+.chip.caught { color: var(--nnz-muted); text-decoration: line-through; }
 </style>

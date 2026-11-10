@@ -98,14 +98,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-customdata" :style="{ '--accent': cfg.accentColor }">
-    <div v-if="cfg.label" class="label">{{ cfg.label }}</div>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
+  <div class="nnz-widget nnz-card nnz-customdata">
+    <div v-if="cfg.label" class="nnz-chip">{{ cfg.label }}</div>
     <div v-if="cfg.render === 'gauge'" class="gauge">
-      <div class="value">{{ display }}</div>
-      <div class="track"><div class="fill" :style="{ width: gaugePct + '%' }"></div></div>
-      <div class="bounds"><span>{{ cfg.min }}</span><span>{{ cfg.max }}</span></div>
+      <div class="nnz-title value">{{ display }}</div>
+      <div class="nnz-track"><div class="nnz-fill" :style="{ width: gaugePct + '%' }"></div></div>
+      <div class="nnz-sub bounds"><span>{{ cfg.min }}</span><span>{{ cfg.max }}</span></div>
     </div>
-    <div v-else class="value" :class="{ text: cfg.render === 'text' }">{{ display }}</div>
+    <div v-else class="nnz-title value" :class="{ text: cfg.render === 'text' }">{{ display }}</div>
   </div>
 </template>
 
@@ -115,58 +116,27 @@ onUnmounted(() => {
   right: 16px;
   bottom: 16px;
   min-width: 160px;
-  padding: 14px 18px;
-  border-radius: 12px;
   text-align: center;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.85);
-  border: 1px solid color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   pointer-events: none;
-}
-.label {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--accent, #9146ff);
-  margin-bottom: 6px;
 }
 .value {
   font-size: 38px;
-  font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--accent, #9146ff) 40%, transparent);
 }
 .value.text {
   font-size: 20px;
-  font-weight: 600;
   line-height: 1.3;
   word-break: break-word;
 }
 .gauge .value {
   margin-bottom: 8px;
 }
-.track {
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.14);
-  overflow: hidden;
-}
-.fill {
-  height: 100%;
-  border-radius: 4px;
-  background: var(--accent, #9146ff);
-  transition: width 0.4s ease;
-}
 .bounds {
   display: flex;
   justify-content: space-between;
   margin-top: 4px;
-  font-size: 11px;
-  opacity: 0.65;
-  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 </style>

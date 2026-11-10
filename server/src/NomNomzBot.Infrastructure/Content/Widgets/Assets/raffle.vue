@@ -88,24 +88,27 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" class="nnz-raffle" :style="{ '--accent': cfg.accentColor }">
-    <div class="head">
-      <span v-if="phase === 'lobby'" class="title">Raffle — type <b>!raffle</b> to enter</span>
-      <span v-else class="title">Raffle — winner</span>
-      <span class="pot">Pot {{ pot }}</span>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
+  <Transition name="nnz">
+    <div v-if="visible" class="nnz-widget nnz-card nnz-raffle">
+      <div class="head">
+        <span v-if="phase === 'lobby'" class="nnz-title title">Raffle — type <b class="nnz-accent-text">!raffle</b> to enter</span>
+        <span v-else class="nnz-title title">Raffle — winner</span>
+        <span class="nnz-chip pot">Pot {{ pot }}</span>
+      </div>
+      <div v-if="phase === 'resolved'" class="nnz-title winner">{{ winner }} takes {{ pot }}. Lucky you.</div>
+      <div class="roster">
+        <template v-if="phase === 'lobby'">
+          <span v-for="e in entrants" :key="e.player" class="chip">{{ e.player }} · {{ e.stake }}</span>
+        </template>
+        <template v-else>
+          <span v-for="r in results" :key="r.player" class="chip" :class="{ won: r.won }">
+            {{ r.player }}<span v-if="r.won"> +{{ r.payout }}</span>
+          </span>
+        </template>
+      </div>
     </div>
-    <div v-if="phase === 'resolved'" class="winner">🎉 {{ winner }} takes {{ pot }}</div>
-    <div class="roster">
-      <template v-if="phase === 'lobby'">
-        <span v-for="e in entrants" :key="e.player" class="chip">{{ e.player }} · {{ e.stake }}</span>
-      </template>
-      <template v-else>
-        <span v-for="r in results" :key="r.player" class="chip" :class="{ won: r.won }">
-          {{ r.player }}<span v-if="r.won"> +{{ r.payout }}</span>
-        </span>
-      </template>
-    </div>
-  </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -115,30 +118,19 @@ onUnmounted(() => {
   bottom: 32px;
   transform: translateX(-50%);
   width: min(720px, 90vw);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.78);
-  border-radius: 14px;
-  padding: 14px 18px 18px;
 }
-.head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-.title { font-size: 20px; font-weight: 800; letter-spacing: 0.3px; }
-.title b { color: var(--accent, #9146ff); }
-.pot { font-size: 16px; font-weight: 800; color: var(--accent, #9146ff); }
-.winner {
-  font-size: 22px;
-  font-weight: 800;
-  color: #3ddc84;
-  margin-bottom: 10px;
-}
+.head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+.title { font-size: 20px; }
+.pot { flex: none; margin-bottom: 0; font-size: 15px; }
+.winner { font-size: 24px; margin-bottom: 10px; }
 .roster { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--nnz-radius-inner);
+  background: var(--nnz-track);
+  color: var(--nnz-text);
 }
-.chip.won { color: #3ddc84; background: rgba(61, 220, 132, 0.14); }
+.chip.won { color: var(--nnz-on-accent); background: var(--nnz-accent); }
 </style>

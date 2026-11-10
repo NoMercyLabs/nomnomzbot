@@ -94,20 +94,21 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- The look comes from /overlay/theme.css; the colors setting still wins over the theme when it is set. -->
   <div
-    class="nnz-goal"
+    class="nnz-widget nnz-card nnz-goal"
     :style="{
-      '--bar': cfg.colors.bar || '#9146ff',
-      '--track': cfg.colors.track || 'rgba(255,255,255,0.14)',
-      '--text': cfg.colors.text || '#ffffff',
+      '--bar': cfg.colors.bar || 'var(--nnz-fill)',
+      '--track': cfg.colors.track || 'var(--nnz-track)',
+      '--text': cfg.colors.text || 'var(--nnz-text)',
     }"
   >
     <div class="row">
-      <span class="title">{{ title }}</span>
-      <span class="count">{{ value }} / {{ cfg.target }}</span>
+      <span class="nnz-title title">{{ title }}</span>
+      <span class="nnz-num count">{{ value }} / {{ cfg.target }}</span>
     </div>
-    <div class="bar"><div class="fill" :style="{ width: pct + '%' }"></div></div>
-    <div class="foot">
+    <div class="nnz-track bar"><div class="nnz-fill fill" :style="{ width: pct + '%' }"></div></div>
+    <div class="foot nnz-sub">
       <span class="pct">{{ pct }}%</span>
       <span v-if="cfg.resetCadence" class="cadence">{{ cfg.resetCadence }}</span>
     </div>
@@ -121,49 +122,30 @@ onUnmounted(() => {
   bottom: 40px;
   transform: translateX(-50%);
   width: min(520px, 80vw);
-  padding: 16px 18px;
-  border-radius: 14px;
-  background: rgba(12, 12, 18, 0.82);
-  color: var(--text, #fff);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  color: var(--text);
 }
 .row {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  gap: var(--nnz-gap);
   margin-bottom: 10px;
 }
 .title {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-.count {
-  font-size: 15px;
-  font-weight: 600;
-  opacity: 0.9;
-  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  color: var(--text);
 }
 .bar {
-  height: 14px;
-  border-radius: 999px;
-  background: var(--track, rgba(255, 255, 255, 0.14));
-  overflow: hidden;
+  background: var(--track);
 }
 .fill {
-  height: 100%;
-  border-radius: 999px;
-  background-color: var(--bar, #9146ff);
-  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--bar, #9146ff) 55%, transparent);
+  background: var(--bar);
 }
 .foot {
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
   font-size: 13px;
-  opacity: 0.75;
 }
 .pct {
   font-weight: 700;

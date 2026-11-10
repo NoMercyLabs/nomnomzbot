@@ -5306,6 +5306,11 @@
     <string name="widget_option_providers_bttv">BetterTTV</string>
     <string name="widget_option_providers_ffz">FrankerFaceZ</string>
     <string name="widget_option_providers_7tv">7TV</string>
+    <string name="widget_shared_theme_label">Theme</string>
+    <string name="widget_shared_theme_help">The look of this widget. Pick the same theme on every widget for one matching set.</string>
+    <string name="widget_option_theme_sticker">Sticker (white card, bold outline)</string>
+    <string name="widget_option_theme_ink">Ink (black pills, quiet)</string>
+    <string name="widget_option_theme_print">Print (black card, lime edge)</string>
     <string name="widget_goal_bar_metric_option_followers">Followers</string>
     <string name="widget_goal_bar_metric_option_subs">Subscribers</string>
     <string name="widget_goal_bar_metric_option_bits">Bits</string>

@@ -195,19 +195,23 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-alerts" :style="{ '--accent': cfg.accentColor }">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the card. -->
+  <div class="nnz-widget nnz-alerts">
     <div
       v-if="current"
       :key="cardKey"
-      class="card"
+      class="nnz-pill nnz-tilt card"
       :class="{ show: visible, sticker_card: !!current.imageUrl }"
       :style="current.imageUrl
         ? { left: cardLeftPct + '%', top: cardTopPct + '%', transform: visible ? 'translate(-50%, 0) scale(1)' : 'translate(-50%, -18px) scale(0.96)' }
         : undefined"
     >
-      <img v-if="current.imageUrl" class="sticker" :src="current.imageUrl" alt="" />
-      <div class="title">{{ current.title }}</div>
-      <div v-if="current.detail" class="detail">{{ current.detail }}</div>
+      <span class="nnz-face"></span>
+      <div class="body">
+        <img v-if="current.imageUrl" class="sticker" :src="current.imageUrl" alt="" />
+        <div class="nnz-title">{{ current.title }}</div>
+        <div v-if="current.detail" class="nnz-sub">{{ current.detail }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -217,52 +221,36 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
+/* .show is the widget's own in/out switch (driven by `visible`), timed with the shared theme motion. */
 .card {
   position: fixed;
   top: 12%;
   left: 50%;
-  transform: translateX(-50%);
   min-width: 280px;
   max-width: 70vw;
-  padding: 20px 36px;
-  border-radius: 16px;
-  text-align: center;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.86);
-  border: 2px solid var(--accent, #9146ff);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55),
-    0 0 24px color-mix(in srgb, var(--accent, #9146ff) 35%, transparent);
   opacity: 0;
-  transform: translateY(-18px) scale(0.96);
-  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translate(-50%, -18px) scale(0.96);
+  transition: opacity var(--nnz-out) ease-in, transform var(--nnz-in) var(--nnz-ease);
 }
 .card.show {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translate(-50%, 0) scale(1);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 /* Sticker cards (.sticker_card) get their left/top/transform from the inline :style binding above
    (cardLeftPct/cardTopPct, randomized per occurrence) instead of this fixed top-12%-center rule; the inline
    style takes precedence over these class rules regardless of specificity, so opacity still flips via .show. */
-.title {
-  font-size: 27px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-  color: var(--accent, #9146ff);
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
-}
-.detail {
-  margin-top: 8px;
-  font-size: 17px;
-  font-weight: 500;
-  opacity: 0.92;
-}
 .sticker {
   display: block;
   max-height: 120px;
   max-width: 100%;
-  margin: 0 auto 10px;
-  border-radius: 8px;
+  margin-bottom: 6px;
+  border-radius: var(--nnz-radius-inner);
 }
 </style>

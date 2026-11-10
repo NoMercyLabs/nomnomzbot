@@ -72,10 +72,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="remainingMs >= 0" class="nnz-countdown" :style="{ '--accent': cfg.accentColor }">
-    <div v-if="cfg.label" class="label">{{ cfg.label }}</div>
-    <div v-if="remainingMs > 0" class="time">{{ fmt(remainingMs) }}</div>
-    <div v-else class="done">{{ cfg.onCompleteText || '00:00' }}</div>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the card. -->
+  <div v-if="remainingMs >= 0" class="nnz-widget nnz-card nnz-enter nnz-countdown">
+    <div v-if="cfg.label" class="nnz-chip">{{ cfg.label }}</div>
+    <div v-if="remainingMs > 0" class="nnz-title time">{{ fmt(remainingMs) }}</div>
+    <div v-else class="nnz-title nnz-accent-text done">{{ cfg.onCompleteText || '00:00' }}</div>
   </div>
 </template>
 
@@ -86,37 +87,16 @@ onUnmounted(() => {
   left: 50%;
   transform: translate(-50%, -50%);
   min-width: 220px;
-  padding: 22px 40px;
-  border-radius: 16px;
   text-align: center;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.86);
-  border: 2px solid var(--accent, #9146ff);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55),
-    0 0 24px color-mix(in srgb, var(--accent, #9146ff) 35%, transparent);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   pointer-events: none;
-}
-.label {
-  font-size: 15px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--accent, #9146ff);
-  margin-bottom: 8px;
 }
 .time {
   font-size: 52px;
-  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, 'Cascadia Mono', monospace;
   line-height: 1;
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
 }
 .done {
   font-size: 32px;
-  font-weight: 800;
   line-height: 1.2;
-  color: var(--accent, #9146ff);
 }
 </style>

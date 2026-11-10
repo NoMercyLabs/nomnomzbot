@@ -56,9 +56,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="current" class="nnz-socials" :style="{ '--accent': cfg.accentColor }">
-    <span v-if="current.label" class="label">{{ current.label }}</span>
-    <span class="handle">{{ current.handle }}</span>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the pill. -->
+  <div class="nnz-widget nnz-socials">
+    <Transition name="nnz" mode="out-in">
+      <div v-if="current" :key="current.label + current.handle" class="nnz-pill nnz-tilt">
+        <span v-if="current.label" class="nnz-chip label">{{ current.label }}</span>
+        <span class="nnz-title handle">{{ current.handle }}</span>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -67,21 +72,12 @@ onUnmounted(() => {
   position: fixed;
   right: 24px;
   bottom: 24px;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.72);
-  border-radius: 999px;
-  padding: 8px 18px;
 }
 .label {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--accent, #9146ff);
+  margin-bottom: 0;
 }
-.handle { font-size: 18px; font-weight: 800; }
+.handle {
+  font-size: 20px;
+  white-space: nowrap;
+}
 </style>

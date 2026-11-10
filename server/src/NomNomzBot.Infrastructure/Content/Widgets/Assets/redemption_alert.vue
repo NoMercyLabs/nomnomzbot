@@ -101,13 +101,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-redemption" :style="{ '--accent': cfg.accentColor }">
-    <div v-if="current" :key="cardKey" class="card" :class="{ show: visible }">
-      <img v-if="current.avatarUrl" class="avatar" :src="current.avatarUrl" alt="">
-      <div v-else class="badge">&#127873;</div>
-      <div class="title">{{ headline(current) }}</div>
-      <div v-if="current.cost > 0" class="cost">{{ current.cost }} points</div>
-      <div v-if="current.input" class="input">&ldquo;{{ current.input }}&rdquo;</div>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the card. -->
+  <div class="nnz-widget nnz-redemption">
+    <div v-if="current" :key="cardKey" class="nnz-pill nnz-tilt card" :class="{ show: visible }">
+      <span class="nnz-face"></span>
+      <img v-if="current.avatarUrl" class="nnz-avatar" :src="current.avatarUrl" alt="">
+      <div class="body">
+        <div class="nnz-title">{{ headline(current) }}</div>
+        <div v-if="current.cost > 0" class="nnz-sub">{{ current.cost }} points</div>
+        <div v-if="current.input" class="nnz-sub input">&ldquo;{{ current.input }}&rdquo;</div>
+      </div>
     </div>
   </div>
 </template>
@@ -119,61 +122,27 @@ onUnmounted(() => {
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
+/* .show is the widget's own in/out switch (driven by `visible`), timed with the shared theme motion. */
 .card {
   min-width: 280px;
   max-width: 70vw;
-  padding: 20px 36px;
-  border-radius: 16px;
-  text-align: center;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.86);
-  border: 2px solid var(--accent, #9146ff);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55),
-    0 0 24px color-mix(in srgb, var(--accent, #9146ff) 35%, transparent);
   opacity: 0;
   transform: translateY(-18px) scale(0.96);
-  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--nnz-out) ease-in, transform var(--nnz-in) var(--nnz-ease);
 }
 .card.show {
   opacity: 1;
   transform: translateY(0) scale(1);
 }
-.badge {
-  font-size: 30px;
-  line-height: 1;
-  margin-bottom: 8px;
-}
-.avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin: 0 auto 8px;
-  display: block;
-  border: 2px solid var(--accent, #9146ff);
-}
-.title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-  color: var(--accent, #9146ff);
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
-}
-.cost {
-  margin-top: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  opacity: 0.85;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .input {
-  margin-top: 8px;
-  font-size: 16px;
   font-style: italic;
-  opacity: 0.92;
   word-break: break-word;
 }
 </style>

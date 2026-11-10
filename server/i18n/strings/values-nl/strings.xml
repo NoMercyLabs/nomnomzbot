@@ -5290,6 +5290,11 @@
     <string name="widget_option_providers_bttv">BetterTTV</string>
     <string name="widget_option_providers_ffz">FrankerFaceZ</string>
     <string name="widget_option_providers_7tv">7TV</string>
+    <string name="widget_shared_theme_label">Thema</string>
+    <string name="widget_shared_theme_help">Het uiterlijk van deze widget. Kies op elke widget hetzelfde thema voor één passende set.</string>
+    <string name="widget_option_theme_sticker">Sticker (witte kaart, dikke rand)</string>
+    <string name="widget_option_theme_ink">Ink (zwarte pillen, rustig)</string>
+    <string name="widget_option_theme_print">Print (zwarte kaart, limoenrand)</string>
     <string name="widget_goal_bar_metric_option_followers">Volgers</string>
     <string name="widget_goal_bar_metric_option_subs">Abonnees</string>
     <string name="widget_goal_bar_metric_option_bits">Bits</string>

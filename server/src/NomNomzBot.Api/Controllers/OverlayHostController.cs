@@ -171,7 +171,8 @@ public sealed partial class OverlayHostController : ControllerBase
         // TTS audio (the legacy audioBase64 path and client_edge synthesis) — media can't script.
         + "img-src 'self' https: data:; "
         + "media-src 'self' https: blob: data:; "
-        + "font-src https: data:; "
+        // 'self' for the overlay theme's own typeface (/overlay/theme/font-*.woff2).
+        + "font-src 'self' https: data:; "
         + "connect-src 'self' https: wss: ws:; "
         + "base-uri 'none'; object-src 'none'; "
         + $"frame-src {FrameSources(allowSpotifyPlayback, allowTwitchClips)}; form-action 'none'";
@@ -224,6 +225,7 @@ public sealed partial class OverlayHostController : ControllerBase
             <meta http-equiv="Content-Security-Policy" content="{{csp}}">
             <title>{{System.Net.WebUtility.HtmlEncode(entry.Name)}} — NomNomzBot Overlay</title>
             <style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}#app{position:fixed;inset:0}</style>
+            <link rel="stylesheet" href="/overlay/theme.css?v={{OverlayThemeController.Version}}">
             {{ConfigScript(entry, token, nonce)}}
             {{runtimeTag}}
             <script src="/overlay/sdk.js?v={{OverlaySdkController.Version}}"></script>

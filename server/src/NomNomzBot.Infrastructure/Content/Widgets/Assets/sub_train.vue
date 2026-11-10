@@ -69,10 +69,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" class="nnz-sub-train" :style="{ '--accent': cfg.accentColor }">
-    <span class="engine">🚂</span>
-    <span class="label">SUB TRAIN</span>
-    <span class="count">×{{ count }}</span>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the bar. -->
+  <div class="nnz-widget nnz-sub-train">
+    <Transition name="nnz">
+      <div v-if="visible" class="nnz-pill">
+        <span class="nnz-sub label">Sub train. All aboard.</span>
+        <span class="nnz-title nnz-accent-text count">×{{ count }}</span>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -82,22 +86,11 @@ onUnmounted(() => {
   left: 50%;
   top: 24px;
   transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.8);
-  border-radius: 999px;
-  padding: 10px 22px;
-  box-shadow: 0 4px 24px color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
 }
-.engine { font-size: 24px; }
-.label { font-size: 18px; font-weight: 900; letter-spacing: 2px; }
+.label {
+  white-space: nowrap;
+}
 .count {
-  font-size: 26px;
-  font-weight: 900;
-  color: var(--accent, #9146ff);
-  text-shadow: 0 2px 14px color-mix(in srgb, var(--accent, #9146ff) 60%, transparent);
+  font-variant-numeric: tabular-nums;
 }
 </style>

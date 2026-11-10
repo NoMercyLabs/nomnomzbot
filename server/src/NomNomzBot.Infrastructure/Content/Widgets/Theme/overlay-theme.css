@@ -1,0 +1,374 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0  (c) NoMercy Labs */
+
+/*
+ * The one look every default overlay widget is drawn from. The overlay SDK sets data-nnz-theme on <html> from the
+ * widget's `theme` setting; a widget uses only the --nnz-* tokens and the .nnz-* parts below, never its own font,
+ * colour, radius or shadow. A new theme is one more token block. Nothing here styles a bare element, so a custom
+ * widget that uses none of these names is not touched.
+ */
+
+@font-face {
+  font-family: 'NNZ Jakarta';
+  src: url('/overlay/theme/font-latin.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'NNZ Jakarta';
+  src: url('/overlay/theme/font-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+
+/* Sticker: a white card with a thick outline and an offset accent shadow. The default. */
+:root,
+[data-nnz-theme='sticker'] {
+  --nnz-font: 'NNZ Jakarta', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --nnz-accent: #ff2d6f;
+  --nnz-on-accent: #ffffff;
+  --nnz-surface: #ffffff;
+  --nnz-text: #121212;
+  --nnz-muted: rgba(18, 18, 18, 0.68);
+  --nnz-line: #121212;
+  --nnz-border: 4px solid #121212;
+  --nnz-radius: 22px;
+  --nnz-radius-inner: 10px;
+  --nnz-radius-pill: 22px;
+  --nnz-shadow: 6px 6px 0 var(--nnz-accent), 6px 6px 0 4px #121212;
+  --nnz-chip-bg: #121212;
+  --nnz-chip-text: #ffffff;
+  --nnz-row-bg: transparent;
+  --nnz-row-first-bg: rgba(18, 18, 18, 0.07);
+  --nnz-row-radius: 10px;
+  --nnz-row-shadow: none;
+  --nnz-num-bg: transparent;
+  --nnz-num-text: var(--nnz-accent);
+  --nnz-track: rgba(18, 18, 18, 0.12);
+  --nnz-fill: var(--nnz-accent);
+  --nnz-title-shadow: none;
+  --nnz-tilt: -1.5deg;
+  --nnz-pad: 12px 16px;
+  --nnz-gap: 10px;
+  --nnz-ease: cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  --nnz-in: 420ms;
+  --nnz-out: 260ms;
+}
+
+/* Ink: black pills with a white ring and one lime dot. The quiet one. */
+[data-nnz-theme='ink'] {
+  --nnz-accent: #c8ff2e;
+  --nnz-on-accent: #121212;
+  --nnz-surface: #121212;
+  --nnz-text: #ffffff;
+  --nnz-muted: rgba(255, 255, 255, 0.72);
+  --nnz-line: #ffffff;
+  --nnz-border: 0 solid transparent;
+  --nnz-radius: 26px;
+  --nnz-radius-inner: 16px;
+  --nnz-radius-pill: 999px;
+  --nnz-shadow: 0 0 0 3px #ffffff, 0 10px 30px rgba(0, 0, 0, 0.6);
+  --nnz-chip-bg: #ffffff;
+  --nnz-chip-text: #121212;
+  --nnz-row-bg: rgba(255, 255, 255, 0.07);
+  --nnz-row-first-bg: rgba(255, 255, 255, 0.14);
+  --nnz-row-radius: 999px;
+  --nnz-row-shadow: none;
+  --nnz-num-bg: var(--nnz-accent);
+  --nnz-num-text: #121212;
+  --nnz-track: rgba(255, 255, 255, 0.16);
+  --nnz-fill: var(--nnz-accent);
+  --nnz-title-shadow: none;
+  --nnz-tilt: 0deg;
+  --nnz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Print: a black card with a lime halftone edge and an RGB-split headline. */
+[data-nnz-theme='print'] {
+  --nnz-accent: #c8ff2e;
+  --nnz-on-accent: #121212;
+  --nnz-surface: #121212;
+  --nnz-text: #ffffff;
+  --nnz-muted: rgba(255, 255, 255, 0.72);
+  --nnz-line: #c8ff2e;
+  --nnz-border: 0 solid transparent;
+  --nnz-radius: 20px;
+  --nnz-radius-inner: 8px;
+  --nnz-radius-pill: 20px;
+  --nnz-shadow: 0 14px 40px rgba(0, 0, 0, 0.65);
+  --nnz-chip-bg: var(--nnz-accent);
+  --nnz-chip-text: #121212;
+  --nnz-row-bg: transparent;
+  --nnz-row-first-bg: rgba(255, 255, 255, 0.08);
+  --nnz-row-radius: 8px;
+  --nnz-num-bg: transparent;
+  --nnz-num-text: var(--nnz-accent);
+  --nnz-track: rgba(255, 255, 255, 0.14);
+  --nnz-fill: linear-gradient(90deg, #eaff00, var(--nnz-accent));
+  --nnz-title-shadow: -1.5px 0 rgba(0, 229, 255, 0.8), 1.5px 0 rgba(255, 45, 111, 0.8);
+  --nnz-tilt: 0deg;
+  --nnz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ── Parts ──────────────────────────────────────────────────────────────── */
+
+/* Every widget root carries .nnz-widget: it sets the type and the text colour for what is inside. */
+.nnz-widget {
+  font-family: var(--nnz-font);
+  color: var(--nnz-text);
+  font-weight: 600;
+  line-height: 1.25;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A panel: lists, queues, goals, games. */
+.nnz-card {
+  position: relative;
+  box-sizing: border-box;
+  background: var(--nnz-surface);
+  color: var(--nnz-text);
+  border: var(--nnz-border);
+  border-radius: var(--nnz-radius);
+  box-shadow: var(--nnz-shadow);
+  padding: var(--nnz-pad);
+  overflow: hidden;
+}
+[data-nnz-theme='print'] .nnz-card {
+  padding-top: 18px;
+}
+[data-nnz-theme='print'] .nnz-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: linear-gradient(90deg, #eaff00, var(--nnz-accent));
+}
+
+/* One line of content: an alert, a label, a ticker item, now playing. */
+.nnz-pill {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nnz-gap);
+  background: var(--nnz-surface);
+  color: var(--nnz-text);
+  border: var(--nnz-border);
+  border-radius: var(--nnz-radius-pill);
+  box-shadow: var(--nnz-shadow);
+  padding: 10px 20px 10px 12px;
+  overflow: hidden;
+}
+[data-nnz-theme='print'] .nnz-pill {
+  padding-left: 26px;
+}
+[data-nnz-theme='print'] .nnz-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 12px;
+  background: linear-gradient(180deg, #eaff00, var(--nnz-accent));
+}
+
+/* The sticker tilt. Only a free-standing alert or label takes it, never a list or a full-width bar. */
+.nnz-tilt {
+  rotate: var(--nnz-tilt);
+}
+
+/* The small heading on a panel. */
+.nnz-chip {
+  display: inline-block;
+  background: var(--nnz-chip-bg);
+  color: var(--nnz-chip-text);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 5px 11px;
+  border-radius: var(--nnz-radius-inner);
+  margin-bottom: 8px;
+}
+
+/* The loud line: who did it, the song, the big number. */
+.nnz-title {
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--nnz-text);
+  text-shadow: var(--nnz-title-shadow);
+}
+
+/* The quiet line under it. */
+.nnz-sub {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--nnz-muted);
+}
+
+.nnz-accent-text {
+  color: var(--nnz-accent);
+}
+/* Sticker's accent on white is the crimson; on the dark themes it is the lime. Both pass on their surface. */
+
+/* A row in a list. The first row is the one that matters. */
+.nnz-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: var(--nnz-row-radius);
+  background: var(--nnz-row-bg);
+  font-size: 15px;
+  font-weight: 700;
+}
+.nnz-row + .nnz-row {
+  margin-top: 5px;
+}
+.nnz-row.is-first {
+  background: var(--nnz-row-first-bg);
+}
+.nnz-row .nnz-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nnz-row .nnz-end {
+  flex: none;
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nnz-muted);
+}
+
+/* The position number or a small count. */
+.nnz-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--nnz-num-bg);
+  color: var(--nnz-num-text);
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A progress bar. */
+.nnz-track {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--nnz-track);
+  overflow: hidden;
+}
+.nnz-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--nnz-fill);
+  transition: width 600ms var(--nnz-ease);
+}
+[data-nnz-theme='sticker'] .nnz-track {
+  height: 18px;
+  border: 3px solid var(--nnz-line);
+}
+
+/* A round picture: an avatar, album art, an emote. */
+.nnz-avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--nnz-radius-inner);
+  object-fit: cover;
+  background: var(--nnz-track);
+}
+[data-nnz-theme='ink'] .nnz-avatar {
+  border-radius: 999px;
+}
+[data-nnz-theme='sticker'] .nnz-avatar {
+  border: 3px solid var(--nnz-line);
+  box-sizing: border-box;
+}
+
+/* The bot's smirk, on an accent tile. One per widget at most: it marks the bot speaking. */
+.nnz-face {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--nnz-radius-inner);
+  background-color: var(--nnz-accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 36'%3E%3Cpath d='M4 20C4 9 16 6 31 6s25 0 25 11c0 12-12 15-27 15S4 31 4 20Z' fill='%23121212'/%3E%3Cpath d='M10 15h40c2 0 3 1 3 3H8c0-2 1-3 2-3Z' fill='%23fff'/%3E%3Cpath d='M9 22h43c0 4-8 6-21 6S9 26 9 22Z' fill='%23fff'/%3E%3Cpath d='M33 18l5 6 4-7' fill='none' stroke='%23121212' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 82% auto;
+}
+[data-nnz-theme='sticker'] .nnz-face {
+  border: 3px solid var(--nnz-line);
+  box-sizing: border-box;
+}
+[data-nnz-theme='ink'] .nnz-face {
+  border-radius: 999px;
+  background-color: #ffffff;
+}
+
+/* ── Motion: every widget enters and leaves the same way ────────────────── */
+
+.nnz-enter {
+  animation: nnz-enter var(--nnz-in) var(--nnz-ease) both;
+}
+.nnz-leave {
+  animation: nnz-leave var(--nnz-out) ease-in both;
+}
+/* Vue <Transition name="nnz"> and <TransitionGroup name="nnz"> use the same motion. */
+.nnz-enter-active {
+  animation: nnz-enter var(--nnz-in) var(--nnz-ease) both;
+}
+.nnz-leave-active {
+  animation: nnz-leave var(--nnz-out) ease-in both;
+}
+@keyframes nnz-enter {
+  from {
+    opacity: 0;
+    translate: 0 -18px;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+@keyframes nnz-leave {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nnz-enter,
+  .nnz-leave,
+  .nnz-enter-active,
+  .nnz-leave-active {
+    animation-duration: 1ms;
+  }
+  .nnz-fill {
+    transition: none;
+  }
+}

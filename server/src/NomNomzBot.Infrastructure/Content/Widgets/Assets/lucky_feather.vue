@@ -158,15 +158,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-feather" :style="{ '--accent': cfg.accentColor }">
-    <div class="banner" :class="{ show: bannerVisible }">{{ bannerText }}</div>
-    <div v-if="holder" class="holder-card">
-      <img v-if="holder.avatarUrl" class="avatar" :src="holder.avatarUrl" alt="">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the pills. -->
+  <div class="nnz-widget nnz-feather">
+    <div class="nnz-pill nnz-tilt banner" :class="{ show: bannerVisible }">
+      <span class="nnz-face"></span>
+      <span class="nnz-title">{{ bannerText }}</span>
+    </div>
+    <div v-if="holder" class="nnz-pill holder-card">
+      <img v-if="holder.avatarUrl" class="nnz-avatar avatar" :src="holder.avatarUrl" alt="">
       <div v-else class="badge">&#129413;</div>
       <span class="name" :class="{ 'name-painted': holder.paint && (holder.paint.backgroundImage || holder.paint.color) }" :style="holderNameStyle">{{ holder.displayName }}</span>
-      <span class="holds">holds the Feather</span>
+      <span class="nnz-sub holds">holds the Feather</span>
     </div>
-    <div v-else class="idle">{{ cfg.idleText }}</div>
+    <div v-else class="nnz-pill nnz-sub idle">{{ cfg.idleText }}</div>
   </div>
 </template>
 
@@ -177,41 +181,26 @@ onUnmounted(() => {
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 .banner {
-  margin-bottom: 8px;
-  padding: 8px 20px;
-  border-radius: 10px;
-  color: #fff;
-  font-weight: 800;
-  background: rgba(12, 12, 18, 0.86);
-  border: 2px solid var(--accent, #f4b942);
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  translate: 0 8px;
+  transition: opacity var(--nnz-out) ease, translate var(--nnz-in) var(--nnz-ease);
 }
 .banner.show {
   opacity: 1;
-  transform: translateY(0);
+  translate: 0 0;
 }
-.holder-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  border-radius: 999px;
-  background: rgba(12, 12, 18, 0.7);
-  border: 2px solid var(--accent, #f4b942);
-  color: #fff;
+.banner .nnz-title {
+  font-size: 20px;
 }
 .avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--accent, #f4b942);
+  width: 32px;
+  height: 32px;
 }
 .badge {
   font-size: 20px;
@@ -221,15 +210,9 @@ onUnmounted(() => {
   font-weight: 800;
 }
 .holds {
-  opacity: 0.75;
   font-size: 13px;
 }
 .idle {
-  padding: 6px 16px;
-  border-radius: 999px;
-  background: rgba(12, 12, 18, 0.45);
-  color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
-  font-style: italic;
 }
 </style>

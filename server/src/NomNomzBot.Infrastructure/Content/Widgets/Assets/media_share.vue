@@ -372,30 +372,23 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-mediashare" :class="{ 'is-hidden': !visible }" :style="{ '--accent': cfg.accentColor }">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only sizes the frame. -->
+  <div class="nnz-widget nnz-card nnz-mediashare" :class="{ 'is-hidden': !visible }">
     <div class="frame">
       <div v-show="sourceType === 'twitch_clip'" id="nnz-clip-player" class="player" />
       <div v-show="sourceType === 'youtube'" ref="ytMount" class="player" />
     </div>
-    <div v-if="cfg.showTitle && title" class="title">{{ title }}</div>
+    <div v-if="cfg.showTitle && title" class="nnz-row title"><span class="nnz-grow">{{ title }}</span></div>
   </div>
 </template>
 
 <style scoped>
-/* Display-only overlay: no action buttons, so no primary action. Outer radius 12px with 8px padding
-   makes the inner frame 4px; the accent marks only the title's left rule. */
 .nnz-mediashare {
-  box-sizing: border-box;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 8px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.72);
-  color: #fff;
-  font-family: system-ui, sans-serif;
 }
 /* Hidden, not display:none, so a YouTube iframe still loads and plays while the frame is not shown. */
 .is-hidden {
@@ -404,9 +397,9 @@ onUnmounted(() => {
 .frame {
   flex: 1;
   min-height: 0;
-  border-radius: 4px;
+  border-radius: var(--nnz-radius-inner);
   overflow: hidden;
-  background: #000;
+  background: #000; /* theme-exempt: a video's black letterbox */
 }
 .player {
   width: 100%;
@@ -421,12 +414,5 @@ onUnmounted(() => {
 }
 .title {
   flex: none;
-  padding-left: 8px;
-  border-left: 3px solid var(--accent, #9146ff);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 </style>

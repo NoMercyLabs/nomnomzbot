@@ -120,16 +120,17 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-ticker" :style="{ '--accent': cfg.accentColor }">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the bar. -->
+  <div class="nnz-widget nnz-ticker">
     <div ref="trackEl" class="track">
       <div ref="copyEl" class="copy">
-        <span v-for="c in chips" :key="c.id" class="chip">
-          <span class="icon">{{ c.icon }}</span><span class="text">{{ c.text }}</span>
+        <span v-for="c in chips" :key="c.id" class="nnz-pill chip">
+          <span class="icon nnz-accent-text">{{ c.icon }}</span><span class="text">{{ c.text }}</span>
         </span>
       </div>
       <div class="copy" aria-hidden="true">
-        <span v-for="c in chips" :key="'d' + c.id" class="chip">
-          <span class="icon">{{ c.icon }}</span><span class="text">{{ c.text }}</span>
+        <span v-for="c in chips" :key="'d' + c.id" class="nnz-pill chip">
+          <span class="icon nnz-accent-text">{{ c.icon }}</span><span class="text">{{ c.text }}</span>
         </span>
       </div>
     </div>
@@ -142,12 +143,10 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 44px;
+  height: 72px;
   display: flex;
   align-items: center;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(12, 12, 18, 0) 0%, rgba(12, 12, 18, 0.85) 100%);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 .track {
   display: flex;
@@ -164,20 +163,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
-  margin-right: 12px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
+  margin-right: 18px;
+  padding-top: 6px;
+  padding-bottom: 6px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .icon {
-  color: var(--accent, #9146ff);
   font-size: 14px;
-}
-.text {
-  opacity: 0.95;
 }
 </style>

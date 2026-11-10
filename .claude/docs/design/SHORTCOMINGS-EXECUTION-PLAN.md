@@ -36,12 +36,20 @@ shared token, 0 share code, 25 set their own system font, 25 hard-code `#9146ff`
 10 shadows. No brand is written down. Each widget was styled alone, so restyling one widget treats a symptom.
 Research and the gap table: `benchmarks/overlay-widgets.md`.
 
-Proposal, not settled: the slices below are Arc's reading of the request and of the benchmark gaps. The owner
-must confirm them. 🔒 The look direction is the owner's pick (three rendered directions were shown 2026-11-10);
-S-OVL-BRAND-PAGE waits for it. The request is wider than widgets ("the tip of the ... iceberg"); these slices
-cover the widgets only and do not narrow the rest.
+Owner, verbatim, 2026-11-10 night, after seeing the three rendered looks: "i have a better idea, let the user
+have a theme choice, this enables us to add more later without too much effort. you may do what must be done. i
+want you to not touch my custom widget so my stream stays my own branding but i do want you to replace ALL the
+default widgets that the user can pick with all 3 themable components. can i trust you to make a uniformly
+looking set of widgets that all match their theme? this should not take you more than 2 hours. when you are done
+making all of the widgets you may deploy them with their proper configuration options and ensure the widget
+config screen works and the widget code editor is reliable to match." And, later the same night: "and the drop
+game should be codinggarden's dropgame FYI" (the gap table for that is `benchmarks/drop-game.md`).
 
-### S-OVL-BRAND-PAGE 🔒: the brand is written down once
+Proposal, not settled: the slices below are Arc's reading of the request and of the benchmark gaps. The owner
+must confirm them. The request is wider than widgets ("the tip of the ... iceberg"); these slices cover the
+widgets only and do not narrow the rest.
+
+### S-OVL-BRAND-PAGE: the brand is written down once
 Done when: one design page states the overlay brand from aaoa's Figma (wordmark, smirk face, palette, type,
 shape, texture, voice) with the picked direction, and PRODUCT-ALIGNMENT.md links it.
 

@@ -129,7 +129,7 @@ onUnmounted(() => {
 <template>
   <div
     v-if="effects.length > 0"
-    class="nnz-stage"
+    class="nnz-widget nnz-stage"
     :class="{ shaking: !!shaking }"
     :style="{ '--amp': shaking ? shaking.intensity * 2 : 0 }"
   >
@@ -189,7 +189,6 @@ onUnmounted(() => {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 .nnz-stage.shaking {
   animation: nnz-stage-shake 0.1s linear infinite;
@@ -210,7 +209,7 @@ onUnmounted(() => {
   white-space: nowrap;
   font-weight: 800;
   line-height: 1;
-  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.55); /* theme-exempt: the runner is free art on the stream; this shadow keeps a data-colored glyph readable */
   transform: translateX(-100%);
   animation-name: nnz-run-across;
   animation-timing-function: linear;
@@ -244,7 +243,7 @@ onUnmounted(() => {
 .rumble {
   position: absolute;
   inset: 0;
-  box-shadow: inset 0 0 calc(var(--amp) * 6px) calc(var(--amp) * 1px) var(--tint);
+  box-shadow: inset 0 0 calc(var(--amp) * 6px) calc(var(--amp) * 1px) var(--tint); /* theme-exempt: the edge glow is the shake effect itself, tinted from the effect data */
   animation-name: nnz-fade-out;
   animation-timing-function: ease-out;
   animation-fill-mode: forwards;

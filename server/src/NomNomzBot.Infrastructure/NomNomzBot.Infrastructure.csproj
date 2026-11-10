@@ -51,6 +51,17 @@
     <EmbeddedResource Include="Content\Widgets\Assets\*.vue" />
   </ItemGroup>
 
+  <!-- The overlay theme: the stylesheet every default widget is drawn from, and its typeface (Plus Jakarta Sans,
+       SIL Open Font License, see FONT-LICENSE.txt). OverlayThemeController serves them at /overlay/theme.css and
+       /overlay/theme/font-*.woff2. LogicalName pins a stable manifest name. -->
+  <ItemGroup>
+    <None Remove="Content\Widgets\Theme\**" />
+    <EmbeddedResource
+      Include="Content\Widgets\Theme\overlay-theme.css;Content\Widgets\Theme\*.woff2"
+      LogicalName="NomNomzBot.Infrastructure.Widgets.Theme.%(Filename)%(Extension)"
+    />
+  </ItemGroup>
+
   <!-- Multi-file first-party widget bundles (index.vue, components/, settings.json). The gallery row holds one
        source file, so a bundle is read by FirstPartyWidgetBundles and built with WidgetBuildInput, not seeded as
        a catalogue entry. LogicalName keeps the folder structure: Bundles/<key>/<relative path>. -->

@@ -56,17 +56,17 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the caption. -->
   <div
     v-if="active"
-    class="nnz-ttscaption"
+    class="nnz-widget nnz-pill nnz-enter nnz-ttscaption"
     :class="'pos-' + cfg.position"
-    :style="{ '--accent': cfg.accentColor }"
   >
     <span class="indicator">
       <span class="wave w1"></span><span class="wave w2"></span><span class="wave w3"></span>
     </span>
     <span class="speaker">
-      {{ user || 'TTS' }}<span v-if="cfg.voiceLabel && voice" class="voice">({{ voice }})</span>
+      {{ user || 'TTS' }}<span v-if="cfg.voiceLabel && voice" class="nnz-sub voice">({{ voice }})</span>
     </span>
     <span v-if="cfg.showText && text" class="caption">{{ text }}</span>
   </div>
@@ -78,16 +78,7 @@ onUnmounted(() => {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  gap: 10px;
   max-width: 80vw;
-  padding: 10px 18px;
-  border-radius: 12px;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.86);
-  border: 1px solid var(--accent, #9146ff);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   pointer-events: none;
 }
 .pos-top {
@@ -105,8 +96,8 @@ onUnmounted(() => {
 }
 .wave {
   width: 4px;
-  border-radius: 2px;
-  background: var(--accent, #9146ff);
+  border-radius: var(--nnz-radius-inner);
+  background: var(--nnz-accent);
   animation: nnz-wave 0.9s ease-in-out infinite;
 }
 .w1 { height: 8px; }
@@ -119,19 +110,15 @@ onUnmounted(() => {
 .speaker {
   flex: none;
   font-size: 14px;
-  font-weight: 700;
-  color: var(--accent, #9146ff);
+  font-weight: 800;
 }
 .voice {
   margin-left: 4px;
   font-size: 12px;
-  font-weight: 500;
-  opacity: 0.8;
 }
 .caption {
   min-width: 0;
   font-size: 16px;
-  font-weight: 500;
   line-height: 1.4;
   word-break: break-word;
 }

@@ -46,16 +46,17 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-top-cheerers" :style="{ '--accent': cfg.accentColor }">
-    <div class="title">{{ cfg.title }}</div>
-    <div class="list">
-      <div v-for="(c, i) in shown" :key="c.user" class="row">
-        <span class="rank">{{ i + 1 }}</span>
-        <span class="name">{{ c.user }}</span>
-        <span class="bits">{{ c.bits }}</span>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
+  <div class="nnz-widget nnz-card nnz-top-cheerers">
+    <div class="nnz-chip">{{ cfg.title }}</div>
+    <TransitionGroup name="nnz" tag="div">
+      <div v-for="(c, i) in shown" :key="c.user" class="nnz-row" :class="{ 'is-first': i === 0 }">
+        <span class="nnz-num">{{ i + 1 }}</span>
+        <span class="nnz-grow">{{ c.user }}</span>
+        <span class="nnz-end">{{ c.bits }}</span>
       </div>
-      <div v-if="shown.length === 0" class="row empty">No cheers yet…</div>
-    </div>
+    </TransitionGroup>
+    <div v-if="shown.length === 0" class="nnz-row nnz-sub">No bits yet. Your move.</div>
   </div>
 </template>
 
@@ -65,30 +66,5 @@ onUnmounted(() => {
   right: 24px;
   top: 24px;
   width: min(300px, 40vw);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.72);
-  border-radius: 12px;
-  padding: 12px 14px;
 }
-.title {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--accent, #9146ff);
-  margin-bottom: 8px;
-}
-.list { display: grid; gap: 5px; }
-.row { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
-.row.empty { color: rgba(255, 255, 255, 0.5); font-weight: 500; font-size: 14px; }
-.rank {
-  width: 20px;
-  text-align: center;
-  font-weight: 900;
-  color: var(--accent, #9146ff);
-  flex: none;
-}
-.name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bits { font-weight: 800; color: var(--accent, #9146ff); }
 </style>

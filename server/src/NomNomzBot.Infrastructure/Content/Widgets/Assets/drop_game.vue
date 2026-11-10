@@ -102,12 +102,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" class="nnz-drop" :style="{ '--accent': cfg.accentColor }">
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file draws the game lane. -->
+  <Transition name="nnz">
+  <div v-if="visible" class="nnz-widget nnz-card nnz-drop">
+    <div class="nnz-chip">Drop Game</div>
     <div class="head">
-      <span v-if="phase === 'lobby'" class="title">Drop Game — type <b>!drop</b> to play</span>
-      <span v-else-if="phase === 'resolved'" class="title">Drop Game — results</span>
-      <span v-else-if="phase === 'cancelled'" class="title">Drop Game — cancelled</span>
-      <span v-else class="title">Drop Game</span>
+      <span v-if="phase === 'lobby'" class="nnz-title title">Type <b class="nnz-accent-text">!drop</b> to play</span>
+      <span v-else-if="phase === 'resolved'" class="nnz-title title">Results are in.</span>
+      <span v-else-if="phase === 'cancelled'" class="nnz-title title">Called off. Next time.</span>
+      <span v-else class="nnz-title title">Bombs away.</span>
     </div>
     <div class="track">
       <div class="zone" :style="zoneStyle"></div>
@@ -123,12 +126,13 @@ onUnmounted(() => {
       </div>
     </div>
     <div v-if="phase === 'resolved'" class="board">
-      <div v-for="r in results" :key="r.player" class="row" :class="{ won: r.won }">
-        <span class="player">{{ r.player }}</span>
-        <span class="score">{{ r.won ? '+' + r.payout : '—' }}</span>
+      <div v-for="r in results" :key="r.player" class="nnz-row" :class="{ 'is-first': r.won }">
+        <span class="nnz-grow player">{{ r.player }}</span>
+        <span class="nnz-end score" :class="{ 'nnz-accent-text': r.won }">{{ r.won ? '+' + r.payout : '—' }}</span>
       </div>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -138,28 +142,24 @@ onUnmounted(() => {
   bottom: 32px;
   transform: translateX(-50%);
   width: min(720px, 90vw);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
-  background: rgba(12, 12, 18, 0.78);
-  border-radius: 14px;
-  padding: 14px 18px 18px;
+  overflow: visible;
 }
-.head { margin-bottom: 10px; }
-.title { font-size: 20px; font-weight: 800; letter-spacing: 0.3px; }
-.title b { color: var(--accent, #9146ff); }
+.head { margin-bottom: 12px; }
+.title { font-size: 22px; }
 .track {
   position: relative;
   height: 46px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--nnz-radius-inner);
+  background: var(--nnz-track);
   overflow: visible;
+  margin-bottom: 18px;
 }
 .zone {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent, #9146ff) 35%, transparent);
+  border-radius: var(--nnz-radius-inner);
+  background: color-mix(in srgb, var(--nnz-accent) 35%, transparent);
 }
 .target {
   position: absolute;
@@ -167,8 +167,7 @@ onUnmounted(() => {
   bottom: -4px;
   width: 3px;
   transform: translateX(-50%);
-  background: var(--accent, #9146ff);
-  box-shadow: 0 0 12px var(--accent, #9146ff);
+  background: var(--nnz-accent);
 }
 .marker {
   position: absolute;
@@ -177,9 +176,9 @@ onUnmounted(() => {
   height: 10px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: #d9d9e3;
+  background: var(--nnz-muted);
 }
-.marker.hit { background: #3ddc84; box-shadow: 0 0 10px #3ddc84; }
+.marker.hit { background: var(--nnz-accent); outline: 2px solid var(--nnz-line); }
 .marker .name {
   position: absolute;
   top: 14px;
@@ -188,17 +187,7 @@ onUnmounted(() => {
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--nnz-text);
 }
-.board { margin-top: 12px; display: grid; gap: 4px; }
-.row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.72);
-}
-.row.won { color: #3ddc84; background: rgba(61, 220, 132, 0.1); }
+.board { margin-top: 12px; }
 </style>

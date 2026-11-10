@@ -139,8 +139,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-label" :style="{ '--accent': cfg.accentColor }">
-    <span class="value">{{ display }}</span>
+  <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the label. -->
+  <div class="nnz-widget nnz-label">
+    <span class="nnz-pill nnz-tilt nnz-enter"><span class="nnz-title value">{{ display }}</span></span>
   </div>
 </template>
 
@@ -149,19 +150,8 @@ onUnmounted(() => {
   position: fixed;
   left: 24px;
   bottom: 24px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #fff;
 }
 .value {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 10px;
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  line-height: 1.1;
-  color: var(--accent, #9146ff);
-  background: rgba(12, 12, 18, 0.72);
-  text-shadow: 0 2px 14px color-mix(in srgb, var(--accent, #9146ff) 50%, transparent);
+  white-space: nowrap;
 }
 </style>

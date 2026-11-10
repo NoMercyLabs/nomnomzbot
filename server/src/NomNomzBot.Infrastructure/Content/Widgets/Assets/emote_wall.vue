@@ -114,7 +114,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-emotewall" :class="'anim-' + cfg.animation">
+  <!-- The emotes are the art; the theme only sets the root type. Placement and flight stay here. -->
+  <div class="nnz-widget nnz-emotewall" :class="'anim-' + cfg.animation">
     <img
       v-for="e in emotes"
       :key="e.id"
