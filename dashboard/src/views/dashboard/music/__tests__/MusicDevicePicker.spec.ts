@@ -81,7 +81,7 @@ describe('the Spotify device picker', () => {
 
     expect(wrapper.get('[data-device-picker]').text()).toContain('Phone');
 
-    await wrapper.findAll('[data-device-row]')[1].trigger('click');
+    await wrapper.findAll('[data-device-row]')[1]?.trigger('click');
 
     expect(api.mutate).toHaveBeenCalledWith({ deviceId: 'pc', play: false });
   });
@@ -90,7 +90,7 @@ describe('the Spotify device picker', () => {
     api.devices = api.devices.map((row) => ({ ...row, isActive: false }));
     const wrapper = mountPicker(true);
 
-    await wrapper.findAll('[data-device-row]')[1].trigger('click');
+    await wrapper.findAll('[data-device-row]')[1]?.trigger('click');
 
     expect(api.mutate).toHaveBeenCalledWith({ deviceId: 'pc', play: true });
   });
