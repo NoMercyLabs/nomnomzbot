@@ -242,9 +242,12 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                 [
                     "https://www.googleapis.com/auth/youtube.channel-memberships.creator",
                 ],
+                // reports.query says (live docs, 2026-11-10) that requests "now require access to" the
+                // youtube.readonly scope, besides an analytics scope. So the analytics grant asks for both.
                 ["youtube.analytics"] =
                 [
                     "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
+                    "https://www.googleapis.com/auth/youtube.readonly",
                 ],
             },
             IsByok: ResolveIsByok("YouTube")

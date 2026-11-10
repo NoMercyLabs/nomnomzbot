@@ -1460,30 +1460,45 @@ public sealed class IntegrationOAuthServiceTests
 
     // Stoney, 2026-11-10: "we need analytics and all those features we have from twitch to match". The member
     // list and the analytics are their own grants, so a streamer who is connected keeps working and adds them.
-    [Theory]
-    [InlineData(
-        "youtube.members",
-        "https://www.googleapis.com/auth/youtube.channel-memberships.creator"
-    )]
-    [InlineData(
-        "youtube.analytics",
-        "https://www.googleapis.com/auth/yt-analytics-monetary.readonly"
-    )]
-    public async Task GetStatus_YouTubeShowsTheMembersAndAnalyticsGrants_OnlyOnceTheirScopeIsGranted(
-        string scopeSet,
-        string scope
-    )
+    [Fact]
+    public async Task GetStatus_YouTubeShowsTheMembersGrant_OnceItsScopeIsGranted()
     {
-        string[] connectGrant =
-        [
+        IntegrationStatusDto status = await YouTubeStatusWithScopesAsync([
             "https://www.googleapis.com/auth/youtube",
             "https://www.googleapis.com/auth/youtube.force-ssl",
-        ];
-
-        IntegrationStatusDto status = await YouTubeStatusWithScopesAsync([.. connectGrant, scope]);
+            "https://www.googleapis.com/auth/youtube.channel-memberships.creator",
+        ]);
 
         status.Connected.Should().BeTrue();
-        status.GrantedScopeSets.Should().BeEquivalentTo(["youtube.manage", scopeSet]);
+        status.GrantedScopeSets.Should().BeEquivalentTo(["youtube.manage", "youtube.members"]);
+    }
+
+    // Google's reports.query needs youtube.readonly besides the analytics scope, so the grant holds both.
+    [Fact]
+    public async Task GetStatus_YouTubeShowsTheAnalyticsGrant_OnceBothOfItsScopesAreGranted()
+    {
+        IntegrationStatusDto status = await YouTubeStatusWithScopesAsync([
+            "https://www.googleapis.com/auth/youtube",
+            "https://www.googleapis.com/auth/youtube.force-ssl",
+            "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
+            "https://www.googleapis.com/auth/youtube.readonly",
+        ]);
+
+        status
+            .GrantedScopeSets.Should()
+            .BeEquivalentTo(["youtube.manage", "youtube.analytics", "youtube.readonly"]);
+    }
+
+    [Fact]
+    public async Task GetStatus_YouTubeAnalyticsScopeWithoutTheReadScope_IsNotTheAnalyticsGrant()
+    {
+        IntegrationStatusDto status = await YouTubeStatusWithScopesAsync([
+            "https://www.googleapis.com/auth/youtube",
+            "https://www.googleapis.com/auth/youtube.force-ssl",
+            "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
+        ]);
+
+        status.GrantedScopeSets.Should().BeEquivalentTo(["youtube.manage"]);
     }
 
     [Fact]
