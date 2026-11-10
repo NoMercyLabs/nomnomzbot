@@ -81,24 +81,37 @@ public sealed class SpokenNameFormatterTests
         _sut.Format(name).Should().Be(name);
 
     [Fact]
-    public void ApplyToText_CleansKnownNamesAndMentions_AndLeavesBareWordsAlone()
+    public void ApplyToText_CleansKnownNamesAndMentions_AndLeavesPlainWordsAlone()
     {
         string spoken = _sut.ApplyToText(
-            "thanks xX_D4rk_Xx and @N00bSl4y3r, also Stoney_Eagle_fan_2 and gamer123 said hi",
+            "thanks xX_D4rk_Xx and @N00bSl4y3r, also gamer123 said hi",
             ["xX_D4rk_Xx"]
         );
 
-        spoken
+        spoken.Should().Be("thanks Dark and Noob Slayer, also gamer123 said hi");
+    }
+
+    // Stoney 2026-11-10: "smirking_squiggly should be pronounced as Smirking Squiggly". A word joined by
+    // underscores or hyphens is spoken as its words, with no name list and no @ needed.
+    [Fact]
+    public void ApplyToText_SpeaksAWordJoinedByUnderscoresOrHyphensAsItsWords()
+    {
+        _sut.ApplyToText(
+                "smirking_squiggly and Stoney_Eagle_fan_2 thank mister-x and kani_devs, 10-30 stays",
+                []
+            )
             .Should()
-            .Be("thanks Dark and Noob Slayer, also Stoney_Eagle_fan_2 and gamer123 said hi");
+            .Be(
+                "smirking squiggly and Stoney Eagle fan 2 thank mister x and kani devs, 10-30 stays"
+            );
     }
 
     [Fact]
-    public void ApplyToText_MatchesWholeNamesOnly_CaseInsensitively()
+    public void ApplyToText_MatchesKnownNames_CaseInsensitively()
     {
-        _sut.ApplyToText("kani_dev and kani_devs and KANI_DEV", ["kani_dev"])
+        _sut.ApplyToText("kani_dev and KANI_DEV", ["kani_dev"])
             .Should()
-            .Be("kani dev and kani_devs and KANI DEV");
+            .Be("kani dev and KANI DEV");
     }
 
     // Stoney 2026-10-23: "f0xb17" spoke its characters once its pronunciation rule was removed. A bare word

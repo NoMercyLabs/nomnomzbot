@@ -1776,8 +1776,9 @@ public sealed class TtsDispatchServiceTests
             .Equal("welcome Noob Slayer", "and Stoney Eagle");
     }
 
+    // Stoney 2026-11-10: a word joined by underscores is spoken as its words, with no name known.
     [Fact]
-    public async Task RequestSpeakAsync_LeavesBareWordsAlone_WhenNoNameIsKnown()
+    public async Task RequestSpeakAsync_SpeaksAnUnderscoreNameAsItsWords_AndLeavesBareWordsAlone_WhenNoNameIsKnown()
     {
         Harness h = Build();
 
@@ -1786,7 +1787,7 @@ public sealed class TtsDispatchServiceTests
         await h
             .Tts.Received(1)
             .SynthesizeAsync(
-                "kani_dev said gamer123 is a noob",
+                "kani dev said gamer123 is a noob",
                 "default-voice",
                 Arg.Any<double?>(),
                 Arg.Any<double?>(),

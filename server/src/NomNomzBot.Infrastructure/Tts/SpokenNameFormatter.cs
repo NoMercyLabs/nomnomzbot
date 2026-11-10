@@ -100,6 +100,10 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
     private const string BareLeetWord =
         @"(?<bare>(?=[\p{L}0-9]*\p{L}[013457@$]+\p{L})[\p{L}\p{N}@$]+)";
 
+    // Stoney 2026-11-10: "smirking_squiggly should be pronounced as Smirking Squiggly". A word that starts on a
+    // letter and is joined by underscores or hyphens is a name-like word: the voice says its parts.
+    private const string JoinedWord = @"(?<joined>\p{L}[\p{L}\p{N}]*(?:[_-]+[\p{L}\p{N}]+)+)";
+
     private static Regex BuildTextPattern(IReadOnlyList<string>? names)
     {
         string known = string.Join(
@@ -115,7 +119,7 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         string alternatives = @"@(?<mention>" + NameChars + "+)";
         if (known.Length > 0)
             alternatives += "|" + known;
-        alternatives += "|" + BareLeetWord;
+        alternatives += "|" + JoinedWord + "|" + BareLeetWord;
         return new(
             @"(?<!" + NameChars + "|@)(?:" + alternatives + ")(?!" + NameChars + ")",
             RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
