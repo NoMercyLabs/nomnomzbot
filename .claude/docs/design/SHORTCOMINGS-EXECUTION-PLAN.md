@@ -53,22 +53,15 @@ widgets only and do not narrow the rest.
 Done when: one design page states the overlay brand from aaoa's Figma (wordmark, smirk face, palette, type,
 shape, texture, voice) with the picked direction, and PRODUCT-ALIGNMENT.md links it.
 
-### S-OVL-TOKENS: one set of tokens and parts for every default widget
-Done when: the overlay host serves shared tokens (color, type, radius, shadow, spacing, motion) and shared parts
-(card, pill, the bot's face, the brand typeface, self-hosted), and one widget renders from them with no own
-font and no hard-coded color.
+### S-OVL-MIGRATE: what the theme move left open
+The 25 drawing widgets use the theme (2026-11-10). Done when: every widget has a placement setting that keeps
+the center clear, event texts are not Twitch-only where the event exists on other platforms, the chat box's own
+dark and light setting is merged into the theme choice, and Raid Recap draws from the theme or keeps its
+color-per-day look by the owner's decision.
 
-### S-OVL-GUARD: a check keeps default widgets on the brand
-Done when: a script fails when a file in `Widgets/Assets` sets a font family or a literal color outside the
-tokens, it runs in the slice gate, and it is shown to fail on one bad file first.
-
-### S-OVL-MIGRATE: all 27 default widgets use the tokens
-Done when: 27 of 27 pass S-OVL-GUARD, each is opened on dev over a bright, a dark and a busy backdrop, placement
-keeps the center clear, and event texts are not Twitch-only where the event exists on other platforms.
-
-### S-OVL-RECOLOR: one accent setting recolors the whole set, with a dark and a light version
-Done when: one channel-level setting changes the accent of every default widget, a dark and a light version
-exist, and a widget's own `accentColor` still wins when the streamer set it.
+### S-OVL-RECOLOR: one setting changes the theme and accent of the whole set
+Each widget has its own theme and accent setting (2026-11-10). Done when: one channel-level setting changes the
+theme and the accent of every default widget, and a widget's own setting still wins when the streamer set it.
 
 ### S-OVL-ALERT-SHAPES: the alert comes in several shapes
 Done when: the alert offers at least a card, a compact pill and a no-container shape as a setting, each proven

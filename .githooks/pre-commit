@@ -48,4 +48,11 @@ if git diff --cached --name-only --diff-filter=ACMRD -- 'server/src/*PipelineAct
     exit 1
   }
 fi
+# A default overlay widget draws only from the overlay theme: no own font, color or shadow (Stoney 2026-11-10).
+if git diff --cached --name-only --diff-filter=ACMR -- 'server/src/*Widgets/Assets/*.vue' 'scripts/check-overlay-theme.py' | grep -q .; then
+  python "$(git rev-parse --show-toplevel)/scripts/check-overlay-theme.py" || {
+    echo "pre-commit: a default widget left the overlay theme (scripts/check-overlay-theme.py)." >&2
+    exit 1
+  }
+fi
 exit 0

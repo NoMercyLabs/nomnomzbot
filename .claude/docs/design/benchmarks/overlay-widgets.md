@@ -58,13 +58,13 @@ buttons. It is loud and cheeky. It is not the Twitch purple `#9146ff` that 25 of
 
 | Feature | Seen in | Source | Ours | Status | Slice |
 | --- | --- | --- | --- | --- | --- |
-| One visual identity across every piece | OWN3D, Streamlabs, StreamElements, Elgato, Kudos | https://www.own3d.pro/store/product/pure | Assets/*.vue: 27 widgets, 0 shared tokens, 9 radii, 10 shadows | missing | S-OVL-TOKENS |
+| One visual identity across every piece | OWN3D, Streamlabs, StreamElements, Elgato, Kudos | https://www.own3d.pro/store/product/pure | Widgets/Theme/overlay-theme.css: 25 of 25 drawing widgets use only its tokens and parts | have | |
 | A written brand the pieces follow | Elgato, Kudos | https://marketplace.elgato.com/product/prismatic-4e855675-527c-4142-81f3-c762874d0738 | none; PRODUCT-ALIGNMENT.md has no brand section | missing | S-OVL-BRAND-PAGE |
-| A brand typeface on every piece | OWN3D, StreamElements, Kudos | https://kudos.tv/products/cute-cats | Assets/*.vue: 25 of 27 set their own system font | missing | S-OVL-TOKENS |
-| Tight palette: dark base plus one accent | OWN3D, Streamlabs, Kudos | https://marketplace-api.streamlabs.com/api/v2/themes/1614 | Assets/*.vue: 25 of 27 hard-code `#9146ff` | missing | S-OVL-MIGRATE |
-| Mascot or character in the pieces | Kudos, StreamElements | https://kudos.tv/products/kawaii-os | none; the bot's face is in no widget | missing | S-OVL-TOKENS |
-| Recolor the whole set with one setting | OWN3D, Elgato | https://www.own3d.pro/store/product/chroma | FirstPartyWidgetCatalogue.cs: `accentColor` is set per widget, 26 times | partial | S-OVL-RECOLOR |
-| Dark and light version | Elgato | https://marketplace.elgato.com/product/planetar-69ed8d56-0593-405b-9a10-bb2edc2fb02b | none | missing | S-OVL-RECOLOR |
+| A brand typeface on every piece | OWN3D, StreamElements, Kudos | https://kudos.tv/products/cute-cats | Widgets/Theme/font-latin.woff2 (Plus Jakarta Sans), served by OverlayThemeController.cs | have | |
+| Tight palette: dark base plus one accent | OWN3D, Streamlabs, Kudos | https://marketplace-api.streamlabs.com/api/v2/themes/1614 | overlay-theme.css: three themes (Sticker, Ink, Print), each one surface plus one accent | have | |
+| Mascot or character in the pieces | Kudos, StreamElements | https://kudos.tv/products/kawaii-os | overlay-theme.css: the `.nnz-face` part; alerts.vue, redemption_alert.vue, lucky_feather.vue show it | have | |
+| Recolor the whole set with one setting | OWN3D, Elgato | https://www.own3d.pro/store/product/chroma | FirstPartyWidgetCatalogue.cs: `overlayTheme` and `accentColor` are per widget; no channel-wide switch | partial | S-OVL-RECOLOR |
+| Dark and light version | Elgato | https://marketplace.elgato.com/product/planetar-69ed8d56-0593-405b-9a10-bb2edc2fb02b | overlay-theme.css: Sticker and Print are light, Ink is dark | have | |
 | Alert in several shapes | StreamElements | https://widgets.streamelements.com/theme/anime-supertheme | alerts.vue: one shape | missing | S-OVL-ALERT-SHAPES |
 | Alert with no container | StreamElements | https://widgets.streamelements.com/theme/astrology-package | alerts.vue: always a card | missing | S-OVL-ALERT-SHAPES |
 | Alert sound shipped with the look | OWN3D, Elgato | https://marketplace.elgato.com/product/planetar-69ed8d56-0593-405b-9a10-bb2edc2fb02b | alerts.vue: plays no sound | missing | S-OVL-SOUND |
@@ -85,7 +85,7 @@ buttons. It is loud and cheeky. It is not the Twitch purple `#9146ff` that 25 of
 | Free to use | OWN3D, StreamElements | https://widgets.streamelements.com/theme/astrology-package | every default widget is free | have | |
 | Edit the piece yourself | StreamElements, Streamlabs | https://widgets.streamelements.com/theme/anime-supertheme | dashboard widget code editor (dashboard/src/api/widgetCode.ts) | have | |
 | An update never overwrites a customized piece | Elgato | https://marketplace.elgato.com/product/planetar-69ed8d56-0593-405b-9a10-bb2edc2fb02b | InstalledWidgetSourceUpgradeSeeder.cs | have | |
-| A check that keeps new pieces on the brand | none of the five stores | https://www.own3d.pro/store/product/pure | none; nothing stops a widget from setting its own font or color | missing | S-OVL-GUARD |
+| A check that keeps new pieces on the brand | none of the five stores | https://www.own3d.pro/store/product/pure | scripts/check-overlay-theme.py, run by .githooks/pre-commit | have | |
 | Stinger transition between scenes | Elgato, Kudos | https://kudos.tv/products/cute-cats | none | not-doing | Reason: a stinger is a video file that OBS plays; it is not a browser widget and we ship no video assets |
 | Twitch profile panels | OWN3D, Streamlabs, Kudos | https://kudos.tv/collections/full-packs?sort_by=best-selling | none | not-doing | Reason: panels are static images for the Twitch profile page, outside the bot |
 | Many themed packs to pick from | OWN3D, Streamlabs, StreamElements, Elgato, Kudos | https://streamlabs.com/library/search?sort=recent_installs | none | not-doing | Reason: one NomNomzBot look done well comes first; more looks follow the recolor slice |

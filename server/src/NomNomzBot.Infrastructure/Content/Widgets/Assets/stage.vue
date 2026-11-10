@@ -49,8 +49,14 @@ function clampIntensity(value: unknown): number {
   return isFinite(n) && n >= 1 ? Math.min(10, Math.round(n)) : cfg.intensity
 }
 
+// An effect that names no color wears the theme's accent, which already holds the streamer's own accent if set.
+function themeAccent(): string {
+  const accent: string = getComputedStyle(document.documentElement).getPropertyValue('--nnz-accent').trim()
+  return HEX_COLOR.test(accent) ? accent : cfg.accentColor
+}
+
 function pickColor(value: unknown): string {
-  return typeof value === 'string' && HEX_COLOR.test(value) ? value : cfg.accentColor
+  return typeof value === 'string' && HEX_COLOR.test(value) ? value : themeAccent()
 }
 
 function makePieces(color: string, intensity: number): Piece[] {

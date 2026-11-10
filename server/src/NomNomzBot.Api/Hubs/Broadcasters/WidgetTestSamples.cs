@@ -326,7 +326,7 @@ internal static class WidgetTestSamples
         ["tts_speak"] = _ => new TtsSpeakWidgetPayload(
             "Hey streamer, thanks for the awesome content!",
             "en-US-JennyNeural",
-            "100000016",
+            "TestViewer",
             3200,
             null
         ),

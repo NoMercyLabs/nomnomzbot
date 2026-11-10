@@ -91,11 +91,15 @@ public sealed class WidgetSettingsSchemaTests
 
             if (soundOnly.Contains(schema.WidgetKey))
             {
-                theme.Should().BeNull($"'{schema.WidgetKey}' draws nothing, so it has no look to pick");
+                theme
+                    .Should()
+                    .BeNull($"'{schema.WidgetKey}' draws nothing, so it has no look to pick");
                 continue;
             }
 
-            theme.Should().NotBeNull($"'{schema.WidgetKey}' draws, so the streamer picks its theme");
+            theme
+                .Should()
+                .NotBeNull($"'{schema.WidgetKey}' draws, so the streamer picks its theme");
             theme.Type.Should().Be("select");
             theme.Default.Should().Be("sticker");
             theme.Options!.Select(o => o.Value).Should().Equal("sticker", "ink", "print");

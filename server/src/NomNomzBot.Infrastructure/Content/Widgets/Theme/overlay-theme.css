@@ -55,6 +55,8 @@
   --nnz-tilt: -1.5deg;
   --nnz-pad: 12px 16px;
   --nnz-gap: 10px;
+  /* Parts are drawn at this size on the 1920 x 1080 canvas, so a viewer on a phone can still read them. */
+  --nnz-zoom: 1.45;
   --nnz-ease: cubic-bezier(0.2, 0.9, 0.3, 1.25);
   --nnz-in: 420ms;
   --nnz-out: 260ms;
@@ -88,29 +90,29 @@
   --nnz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Print: a black card with a lime halftone edge and an RGB-split headline. */
+/* Print: an acid-lime poster with black type, halftone dots, sharp corners and a hard black shadow. */
 [data-nnz-theme='print'] {
-  --nnz-accent: #c8ff2e;
-  --nnz-on-accent: #121212;
-  --nnz-surface: #121212;
-  --nnz-text: #ffffff;
-  --nnz-muted: rgba(255, 255, 255, 0.72);
-  --nnz-line: #c8ff2e;
-  --nnz-border: 0 solid transparent;
-  --nnz-radius: 20px;
-  --nnz-radius-inner: 8px;
-  --nnz-radius-pill: 20px;
-  --nnz-shadow: 0 14px 40px rgba(0, 0, 0, 0.65);
-  --nnz-chip-bg: var(--nnz-accent);
-  --nnz-chip-text: #121212;
+  --nnz-accent: #ff2d6f;
+  --nnz-on-accent: #ffffff;
+  --nnz-surface: #d4ff3a;
+  --nnz-text: #121212;
+  --nnz-muted: rgba(18, 18, 18, 0.74);
+  --nnz-line: #121212;
+  --nnz-border: 3px solid #121212;
+  --nnz-radius: 6px;
+  --nnz-radius-inner: 3px;
+  --nnz-radius-pill: 6px;
+  --nnz-shadow: 6px 6px 0 #121212;
+  --nnz-chip-bg: #121212;
+  --nnz-chip-text: #d4ff3a;
   --nnz-row-bg: transparent;
-  --nnz-row-first-bg: rgba(255, 255, 255, 0.08);
-  --nnz-row-radius: 8px;
-  --nnz-num-bg: transparent;
-  --nnz-num-text: var(--nnz-accent);
-  --nnz-track: rgba(255, 255, 255, 0.14);
-  --nnz-fill: linear-gradient(90deg, #eaff00, var(--nnz-accent));
-  --nnz-title-shadow: -1.5px 0 rgba(0, 229, 255, 0.8), 1.5px 0 rgba(255, 45, 111, 0.8);
+  --nnz-row-first-bg: rgba(18, 18, 18, 0.12);
+  --nnz-row-radius: 3px;
+  --nnz-num-bg: #121212;
+  --nnz-num-text: #d4ff3a;
+  --nnz-track: rgba(18, 18, 18, 0.18);
+  --nnz-fill: #121212;
+  --nnz-title-shadow: 1.5px 1.5px 0 rgba(255, 45, 111, 0.9);
   --nnz-tilt: 0deg;
   --nnz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -138,15 +140,31 @@
   padding: var(--nnz-pad);
   overflow: hidden;
 }
-[data-nnz-theme='print'] .nnz-card {
-  padding-top: 18px;
+.nnz-card,
+.nnz-pill {
+  zoom: var(--nnz-zoom);
 }
-[data-nnz-theme='print'] .nnz-card::before {
+.nnz-card .nnz-card,
+.nnz-card .nnz-pill,
+.nnz-pill .nnz-pill {
+  zoom: 1;
+}
+
+/* Print's surface: a lime gradient with halftone dots that fade in from the right, under the content. */
+[data-nnz-theme='print'] .nnz-card,
+[data-nnz-theme='print'] .nnz-pill {
+  isolation: isolate;
+  background: linear-gradient(160deg, #eaff00, var(--nnz-surface));
+}
+[data-nnz-theme='print'] .nnz-card::before,
+[data-nnz-theme='print'] .nnz-pill::before {
   content: '';
   position: absolute;
-  inset: 0 0 auto 0;
-  height: 6px;
-  background: linear-gradient(90deg, #eaff00, var(--nnz-accent));
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(rgba(18, 18, 18, 0.34) 34%, transparent 36%) 0 0 / 8px 8px;
+  -webkit-mask: linear-gradient(100deg, transparent 45%, #000 130%);
+  mask: linear-gradient(100deg, transparent 45%, #000 130%);
 }
 
 /* One line of content: an alert, a label, a ticker item, now playing. */
@@ -163,16 +181,6 @@
   box-shadow: var(--nnz-shadow);
   padding: 10px 20px 10px 12px;
   overflow: hidden;
-}
-[data-nnz-theme='print'] .nnz-pill {
-  padding-left: 26px;
-}
-[data-nnz-theme='print'] .nnz-pill::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 12px;
-  background: linear-gradient(180deg, #eaff00, var(--nnz-accent));
 }
 
 /* The sticker tilt. Only a free-standing alert or label takes it, never a list or a full-width bar. */
@@ -281,7 +289,8 @@
   background: var(--nnz-fill);
   transition: width 600ms var(--nnz-ease);
 }
-[data-nnz-theme='sticker'] .nnz-track {
+[data-nnz-theme='sticker'] .nnz-track,
+[data-nnz-theme='print'] .nnz-track {
   height: 18px;
   border: 3px solid var(--nnz-line);
 }
@@ -298,7 +307,8 @@
 [data-nnz-theme='ink'] .nnz-avatar {
   border-radius: 999px;
 }
-[data-nnz-theme='sticker'] .nnz-avatar {
+[data-nnz-theme='sticker'] .nnz-avatar,
+[data-nnz-theme='print'] .nnz-avatar {
   border: 3px solid var(--nnz-line);
   box-sizing: border-box;
 }
@@ -315,7 +325,8 @@
   background-position: center;
   background-size: 82% auto;
 }
-[data-nnz-theme='sticker'] .nnz-face {
+[data-nnz-theme='sticker'] .nnz-face,
+[data-nnz-theme='print'] .nnz-face {
   border: 3px solid var(--nnz-line);
   box-sizing: border-box;
 }
