@@ -19,7 +19,8 @@ namespace NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 /// </summary>
 public sealed class YouTubeKeylessResolver(
     IYouTubeOEmbedReader oEmbed,
-    IYouTubePlayerDataReader playerData
+    IYouTubePlayerDataReader playerData,
+    IYouTubeArtistChannelReader artistChannel
 ) : IYouTubeKeylessResolver
 {
     public async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveAsync(
@@ -46,6 +47,11 @@ public sealed class YouTubeKeylessResolver(
         bool isMusic =
             YouTubeMusicCategory.IsMusic(player.Category, player.Author)
             || YouTubeMusicCategory.IsMusic(player.Category, embed.Author);
+
+        // An Official Artist Channel uploads music under any category (a live session filed as
+        // "People & Blogs"). The badge is read only when the category and the channel name say no.
+        if (!isMusic && player.Status == YouTubePlayerDataStatus.Read)
+            isMusic = await artistChannel.IsOfficialArtistAsync(videoId, cancellationToken);
 
         switch (player.Status)
         {

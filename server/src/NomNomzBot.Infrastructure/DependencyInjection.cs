@@ -494,10 +494,7 @@ public static class DependencyInjection
         services.AddScoped<IOperatorMessageDeleter, OperatorMessageDeleter>();
         // Who authorizes the system's EventSub topics on a channel with no broadcaster token: the highest-ranked
         // connected team member. Not an I<X>Service, so it is registered explicitly.
-        services.AddScoped<
-            Platform.Eventing.IEventSubActingModeratorSelector,
-            Platform.Eventing.EventSubActingModeratorSelector
-        >();
+        services.AddScoped<IEventSubActingModeratorSelector, EventSubActingModeratorSelector>();
         // "Every channel I moderate" for the network ban fan-out and the mass-ban consent sweep (chat-client.md §3.5).
         services.AddScoped<IOperatorModeratedChannelResolver, OperatorModeratedChannelResolver>();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
@@ -1594,6 +1591,10 @@ public static class DependencyInjection
         services.AddSingleton<
             Music.YouTubeKeyless.IYouTubePlayerDataReader,
             Music.YouTubeKeyless.YouTubePlayerDataReader
+        >();
+        services.AddSingleton<
+            Music.YouTubeKeyless.IYouTubeArtistChannelReader,
+            Music.YouTubeKeyless.YouTubeArtistChannelReader
         >();
         services.AddSingleton<
             Music.YouTubeKeyless.IYouTubeWebSearch,

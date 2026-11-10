@@ -526,7 +526,8 @@ internal static class YouTubeProviderFactory
             new YouTubeVideoCache(time ?? TimeProvider.System),
             new YouTubeKeylessResolver(
                 new YouTubeOEmbedReader(factory),
-                new YouTubePlayerDataReader(factory)
+                new YouTubePlayerDataReader(factory),
+                new YouTubeArtistChannelReader(factory)
             ),
             new YouTubeWebSearch(factory),
             NullLogger<YouTubeMusicProvider>.Instance

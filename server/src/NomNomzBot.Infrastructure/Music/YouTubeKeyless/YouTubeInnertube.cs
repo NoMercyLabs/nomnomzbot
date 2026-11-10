@@ -25,6 +25,7 @@ internal static class YouTubeInnertube
 
     public const string PlayerUrl = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
     public const string SearchUrl = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false";
+    public const string NextUrl = "https://www.youtube.com/youtubei/v1/next?prettyPrint=false";
 
     private const string WebClientVersion = "2.20251001.00.00";
 

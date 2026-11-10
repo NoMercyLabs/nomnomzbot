@@ -87,6 +87,63 @@ public sealed class YouTubeKeylessTests
         track!.IsMusicCategory.Should().BeFalse();
     }
 
+    // The shape youtubei/v1/next sends for a video of an Official Artist Channel (read live 2026-11-10
+    // for EQAUupOFarw, The Big Push, category "People & Blogs").
+    private const string ArtistChannelNextJson = """
+        {"contents":{"twoColumnWatchNextResults":{"results":{"results":{"contents":[
+          {"videoPrimaryInfoRenderer":{}},
+          {"videoSecondaryInfoRenderer":{"owner":{"videoOwnerRenderer":{"badges":[
+            {"metadataBadgeRenderer":{"icon":{"iconType":"AUDIO_BADGE"},
+              "style":"BADGE_STYLE_TYPE_VERIFIED_ARTIST","tooltip":"Official Artist Channel"}}]}}}}
+        ]}}}}}
+        """;
+
+    private const string VerifiedOnlyNextJson = """
+        {"contents":{"twoColumnWatchNextResults":{"results":{"results":{"contents":[
+          {"videoSecondaryInfoRenderer":{"owner":{"videoOwnerRenderer":{"badges":[
+            {"metadataBadgeRenderer":{"style":"BADGE_STYLE_TYPE_VERIFIED","tooltip":"Verified"}}]}}}}
+        ]}}}}}
+        """;
+
+    private static async Task<TrackInfo?> ResolveWithNextAsync(string nextJson)
+    {
+        RecordingHttpHandler handler = new();
+        handler.RespondWhen(r => OEmbedFor(r, TutorialId), HttpStatusCode.OK, RickOEmbed);
+        handler.RespondWhen(
+            r => PlayerFor(r, TutorialId),
+            HttpStatusCode.OK,
+            PlayerJson(TutorialId, "A cover", 229, "People & Blogs", "The Big Push")
+        );
+        handler.RespondWhen(r => Path(r, "/youtubei/v1/next"), HttpStatusCode.OK, nextJson);
+        YouTubeMusicProvider provider = YouTubeProviderFactory.Create(
+            apiKey: null,
+            handler: handler
+        );
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            $"https://youtu.be/{TutorialId}"
+        );
+
+        failure.Should().Be(MusicProviderFailureReason.None);
+        return track;
+    }
+
+    [Fact]
+    public async Task An_official_artist_channel_upload_counts_as_music_even_outside_the_music_category()
+    {
+        TrackInfo? track = await ResolveWithNextAsync(ArtistChannelNextJson);
+
+        track!.IsMusicCategory.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_verified_channel_that_is_no_artist_channel_stays_outside_the_music_category()
+    {
+        TrackInfo? track = await ResolveWithNextAsync(VerifiedOnlyNextJson);
+
+        track!.IsMusicCategory.Should().BeFalse();
+    }
+
     [Fact]
     public async Task A_topic_channel_upload_counts_as_music_even_outside_the_music_category()
     {
