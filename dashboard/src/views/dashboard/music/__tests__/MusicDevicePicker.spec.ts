@@ -18,7 +18,7 @@ import { i18n } from '@/i18n';
 import MusicDevicePicker from '../components/MusicDevicePicker.vue';
 
 const api = vi.hoisted(() => ({
-  mutate: vi.fn(),
+  mutate: vi.fn<(request: { deviceId: string; play: boolean }) => void>(),
   devices: [] as {
     id: string;
     name: string;
