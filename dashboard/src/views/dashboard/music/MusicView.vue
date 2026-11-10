@@ -59,6 +59,7 @@ import { usePanelState } from '@/composables/usePanelState';
 
 import { musicMinimums } from './components/boardPanels';
 import HistoryPanel from './components/HistoryPanel.vue';
+import MusicDevicePicker from './components/MusicDevicePicker.vue';
 import MusicPlayerConnect from './components/MusicPlayerConnect.vue';
 import NowPlayingCard from './components/NowPlayingCard.vue';
 import PlayerButtonPicker from './components/PlayerButtonPicker.vue';
@@ -356,6 +357,11 @@ const span = layout.span;
                 $t(requestsOpen ? 'dashboard.music.queue.open' : 'dashboard.music.queue.closed')
               "
               data-requests-state
+            />
+            <MusicDevicePicker
+              v-if="access.can('music:remote:control')"
+              :channel-id="channelId"
+              :start-playing="queueQuery.data.value?.blockedReason === 'noSpotifyDevice'"
             />
             <Button
               v-if="canModerateQueue && requestsOpen !== undefined"

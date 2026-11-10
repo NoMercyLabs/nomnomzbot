@@ -11,6 +11,7 @@
 
 import {
   useQuery,
+  useMutation,
   useQueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
@@ -675,6 +676,33 @@ export function useMusicDevices(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<MusicDevice[], Error> {
   return channelQuery(channelId, musicDevicesKey, readDevices);
+}
+
+type DeviceTransfer = { deviceId: string; play: boolean };
+
+// Moves Spotify to another device of the connected account. `play` starts it there; false keeps its state.
+export function useTransferMusicDevice(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: DeviceTransfer): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/music/transfer',
+        { params: { path: { version, channelId: toValue(channelId) as string } }, body },
+      );
+
+      if (error !== undefined)
+        throw failed('music control', response.status, error);
+    },
+    onSettled: async (): Promise<void> => {
+      const id = toValue(channelId);
+
+      await Promise.all([
+        queries.invalidateQueries({ queryKey: musicDevicesKey(id) }),
+        queries.invalidateQueries({ queryKey: musicQueueKey(id) }),
+      ]);
+    },
+  });
 }
 
 export type SongHistoryItem = components['schemas']['SongHistoryItem'];
