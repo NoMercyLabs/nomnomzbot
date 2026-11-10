@@ -91,6 +91,9 @@ public static class PlaybackDirectorTestKit
         /// <summary>The fake Spotify keeps a started item in its own queue, as the real one does.</summary>
         public bool LinesUpInItsOwnQueue => Kind == EngineKind.Spotify;
 
+        /// <summary>Null by default: the fake plays nothing by itself, so no hand-over is planned ahead.</summary>
+        public int? HandOverLeadMs { get; set; }
+
         public Task<EngineStartResult> QueueNextAsync(
             PlaybackItem item,
             CancellationToken ct = default

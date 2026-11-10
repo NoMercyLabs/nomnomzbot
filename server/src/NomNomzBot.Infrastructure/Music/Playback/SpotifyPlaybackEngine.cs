@@ -131,6 +131,12 @@ public sealed class SpotifyPlaybackEngine(
     /// <summary>A started or queued track sits in Spotify's own queue until it plays.</summary>
     public bool LinesUpInItsOwnQueue => true;
 
+    /// <summary>
+    /// Spotify fades its next track in before the current one ends (the crossfade set in the Spotify app).
+    /// The Web API does not report that length, so this is the owner's value (Stoney, 2026-11-10: 3 seconds).
+    /// </summary>
+    public int? HandOverLeadMs => 3_000;
+
     /// <summary>Spotify's own queue plays the item right after the owner's current track.</summary>
     public async Task<EngineStartResult> QueueNextAsync(
         PlaybackItem item,

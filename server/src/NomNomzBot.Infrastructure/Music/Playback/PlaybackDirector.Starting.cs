@@ -179,6 +179,9 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        if (await OnReportFromUncutEngineAsync(input, ct))
+            return;
+
         if (input is EngineReport reached && await StartsFairHeadInsteadAsync(reached, ct))
             return;
 
@@ -186,6 +189,8 @@ public sealed partial class PlaybackDirector
         {
             case EngineReport { IsPlaying: true } r
                 when r.Engine == item.Engine && r.Uri == item.Uri:
+                // The head is audible: the engine that played until now gives the music up.
+                await CutForHandOverAsync(name, movedOn: false, ct);
                 await PlayRowAsync(item, r, "started");
                 break;
             case EngineReport { IsPlaying: true } r when r.Uri == _displacedUri:

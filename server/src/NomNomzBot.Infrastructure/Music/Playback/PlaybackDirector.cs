@@ -124,6 +124,9 @@ public sealed partial class PlaybackDirector : IDisposable
             _ignored = WaitsForHeldRecovery(input);
             if (!_ignored)
                 await ApplyAsync(input, ct);
+            bool ignored = _ignored;
+            await DrivePlannedHandOverAsync(ct);
+            _ignored = ignored;
             PlaybackInputOutcome outcome = _ignored
                 ? PlaybackInputOutcome.Ignored
                 : PlaybackInputOutcome.Applied;
@@ -146,6 +149,7 @@ public sealed partial class PlaybackDirector : IDisposable
         try
         {
             await RaiseDueDeadlinesAsync(ct);
+            await DrivePlannedHandOverAsync(ct);
             await ApplyYouTubeOffSwitchAsync(ct);
             await ForgetFinishedHoldAsync(ct);
         }
@@ -215,7 +219,10 @@ public sealed partial class PlaybackDirector : IDisposable
     private Task ApplyAsync(PlaybackInput input, CancellationToken ct)
     {
         if (input is EngineReport report)
+        {
             _reports[report.Engine] = report;
+            _reportAt[report.Engine] = _time.GetUtcNow();
+        }
 
         return Dispatch(input, ct);
     }
@@ -246,6 +253,7 @@ public sealed partial class PlaybackDirector : IDisposable
             _outputWait = null;
         if (to.Kind != PlaybackStateKind.Starting)
         {
+            _cutPending = null;
             _stopWait = null;
             _startDeadline = null;
         }

@@ -62,6 +62,14 @@ public interface IPlaybackEngine
     Task SkipAsync(CancellationToken ct = default) => StopAsync(ct);
 
     /// <summary>
+    /// How long before its own track ends this engine makes its next track audible (its crossfade), in
+    /// milliseconds; 0 when the next track starts exactly at the end. Null when the engine plays nothing by
+    /// itself after a track. The director takes the music away this long before the end, so a request on
+    /// another engine never starts under a track nobody asked for.
+    /// </summary>
+    int? HandOverLeadMs => null;
+
+    /// <summary>
     /// True when a start can be sent now: the engine's connection or player is there. The director asks
     /// before it stops another engine's music for a hand-over.
     /// </summary>
