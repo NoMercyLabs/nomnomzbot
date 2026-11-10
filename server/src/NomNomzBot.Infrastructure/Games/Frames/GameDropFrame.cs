@@ -26,4 +26,13 @@ public sealed record GameDropFrame
     public required double Distance { get; init; }
 
     public required bool Hit { get; init; }
+
+    /// <summary>0 to 100: 100 on the target center, 0 at the win radius edge or beyond.</summary>
+    public required int Score { get; init; }
+
+    /// <summary>The 64-bit flight seed as a decimal string; the overlay draws the same sway from it everywhere.</summary>
+    public required string Seed { get; init; }
+
+    /// <summary>Where the item enters at the top, 0 to 100; the flight still ends on <see cref="Landed"/>.</summary>
+    public required double SpawnX { get; init; }
 }

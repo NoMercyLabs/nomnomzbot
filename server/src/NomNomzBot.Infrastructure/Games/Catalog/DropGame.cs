@@ -71,6 +71,8 @@ public sealed class DropGame : ILiveGame
         double target = (double)state.Data["target"]!;
         double landed = Math.Round(state.Random.NextDouble() * TrackLength, 1);
         double distance = Math.Round(Math.Abs(landed - target), 1);
+        double radius = WinRadius(state.Config);
+        ulong seed = NextSeed(state.Random);
         state.Data[dropKey] = landed;
 
         return Task.FromResult(
@@ -81,7 +83,10 @@ public sealed class DropGame : ILiveGame
                     ["player"] = input.Player.DisplayName,
                     ["landed"] = landed,
                     ["distance"] = distance,
-                    ["hit"] = distance <= WinRadius(state.Config),
+                    ["hit"] = distance <= radius,
+                    ["score"] = Score(distance, radius),
+                    ["seed"] = seed.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["spawnX"] = SpawnX(seed),
                 }
             )
         );
@@ -123,6 +128,7 @@ public sealed class DropGame : ILiveGame
                     ["player"] = player.DisplayName,
                     ["landed"] = double.IsNaN(landed) ? null : landed,
                     ["distance"] = double.IsNaN(landed) ? null : distance,
+                    ["score"] = double.IsNaN(landed) ? null : Score(distance, radius),
                     ["won"] = won,
                     ["payout"] = payout,
                 }
@@ -142,6 +148,25 @@ public sealed class DropGame : ILiveGame
             )
         );
     }
+
+    /// <summary>100 on the target center, 0 at the win radius edge or beyond, linear in between.</summary>
+    private static int Score(double distance, double radius) =>
+        (int)
+            Math.Round(
+                Math.Max(0.0, 1.0 - distance / radius) * 100.0,
+                MidpointRounding.AwayFromZero
+            );
+
+    /// <summary>Two 32-bit draws make the 64-bit flight seed the overlay uses for its sway.</summary>
+    private static ulong NextSeed(IGameRandom random)
+    {
+        ulong high = (ulong)(random.NextDouble() * uint.MaxValue);
+        ulong low = (ulong)(random.NextDouble() * uint.MaxValue);
+        return (high << 32) | low;
+    }
+
+    /// <summary>Where the item enters at the top, 0 to 100 with one decimal, derived from the seed.</summary>
+    private static double SpawnX(ulong seed) => (seed % 1001UL) / 10.0;
 
     private static double WinRadius(GameConfigView config) =>
         config.Config is not null

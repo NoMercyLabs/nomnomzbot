@@ -377,6 +377,9 @@ internal static class WidgetTestSamples
             Landed = 52.4,
             Distance = 2.4,
             Hit = true,
+            Score = 80,
+            Seed = "9876543210123456789",
+            SpawnX = 18.3,
         },
         ["game.resolved"] = _ => new GameResultsFrame
         {

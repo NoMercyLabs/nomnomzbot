@@ -144,6 +144,96 @@ public sealed class DropGameTests
             .NotBeNull("the final scoreboard frame is the payload");
     }
 
+    // Opens a round on target 50 (radius 10) and drops Alice at landedDraw × 100; returns the drop frame.
+    private static async Task<Dictionary<string, object?>> DropAt(
+        Dictionary<string, object?> data,
+        params double[] draws
+    )
+    {
+        DropGame game = new();
+        LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
+        SequenceRandom random = new([0.50, .. draws]);
+        await game.OnStartAsync(State(random, [alice], data), CancellationToken.None);
+        LiveGameTransition drop = await game.OnInputAsync(
+            State(random, [alice], data),
+            Input(alice),
+            CancellationToken.None
+        );
+        return (Dictionary<string, object?>)drop.OverlayPayload!;
+    }
+
+    [Fact]
+    public async Task A_drop_on_the_target_center_scores_100()
+    {
+        Dictionary<string, object?> frame = await DropAt([], 0.50, 0.25, 0.75);
+
+        frame["score"].Should().Be(100);
+        frame["hit"].Should().Be(true);
+    }
+
+    [Fact]
+    public async Task A_drop_on_the_win_radius_edge_scores_0_but_still_hits()
+    {
+        Dictionary<string, object?> frame = await DropAt([], 0.60, 0.25, 0.75);
+
+        frame["distance"].Should().Be(10.0);
+        frame["score"].Should().Be(0);
+        frame["hit"].Should().Be(true, "the hit rule stays distance <= radius");
+    }
+
+    [Fact]
+    public async Task A_drop_halfway_to_the_edge_scores_50_and_beyond_the_edge_scores_0()
+    {
+        Dictionary<string, object?> halfway = await DropAt([], 0.45, 0.25, 0.75);
+        Dictionary<string, object?> beyond = await DropAt([], 0.90, 0.25, 0.75);
+
+        halfway["score"].Should().Be(50);
+        beyond["score"].Should().Be(0);
+        beyond["hit"].Should().Be(false);
+    }
+
+    [Fact]
+    public async Task The_same_random_draws_give_the_same_seed_spawnX_and_landing()
+    {
+        Dictionary<string, object?> first = await DropAt([], 0.37, 0.123456, 0.654321);
+        Dictionary<string, object?> second = await DropAt([], 0.37, 0.123456, 0.654321);
+        Dictionary<string, object?> other = await DropAt([], 0.37, 0.9, 0.1);
+
+        first["seed"].Should().BeOfType<string>();
+        ulong.TryParse((string)first["seed"]!, out _).Should().BeTrue("the seed is a 64-bit value");
+        first["seed"].Should().Be(second["seed"]);
+        first["spawnX"].Should().Be(second["spawnX"]);
+        first["landed"].Should().Be(second["landed"]).And.Be(37.0);
+        other["seed"].Should().NotBe(first["seed"], "a different draw gives a different flight");
+        ((double)first["spawnX"]!).Should().BeInRange(0, 100);
+    }
+
+    [Fact]
+    public async Task The_results_row_carries_the_score_and_null_for_a_player_who_never_dropped()
+    {
+        DropGame game = new();
+        Dictionary<string, object?> data = [];
+        LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
+        LiveGameParticipant bob = Player(PlayerB, "Bob", 20);
+        List<LiveGameParticipant> players = [alice, bob];
+        // target 50; Alice lands 52 (distance 2 → score 80); Bob never drops.
+        SequenceRandom random = new(0.50, 0.52, 0.3, 0.6);
+
+        await game.OnStartAsync(State(random, players, data), CancellationToken.None);
+        await game.OnInputAsync(State(random, players, data), Input(alice), CancellationToken.None);
+        LiveGameResolution resolution = await game.OnResolveAsync(
+            State(random, players, data),
+            CancellationToken.None
+        );
+
+        Dictionary<string, object?> payload =
+            (Dictionary<string, object?>)resolution.FinalOverlayPayload!;
+        List<Dictionary<string, object?>> rows =
+            (List<Dictionary<string, object?>>)payload["results"]!;
+        rows.Single(r => (string)r["player"]! == "Alice")["score"].Should().Be(80);
+        rows.Single(r => (string)r["player"]! == "Bob")["score"].Should().BeNull();
+    }
+
     [Fact]
     public async Task The_win_radius_honors_a_ConfigJson_override()
     {

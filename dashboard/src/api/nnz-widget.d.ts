@@ -608,6 +608,12 @@ interface NnzGameDropFrame {
   landed: number;
   distance: number;
   hit: boolean;
+  /** 0 to 100: 100 on the target center, 0 at the win radius edge or beyond. */
+  score: number;
+  /** The 64-bit flight seed as a decimal string; the overlay draws the same sway from it everywhere. */
+  seed: string;
+  /** Where the item enters at the top, 0 to 100; the flight still ends on Landed. */
+  spawnX: number;
 }
 
 /** The round resolved. Each game adds its own summary next to results: crash where it crashed, drop the target and radius, heist the odds and crew size, raffle the pot and the winner. */
@@ -879,6 +885,8 @@ interface NnzGameResultRow {
   cashedAt?: number | null;
   landed?: number | null;
   distance?: number | null;
+  /** The drop game's 0 to 100 score; null when the player never dropped. */
+  score?: number | null;
   won?: boolean | null;
   escaped?: boolean | null;
   payout: number;

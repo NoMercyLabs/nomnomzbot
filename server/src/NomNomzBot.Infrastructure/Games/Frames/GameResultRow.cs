@@ -28,6 +28,9 @@ public sealed record GameResultRow
 
     public double? Distance { get; init; }
 
+    /// <summary>The drop game's 0 to 100 score; null when the player never dropped.</summary>
+    public int? Score { get; init; }
+
     public bool? Won { get; init; }
 
     public bool? Escaped { get; init; }
