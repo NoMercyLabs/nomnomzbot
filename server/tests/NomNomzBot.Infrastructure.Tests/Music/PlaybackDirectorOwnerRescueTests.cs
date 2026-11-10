@@ -274,6 +274,21 @@ public sealed class PlaybackDirectorOwnerRescueTests : IDisposable
     }
 
     [Fact]
+    public async Task An_accepted_Resume_is_never_sent_again_and_an_unconfirmed_one_ends_in_Blocked()
+    {
+        await VideoHoldsSpotifyAsync();
+        await VideoEndsAsync();
+        SpotifyCalls("Resume").Should().Be(1);
+
+        await TimerRunsForAsync(1);
+        await SpotifyReportsAsync(OwnNextTrack, false);
+        await TimerRunsForAsync(120);
+
+        SpotifyCalls("Resume").Should().Be(1, "a second Resume could undo the owner's pause");
+        _director.State.Should().Be(PlaybackState.Blocked("SpotifyResumeFailed"));
+    }
+
+    [Fact]
     public async Task A_pause_after_Spotify_reported_playing_gets_no_Resume_and_counts_as_the_owners()
     {
         await VideoHoldsSpotifyAsync();

@@ -156,7 +156,7 @@ public sealed class PlaybackDirectorYouTubeRunFailureTests : IDisposable
         await SpotifyReportsAsync(OwnNextTrack, false);
 
         _director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
-        ResumesSent.Should().Be(2, "Spotify is still silent, so the Resume is sent again");
+        ResumesSent.Should().Be(1, "an accepted Resume is never sent again");
     }
 
     [Fact]

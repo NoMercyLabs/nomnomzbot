@@ -33,10 +33,14 @@ public sealed partial class PlaybackDirector
         TimeSpan.FromSeconds(8),
     ];
 
-    /// <summary>A Skip is owed only while it threw: repeating an accepted Skip would lose a song.</summary>
+    /// <summary>
+    /// A send is owed only while it threw or was refused. Repeating an accepted Resume could undo a pause
+    /// the owner just made, and repeating an accepted Skip would lose a song.
+    /// </summary>
     private sealed record PendingSpotifyReturn(
         int Sends,
         DateTimeOffset NextAt,
+        bool SendOwed,
         bool SkipOwed,
         string? Refusal
     );
@@ -70,6 +74,7 @@ public sealed partial class PlaybackDirector
         _spotifyReturn = new(
             send,
             _time.GetUtcNow() + SpotifyReturnWaits[send - 1],
+            failed,
             skip && failed,
             refusal
         );
@@ -117,7 +122,7 @@ public sealed partial class PlaybackDirector
     private bool SpotifyReturnDue() =>
         _spotifyReturn is { } pending && _time.GetUtcNow() >= pending.NextAt;
 
-    /// <summary>Reads Spotify first, so a Resume is only repeated for a Spotify still not playing.</summary>
+    /// <summary>Reads Spotify first. An accepted send only waits for its proof, then ends in Blocked.</summary>
     private async Task RetrySpotifyReturnAsync(CancellationToken ct)
     {
         PendingSpotifyReturn pending = _spotifyReturn!;
@@ -134,6 +139,16 @@ public sealed partial class PlaybackDirector
         if (pending.Sends >= SpotifyReturnWaits.Length)
         {
             await GiveUpSpotifyReturnAsync(pending);
+            return;
+        }
+
+        if (!pending.SendOwed)
+        {
+            _spotifyReturn = pending with
+            {
+                Sends = pending.Sends + 1,
+                NextAt = _time.GetUtcNow() + SpotifyReturnWaits[pending.Sends],
+            };
             return;
         }
 

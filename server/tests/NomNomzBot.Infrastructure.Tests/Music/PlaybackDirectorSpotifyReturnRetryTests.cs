@@ -289,7 +289,7 @@ public sealed class PlaybackDirectorSpotifyReturnRetryTests : IDisposable
         await VideoEndsAsync();
         await TimerRunsForAsync(120);
 
-        _spotify.ResumesSent.Should().Be(4);
+        _spotify.ResumesSent.Should().Be(1);
         _director.State.Kind.Should().Be(PlaybackStateKind.Blocked);
     }
 
@@ -331,7 +331,7 @@ public sealed class PlaybackDirectorSpotifyReturnRetryTests : IDisposable
         await TimerRunsForAsync(4);
 
         _spotify.SkipsSent.Should().Be(1, "a second Skip would lose a song");
-        _spotify.ResumesSent.Should().BeGreaterThan(0);
+        _spotify.ResumesSent.Should().Be(0, "an accepted send is never followed by another");
     }
 
     [Fact]
