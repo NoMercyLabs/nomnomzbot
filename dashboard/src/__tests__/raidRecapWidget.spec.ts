@@ -956,8 +956,8 @@ describe('raid_recap widget', () => {
 
       await flushPromises();
 
-      expect(own.find('.recap').attributes('style')).toContain('--accent: #22aa66');
-      expect(neutral.find('.recap').attributes('style')).not.toContain('--accent');
+      expect(own.find('.recap').attributes('style')).toContain('--nnz-accent: #22aa66');
+      expect(neutral.find('.recap').attributes('style')).not.toContain('--nnz-accent');
     });
 
     it('reads the date in the time zone of the setting', async () => {

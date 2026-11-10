@@ -146,6 +146,15 @@ export const musicReplies: FakeReply[] = [
   get(`${music}/config`, config),
   get(`${music}/config/defaults`, config),
   get(`${music}/blocked-tracks`, one([])),
+  get(`${music}/devices`, one([
+    {
+      id: 'sample-device',
+      name: 'Streaming PC',
+      type: 'Computer',
+      isActive: true,
+      volumePercent: 60,
+    },
+  ])),
   get(`${music}/player-buttons`, one(buttons)),
   get(`${music}/history`, one(history)),
   get(`${music}/top-requesters`, one(requesters)),

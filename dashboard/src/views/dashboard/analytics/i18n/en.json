@@ -66,15 +66,15 @@
         "title": "Your YouTube channel",
         "description": "Per day, newest first. The numbers come from YouTube and can be two days behind.",
         "empty": "YouTube has no numbers for this range.",
-        "takeaway": "{views} views, {time} watched, {subscribers} subscribers net.",
+        "takeaway": "{views} views, {time} watched, {subscribers} YouTube subscribers net.",
         "notMonetised": "YouTube gives no revenue for this channel. Revenue needs the YouTube Partner Program.",
         "noRevenue": "None",
         "columns": {
           "day": "Day",
           "views": "Views",
           "watched": "Watch time",
-          "gained": "Subscribers gained",
-          "lost": "Subscribers lost",
+          "gained": "YouTube subscribers gained",
+          "lost": "YouTube subscribers lost",
           "revenue": "Estimated revenue"
         },
         "blocked": {

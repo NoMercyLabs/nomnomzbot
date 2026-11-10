@@ -393,7 +393,7 @@ describe('the YouTube tab', () => {
 
     const panel = document.body.querySelector('[data-analytics-youtube]')?.textContent ?? '';
 
-    expect(panel).toContain('200 views, 8 hr 10 min watched, 6 subscribers net.');
+    expect(panel).toContain('200 views, 8 hr 10 min watched, 6 YouTube subscribers net.');
     expect(panel).toContain('Estimated revenue');
     expect(document.body.querySelector('[data-youtube-no-revenue]')).toBeNull();
 
