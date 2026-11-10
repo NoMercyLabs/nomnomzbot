@@ -92,6 +92,70 @@ public sealed class MusicStatePollingServiceTests
         bus.Published.OfType<PlaybackStateChangedEvent>().Should().ContainSingle();
     }
 
+    // Stoney 2026-11-10: "the youtube info did show up very brievly and then got replaced with the spotify
+    // info". While a video request plays, the polled Spotify song is the one that waits, not the one heard.
+    [Fact]
+    public async Task While_a_video_request_plays_the_waiting_Spotify_song_is_fed_to_its_engine_and_never_published()
+    {
+        IPlaybackStateReader director = Substitute.For<IPlaybackStateReader>();
+        IEngineFeed feed = Substitute.For<IEngineFeed>();
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingInputSink _,
+            RegisteredSpotifyStub _
+        ) = BuildWithProvider([ChannelA], engineFeed: feed, playbackState: director);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Own song", true, 1_000, trackUri: "spotify:track:own")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        PlaybackItem video = new(
+            "yt1",
+            "viewer",
+            EngineKind.YouTube,
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "A video",
+            ["Artist"],
+            null,
+            180_000,
+            "viewer"
+        );
+        director.StateOf(ChannelA).Returns(PlaybackState.Playing(EngineKind.YouTube, video));
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Own song", false, 195_000, trackUri: "spotify:track:own")
+        );
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Should()
+            .ContainSingle("the paused Spotify song must not replace the video's info")
+            .Which.TrackName.Should()
+            .Be("Own song");
+        await feed.Received(2)
+            .ObservePollAsync(ChannelA, Arg.Any<TrackInfo?>(), Arg.Any<CancellationToken>());
+
+        director.StateOf(ChannelA).Returns(PlaybackState.Playing(EngineKind.Spotify, null));
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Next song", true, 500, trackUri: "spotify:track:next")
+        );
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Should()
+            .HaveCount(2)
+            .And.Subject.Last()
+            .TrackName.Should()
+            .Be("Next song");
+    }
+
     [Fact]
     public async Task Same_state_observed_twice_publishes_only_once()
     {
@@ -707,7 +771,8 @@ public sealed class MusicStatePollingServiceTests
         bool? watched = true,
         IActiveInstanceGate? instanceGate = null,
         IReadOnlyList<Guid>? vaultOnlyChannels = null,
-        IEngineFeed? engineFeed = null
+        IEngineFeed? engineFeed = null,
+        IPlaybackStateReader? playbackState = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -761,7 +826,13 @@ public sealed class MusicStatePollingServiceTests
         FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         RegisteredSpotifyStub provider = new();
 
-        PollerScopeFactory scopes = new(db, music, provider, instanceGate: instanceGate);
+        PollerScopeFactory scopes = new(
+            db,
+            music,
+            provider,
+            instanceGate: instanceGate,
+            playbackState: playbackState
+        );
         // Which cadence tier the channel sits in: true = known and live (full speed when playing), false =
         // known but offline with nobody watching (idle tier), null = the registry has not seen it yet.
         // Defaulting to true is the production shape; a bare substitute returns null for every Get, which is
@@ -1181,7 +1252,8 @@ public sealed class MusicStatePollingServiceTests
         IMusicService musicService,
         RegisteredSpotifyStub? provider = null,
         RecordingInputSink? handover = null,
-        IActiveInstanceGate? instanceGate = null
+        IActiveInstanceGate? instanceGate = null,
+        IPlaybackStateReader? playbackState = null
     ) : IServiceScopeFactory
     {
         public RecordingInputSink Handover { get; } = handover ?? new RecordingInputSink();
@@ -1191,7 +1263,7 @@ public sealed class MusicStatePollingServiceTests
         private readonly RegisteredSpotifyStub _provider = provider ?? new RegisteredSpotifyStub();
 
         public IServiceScope CreateScope() =>
-            new Scope(db, musicService, Handover, _provider, instanceGate, Queues);
+            new Scope(db, musicService, Handover, _provider, instanceGate, Queues, playbackState);
 
         private sealed class Scope(
             IApplicationDbContext db,
@@ -1199,13 +1271,16 @@ public sealed class MusicStatePollingServiceTests
             IPlaybackInputSink handover,
             RegisteredSpotifyStub provider,
             IActiveInstanceGate? instanceGate,
-            ISongRequestQueueStore queues
+            ISongRequestQueueStore queues,
+            IPlaybackStateReader? playbackState
         ) : IServiceScope, IServiceProvider
         {
             public IServiceProvider ServiceProvider => this;
 
             public object? GetService(Type serviceType)
             {
+                if (serviceType == typeof(IPlaybackStateReader))
+                    return playbackState;
                 if (serviceType == typeof(IActiveInstanceGate))
                     return instanceGate;
                 if (serviceType == typeof(ISongRequestQueueStore))

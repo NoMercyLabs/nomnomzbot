@@ -1615,6 +1615,38 @@ public sealed class MusicService : IMusicService
         return await GetActiveProviderAsync(tenantId, cancellationToken);
     }
 
+    /// <summary>
+    /// The provider of the engine that plays a request while <paramref name="active"/> waits, or null when the
+    /// active provider is the one that is heard.
+    /// </summary>
+    private async Task<IMusicProvider?> HeardOnAnotherEngineAsync(
+        Guid tenantId,
+        IMusicProvider active,
+        CancellationToken cancellationToken
+    )
+    {
+        if (
+            _playbackState.StateOf(tenantId)
+                is not {
+                    Kind: PlaybackStateKind.Playing or PlaybackStateKind.PausedByOwner,
+                    Item: { } playing
+                }
+            || playing.Engine == EngineKinds.ForTrack(active.Provider, string.Empty)
+        )
+            return null;
+
+        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
+        IReadOnlyList<IMusicProvider> allowed = await GetAllowedProvidersAsync(
+            tenantId,
+            config,
+            cancellationToken
+        );
+        return allowed.FirstOrDefault(p =>
+            EngineKinds.ForTrack(p.Provider, string.Empty) == playing.Engine
+            && HasCapability(p, MusicProviderCapabilities.NowPlaying)
+        );
+    }
+
     public async Task<NowPlaying?> GetNowPlayingAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default,
@@ -1627,6 +1659,22 @@ public sealed class MusicService : IMusicService
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null || !HasCapability(provider, MusicProviderCapabilities.NowPlaying))
             return null;
+
+        // A request plays on another engine (a video while Spotify waits on pause): a reader gets the song
+        // that is heard. The background poll still reads the active provider, because its engine needs it.
+        if (
+            !isBackgroundPoll
+            && await HeardOnAnotherEngineAsync(tenantId, provider, cancellationToken)
+                is { } heardProvider
+        )
+        {
+            TrackInfo? heard = await heardProvider.GetCurrentTrackAsync(
+                tenantId,
+                cancellationToken
+            );
+            if (heard is not null)
+                return ToNowPlaying(heard, RequesterOfPlayingTrack(tenantId, heard.TrackUri));
+        }
 
         if (
             !isBackgroundPoll
@@ -1724,7 +1772,24 @@ public sealed class MusicService : IMusicService
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return null;
-        return _nowPlayingCache.TryGet(tenantId, NowPlayingCacheFreshness)?.Track.IsPlaying;
+        TrackInfo? cached = _nowPlayingCache.TryGet(tenantId, NowPlayingCacheFreshness)?.Track;
+
+        // The cache holds the active provider's song. While a request plays on another engine that song
+        // waits on pause, so the director says whether music is heard.
+        if (
+            _playbackState.StateOf(tenantId)
+                is {
+                    Kind: PlaybackStateKind.Playing or PlaybackStateKind.PausedByOwner,
+                    Item: { } playing
+                } state
+            && (
+                cached is null
+                || playing.Engine != EngineKinds.ForTrack(cached.Provider, cached.TrackUri)
+            )
+        )
+            return state.Kind == PlaybackStateKind.Playing;
+
+        return cached?.IsPlaying;
     }
 
     private static NowPlaying ToNowPlaying(TrackInfo track, string? requestedBy = null) =>
@@ -2662,6 +2727,11 @@ public sealed class MusicService : IMusicService
         bool? assumeIsPlaying = null
     )
     {
+        // A request plays on another engine: that engine's own reports announce its state. The song of
+        // this provider waits on pause and is not announced as now playing.
+        if (await HeardOnAnotherEngineAsync(tenantId, provider, cancellationToken) is not null)
+            return;
+
         TrackInfo? track;
         DateTimeOffset observedAt;
 

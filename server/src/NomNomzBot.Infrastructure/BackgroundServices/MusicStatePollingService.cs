@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
@@ -213,6 +214,8 @@ public sealed class MusicStatePollingService : BackgroundService
         IMusicService musicService = scope.ServiceProvider.GetRequiredService<IMusicService>();
         IPlaybackInputSink playback =
             scope.ServiceProvider.GetRequiredService<IPlaybackInputSink>();
+        IPlaybackStateReader? playbackState =
+            scope.ServiceProvider.GetService<IPlaybackStateReader>();
         List<IMusicProvider> providers = [.. scope.ServiceProvider.GetServices<IMusicProvider>()];
         List<string> providerKeys = [.. providers.Select(p => p.Provider)];
 
@@ -270,7 +273,13 @@ public sealed class MusicStatePollingService : BackgroundService
                     isBackgroundPoll: true
                 );
                 _backoff.TryRemove(channelId, out _);
-                await ProcessChannelStateAsync(channelId, nowPlaying, now, cancellationToken);
+                await ProcessChannelStateAsync(
+                    channelId,
+                    nowPlaying,
+                    now,
+                    playbackState,
+                    cancellationToken
+                );
 
                 // Recovery tick for a stuck song-request queue. SongRequestQueueReconciler advances the
                 // queue off playback CHANGES, but a handover that could not land — the streamer's player
@@ -449,6 +458,15 @@ public sealed class MusicStatePollingService : BackgroundService
         }
     }
 
+    private static bool WaitsBehindAnotherEngine(PlaybackState? state, NowPlaying? polled) =>
+        polled is not null
+        && state
+            is {
+                Kind: PlaybackStateKind.Playing or PlaybackStateKind.PausedByOwner,
+                Item: { } playing
+            }
+        && playing.Engine != EngineKinds.ForTrack(polled.Provider, polled.TrackUri ?? string.Empty);
+
     private static bool IsPolledSpotifyTrack(NowPlaying nowPlaying) =>
         nowPlaying.Provider == "spotify" && !string.IsNullOrEmpty(nowPlaying.TrackUri);
 
@@ -472,6 +490,7 @@ public sealed class MusicStatePollingService : BackgroundService
         Guid channelId,
         NowPlaying? nowPlaying,
         DateTimeOffset observedAt,
+        IPlaybackStateReader? playbackState,
         CancellationToken cancellationToken
     )
     {
@@ -496,6 +515,11 @@ public sealed class MusicStatePollingService : BackgroundService
         }
 
         bool fedToEngine = await FeedSpotifyEngineAsync(channelId, nowPlaying, cancellationToken);
+
+        // A request plays on another engine (a video over a held Spotify): the polled track is the one that
+        // waits, not the one that is heard. Its engine got it above; it is never published as now playing.
+        if (WaitsBehindAnotherEngine(playbackState?.StateOf(channelId), nowPlaying))
+            return;
 
         ChannelPlaybackSnapshot next = nowPlaying is null
             ? new(
