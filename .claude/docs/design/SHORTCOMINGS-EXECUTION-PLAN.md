@@ -1683,12 +1683,6 @@ Facts from the live Google docs, read 2026-11-10:
 
 Decision proposed to the owner: remove `youtubepartner` and `youtube.upload` from the Google project, keep 5.
 
-- **S-YT-MEMBERS** The YouTube channel members are the YouTube subscribers of the bot: the member count
-  (dashboard home, the labels widget, the template helper), the member list with level and member-since in
-  Community, and the member standing that member-only commands read. The levels come from
-  `membershipsLevels.list`. A channel without memberships, without the grant, or without Google's access
-  shows a plain reason, never an error. Done-when: tests cover the list (paged), the count, the standing of a
-  member and of a non-member, and each of the three refusals.
 - **S-YT-CLIP-UPLOAD** A Twitch clip goes to the streamer's YouTube channel: the clip's download address
   (`GetClipDownloadUrlsAsync`) is streamed into `videos.insert` with a title, a description and a privacy
   choice (private by default). The upload has its own quota (100 a day), so the page shows what is left.
