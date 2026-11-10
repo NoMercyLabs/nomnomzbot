@@ -3258,6 +3258,11 @@
         "bttv": "BetterTTV",
         "ffz": "FrankerFaceZ",
         "twitch": "Twitch"
+      },
+      "theme": {
+        "ink": "Ink (zwarte pillen, rustig)",
+        "print": "Print (zwarte kaart, limoenrand)",
+        "sticker": "Sticker (witte kaart, dikke rand)"
       }
     },
     "poll_prediction": {
@@ -3392,6 +3397,12 @@
       "textTemplate": {
         "help": "Optionele overschrijving voor de pop-uptekst.",
         "label": "Tekstsjabloon"
+      }
+    },
+    "shared": {
+      "theme": {
+        "help": "Het uiterlijk van deze widget. Kies op elke widget hetzelfde thema voor één passende set.",
+        "label": "Thema"
       }
     },
     "socials": {

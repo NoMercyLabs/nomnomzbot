@@ -3258,6 +3258,11 @@
         "bttv": "BetterTTV",
         "ffz": "FrankerFaceZ",
         "twitch": "Twitch"
+      },
+      "theme": {
+        "ink": "Ink (black pills, quiet)",
+        "print": "Print (black card, lime edge)",
+        "sticker": "Sticker (white card, bold outline)"
       }
     },
     "poll_prediction": {
@@ -3392,6 +3397,12 @@
       "textTemplate": {
         "help": "Optional override for the popup copy.",
         "label": "Text template"
+      }
+    },
+    "shared": {
+      "theme": {
+        "help": "The look of this widget. Pick the same theme on every widget for one matching set.",
+        "label": "Theme"
       }
     },
     "socials": {
