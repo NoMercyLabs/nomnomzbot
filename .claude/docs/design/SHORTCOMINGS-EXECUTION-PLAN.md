@@ -1683,11 +1683,6 @@ Facts from the live Google docs, read 2026-11-10:
 
 Decision proposed to the owner: remove `youtubepartner` and `youtube.upload` from the Google project, keep 5.
 
-- **S-YT-SCOPES** Two new YouTube scope sets, asked for on their own so nobody who is connected has to
-  reconnect: `youtube.members` (`youtube.channel-memberships.creator`) and `youtube.analytics`
-  (`yt-analytics-monetary.readonly`). The Integrations page names each in plain words and offers the grant.
-  Done-when: a test connects with the old scopes and sees both sets offered, not granted; a test with the new
-  scopes sees them granted.
 - **S-YT-MEMBERS** The YouTube channel members are the YouTube subscribers of the bot: the member count
   (dashboard home, the labels widget, the template helper), the member list with level and member-since in
   Community, and the member standing that member-only commands read. The levels come from
