@@ -213,6 +213,12 @@ public sealed partial class PlaybackDirector
     /// <summary>No queue item follows: resume the owner's remembered music, or go Idle.</summary>
     private async Task EndOfQueueAsync(EngineKind ended, string inputName, CancellationToken ct)
     {
+        if (_spotifyHeldForYouTube)
+        {
+            await ReturnToSpotifyAsync(inputName, ct);
+            return;
+        }
+
         OwnerMusicMemory? memory = _memory;
         _memory = null;
         if (memory is { WasPlaying: true } && memory.Engine != ended)

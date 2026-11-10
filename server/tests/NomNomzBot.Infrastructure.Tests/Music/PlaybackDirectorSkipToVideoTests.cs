@@ -106,6 +106,22 @@ public sealed class PlaybackDirectorSkipToVideoTests : IDisposable
     }
 
     [Fact]
+    public async Task Skipping_the_video_too_moves_Spotify_on_and_never_replays_the_skipped_song()
+    {
+        await RequestPlaysAsync();
+        _queue.Enqueue(Video);
+        await _director.HandleAsync(new RequestAdded());
+        await SkippedToVideoAsync();
+        int skipsBefore = Calls("Skip");
+
+        await _director.HandleAsync(new OwnerSkip());
+
+        Calls("Skip").Should().Be(skipsBefore + 1);
+        Calls("Resume").Should().Be(0);
+        _director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+    }
+
+    [Fact]
     public async Task Previous_back_to_a_video_also_gives_Spotify_the_music_back_after_it()
     {
         _queue.Enqueue(Video);
