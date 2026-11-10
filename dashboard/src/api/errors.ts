@@ -416,6 +416,7 @@ export const apiOperations = {
   'music devices': 'music',
   'top requesters': 'music',
   'community list': 'people',
+  'youtube members': 'people',
   'viewer profile': 'people',
   'user notes': 'people',
   'add note': 'people',

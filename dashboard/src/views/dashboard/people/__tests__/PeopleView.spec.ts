@@ -41,6 +41,7 @@ const calls: Call[] = [];
 let listAnswer: (role: string | undefined, pageNumber: number) => Answer = () => page([]);
 let searchAnswer: (q: string) => Answer = () => ok([]);
 let lookupAnswer: (login: string) => Answer = () => ok(null);
+let youTubeAnswer: () => Answer = () => ok(null);
 let memberGate: Promise<void> = Promise.resolve();
 let listGate: Promise<void> = Promise.resolve();
 
@@ -177,6 +178,9 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/community/lookup'))
         return lookupAnswer(String(options?.params?.query?.login ?? ''));
 
+      if (path.endsWith('/community/youtube/members'))
+        return youTubeAnswer();
+
       if (path.endsWith('/community')) {
         await listGate;
 
@@ -243,6 +247,7 @@ beforeEach(() => {
 
   searchAnswer = () => ok([]);
   lookupAnswer = () => ok(null);
+  youTubeAnswer = () => ok(null);
   memberGate = Promise.resolve();
   listGate = Promise.resolve();
   pinia = createPinia();
@@ -453,6 +458,50 @@ describe('PeopleView', () => {
     expect(tab('All').textContent).toContain('120');
     expect(tab('Moderators').textContent).toContain('4');
     expect(tab('VIPs').textContent).toContain('2');
+  });
+
+  // Stoney, 2026-11-10: "we need analytics and all those features we have from twitch to match".
+  it('opens the YouTube members tab on the members YouTube lists, with their number on the tab', async () => {
+    youTubeAnswer = () =>
+      ok({
+        access: 'allowed',
+        members: [
+          {
+            channelId: 'UCmember1',
+            displayName: 'Marci',
+            profileImageUrl: null,
+            levelId: 'level-gold',
+            levelName: 'Gold',
+            memberSince: '2026-03-01T10:00:00Z',
+            totalMonths: 8,
+          },
+        ],
+        levels: [],
+        total: 42,
+        nextPageToken: null,
+      });
+
+    await open('/app/people?view=youtube');
+
+    expect(tab('YouTube members').textContent).toContain('42');
+    expect(document.body.querySelector('[data-youtube-member]')?.textContent).toContain('Marci');
+    expect(rows()).toHaveLength(0);
+    expect(document.body.querySelector('input[type="search"]')).toBeNull();
+  });
+
+  it('puts no number on the YouTube members tab when the bot may not read them', async () => {
+    youTubeAnswer = () =>
+      ok({
+        access: 'not_enabled',
+        members: [],
+        levels: [],
+        total: 0,
+        nextPageToken: null,
+      });
+
+    await open();
+
+    expect(tab('YouTube members').textContent?.trim()).toBe('YouTube members');
   });
 
   it('asks the bot for the moderators when that tab opens, and lists only them', async () => {

@@ -18,7 +18,8 @@
         "vip": "VIPs",
         "subscriber": "Twitch subscribers",
         "regular": "Regulars",
-        "new": "New"
+        "new": "New",
+        "youtube": "YouTube members"
       },
       "hints": {
         "all": "Everyone the bot has seen in your chat.",
@@ -26,7 +27,8 @@
         "vip": "People who hold the VIP badge on Twitch.",
         "subscriber": "People who subscribe to your channel on Twitch.",
         "regular": "People who come back stream after stream.",
-        "new": "People first seen in the last 90 days, from the pages loaded so far."
+        "new": "People first seen in the last 90 days, from the pages loaded so far.",
+        "youtube": "People who pay for a membership of your YouTube channel."
       },
       "lookup": {
         "button": "Look up on Twitch",
@@ -49,6 +51,25 @@
         },
         "noSubscribers": "Twitch lists no subscribers for your channel.",
         "noRegulars": "Nobody counts as a regular yet."
+      },
+      "youtube": {
+        "title": "YouTube members",
+        "description": "People who pay for a membership of your YouTube channel.",
+        "count": "{count} member | {count} members",
+        "empty": "YouTube lists no members for your channel.",
+        "error": "The YouTube members could not load.",
+        "columns": {
+          "member": "Member",
+          "level": "Level",
+          "since": "Member since",
+          "months": "Months"
+        },
+        "blocked": {
+          "not_connected": "This channel is not connected to YouTube. Connect it to see its members here.",
+          "not_allowed": "The bot may not read your YouTube members yet. Open Details on the YouTube row and allow \"See your channel members\". Google must also give the bot access to this list.",
+          "not_enabled": "Your YouTube channel has no channel memberships.",
+          "open": "Open connected services"
+        }
       },
       "detail": {
         "title": "Profile",

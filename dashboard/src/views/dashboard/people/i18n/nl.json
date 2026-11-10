@@ -18,7 +18,8 @@
         "vip": "VIP's",
         "subscriber": "Twitch-abonnees",
         "regular": "Vaste kijkers",
-        "new": "Nieuw"
+        "new": "Nieuw",
+        "youtube": "YouTube-leden"
       },
       "hints": {
         "all": "Iedereen die de bot in je chat heeft gezien.",
@@ -26,7 +27,8 @@
         "vip": "Mensen met de VIP-badge op Twitch.",
         "subscriber": "Mensen die op Twitch op je kanaal geabonneerd zijn.",
         "regular": "Mensen die stream na stream terugkomen.",
-        "new": "Mensen die in de laatste 90 dagen voor het eerst zijn gezien, uit de pagina's die al geladen zijn."
+        "new": "Mensen die in de laatste 90 dagen voor het eerst zijn gezien, uit de pagina's die al geladen zijn.",
+        "youtube": "Mensen die betalen voor een lidmaatschap van je YouTube-kanaal."
       },
       "lookup": {
         "button": "Opzoeken op Twitch",
@@ -49,6 +51,25 @@
         },
         "noSubscribers": "Twitch toont geen abonnees voor je kanaal.",
         "noRegulars": "Niemand telt nog als vaste kijker."
+      },
+      "youtube": {
+        "title": "YouTube-leden",
+        "description": "Mensen die betalen voor een lidmaatschap van je YouTube-kanaal.",
+        "count": "{count} lid | {count} leden",
+        "empty": "YouTube toont geen leden voor je kanaal.",
+        "error": "De YouTube-leden konden niet laden.",
+        "columns": {
+          "member": "Lid",
+          "level": "Niveau",
+          "since": "Lid sinds",
+          "months": "Maanden"
+        },
+        "blocked": {
+          "not_connected": "Dit kanaal is niet met YouTube verbonden. Verbind het om de leden hier te zien.",
+          "not_allowed": "De bot mag je YouTube-leden nog niet lezen. Open Details bij YouTube en sta \"Je kanaalleden zien\" toe. Google moet de bot ook toegang tot deze lijst geven.",
+          "not_enabled": "Je YouTube-kanaal heeft geen kanaallidmaatschappen.",
+          "open": "Verbonden diensten openen"
+        }
       },
       "detail": {
         "title": "Profiel",

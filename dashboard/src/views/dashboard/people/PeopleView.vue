@@ -31,6 +31,7 @@ import {
   type CommunityRow,
   type CommunitySort,
 } from '@/api/people';
+import { useYouTubeMembers } from '@/api/youtubeMembers';
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -44,6 +45,7 @@ import SearchField from '@/components/layout/SearchField.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
@@ -53,6 +55,7 @@ import Cross from '~icons/nnz/cross';
 
 import PersonRow from './components/PersonRow.vue';
 import SearchResultRow from './components/SearchResultRow.vue';
+import YouTubeMembers from './components/YouTubeMembers.vue';
 
 // The light row a search hit or a Twitch lookup gives: name, avatar and login, nothing heavier.
 type Seed = {
@@ -65,7 +68,7 @@ type Seed = {
 const SEARCH_PAUSE_MS = 250;
 const NEW_WINDOW_DAYS = 90;
 const ROW_HEIGHT = 56;
-const TAB_VALUES = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new'] as const;
+const TAB_VALUES = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new', 'youtube'] as const;
 
 type PeopleTab = (typeof TAB_VALUES)[number];
 type PeopleSort = 'recent' | 'alphabetical';
@@ -73,6 +76,7 @@ type PeopleSort = 'recent' | 'alphabetical';
 const CLIENT_SORTED = ['vip', 'subscriber'] as const satisfies readonly PeopleTab[];
 
 const { t } = useI18n();
+const { can } = useCan();
 const { channelId } = useCurrentChannel();
 
 // The bot hands rows over last seen first; A to Z asks the bot for name order.
@@ -88,6 +92,15 @@ const moderators = useCommunityList(channelId, 'moderator', '', serverSort);
 const vips = useCommunityList(channelId, 'vip', '');
 const subscribers = useCommunityList(channelId, 'subscriber', '');
 const regulars = useCommunityList(channelId, 'regular', '', serverSort);
+// YouTube members are YouTube channels, not people the bot knows, so they get their own panel and no profile.
+const youTubeMembers = useYouTubeMembers(channelId);
+const youTubeTotal = computed<number | undefined>(() => {
+  const first = youTubeMembers.data.value?.pages[0];
+
+  return first?.access === 'allowed'
+    ? Number(first.total)
+    : undefined;
+});
 
 const view = usePageView(TAB_VALUES);
 const search = ref('');
@@ -135,6 +148,11 @@ const tabs = computed<PageTab<PeopleTab>[]>(() => [
     count: totalOf(regulars),
   },
   { value: 'new', label: t('dashboard.people.tabs.new') },
+  {
+    value: 'youtube',
+    label: t('dashboard.people.tabs.youtube'),
+    count: youTubeTotal.value,
+  },
 ]);
 
 const activeQuery = computed<typeof everyone>(() => {
@@ -418,7 +436,10 @@ useEventListener(document, 'keydown', closeOnEscape);
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
-  <ListDetail :show-detail="asked !== ''">
+  <template v-if="view === 'youtube'">
+    <YouTubeMembers v-if="can('community:read')" />
+  </template>
+  <ListDetail v-else :show-detail="asked !== ''">
     <template #list>
       <PanelCard
         class="min-h-80 flex-1"
