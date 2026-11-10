@@ -1654,6 +1654,35 @@ Seen live: the bot wrote "@케이라라"; the viewer's login is keiraravt.
 
 ## OWNER BUG 2026-10-08 — the auto shoutout repeats a shoutout that was already given by hand
 
+## OWNER REQUEST 2026-11-10 — the admin section authors the platform's stream content
+
+Owner, verbatim: "i have created a new overlay widget but it does not actually finish the creation. the
+code editor is still half-assed and needs more work. in the admin section i still have no way to edit
+browsersource code or anything related to configurable commands and other things related to streaming
+entertainment so this must be properly investigated and implemented correctly."
+
+Counted 2026-11-10. The platform content API has 10 routes (`server/openapi/v1.json`,
+`/platform/content/*`); the admin screen calls 5 (`dashboard/src/api/adminContent.ts`: list, get, create,
+draft a version, retire). There are 9 content kinds (`PlatformContentKinds`: command, widget, pipeline,
+code_script, event_response, timer, reward, pick_list, sound_clip). `AdminContentView.vue` edits all 9 the
+same way: the kind is typed as free text and the content is one raw JSON text box. 0 of 9 kinds have an editor.
+
+- **S-ADMIN-CONTENT-KINDS** The kind is a picker of the 9 kinds by plain name, in the filter and in the
+  create dialog; the list groups by kind. Done-when: a test picks each kind and the list and the create
+  request carry that kind; no free-text kind field is left.
+- **S-ADMIN-CONTENT-CODE** A `widget` and a `code_script` definition open in the code editor
+  (`components/layout/CodeEditor.vue`, the one the Overlays and Scripts pages use), with the preview and
+  the fire bar. A widget's default settings and events are fields beside it. Save drafts a new version; a
+  build error shows in the editor. Done-when: a test opens a widget definition, changes its source, saves,
+  and the new version's payload holds the changed `sourceCode`; the same for a code script.
+- **S-ADMIN-CONTENT-FORMS** `command`, `event_response`, `timer`, `reward`, `pick_list`, `sound_clip` and
+  `pipeline` definitions are edited with the same form the channel page uses for that thing (the pipeline
+  in the pipeline editor), never as JSON. Sound clips pick from the platform audio assets
+  (`/platform/content/audio-assets`, no client call today). Done-when: one test per kind edits a field in
+  the form and the drafted version's payload holds it; 7 of 7.
+- **S-ADMIN-CONTENT-PUBLISH** is the admin part of S-VERSIONS-UI: open a version, publish preview, publish,
+  and the publish job's progress (`/platform/content/publish-jobs/{id}`). Not a second row; it closes there.
+
 ## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
 
 Owner, verbatim: "so basically the code editing is not good enough and lacks too many features. the
@@ -1729,9 +1758,10 @@ Ranked first (order of `benchmarks/code-editor.md` ## Ranking), then the rest.
 - **S-EDITOR-DIRTY-AUTOSAVE** Dirty dot per tab, autosave of a draft (never lost on close/crash),
   explicit Save still makes a version. R7, R21. Done-when: E2E edit → reload → draft restored; tab
   shows the dot until saved.
-- **S-EDITOR-STARTERS** A new widget or script never opens blank: a starter picker with runnable
-  examples per framework and per common goal. R1, R2, R18. Done-when: each starter opens, builds, and
-  reacts to its fire-bar event with zero markers.
+- **S-EDITOR-STARTERS** A starter picker with runnable examples per framework and per common goal, for
+  widgets and scripts. (A new widget is built from one starter per framework since 2026-11-10; the
+  3 vanilla templates of `GET /widgets/templates` have no client call and Vue has one starter.) R1, R2,
+  R18. Done-when: each starter opens, builds, and reacts to its fire-bar event with zero markers.
 - **S-EDITOR-EVENT-CATALOG-VIEW** A side panel lists every event with its one-line description, sample
   payload, and an "insert handler" action. R9, R10, R20. Done-when: insert puts a typed `.on()` at the
   cursor with zero markers.
