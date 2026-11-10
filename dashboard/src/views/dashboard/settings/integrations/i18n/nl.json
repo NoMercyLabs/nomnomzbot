@@ -15,6 +15,7 @@
         "details": "Details",
         "lastSync": "Laatst gesynchroniseerd {date}",
         "scopeSets": "Rechtensets: {sets}",
+        "offers": "Je kunt ook toestaan:",
         "capabilities": "Kan: {list}",
         "scopeSetNames": {
           "spotify_playback": "Weergave bedienen",
@@ -28,7 +29,9 @@
           "shopify_orders": "Bestellingen lezen",
           "treatstream_treats": "Traktaties",
           "youtube_manage": "Je kanaal beheren",
-          "youtube_readonly": "Je kanaal lezen"
+          "youtube_readonly": "Je kanaal lezen",
+          "youtube_members": "Je kanaalleden zien",
+          "youtube_analytics": "Je YouTube-statistieken zien"
         },
         "capabilityNames": {
           "playback": "weergave bedienen",

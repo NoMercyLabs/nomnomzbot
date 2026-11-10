@@ -1458,6 +1458,68 @@ public sealed class IntegrationOAuthServiceTests
         youTube.GrantedScopeSets.Should().Contain("youtube.manage");
     }
 
+    // Stoney, 2026-11-10: "we need analytics and all those features we have from twitch to match". The member
+    // list and the analytics are their own grants, so a streamer who is connected keeps working and adds them.
+    [Theory]
+    [InlineData(
+        "youtube.members",
+        "https://www.googleapis.com/auth/youtube.channel-memberships.creator"
+    )]
+    [InlineData(
+        "youtube.analytics",
+        "https://www.googleapis.com/auth/yt-analytics-monetary.readonly"
+    )]
+    public async Task GetStatus_YouTubeShowsTheMembersAndAnalyticsGrants_OnlyOnceTheirScopeIsGranted(
+        string scopeSet,
+        string scope
+    )
+    {
+        string[] connectGrant =
+        [
+            "https://www.googleapis.com/auth/youtube",
+            "https://www.googleapis.com/auth/youtube.force-ssl",
+        ];
+
+        IntegrationStatusDto status = await YouTubeStatusWithScopesAsync([.. connectGrant, scope]);
+
+        status.Connected.Should().BeTrue();
+        status.GrantedScopeSets.Should().BeEquivalentTo(["youtube.manage", scopeSet]);
+    }
+
+    [Fact]
+    public async Task GetStatus_YouTubeConnectGrantAlone_ShowsNeitherTheMembersNorTheAnalyticsGrant()
+    {
+        IntegrationStatusDto status = await YouTubeStatusWithScopesAsync([
+            "https://www.googleapis.com/auth/youtube",
+            "https://www.googleapis.com/auth/youtube.force-ssl",
+        ]);
+
+        status.Connected.Should().BeTrue();
+        status.GrantedScopeSets.Should().BeEquivalentTo(["youtube.manage"]);
+    }
+
+    private static async Task<IntegrationStatusDto> YouTubeStatusWithScopesAsync(string[] scopes)
+    {
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = Tenant,
+                Provider = AuthEnums.IntegrationProvider.YouTube,
+                ProviderAccountId = "UCexisting",
+                ProviderAccountName = "Existing Streamer",
+                Status = AuthEnums.IntegrationStatus.Connected,
+                Scopes = [.. scopes],
+                ConnectedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        return (await service.GetStatusAsync(Tenant)).Value.Single(r =>
+            r.Provider == AuthEnums.IntegrationProvider.YouTube
+        );
+    }
+
     // ─── scaffolding ───────────────────────────────────────────────────────────
 
     private static (

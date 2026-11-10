@@ -15,6 +15,7 @@
         "details": "Details",
         "lastSync": "Last sync {date}",
         "scopeSets": "Permission sets: {sets}",
+        "offers": "You can also allow:",
         "capabilities": "Can do: {list}",
         "scopeSetNames": {
           "spotify_playback": "Control playback",
@@ -28,7 +29,9 @@
           "shopify_orders": "Read orders",
           "treatstream_treats": "Treats",
           "youtube_manage": "Manage your channel",
-          "youtube_readonly": "Read your channel"
+          "youtube_readonly": "Read your channel",
+          "youtube_members": "See your channel members",
+          "youtube_analytics": "See your YouTube analytics"
         },
         "capabilityNames": {
           "playback": "control playback",

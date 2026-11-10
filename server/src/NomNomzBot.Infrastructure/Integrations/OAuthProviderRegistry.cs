@@ -235,6 +235,17 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                     "https://www.googleapis.com/auth/youtube.force-ssl",
                 ],
                 ["youtube.readonly"] = ["https://www.googleapis.com/auth/youtube.readonly"],
+                // Asked for on their own, after the connect: a connected channel keeps its grant and adds
+                // these. members.list and membershipsLevels.list accept only the memberships scope; the
+                // monetary analytics scope covers the views and the revenue reports of reports.query.
+                ["youtube.members"] =
+                [
+                    "https://www.googleapis.com/auth/youtube.channel-memberships.creator",
+                ],
+                ["youtube.analytics"] =
+                [
+                    "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
+                ],
             },
             IsByok: ResolveIsByok("YouTube")
         );

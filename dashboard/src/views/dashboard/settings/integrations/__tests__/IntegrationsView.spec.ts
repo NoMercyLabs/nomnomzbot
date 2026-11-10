@@ -53,6 +53,7 @@ let mounted: VueWrapper | null = null;
 let held: string[] = [];
 const ownClientId = 'spotify-client-9f2a';
 let spotifyConnected = true;
+let youtubeGranted = ['youtube.manage'];
 let spotifyStored = {
   clientId: ownClientId as string | null,
   hasClientSecret: true,
@@ -61,6 +62,7 @@ let spotifyStored = {
 
 beforeEach(() => {
   spotifyConnected = true;
+  youtubeGranted = ['youtube.manage'];
 
   for (const verb of [http.GET, http.POST, http.PUT, http.DELETE]) {
     verb.mockReset();
@@ -93,6 +95,14 @@ beforeEach(() => {
           provider: 'twitch',
           connected: true,
           grantedScopeSets: [],
+          capabilities: {},
+          needsReauth: false,
+        },
+        {
+          provider: 'youtube',
+          connected: true,
+          accountName: 'Stoney',
+          grantedScopeSets: youtubeGranted,
           capabilities: {},
           needsReauth: false,
         },
@@ -133,6 +143,13 @@ beforeEach(() => {
           connected: spotifyConnected,
           connectedAs: 'stoney',
           lastSync: '2026-10-01T10:00:00Z',
+        },
+        {
+          id: 'youtube',
+          name: 'YouTube',
+          category: 'platform',
+          description: 'Live chat.',
+          connected: true,
         },
         {
           id: 'patreon',
@@ -279,6 +296,46 @@ describe('Integrations page', () => {
 
     expect(assign).toHaveBeenCalledWith('https://auth.example/go');
     vi.unstubAllGlobals();
+  });
+
+  // Stoney 2026-11-10: "we need analytics and all those features we have from twitch to match". The member list
+  // and the analytics are their own permissions, asked for after the connect.
+  it('offers the YouTube permissions that are not allowed yet, and asks for only that one', async () => {
+    const assign = vi.fn<(url: string) => void>();
+
+    vi.stubGlobal('location', {
+      ...window.location,
+      href: 'http://app/settings',
+      assign,
+    });
+
+    vi.stubGlobal('open', vi.fn<typeof window.open>().mockReturnValue(null));
+    youtubeGranted = ['youtube.manage', 'youtube.analytics'];
+
+    await open();
+    await click(action('youtube', 'details'));
+
+    const offers = [...row('youtube').querySelectorAll<HTMLElement>('[data-action="allow"]')];
+    const names = en.dashboard.settings.integrations.scopeSetNames;
+
+    expect(offers.map((offer) => offer.getAttribute('data-scope-set'))).toEqual(['youtube.members']);
+    expect(offers[0]?.textContent?.trim()).toBe(names.youtube_members);
+    expect(offers[0]?.getAttribute('data-variant')).toBe('outline');
+
+    await click(offers[0] as HTMLElement);
+
+    const [, init] = http.POST.mock.calls[0] as [string, Call['init']];
+
+    expect(init.params?.path).toMatchObject({ provider: 'youtube' });
+    expect(init.body).toMatchObject({ scopeSetKey: 'youtube.members', returnUrl: 'http://app/settings' });
+    expect(assign).toHaveBeenCalledWith('https://auth.example/go');
+    vi.unstubAllGlobals();
+  });
+
+  it('offers no extra permission on a service that is not connected', async () => {
+    await open();
+
+    expect(row('patreon').querySelector('[data-action="allow"]')).toBeNull();
   });
 
   it('gives the shop name field a 36 px height on a phone and the compact height from md', async () => {

@@ -146,13 +146,26 @@ export function useDisconnectIntegration(
   });
 }
 
+// The permissions a connected service can add later, each asked for on its own (server OAuthProviderRegistry).
+// The bot asks again for what the channel already allowed, so adding one never takes another away.
+export const extraScopeSets: Record<string, readonly string[]> = {
+  youtube: ['youtube.members', 'youtube.analytics'],
+};
+
+export interface ConnectRequest {
+  provider: string;
+  shopDomain?: string;
+  scopeSetKey?: string;
+}
+
 // Starts a connect: the bot answers with the page of the service where the streamer says yes.
 export function useConnectProvider(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<string, Error, { provider: string; shopDomain?: string }, undefined> {
-  return useMutation<string, Error, { provider: string; shopDomain?: string }, undefined>({
-    mutationFn: async (request: { provider: string; shopDomain?: string }): Promise<string> => {
-      const scopeSetKey = (connectScopeSets as Record<string, string>)[request.provider] as string;
+): UseMutationReturnType<string, Error, ConnectRequest, undefined> {
+  return useMutation<string, Error, ConnectRequest, undefined>({
+    mutationFn: async (request: ConnectRequest): Promise<string> => {
+      const scopeSetKey = request.scopeSetKey ??
+        (connectScopeSets as Record<string, string>)[request.provider] as string;
 
       const { data, error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/integrations/{provider}/connect',

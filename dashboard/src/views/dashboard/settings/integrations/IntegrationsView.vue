@@ -21,6 +21,7 @@ import ChevronDown from '~icons/nnz/chevron-down';
 import { useConnections, type IntegrationStatus } from '@/api/home';
 import {
   connectScopeSets,
+  extraScopeSets,
   useConnectProvider,
   useDisconnectBlastRadius,
   useDisconnectIntegration,
@@ -137,8 +138,22 @@ function capabilitiesOf(row: ChannelIntegration): string[] {
     .map(([name]) => plainName('capabilityNames', name));
 }
 
+// The permissions a connected service can still add, such as the YouTube member list and the analytics.
+function offersOf(row: ChannelIntegration) {
+  const status = statusOf(row);
+
+  if (!row.connected || !status)
+    return [] as const satisfies readonly string[];
+
+  return (extraScopeSets[row.id] ?? []).filter((set) =>
+    !status.grantedScopeSets.includes(set));
+}
+
 function hasDetails(row: ChannelIntegration): boolean {
-  return Boolean(row.lastSync) || scopesOf(row) !== '' || capabilitiesOf(row).length > 0;
+  return Boolean(row.lastSync) ||
+    scopesOf(row) !== '' ||
+    capabilitiesOf(row).length > 0 ||
+    offersOf(row).length > 0;
 }
 
 function canConnect(row: ChannelIntegration): boolean {
@@ -159,14 +174,18 @@ function needsShop(row: ChannelIntegration): boolean {
   return row.id === 'shopify';
 }
 
-async function open(row: ChannelIntegration): Promise<void> {
+async function open(row: ChannelIntegration, scopeSetKey?: string): Promise<void> {
   error.value = undefined;
 
   try {
     const url = row.id in connectScopeSets
-      ? await connect.mutateAsync({ provider: row.id, shopDomain: needsShop(row)
-          ? shopDomain.value.trim()
-          : undefined })
+      ? await connect.mutateAsync({
+          provider: row.id,
+          scopeSetKey,
+          shopDomain: needsShop(row)
+            ? shopDomain.value.trim()
+            : undefined,
+        })
       : (row.oauthUrl as string);
 
     connectWindow(url);
@@ -280,6 +299,25 @@ function setLeavingOpen(open: boolean): void {
                 <p v-if="row.lastSync">
                   {{ $t('dashboard.settings.integrations.lastSync', { date: time.dateTime(row.lastSync) }) }}
                 </p>
+                <div
+                  v-if="offersOf(row).length > 0 && can('integration:write')"
+                  data-slot="offers"
+                  class="flex flex-wrap items-center gap-2 pt-1"
+                >
+                  <span>{{ $t('dashboard.settings.integrations.offers') }}</span>
+                  <Button
+                    v-for="set in offersOf(row)"
+                    :key="set"
+                    variant="outline"
+                    size="sm"
+                    data-action="allow"
+                    :data-scope-set="set"
+                    :disabled="connect.isPending.value"
+                    @click="open(row, set)"
+                  >
+                    {{ plainName('scopeSetNames', set) }}
+                  </Button>
+                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
