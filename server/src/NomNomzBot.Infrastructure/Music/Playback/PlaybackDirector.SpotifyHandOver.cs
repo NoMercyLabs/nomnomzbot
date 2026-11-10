@@ -144,7 +144,6 @@ public sealed partial class PlaybackDirector
         )
             return;
 
-        _spotifyHeldForYouTube = true;
         await CommandAsync(EngineKind.Spotify, inputName, e => e.SeekAsync(0, ct));
     }
 

@@ -66,7 +66,10 @@ public sealed partial class PlaybackDirector
         await RememberSpotifyHeldAsync(ct);
         await BeginStartAsync(head, inputName, reason, stopEngine, ct);
         if (_pausedForHandOver == EngineKind.Spotify)
+        {
+            _spotifyHeldForYouTube = true;
             return true;
+        }
 
         if (_spotifyReturn is null)
             await ForgetSpotifyHeldAsync(ct);

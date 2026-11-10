@@ -68,10 +68,20 @@ public sealed partial class PlaybackDirector
 
             await BeginStartAsync(head, input.GetType().Name, "owner_skip", null, ct);
         }
+        else if (_spotifyHeldForYouTube && engine == EngineKind.YouTube)
+            await SkipPausedVideoToSpotifyAsync(input, ct);
         else if (State.Item is not null)
             await MoveAsync(PlaybackState.Idle, input, "queue_empty");
         else
             await IgnoreAsync(input);
+    }
+
+    /// <summary>The owner paused the video, not Spotify: skipping the video ends the director's hold.</summary>
+    private async Task SkipPausedVideoToSpotifyAsync(PlaybackInput input, CancellationToken ct)
+    {
+        await StopBestEffortAsync(EngineKind.YouTube, ct);
+        _reports.Remove(EngineKind.YouTube);
+        await ReturnToSpotifyAsync(input.GetType().Name, ct);
     }
 
     /// <summary>

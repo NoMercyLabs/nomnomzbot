@@ -135,6 +135,24 @@ public sealed partial class PlaybackDirector
         _spotifyReturnGaveUp = true;
     }
 
+    /// <summary>
+    /// A start failed while the director holds Spotify: the hold ends here, at any step of a run. The
+    /// last video's report is dropped, or it would pass for the owner's music. Null when Spotify never reported.
+    /// </summary>
+    private async Task<EngineReport?> GiveHeldSpotifyBackAsync(CancellationToken ct)
+    {
+        ReleaseSpotifyHold();
+        _reports.Remove(EngineKind.YouTube);
+        await SendSpotifyReturnAsync(1, false, ct);
+
+        return _reports.GetValueOrDefault(EngineKind.Spotify) is { } last
+            ? last with
+            {
+                IsPlaying = true,
+            }
+            : null;
+    }
+
     /// <summary>A video starting now keeps Spotify paused: the return waits for that video's end.</summary>
     private void DeferSpotifyReturnForVideo(PlaybackItem item)
     {

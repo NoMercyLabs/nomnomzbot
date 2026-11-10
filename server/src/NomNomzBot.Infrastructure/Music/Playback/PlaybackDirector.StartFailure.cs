@@ -207,6 +207,9 @@ public sealed partial class PlaybackDirector
     {
         EngineKind? paused = _pausedForHandOver;
         _pausedForHandOver = null;
+        if (_spotifyHeldForYouTube)
+            return await GiveHeldSpotifyBackAsync(ct);
+
         if (
             _memory is not { WasPlaying: true } memory
             || memory.Engine == item.Engine
