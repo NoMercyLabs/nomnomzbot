@@ -21,6 +21,81 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-11-10 — the default overlay widgets become one NomNomzBot look
+
+Owner, verbatim: "most of the default overlay widgets are half-assed and super ugly. they need to be humanized
+and stylized to be a nice nomnomzbot branding and fit on any stream. this is just the tip of the bug and feature
+lack iceberg. there are soo many things that are half-assed so please put in the effort to make something good
+and truly nomzbot.", "that means you are directly driving into symptom treating...", "look at stores that offer
+and sell twitch overlays and see what makes them great, pick out the top 10 of the biggest 5 overlay platforms
+and find something that matches with the nomzbot brand. look at what aaoa wants, look in figma. put in some REAL
+effort in doing this right"
+
+Cause found 2026-11-10 (measured on the 27 files in `Infrastructure/Content/Widgets/Assets/*.vue`): 0 use a
+shared token, 0 share code, 25 set their own system font, 25 hard-code `#9146ff`, 0 use translations, 9 radii,
+10 shadows. No brand is written down. Each widget was styled alone, so restyling one widget treats a symptom.
+Research and the gap table: `benchmarks/overlay-widgets.md`.
+
+Proposal, not settled: the slices below are Arc's reading of the request and of the benchmark gaps. The owner
+must confirm them. 🔒 The look direction is the owner's pick (three rendered directions were shown 2026-11-10);
+S-OVL-BRAND-PAGE waits for it. The request is wider than widgets ("the tip of the ... iceberg"); these slices
+cover the widgets only and do not narrow the rest.
+
+### S-OVL-BRAND-PAGE 🔒: the brand is written down once
+Done when: one design page states the overlay brand from aaoa's Figma (wordmark, smirk face, palette, type,
+shape, texture, voice) with the picked direction, and PRODUCT-ALIGNMENT.md links it.
+
+### S-OVL-TOKENS: one set of tokens and parts for every default widget
+Done when: the overlay host serves shared tokens (color, type, radius, shadow, spacing, motion) and shared parts
+(card, pill, the bot's face, the brand typeface, self-hosted), and one widget renders from them with no own
+font and no hard-coded color.
+
+### S-OVL-GUARD: a check keeps default widgets on the brand
+Done when: a script fails when a file in `Widgets/Assets` sets a font family or a literal color outside the
+tokens, it runs in the slice gate, and it is shown to fail on one bad file first.
+
+### S-OVL-MIGRATE: all 27 default widgets use the tokens
+Done when: 27 of 27 pass S-OVL-GUARD, each is opened on dev over a bright, a dark and a busy backdrop, placement
+keeps the center clear, and event texts are not Twitch-only where the event exists on other platforms.
+
+### S-OVL-RECOLOR: one accent setting recolors the whole set, with a dark and a light version
+Done when: one channel-level setting changes the accent of every default widget, a dark and a light version
+exist, and a widget's own `accentColor` still wins when the streamer set it.
+
+### S-OVL-ALERT-SHAPES: the alert comes in several shapes
+Done when: the alert offers at least a card, a compact pill and a no-container shape as a setting, each proven
+with a test event.
+
+### S-OVL-SOUND: alerts have a sound
+Done when: the alert plays a default brand sound with a volume and an off setting, proven with real audio.
+
+### S-OVL-MOTION: every widget enters and leaves the same way
+Done when: enter and exit motion come from the shared tokens on every default widget, and all of them respect
+reduced motion.
+
+### S-OVL-BACKDROP-TEST: readability is tested, not assumed
+Done when: a script renders every default widget over a bright, a dark and a busy backdrop and fails on text
+below the contrast floor, on a visible scrollbar and on clipped text.
+
+### S-OVL-I18N: widget texts come from translations
+Done when: no default widget holds a user-facing string in its source; texts follow the channel language.
+
+### S-OVL-VOICE: the default texts speak in the bot's voice
+Done when: every default alert and label text is written in the one bot voice, and each stays editable.
+
+### S-OVL-SCENES: Starting, Be Right Back and Ending screens
+Done when: three full-screen default widgets exist in the brand look, each with an editable line and an
+optional countdown.
+
+### S-OVL-CAM-FRAME: a camera frame
+Done when: a default camera frame widget exists in the brand look with size, corner and label settings.
+
+### S-OVL-GALLERY: the whole set is previewed in one place
+Done when: the dashboard shows every default widget live in one gallery over a chosen backdrop, with a test
+event button per widget.
+
+---
+
 ## OWNER REQUEST 2026-11-04 — moderator mode works on every page, on the moderator's own token
 
 Owner, verbatim: "i am going to sound like a broken record... but i still can not use my own bot for moderating
