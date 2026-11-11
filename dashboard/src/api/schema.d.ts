@@ -106674,7 +106674,11 @@ export interface components {
             /** Format: int32 */
             nextBefore?: null | number | string;
         };
-        /** @description One pronunciation-lexicon rule: when Phrase appears in an utterance, TTS speaks Replacement. */
+        /**
+         * @description One pronunciation-lexicon rule: when Phrase appears in an utterance, TTS speaks
+         *     Replacement. Ipa is the exact sound of the replacement, for a speech
+         *     provider that reads the International Phonetic Alphabet; `null` when the rule has none.
+         */
         TtsLexiconEntry: {
             /**
              * Format: ulid
@@ -106684,6 +106688,7 @@ export interface components {
             phrase: string;
             replacement: string;
             matchKind: string;
+            ipa?: null | string;
         };
         /**
          * @description The channel's auto-provisioned TTS overlay (widgets-overlays.md §1.2 system surface): the OBS browser-source
@@ -107864,6 +107869,8 @@ export interface components {
         UpsertTtsLexiconEntry: {
             phrase: string;
             replacement: string;
+            /** @description The exact sound of the replacement in the International Phonetic Alphabet. Leave empty for none. */
+            ipa?: null | string;
             matchKind?: string;
         };
         /** @description Upsert request — the plugin token is never written here; the authorize flow mints it. */

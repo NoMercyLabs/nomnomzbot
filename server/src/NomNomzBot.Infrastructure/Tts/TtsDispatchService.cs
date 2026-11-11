@@ -127,7 +127,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         request = WithEmotesSpoken(request);
         string text;
         string voiceId;
-        IReadOnlyList<TtsSegment>? segments = null;
+        IReadOnlyList<TtsSegment>? segments;
         TtsConfigDto config;
         ITtsProvider? byokProvider = null;
 
@@ -190,10 +190,12 @@ public sealed class TtsDispatchService : ITtsDispatchService
                         : named;
                     if (string.IsNullOrWhiteSpace(partVoice))
                         return TtsPreparation.Skipped;
-                    partText = _spokenNames.ApplyToText(
-                        await _lexicon.ApplyAsync(request.BroadcasterId, partText, ct),
-                        names
+                    TtsPronouncedText partSpoken = await _lexicon.PronounceAsync(
+                        request.BroadcasterId,
+                        partText,
+                        ct
                     );
+                    partText = _spokenNames.ApplyToText(partSpoken.Text, names);
                     preparedSegments.Add(
                         new(
                             partText,
@@ -202,7 +204,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
                             part.PitchPercent,
                             Math.Max(0, part.BreakAfterMs),
                             part.VolumePercent,
-                            part.Stressed
+                            part.Stressed,
+                            SoundsOf(partSpoken)
                         )
                     );
                 }
@@ -235,9 +238,18 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 if (string.IsNullOrWhiteSpace(resolvedVoice))
                     return TtsPreparation.Skipped;
                 voiceId = resolvedVoice;
-                text = _spokenNames.ApplyToText(
-                    await _lexicon.ApplyAsync(request.BroadcasterId, text, ct),
-                    names
+                TtsPronouncedText spoken = await _lexicon.PronounceAsync(
+                    request.BroadcasterId,
+                    text,
+                    ct
+                );
+                text = _spokenNames.ApplyToText(spoken.Text, names);
+                segments = OneBlockWithSounds(
+                    text,
+                    voiceId,
+                    request.RatePercent,
+                    request.PitchPercent,
+                    spoken
                 );
             }
         }
@@ -250,6 +262,22 @@ public sealed class TtsDispatchService : ITtsDispatchService
             SynthesizePreparedAsync(request, config, text, voiceId, segments, byokProvider, ct)
         );
     }
+
+    private static IReadOnlyList<TtsPhoneme>? SoundsOf(TtsPronouncedText spoken) =>
+        spoken.Phonemes.Count == 0 ? null : spoken.Phonemes;
+
+    // A plain text has no place for exact sounds, so a text with sounds travels as one block. A text
+    // without them keeps the plain path.
+    private static IReadOnlyList<TtsSegment>? OneBlockWithSounds(
+        string text,
+        string voiceId,
+        double? ratePercent,
+        double? pitchPercent,
+        TtsPronouncedText spoken
+    ) =>
+        spoken.Phonemes.Count == 0
+            ? null
+            : [new(text, voiceId, ratePercent, pitchPercent, Phonemes: spoken.Phonemes)];
 
     private async Task<Result<TtsPreparedClip?>> SynthesizePreparedAsync(
         TtsSpeakRequest request,
@@ -968,24 +996,28 @@ public sealed class TtsDispatchService : ITtsDispatchService
         {
             List<TtsSegment> lexed = [];
             foreach (TtsSegment segment in segments)
+            {
+                TtsPronouncedText spoken = await _lexicon.PronounceAsync(
+                    broadcasterId,
+                    segment.Text,
+                    ct
+                );
                 lexed.Add(
                     segment with
                     {
-                        Text = _spokenNames.ApplyToText(
-                            await _lexicon.ApplyAsync(broadcasterId, segment.Text, ct),
-                            spokenNames
-                        ),
+                        Text = _spokenNames.ApplyToText(spoken.Text, spokenNames),
+                        Phonemes = SoundsOf(spoken),
                     }
                 );
+            }
             segments = lexed;
             text = string.Join(' ', lexed.Select(s => s.Text));
         }
         else
         {
-            text = _spokenNames.ApplyToText(
-                await _lexicon.ApplyAsync(broadcasterId, text, ct),
-                spokenNames
-            );
+            TtsPronouncedText spoken = await _lexicon.PronounceAsync(broadcasterId, text, ct);
+            text = _spokenNames.ApplyToText(spoken.Text, spokenNames);
+            segments = OneBlockWithSounds(text, voiceId, ratePercent, pitchPercent, spoken);
         }
 
         return await (

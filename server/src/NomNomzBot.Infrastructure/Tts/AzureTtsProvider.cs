@@ -13,6 +13,7 @@ using System.Net.Http.Json;
 using System.Security;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Domain.Tts.Interfaces;
 
@@ -63,16 +64,34 @@ public sealed class AzureTtsProvider : ITtsProvider
             cancellationToken
         );
 
-    public Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
+    public async Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
         IReadOnlyList<TtsSegment> segments,
         CancellationToken cancellationToken = default
-    ) =>
-        SynthesizeSsmlAsync(
+    )
+    {
+        string hashSource = string.Join(
+            '\n',
+            segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)
+        );
+        TtsSynthesisResult spoken = await SynthesizeSsmlAsync(
             BuildSsml(segments),
-            string.Join('\n', segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)),
+            hashSource,
             segments[0].VoiceId,
             cancellationToken
         );
+        if (spoken.AudioData.Length > 0 || !segments.Any(s => s.Phonemes is { Count: > 0 }))
+            return spoken;
+
+        // Azure refuses the whole request for one phone it does not know (HTTP 400, its docs). The line is
+        // spoken again with the plain words, so a wrong IPA entry never silences a line.
+        _logger.LogWarning("Azure TTS: no audio with the IPA sounds, speaking the plain words");
+        return await SynthesizeSsmlAsync(
+            BuildSsml([.. segments.Select(s => s with { Phonemes = null })]),
+            hashSource,
+            segments[0].VoiceId,
+            cancellationToken
+        );
+    }
 
     private async Task<TtsSynthesisResult> SynthesizeSsmlAsync(
         string ssml,
@@ -267,9 +286,46 @@ public sealed class AzureTtsProvider : ITtsProvider
             ssml.Append(" volume='").Append(TtsProsody.FormatPercent(volume)).Append('\'');
         ssml.Append('>')
             .Append(flowsOn ? " " : string.Empty)
-            .Append(SecurityElement.Escape(block.Text))
+            .Append(WithPhonemes(block))
             .Append("</prosody>");
     }
+
+    /// <summary>
+    /// The block's words, escaped, with every word that has an exact sound inside a <c>&lt;phoneme&gt;</c>. The
+    /// plain word stays inside the element: that is the fallback Azure's docs ask for. One pass over the text,
+    /// longest word first, whole words only, so a sound never lands inside another word or inside a tag.
+    /// </summary>
+    private static string WithPhonemes(TtsSegment block)
+    {
+        string text = SecurityElement.Escape(block.Text);
+        if (block.Phonemes is not { Count: > 0 })
+            return text;
+
+        Dictionary<string, string> sounds = new(StringComparer.OrdinalIgnoreCase);
+        foreach (TtsPhoneme phoneme in block.Phonemes)
+            sounds.TryAdd(SecurityElement.Escape(phoneme.Spoken), phoneme.Ipa);
+        string words = string.Join(
+            '|',
+            sounds.Keys.OrderByDescending(word => word.Length).Select(Regex.Escape)
+        );
+        try
+        {
+            return Regex.Replace(
+                text,
+                $@"(?<!\w)(?:{words})(?!\w)",
+                match =>
+                    $"<phoneme alphabet='ipa' ph='{SecurityElement.Escape(sounds[match.Value])}'>{match.Value}</phoneme>",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                PhonemeMatchTimeout
+            );
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return text;
+        }
+    }
+
+    private static readonly TimeSpan PhonemeMatchTimeout = TimeSpan.FromMilliseconds(250);
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>
         new()

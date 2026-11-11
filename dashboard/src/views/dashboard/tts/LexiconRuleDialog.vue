@@ -18,7 +18,7 @@ import { toast } from 'vue-sonner';
 import { ApiError } from '@/api/errors';
 import { useSaveLexiconEntry, type TtsLexiconEntry } from '@/api/ttsRules';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -44,6 +44,7 @@ const saveEntry = useSaveLexiconEntry(channelId);
 const draft = reactive({
   phrase: '',
   replacement: '',
+  ipa: '',
   matchKind: 'word',
 });
 const failure = ref<string | undefined>(undefined);
@@ -59,6 +60,7 @@ watch(open, (isOpen) => {
   Object.assign(draft, {
     phrase: props.entry?.phrase ?? '',
     replacement: props.entry?.replacement ?? '',
+    ipa: props.entry?.ipa ?? '',
     matchKind: props.entry?.matchKind ?? 'word',
   });
 });
@@ -81,6 +83,7 @@ function submit(): void {
         phrase: draft.phrase.trim(),
         replacement: draft.replacement.trim(),
         matchKind: draft.matchKind,
+        ipa: draft.ipa.trim() || null,
       },
     },
     {
@@ -122,6 +125,13 @@ function submit(): void {
         maxlength="200"
         autocomplete="off"
       />
+    </Field>
+    <Field>
+      <div class="flex items-center gap-1.5">
+        <FieldLabel for="lexicon-ipa">{{ $t('dashboard.tts.lexicon.ipa') }}</FieldLabel>
+        <FieldInfo>{{ $t('dashboard.tts.lexicon.ipaHelp') }}</FieldInfo>
+      </div>
+      <Input id="lexicon-ipa" v-model="draft.ipa" maxlength="200" autocomplete="off" />
     </Field>
     <Field>
       <FieldLabel for="lexicon-match-kind">{{ $t('dashboard.tts.lexicon.matchKind') }}</FieldLabel>

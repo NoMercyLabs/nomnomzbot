@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Tts.Entities;
+using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Caching;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
@@ -196,6 +197,53 @@ public sealed class TtsLexiconServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Select(e => e.Phrase).Should().Equal("alpha", "zulu");
+    }
+
+    // ── IPA: the exact sounds of a word, for a speech service that reads them ──
+
+    [Fact]
+    public async Task CreateAsync_KeepsTheIpaForm_AndAnUpdateWithoutOneClearsIt()
+    {
+        Harness h = Build();
+
+        Result<TtsLexiconEntryDto> created = await h.Service.CreateAsync(
+            Tenant,
+            Rule("Vue", "View") with
+            {
+                Ipa = " vjuː ",
+            }
+        );
+
+        created.Value.Ipa.Should().Be("vjuː");
+        (await h.Db.TtsLexiconEntries.SingleAsync()).Ipa.Should().Be("vjuː");
+        (await h.Service.ListAsync(Tenant)).Value.Single().Ipa.Should().Be("vjuː");
+
+        Result<TtsLexiconEntryDto> updated = await h.Service.UpdateAsync(
+            Tenant,
+            created.Value.Id,
+            Rule("Vue", "View")
+        );
+
+        updated.Value.Ipa.Should().BeNull();
+        (await h.Db.TtsLexiconEntries.SingleAsync()).Ipa.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PronounceAsync_GivesThePlainTextEveryVoiceCanSay_AndTheIpaOfTheWordsThatHaveOne()
+    {
+        Harness h = Build();
+        await h.Service.CreateAsync(Tenant, Rule("Vue", "View") with { Ipa = "vjuː" });
+        await h.Service.CreateAsync(Tenant, Rule("RISC-V", "risk five"));
+
+        TtsPronouncedText spoken = await h.Service.PronounceAsync(
+            Tenant,
+            "vue on RISC-V, no Vue here"
+        );
+
+        spoken.Text.Should().Be("View on risk five, no View here");
+        spoken.Phonemes.Should().Equal(new TtsPhoneme("View", "vjuː"));
+        (await h.Service.PronounceAsync(Tenant, "plain words")).Phonemes.Should().BeEmpty();
+        (await h.Service.ApplyAsync(Tenant, "vue on RISC-V")).Should().Be("View on risk five");
     }
 
     // ── ApplyAsync — the dispatch hot path ───────────────────────────────────

@@ -127,6 +127,9 @@ function remove(entry: TtsLexiconEntry): void {
         </span>
         <span data-lexicon-replacement class="min-w-0 wrap-break-word">
           {{ entry.replacement }}
+          <span v-if="entry.ipa" data-lexicon-ipa class="block text-xs text-muted-foreground">
+            {{ entry.ipa }}
+          </span>
         </span>
         <span data-lexicon-kind class="min-w-0 text-muted-foreground">
           {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}

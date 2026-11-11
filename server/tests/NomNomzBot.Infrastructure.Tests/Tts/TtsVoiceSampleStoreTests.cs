@@ -50,7 +50,7 @@ public sealed class TtsVoiceSampleStoreTests : IDisposable
         TtsResult? clip = await sut.GetAsync("en-us-arianeural");
 
         clip.Should().NotBeNull();
-        clip!.AudioData.Should().Equal(1, 2, 3);
+        clip.AudioData.Should().Equal(1, 2, 3);
         clip.DurationMs.Should().Be(1500);
         clip.Provider.Should().Be("edge");
         (await sut.GetAsync("nl-NL-ColetteNeural")).Should().BeNull();
@@ -197,8 +197,8 @@ public sealed class TtsVoiceSampleStoreTests : IDisposable
     {
         ITtsLexiconService lexicon = Substitute.For<ITtsLexiconService>();
         lexicon
-            .ApplyAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ci => Task.FromResult(ci.ArgAt<string>(1)));
+            .PronounceAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ci => Task.FromResult(new TtsPronouncedText(ci.ArgAt<string>(1), [])));
         return new(
             db,
             tts,

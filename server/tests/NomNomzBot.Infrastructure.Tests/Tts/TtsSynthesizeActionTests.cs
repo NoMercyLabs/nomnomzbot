@@ -134,8 +134,8 @@ public sealed class TtsSynthesizeActionTests
         ISoundClipStore store = Substitute.For<ISoundClipStore>();
         ITtsLexiconService lexicon = Substitute.For<ITtsLexiconService>();
         lexicon
-            .ApplyAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ci => Task.FromResult(ci.ArgAt<string>(1)));
+            .PronounceAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ci => Task.FromResult(new TtsPronouncedText(ci.ArgAt<string>(1), [])));
 
         return (
             new(

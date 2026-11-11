@@ -59,4 +59,14 @@ public interface ITtsLexiconService
         string text,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// <see cref="ApplyAsync"/>, plus the exact sound (IPA) of every replacement that has one. The text alone
+    /// is always speakable; the sounds are for a provider that reads them.
+    /// </summary>
+    Task<TtsPronouncedText> PronounceAsync(
+        Guid broadcasterId,
+        string text,
+        CancellationToken cancellationToken = default
+    );
 }

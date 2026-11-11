@@ -26,6 +26,10 @@ namespace NomNomzBot.Domain.Tts.Interfaces;
 /// These words carry the stress. The caller says which block; each provider decides how stress sounds, and a
 /// provider that cannot stress speaks the block plain.
 /// </param>
+/// <param name="Phonemes">
+/// The words of <paramref name="Text"/> that have an exact sound. A provider that reads IPA speaks that sound; a
+/// provider that cannot speaks the word as written, so the text always holds a form every voice can say.
+/// </param>
 public sealed record TtsSegment(
     string Text,
     string VoiceId,
@@ -33,5 +37,11 @@ public sealed record TtsSegment(
     double? PitchPercent = null,
     int BreakAfterMs = 0,
     double? VolumePercent = null,
-    bool Stressed = false
+    bool Stressed = false,
+    IReadOnlyList<TtsPhoneme>? Phonemes = null
 );
+
+/// <summary>The exact sound of one word or phrase of a spoken text.</summary>
+/// <param name="Spoken">The plain word as it stands in the text.</param>
+/// <param name="Ipa">Its sound in the International Phonetic Alphabet.</param>
+public sealed record TtsPhoneme(string Spoken, string Ipa);

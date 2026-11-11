@@ -177,6 +177,8 @@
         "description": "Als een zin in een bericht staat, zegt de bot de vervanging.",
         "phrase": "Zin",
         "replacement": "Zeg in plaats daarvan",
+        "ipa": "Exacte klank (IPA)",
+        "ipaHelp": "Optioneel. Een stem die IPA leest, zegt precies deze klank. Elke andere stem zegt de vervanging.",
         "matchKind": "Overeenkomst",
         "kind": {
           "word": "Heel woord, elke hoofdletter",

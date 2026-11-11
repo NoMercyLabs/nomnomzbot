@@ -155343,9 +155343,15 @@
           },
           "matchKind": {
             "type": "string"
+          },
+          "ipa": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "One pronunciation-lexicon rule: when Phrase appears in an utterance, TTS speaks Replacement."
+        "description": "One pronunciation-lexicon rule: when Phrase appears in an utterance, TTS speaks\r\nReplacement. Ipa is the exact sound of the replacement, for a speech\r\nprovider that reads the International Phonetic Alphabet; `null` when the rule has none."
       },
       "TtsOverlay": {
         "required": [
@@ -159520,6 +159526,14 @@
           "replacement": {
             "maxLength": 200,
             "type": "string"
+          },
+          "ipa": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The exact sound of the replacement in the International Phonetic Alphabet. Leave empty for none."
           },
           "matchKind": {
             "pattern": "^(word|exact)$",

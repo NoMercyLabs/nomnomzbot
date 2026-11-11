@@ -37,9 +37,14 @@ public sealed class TtsConfigServiceTestVoiceTests
             .Returns(new TtsResult([1], 100, "voice", "edge"));
         ITtsLexiconService lexicon = Substitute.For<ITtsLexiconService>();
         lexicon
-            .ApplyAsync(channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .PronounceAsync(channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(ci =>
-                Task.FromResult(hasOverride ? "hello Prime Coder" : ci.ArgAt<string>(1))
+                Task.FromResult(
+                    new TtsPronouncedText(
+                        hasOverride ? "hello Prime Coder" : ci.ArgAt<string>(1),
+                        []
+                    )
+                )
             );
         TtsConfigService sut = new(
             db,
@@ -138,8 +143,8 @@ public sealed class TtsConfigServiceTestVoiceTests
     {
         ITtsLexiconService lexicon = Substitute.For<ITtsLexiconService>();
         lexicon
-            .ApplyAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ci => Task.FromResult(ci.ArgAt<string>(1)));
+            .PronounceAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ci => Task.FromResult(new TtsPronouncedText(ci.ArgAt<string>(1), [])));
         return new(
             db,
             tts,

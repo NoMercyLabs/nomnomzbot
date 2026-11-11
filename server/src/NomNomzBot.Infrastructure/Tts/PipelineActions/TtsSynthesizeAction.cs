@@ -192,17 +192,31 @@ public sealed class TtsSynthesizeAction : ICommandAction
                 );
         }
 
-        string spokenText = _spokenNames.ApplyToText(
-            await _lexicon.ApplyAsync(ctx.BroadcasterId, text, ctx.CancellationToken),
-            SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName)
-        );
-        TtsResult synth = await _tts.SynthesizeAsync(
-            spokenText,
-            voiceId,
-            action.GetDouble("rate"),
-            action.GetDouble("pitch"),
+        TtsPronouncedText pronounced = await _lexicon.PronounceAsync(
+            ctx.BroadcasterId,
+            text,
             ctx.CancellationToken
         );
+        string spokenText = _spokenNames.ApplyToText(
+            pronounced.Text,
+            SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName)
+        );
+        double? rate = action.GetDouble("rate");
+        double? pitch = action.GetDouble("pitch");
+        // A text with exact sounds travels as one block; a text without them keeps the plain path.
+        TtsResult synth =
+            pronounced.Phonemes.Count == 0
+                ? await _tts.SynthesizeAsync(
+                    spokenText,
+                    voiceId,
+                    rate,
+                    pitch,
+                    ctx.CancellationToken
+                )
+                : await _tts.SynthesizeSegmentsAsync(
+                    [new(spokenText, voiceId, rate, pitch, Phonemes: pronounced.Phonemes)],
+                    ctx.CancellationToken
+                );
         if (synth.AudioData.Length == 0)
             return ActionResult.Failure("tts_synthesize: the TTS provider returned no audio.");
 

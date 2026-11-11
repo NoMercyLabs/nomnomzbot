@@ -177,6 +177,8 @@
         "description": "When a phrase appears in a message, the bot says the replacement.",
         "phrase": "Phrase",
         "replacement": "Say instead",
+        "ipa": "Exact sound (IPA)",
+        "ipaHelp": "Optional. A voice that reads IPA says this exact sound. Every other voice says the replacement.",
         "matchKind": "Match",
         "kind": {
           "word": "Whole word, any case",

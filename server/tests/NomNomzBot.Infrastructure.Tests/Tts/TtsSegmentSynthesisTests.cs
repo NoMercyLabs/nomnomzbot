@@ -315,6 +315,78 @@ public sealed class TtsSegmentSynthesisTests
             .Equal(("en-US-AnaNeural", "Duka, that is not a fix <at all>"), ("voice-b", "and you"));
     }
 
+    // A word with an IPA form: "View" is the plain word every voice can say, the IPA is its exact sound.
+    private static readonly IReadOnlyList<TtsSegment> Pronounced =
+    [
+        new("I like View & view, not Viewer.", "en-US-AnaNeural", Phonemes: [new("View", "vjuː")]),
+    ];
+
+    [Fact]
+    public void Azure_BuildSsml_WrapsAWordWithAnIpaFormInAPhoneme_AndKeepsThePlainWordInsideIt()
+    {
+        XDocument doc = XDocument.Parse(AzureTtsProvider.BuildSsml(Pronounced));
+
+        XElement block = doc.Root!.Elements().Single().Elements().Single();
+        block.Value.Should().Be("I like View & view, not Viewer.");
+        List<XElement> phonemes = block.Elements().ToList();
+        phonemes.Select(e => e.Name.LocalName).Should().Equal("phoneme", "phoneme");
+        phonemes.Select(e => e.Attribute("alphabet")!.Value).Should().Equal("ipa", "ipa");
+        phonemes.Select(e => e.Attribute("ph")!.Value).Should().Equal("vjuː", "vjuː");
+        phonemes.Select(e => e.Value).Should().Equal("View", "view");
+    }
+
+    // Edge and ElevenLabs cannot read IPA: they say the plain word.
+    [Fact]
+    public void EdgeAndElevenLabs_SayThePlainWord_WithNoPhoneme()
+    {
+        string edge = EdgeTtsProvider.BuildRunSsml(
+            EdgeTtsProvider.ChunkRuns(EdgeTtsProvider.VoiceRuns(Pronounced)).Single()
+        );
+
+        edge.Should().NotContain("phoneme").And.Contain("I like View &amp; view, not Viewer.");
+        ElevenLabsTtsProvider
+            .VoiceRuns(Pronounced)
+            .Should()
+            .Equal(("en-US-AnaNeural", "I like View & view, not Viewer."));
+    }
+
+    private sealed class RefusingPhonemes : HttpMessageHandler
+    {
+        public List<string> Bodies { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            string body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            Bodies.Add(body);
+            return body.Contains("<phoneme")
+                ? new(HttpStatusCode.BadRequest)
+                : new(HttpStatusCode.OK) { Content = new ByteArrayContent(Frames(2, 0xA1)) };
+        }
+    }
+
+    // Azure refuses the whole request for one phone it does not know (HTTP 400, its docs). The line is then
+    // spoken with the plain words, so a wrong IPA entry never silences a line.
+    [Fact]
+    public async Task Azure_WhenTheIpaIsRefused_SpeaksTheLineAgainWithThePlainWords()
+    {
+        RefusingPhonemes handler = new();
+        AzureTtsProvider provider = new(
+            new FakeFactory(handler),
+            NullLogger<AzureTtsProvider>.Instance,
+            "key"
+        );
+
+        TtsSynthesisResult result = await provider.SynthesizeSegmentsAsync(Pronounced);
+
+        handler.Bodies.Should().HaveCount(2);
+        handler.Bodies[0].Should().Contain("<phoneme");
+        handler.Bodies[1].Should().NotContain("<phoneme").And.Contain("I like View");
+        result.AudioData.Should().NotBeEmpty();
+    }
+
     // MPEG-1 Layer III, 128 kbit/s, 44.1 kHz: 417-byte frames of 1152 samples.
     private static byte[] Frames(int count, byte marker)
     {

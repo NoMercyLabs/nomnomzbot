@@ -560,17 +560,22 @@ public class TtsConfigService : ITtsConfigService
             string text = isIntroduction
                 ? await ComposeSampleAsync(request.VoiceId, cancellationToken)
                 : request.Text!;
-            string spoken = _spokenNames.ApplyToText(
-                isIntroduction
-                    ? text
-                    : await _lexicon.ApplyAsync(broadcasterId, text, cancellationToken),
-                []
-            );
-            TtsResult result = await _ttsService.SynthesizeAsync(
-                spoken,
-                request.VoiceId,
-                ct: cancellationToken
-            );
+            TtsPronouncedText pronounced = isIntroduction
+                ? new(text, [])
+                : await _lexicon.PronounceAsync(broadcasterId, text, cancellationToken);
+            string spoken = _spokenNames.ApplyToText(pronounced.Text, []);
+            // A text with exact sounds travels as one block, so the sample sounds like the live line.
+            TtsResult result =
+                pronounced.Phonemes.Count == 0
+                    ? await _ttsService.SynthesizeAsync(
+                        spoken,
+                        request.VoiceId,
+                        ct: cancellationToken
+                    )
+                    : await _ttsService.SynthesizeSegmentsAsync(
+                        [new(spoken, request.VoiceId, Phonemes: pronounced.Phonemes)],
+                        cancellationToken
+                    );
             if (isIntroduction && _samples is not null)
                 await _samples.SaveAsync(request.VoiceId, result, cancellationToken);
 

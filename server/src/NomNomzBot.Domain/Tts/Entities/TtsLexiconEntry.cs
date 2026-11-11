@@ -35,6 +35,13 @@ public class TtsLexiconEntry : SoftDeletableEntity, ITenantScoped
     [MaxLength(200)]
     public string Replacement { get; set; } = null!;
 
+    /// <summary>
+    /// The exact sound of <see cref="Replacement"/> in the International Phonetic Alphabet, or <c>null</c>. A
+    /// speech provider that reads IPA speaks this; every other provider speaks <see cref="Replacement"/>.
+    /// </summary>
+    [MaxLength(200)]
+    public string? Ipa { get; set; }
+
     /// <summary>Matcher: <c>word</c> (whole-word, case-insensitive) | <c>exact</c> (case-sensitive literal).</summary>
     [MaxLength(10)]
     public string MatchKind { get; set; } = TtsLexiconMatchKinds.Word;

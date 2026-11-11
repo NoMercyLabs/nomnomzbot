@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Tts.Entities;
+using NomNomzBot.Domain.Tts.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Tts;
 
@@ -103,6 +104,7 @@ public class TtsLexiconService : ITtsLexiconService
             BroadcasterId = broadcasterId,
             Phrase = phrase,
             Replacement = request.Replacement.Trim(),
+            Ipa = IpaOf(request),
             MatchKind = request.MatchKind,
         };
         _db.TtsLexiconEntries.Add(entry);
@@ -148,6 +150,7 @@ public class TtsLexiconService : ITtsLexiconService
 
         entry.Phrase = phrase;
         entry.Replacement = request.Replacement.Trim();
+        entry.Ipa = IpaOf(request);
         entry.MatchKind = request.MatchKind;
         await _db.SaveChangesAsync(cancellationToken);
         await _cache.RemoveAsync(CacheKey(broadcasterId), cancellationToken);
@@ -179,10 +182,16 @@ public class TtsLexiconService : ITtsLexiconService
         Guid broadcasterId,
         string text,
         CancellationToken cancellationToken = default
+    ) => (await PronounceAsync(broadcasterId, text, cancellationToken)).Text;
+
+    public async Task<TtsPronouncedText> PronounceAsync(
+        Guid broadcasterId,
+        string text,
+        CancellationToken cancellationToken = default
     )
     {
         if (string.IsNullOrEmpty(text))
-            return text;
+            return new(text, []);
 
         IReadOnlyList<TtsLexiconEntryDto> channelRules = await GetCachedEntriesAsync(
             broadcasterId,
@@ -202,7 +211,7 @@ public class TtsLexiconService : ITtsLexiconService
         if (_emoteRules is not null)
             entries.AddRange(await _emoteRules.RulesAsync(broadcasterId, cancellationToken));
         if (entries.Count == 0)
-            return text;
+            return new(text, []);
 
         // Collect every match against the ORIGINAL text — replacements are never re-matched (no recursion).
         List<LexiconMatch> matches = [];
@@ -221,7 +230,9 @@ public class TtsLexiconService : ITtsLexiconService
             try
             {
                 foreach (Match match in Regex.Matches(text, pattern, options, MatchTimeout))
-                    matches.Add(new(match.Index, match.Length, entry.Replacement, order));
+                    matches.Add(
+                        new(match.Index, match.Length, entry.Replacement, order, entry.Ipa)
+                    );
             }
             catch (RegexMatchTimeoutException)
             {
@@ -229,7 +240,7 @@ public class TtsLexiconService : ITtsLexiconService
             }
         }
         if (matches.Count == 0)
-            return text;
+            return new(text, []);
 
         // Overlap resolution: earliest start wins; ties go to the longest match, then rule order.
         matches.Sort(
@@ -240,6 +251,7 @@ public class TtsLexiconService : ITtsLexiconService
         );
 
         StringBuilder result = new(text.Length);
+        List<TtsPhoneme> phonemes = [];
         int cursor = 0;
         foreach (LexiconMatch match in matches)
         {
@@ -247,9 +259,12 @@ public class TtsLexiconService : ITtsLexiconService
                 continue; // overlaps a span already replaced in this pass
             result.Append(text, cursor, match.Start - cursor).Append(match.Replacement);
             cursor = match.Start + match.Length;
+            TtsPhoneme? phoneme = match.Ipa is null ? null : new(match.Replacement, match.Ipa);
+            if (phoneme is not null && !phonemes.Contains(phoneme))
+                phonemes.Add(phoneme);
         }
         result.Append(text, cursor, text.Length - cursor);
-        return result.ToString();
+        return new(result.ToString(), phonemes);
     }
 
     // Old-bot parity: every channel that set a pronunciation has its login (and @login) spoken that way.
@@ -272,7 +287,8 @@ public class TtsLexiconService : ITtsLexiconService
         int Start,
         int Length,
         string Replacement,
-        int Order
+        int Order,
+        string? Ipa
     );
 
     // The cached resolve-all for the dispatch hot path — filled from the database on miss, evicted on write.
@@ -305,8 +321,11 @@ public class TtsLexiconService : ITtsLexiconService
             .TtsLexiconEntries.Where(e => e.BroadcasterId == broadcasterId && e.DeletedAt == null)
             .OrderBy(e => e.Phrase)
             .ThenBy(e => e.MatchKind)
-            .Select(e => new TtsLexiconEntryDto(e.Id, e.Phrase, e.Replacement, e.MatchKind))
+            .Select(e => new TtsLexiconEntryDto(e.Id, e.Phrase, e.Replacement, e.MatchKind, e.Ipa))
             .ToListAsync(cancellationToken);
+
+    private static string? IpaOf(UpsertTtsLexiconEntryDto request) =>
+        string.IsNullOrWhiteSpace(request.Ipa) ? null : request.Ipa.Trim();
 
     private static Result Validate(UpsertTtsLexiconEntryDto request)
     {
@@ -322,5 +341,5 @@ public class TtsLexiconService : ITtsLexiconService
     }
 
     private static TtsLexiconEntryDto ToDto(TtsLexiconEntry entry) =>
-        new(entry.Id, entry.Phrase, entry.Replacement, entry.MatchKind);
+        new(entry.Id, entry.Phrase, entry.Replacement, entry.MatchKind, entry.Ipa);
 }

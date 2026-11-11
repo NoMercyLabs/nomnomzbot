@@ -25,6 +25,7 @@ type Rule = {
   phrase: string;
   replacement: string;
   matchKind: string;
+  ipa?: string | null;
 };
 
 type Sent = {
@@ -204,11 +205,36 @@ describe('Pronunciation rule dialog', () => {
       phrase: 'lol',
       replacement: 'laughing out loud',
       matchKind: 'word',
+      ipa: null,
     });
 
     expect(dialog()).toBeNull();
     expect(rows()).toHaveLength(2);
     expect(rows()[1]).toContain('laughing out loud');
+  });
+
+  it('saves the exact sound (IPA) with the rule, shows it in the list and fills it in on edit', async () => {
+    await open();
+    await click(addButton());
+    await type('lexicon-phrase', 'Vue');
+    await type('lexicon-replacement', 'View');
+    await type('lexicon-ipa', ' vjuː ');
+    await click(control('[data-form-action]'));
+
+    expect(sent[0]!.body).toEqual({
+      phrase: 'Vue',
+      replacement: 'View',
+      matchKind: 'word',
+      ipa: 'vjuː',
+    });
+
+    expect(rows()[1]).toContain('vjuː');
+    expect(field('lexicon-ipa')).toBeNull();
+
+    await click(control('[aria-label="Edit the rule for Vue"]'));
+
+    expect(field('lexicon-ipa').value).toBe('vjuː');
+    expect(field('lexicon-ipa').maxLength).toBe(200);
   });
 
   it('opens the edit dialog filled with the current values of that rule', async () => {
@@ -236,6 +262,7 @@ describe('Pronunciation rule dialog', () => {
       phrase: 'gg',
       replacement: 'great game',
       matchKind: 'word',
+      ipa: null,
     });
 
     expect(dialog()).toBeNull();

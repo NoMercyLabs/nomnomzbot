@@ -27,6 +27,8 @@ public class TtsLexiconEntryConfiguration : IEntityTypeConfiguration<TtsLexiconE
 
         builder.Property(e => e.Replacement).IsRequired().HasMaxLength(200);
 
+        builder.Property(e => e.Ipa).HasMaxLength(200);
+
         builder.Property(e => e.MatchKind).IsRequired().HasMaxLength(10);
 
         // One live rule per (channel, phrase, matcher); a soft-deleted row frees the slot for a re-add.
