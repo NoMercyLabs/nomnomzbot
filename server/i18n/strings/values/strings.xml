@@ -5275,7 +5275,7 @@
     <string name="pipeline_timeout_duration_help">How long the timeout lasts, in seconds.</string>
     <string name="pipeline_timeout_reason_help">Shown to the viewer and logged in the moderation history.</string>
     <string name="pipeline_play_tts_text_help">The text to speak. Supports template variables (e.g. {user.name}).</string>
-    <string name="pipeline_play_tts_segments_help">Several voices in one clip. A JSON list of parts, each with text, and optionally voice, rate, pitch, volume, stress (the words to stress, separated by |) and breakAfterMs (silence after the part, up to 5000 ms). When set, it replaces Text. Supports template variables.</string>
+    <string name="pipeline_play_tts_segments_help">Several voices in one clip. A JSON list of blocks, in any order. A text block has text, and optionally voice, rate, pitch, volume, stress (true: this block carries the stress) and breakAfterMs (silence after the block, up to 5000 ms). A pause block has only pause, in milliseconds. When set, it replaces Text. Supports template variables.</string>
     <string name="pipeline_play_tts_voice_help">Blank uses the channel's default TTS voice.</string>
     <string name="pipeline_play_tts_mode_help">async (default) moves on as soon as the line is sent to the overlay. sync waits until the clip has finished playing (its real length, at most 60 seconds, plus a quarter second for the overlay to start it), so a later step, such as restoring the music volume, runs after the speech ends. Both modes set {tts.durationMs} and {tts.voiceId}.</string>
     <string name="pipeline_play_tts_rate_help">How fast the line is spoken, as a percent of normal speed: +30% faster, -20% slower. Blank keeps the normal speed. Values are limited to -50% to +50%.</string>
