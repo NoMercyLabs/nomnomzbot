@@ -66,6 +66,7 @@
     <string name="template_helper_channel_followers">How many followers the channel has</string>
     <string name="template_helper_channel_followers_compact">How many followers the channel has, short: 1.2k</string>
     <string name="template_helper_channel_subs">How many subscribers the channel has</string>
+    <string name="template_helper_channel_members">How many YouTube members the channel has</string>
     <string name="template_helper_channel_language">The language of the channel</string>
     <string name="template_helper_channel_timezone">The time zone of the channel</string>
     <string name="template_helper_channel_localTime">The time now in the channel time zone</string>

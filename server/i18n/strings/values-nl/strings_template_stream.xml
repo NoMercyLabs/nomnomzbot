@@ -65,6 +65,7 @@
     <string name="template_helper_channel_followers">Hoeveel volgers het kanaal heeft</string>
     <string name="template_helper_channel_followers_compact">Hoeveel volgers het kanaal heeft, kort: 1.2k</string>
     <string name="template_helper_channel_subs">Hoeveel abonnees het kanaal heeft</string>
+    <string name="template_helper_channel_members">Hoeveel YouTube-leden het kanaal heeft</string>
     <string name="template_helper_channel_language">De taal van het kanaal</string>
     <string name="template_helper_channel_timezone">De tijdzone van het kanaal</string>
     <string name="template_helper_channel_localTime">De tijd nu in de tijdzone van het kanaal</string>
