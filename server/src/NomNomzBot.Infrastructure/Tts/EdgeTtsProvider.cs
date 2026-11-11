@@ -117,13 +117,14 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     // The read-aloud endpoint answers a request that names two voices with no audio at all (probed 2026-11-01),
     // so each run of one voice is its own request and the mp3 bytes are joined into one clip, as for ElevenLabs.
-    // A pause asked for between two different voices is not made: no silent frames are invented.
     //
     // It also answers a one-voice request carrying 3 or more <prosody> segments with no audio at all (probed
     // 2026-11-05: 1-2 segments synthesize fine, 3 reliably returns nothing) — so a voice run longer than
     // MaxSegmentsPerRequest is chunked the same way a multi-voice request already is: one request per chunk,
-    // the mp3 bytes joined. A pause between two chunks is lost the same way a pause between two voices already
-    // is — no silent frames are invented there either.
+    // the mp3 bytes joined.
+    //
+    // And it answers any request that carries a <break> with no audio at all (probed 2026-11-11), so a pause
+    // ends the request too, and the pause itself is silent frames between the two clips.
     public async Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
         IReadOnlyList<TtsSegment> segments,
         CancellationToken cancellationToken = default
@@ -143,7 +144,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 cancellationToken
             );
 
-        using MemoryStream joined = new();
+        List<byte[]> clips = [];
         foreach (List<TtsSegment> run in runs)
         {
             TtsSynthesisResult part = await SynthesizeSsmlAsync(
@@ -154,10 +155,10 @@ public sealed class EdgeTtsProvider : ITtsProvider
             );
             if (part.AudioData.Length == 0)
                 return EmptyResult(firstVoice);
-            joined.Write(part.AudioData);
+            clips.Add(part.AudioData);
         }
 
-        byte[] audioData = joined.ToArray();
+        byte[] audioData = JoinClips(runs, clips);
 
         return new()
         {
@@ -187,16 +188,50 @@ public sealed class EdgeTtsProvider : ITtsProvider
     /// <summary>The longest one-voice request the read-aloud endpoint answers with audio (probed 2026-11-05).</summary>
     internal const int MaxSegmentsPerRequest = 2;
 
-    /// <summary>Cuts every run longer than <see cref="MaxSegmentsPerRequest"/> into same-voice chunks of
-    /// that size, so each becomes its own request below.</summary>
+    /// <summary>Cuts every run into same-voice chunks that each become one request: a chunk ends when it holds
+    /// <see cref="MaxSegmentsPerRequest"/> segments, and after a segment that asks for a pause.</summary>
     internal static List<List<TtsSegment>> ChunkRuns(List<List<TtsSegment>> runs)
     {
         List<List<TtsSegment>> chunked = [];
         foreach (List<TtsSegment> run in runs)
-            for (int i = 0; i < run.Count; i += MaxSegmentsPerRequest)
-                chunked.Add(run.GetRange(i, Math.Min(MaxSegmentsPerRequest, run.Count - i)));
+        {
+            List<TtsSegment> chunk = [];
+            foreach (TtsSegment segment in run)
+            {
+                chunk.Add(segment);
+                if (chunk.Count < MaxSegmentsPerRequest && segment.BreakAfterMs <= 0)
+                    continue;
+
+                chunked.Add(chunk);
+                chunk = [];
+            }
+
+            if (chunk.Count > 0)
+                chunked.Add(chunk);
+        }
 
         return chunked;
+    }
+
+    /// <summary>The clips of the chunks as one clip, with the pause a chunk's last segment asks for as silent
+    /// frames after it. Nothing follows the last clip.</summary>
+    internal static byte[] JoinClips(
+        IReadOnlyList<List<TtsSegment>> chunks,
+        IReadOnlyList<byte[]> clips
+    )
+    {
+        using MemoryStream joined = new();
+        for (int i = 0; i < clips.Count; i++)
+        {
+            joined.Write(clips[i]);
+            if (i == clips.Count - 1)
+                continue;
+
+            int pauseMs = Math.Min(chunks[i][^1].BreakAfterMs, TtsProsody.MaxBreakMs);
+            joined.Write(Mp3Silence.OfMilliseconds(pauseMs));
+        }
+
+        return joined.ToArray();
     }
 
     private async Task<TtsSynthesisResult> SynthesizeSsmlAsync(
@@ -791,14 +826,11 @@ public sealed class EdgeTtsProvider : ITtsProvider
             """;
     }
 
-    /// <summary>One <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment and a <c>&lt;break&gt;</c> between them.</summary>
-    internal static string BuildSsml(IReadOnlyList<TtsSegment> segments) =>
-        TtsSegmentSsml.Build(segments);
-
     /// <summary>
     /// The SSML for one run of segments that share a voice: one <c>&lt;voice&gt;</c> element holding one
-    /// <c>&lt;prosody&gt;</c> per segment. Edge answers a document with two <c>&lt;voice&gt;</c> elements with
-    /// no audio, even when both name the same voice (probed 2026-11-03).
+    /// <c>&lt;prosody&gt;</c> per segment, and nothing else. Edge answers a document with two
+    /// <c>&lt;voice&gt;</c> elements with no audio, even when both name the same voice (probed 2026-11-03), and
+    /// the same for a <c>&lt;break&gt;</c> (probed 2026-11-11).
     /// </summary>
     internal static string BuildRunSsml(IReadOnlyList<TtsSegment> run)
     {
@@ -809,9 +841,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
             .Append("<voice name='")
             .Append(System.Security.SecurityElement.Escape(run[0].VoiceId))
             .Append("'>");
-        for (int i = 0; i < run.Count; i++)
-        {
-            TtsSegment segment = run[i];
+        foreach (TtsSegment segment in run)
             ssml.Append("<prosody rate='")
                 .Append(TtsProsody.FormatPercent(segment.RatePercent))
                 .Append("' pitch='")
@@ -819,14 +849,6 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 .Append("'>")
                 .Append(System.Security.SecurityElement.Escape(segment.Text))
                 .Append("</prosody>");
-            if (i < run.Count - 1 && segment.BreakAfterMs > 0)
-                ssml.Append("<break time='")
-                    .Append(
-                        Math.Min(segment.BreakAfterMs, TtsProsody.MaxBreakMs)
-                            .ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    )
-                    .Append("ms'/>");
-        }
 
         return ssml.Append("</voice></speak>").ToString();
     }

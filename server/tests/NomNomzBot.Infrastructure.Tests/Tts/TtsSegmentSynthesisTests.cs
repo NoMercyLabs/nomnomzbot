@@ -19,9 +19,10 @@ using NomNomzBot.Infrastructure.Tts;
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
 /// <summary>
-/// Proves one TTS request that carries several segments becomes ONE audio: Azure and Edge build a single
-/// <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment and a <c>&lt;break&gt;</c> between them, and
-/// ElevenLabs (no SSML) synthesizes every segment and joins the mp3 bytes into one clip.
+/// Proves one TTS request that carries several segments becomes ONE audio, each provider by its own rules.
+/// Azure builds a single <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment and the pause inside
+/// that voice. Edge takes no pause tag at all, so it cuts the line at each pause and joins the clips with
+/// silent frames. ElevenLabs (no SSML) synthesizes every segment and joins the mp3 bytes into one clip.
 /// </summary>
 public sealed class TtsSegmentSynthesisTests
 {
@@ -37,35 +38,104 @@ public sealed class TtsSegmentSynthesisTests
         new("Second line", "en-US-AriaNeural"),
     ];
 
-    private static void AssertOneSpeakTwoVoicesAndABreakBetween(string ssml)
+    // Azure refuses a <break> that sits between two <voice> elements (BadRequest, seen live 2026-11-11):
+    // the pause belongs inside the voice that speaks before it.
+    [Fact]
+    public void Azure_BuildSsml_Segments_EmitsOneSpeakWithTwoVoices_AndThePauseInsideTheFirstVoice()
     {
+        string ssml = AzureTtsProvider.BuildSsml(TwoVoices);
         XDocument doc = XDocument.Parse(ssml);
 
         doc.Descendants().Count(e => e.Name.LocalName == "speak").Should().Be(1);
-        List<XElement> children = doc.Root!.Elements().ToList();
-        children.Select(e => e.Name.LocalName).Should().Equal("voice", "break", "voice");
+        List<XElement> voices = doc.Root!.Elements().ToList();
+        voices.Select(e => e.Name.LocalName).Should().Equal("voice", "voice");
 
-        children[0].Attribute("name")!.Value.Should().Be("en-US-GuyNeural");
-        children[0]
-            .Descendants()
-            .Single(e => e.Name.LocalName == "prosody")
-            .Value.Should()
-            .Be("Hey <chat> & friends");
-        children[1].Attribute("time")!.Value.Should().Be("600ms");
-        children[2].Attribute("name")!.Value.Should().Be("en-US-AriaNeural");
-        children[2].Value.Trim().Should().Be("Second line");
+        voices[0].Attribute("name")!.Value.Should().Be("en-US-GuyNeural");
+        voices[0].Elements().Select(e => e.Name.LocalName).Should().Equal("prosody", "break");
+        voices[0].Elements().First().Value.Should().Be("Hey <chat> & friends");
+        voices[0].Elements().Last().Attribute("time")!.Value.Should().Be("600ms");
+        voices[1].Attribute("name")!.Value.Should().Be("en-US-AriaNeural");
+        voices[1].Elements().Select(e => e.Name.LocalName).Should().Equal("prosody");
+        voices[1].Value.Should().Be("Second line");
 
         ssml.Should().Contain("rate='-20%'").And.Contain("pitch='+10%'");
         ssml.Should().Contain("Hey &lt;chat&gt; &amp; friends").And.NotContain("<chat>");
     }
 
+    // The read-aloud endpoint answers any request that carries a <break> with no audio at all (probed
+    // 2026-11-11), so a pause ends the request and the silence is added between the clips.
     [Fact]
-    public void Edge_BuildSsml_Segments_EmitsOneSpeakWithTwoVoicesAndABreakBetween() =>
-        AssertOneSpeakTwoVoicesAndABreakBetween(EdgeTtsProvider.BuildSsml(TwoVoices));
+    public void Edge_ChunkRuns_EndsARequestAfterAPause()
+    {
+        List<List<TtsSegment>> runs = EdgeTtsProvider.ChunkRuns(
+            EdgeTtsProvider.VoiceRuns([
+                new("a", "bot", BreakAfterMs: 320),
+                new("b", "bot"),
+                new("c", "bot"),
+            ])
+        );
+
+        runs.Select(r => string.Concat(r.Select(s => s.Text))).Should().Equal("a", "bc");
+    }
 
     [Fact]
-    public void Azure_BuildSsml_Segments_EmitsOneSpeakWithTwoVoicesAndABreakBetween() =>
-        AssertOneSpeakTwoVoicesAndABreakBetween(AzureTtsProvider.BuildSsml(TwoVoices));
+    public void Edge_BuildRunSsml_NeverCarriesABreak_EvenWhenASegmentAsksForAPause()
+    {
+        string ssml = EdgeTtsProvider.BuildRunSsml([
+            new("one", "en-US-AnaNeural", BreakAfterMs: 300),
+            new("two", "en-US-AnaNeural", BreakAfterMs: 300),
+        ]);
+
+        XDocument.Parse(ssml).Descendants().Should().NotContain(e => e.Name.LocalName == "break");
+    }
+
+    [Fact]
+    public void Edge_Join_PutsThePauseAsSilentFramesBetweenTheClips_AndNoneAfterTheLast()
+    {
+        byte[] first = [1, 2, 3];
+        byte[] second = [4, 5];
+        List<List<TtsSegment>> runs =
+        [
+            [new("a", "bot", BreakAfterMs: 600)],
+            [new("b", "bot", BreakAfterMs: 900)],
+        ];
+
+        byte[] joined = EdgeTtsProvider.JoinClips(runs, [first, second]);
+
+        byte[] silence = Mp3Silence.OfMilliseconds(600);
+        joined.Should().Equal([.. first, .. silence, .. second]);
+        Mp3Duration.ToMilliseconds(silence, 48).Should().Be(600);
+    }
+
+    [Fact]
+    public void Edge_Join_ClampsAnAbsurdPause()
+    {
+        List<List<TtsSegment>> runs =
+        [
+            [new("a", "bot", BreakAfterMs: 99_999_999)],
+            [new("b", "bot")],
+        ];
+
+        byte[] joined = EdgeTtsProvider.JoinClips(
+            runs,
+            [
+                [],
+                [],
+            ]
+        );
+
+        Mp3Duration
+            .ToMilliseconds(joined, 48)
+            .Should()
+            .BeInRange(TtsProsody.MaxBreakMs, TtsProsody.MaxBreakMs + 24);
+    }
+
+    [Fact]
+    public void Mp3Silence_ZeroOrLess_IsEmpty()
+    {
+        Mp3Silence.OfMilliseconds(0).Should().BeEmpty();
+        Mp3Silence.OfMilliseconds(-5).Should().BeEmpty();
+    }
 
     [Fact]
     public void Edge_VoiceRuns_KeepsConsecutiveSegmentsOfOneVoiceTogether_AndSplitsWhereTheVoiceChanges()
@@ -127,54 +197,31 @@ public sealed class TtsSegmentSynthesisTests
     }
 
     [Fact]
-    public void BuildSsml_Segments_ZeroGapAddsNoBreak_AndNoBreakFollowsTheLastSegment()
+    public void Azure_BuildSsml_Segments_ZeroGapAddsNoBreak_AndNoBreakFollowsTheLastSegment()
     {
-        IReadOnlyList<TtsSegment> segments =
-        [
+        string ssml = AzureTtsProvider.BuildSsml([
             new("one", "v1", BreakAfterMs: 0),
             new("two", "v2", BreakAfterMs: 500),
-        ];
+        ]);
 
-        foreach (
-            string ssml in new[]
-            {
-                EdgeTtsProvider.BuildSsml(segments),
-                AzureTtsProvider.BuildSsml(segments),
-            }
-        )
-            XDocument
-                .Parse(ssml)
-                .Descendants()
-                .Count(e => e.Name.LocalName == "break")
-                .Should()
-                .Be(0);
+        XDocument.Parse(ssml).Descendants().Should().NotContain(e => e.Name.LocalName == "break");
     }
 
     [Fact]
-    public void BuildSsml_Segments_ClampsAnAbsurdBreak_AndEscapesAVoiceBreakout()
+    public void Azure_BuildSsml_Segments_ClampsAnAbsurdBreak_AndEscapesAVoiceBreakout()
     {
-        IReadOnlyList<TtsSegment> segments =
-        [
+        string ssml = AzureTtsProvider.BuildSsml([
             new("one", "v1'/><speak>x</speak>", BreakAfterMs: 99_999_999),
             new("two", "v2"),
-        ];
+        ]);
 
-        foreach (
-            string ssml in new[]
-            {
-                EdgeTtsProvider.BuildSsml(segments),
-                AzureTtsProvider.BuildSsml(segments),
-            }
-        )
-        {
-            XDocument doc = XDocument.Parse(ssml);
-            doc.Descendants().Count(e => e.Name.LocalName == "speak").Should().Be(1);
-            doc.Descendants()
-                .Single(e => e.Name.LocalName == "break")
-                .Attribute("time")!
-                .Value.Should()
-                .Be($"{TtsProsody.MaxBreakMs}ms");
-        }
+        XDocument doc = XDocument.Parse(ssml);
+        doc.Descendants().Count(e => e.Name.LocalName == "speak").Should().Be(1);
+        doc.Descendants()
+            .Single(e => e.Name.LocalName == "break")
+            .Attribute("time")!
+            .Value.Should()
+            .Be($"{TtsProsody.MaxBreakMs}ms");
     }
 
     // MPEG-1 Layer III, 128 kbit/s, 44.1 kHz: 417-byte frames of 1152 samples.

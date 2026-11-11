@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Net.Http.Json;
+using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -188,19 +189,48 @@ public sealed class AzureTtsProvider : ITtsProvider
     ) =>
         $"""
             <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-              <voice name='{System.Security.SecurityElement.Escape(voiceId)}'>
+              <voice name='{SecurityElement.Escape(voiceId)}'>
                 <prosody rate='{TtsProsody.FormatPercent(
                 ratePercent
             )}' pitch='{TtsProsody.FormatPercent(
                 pitchPercent
-            )}'>{System.Security.SecurityElement.Escape(text)}</prosody>
+            )}'>{SecurityElement.Escape(text)}</prosody>
               </voice>
             </speak>
             """;
 
-    /// <summary>One <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment and a <c>&lt;break&gt;</c> between them.</summary>
-    internal static string BuildSsml(IReadOnlyList<TtsSegment> segments) =>
-        TtsSegmentSsml.Build(segments);
+    /// <summary>
+    /// One <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment. A pause sits inside the voice that
+    /// speaks before it: Azure refuses a <c>&lt;break&gt;</c> between two voices (BadRequest, seen 2026-11-11).
+    /// </summary>
+    internal static string BuildSsml(IReadOnlyList<TtsSegment> segments)
+    {
+        StringBuilder ssml = new(
+            "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
+        );
+        for (int i = 0; i < segments.Count; i++)
+        {
+            TtsSegment segment = segments[i];
+            ssml.Append("<voice name='")
+                .Append(SecurityElement.Escape(segment.VoiceId))
+                .Append("'><prosody rate='")
+                .Append(TtsProsody.FormatPercent(segment.RatePercent))
+                .Append("' pitch='")
+                .Append(TtsProsody.FormatPercent(segment.PitchPercent))
+                .Append("'>")
+                .Append(SecurityElement.Escape(segment.Text))
+                .Append("</prosody>");
+
+            if (i < segments.Count - 1 && segment.BreakAfterMs > 0)
+                ssml.Append("<break time='")
+                    .Append(Math.Min(segment.BreakAfterMs, TtsProsody.MaxBreakMs))
+                    .Append("ms'/>");
+
+            ssml.Append("</voice>");
+        }
+
+        return ssml.Append("</speak>").ToString();
+    }
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>
         new()
