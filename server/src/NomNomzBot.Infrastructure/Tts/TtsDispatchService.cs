@@ -200,7 +200,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
                             partVoice,
                             part.RatePercent,
                             part.PitchPercent,
-                            Math.Max(0, part.BreakAfterMs)
+                            Math.Max(0, part.BreakAfterMs),
+                            part.VolumePercent,
+                            part.Stressed
                         )
                     );
                 }
@@ -597,7 +599,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
                     voiceId,
                     part.RatePercent,
                     part.PitchPercent,
-                    Math.Max(0, part.BreakAfterMs)
+                    Math.Max(0, part.BreakAfterMs),
+                    part.VolumePercent,
+                    part.Stressed
                 )
             );
         }

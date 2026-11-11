@@ -58,6 +58,20 @@ internal static class ScriptTtsSegmentParser
             int index = 0;
             foreach (JsonElement item in root.EnumerateArray())
             {
+                if (PauseOf(item) is int pauseMs)
+                {
+                    if (segments.Count > 0)
+                        segments[^1] = segments[^1] with
+                        {
+                            BreakAfterMs = Math.Min(
+                                MaxBreakMs,
+                                segments[^1].BreakAfterMs + pauseMs
+                            ),
+                        };
+                    index++;
+                    continue;
+                }
+
                 TtsSpeakSegment? segment = ParseItem(item, index, out string itemError);
                 if (segment is null)
                 {
@@ -66,6 +80,11 @@ internal static class ScriptTtsSegmentParser
                 }
                 segments.Add(segment);
                 index++;
+            }
+            if (segments.Count == 0)
+            {
+                error = "tts.speakSequence needs at least one block with text.";
+                return null;
             }
             return segments;
         }
@@ -100,10 +119,17 @@ internal static class ScriptTtsSegmentParser
             !TryNumber(item, "rate", out double? rate)
             || !TryNumber(item, "pitch", out double? pitch)
             || !TryNumber(item, "breakAfterMs", out double? breakMs)
+            || !TryNumber(item, "volume", out double? volume)
         )
         {
             error =
-                $"tts.speakSequence segment {index} rate, pitch and breakAfterMs must be numbers.";
+                $"tts.speakSequence segment {index} rate, pitch, volume and breakAfterMs must be numbers.";
+            return null;
+        }
+
+        if (!TryStress(item, out bool stressed))
+        {
+            error = $"tts.speakSequence segment {index} stress must be true or false.";
             return null;
         }
 
@@ -118,8 +144,41 @@ internal static class ScriptTtsSegmentParser
             voice,
             rate,
             pitch,
-            (int)Math.Round(breakMs ?? 0)
+            (int)Math.Round(breakMs ?? 0),
+            VolumePercent: volume,
+            Stressed: stressed
         );
+    }
+
+    // Absent or null is "no stress" (true, false); anything but true or false is malformed (false).
+    private static bool TryStress(JsonElement item, out bool stressed)
+    {
+        stressed = false;
+        if (
+            !item.TryGetProperty("stress", out JsonElement element)
+            || element.ValueKind == JsonValueKind.Null
+        )
+            return true;
+        if (element.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            return false;
+
+        stressed = element.GetBoolean();
+        return true;
+    }
+
+    // A pause block { pause: ms }: silence after the block before it. Null when the item is not a pause block
+    // or its pause is out of range.
+    private static int? PauseOf(JsonElement item)
+    {
+        if (
+            item.ValueKind != JsonValueKind.Object
+            || item.TryGetProperty("text", out _)
+            || !TryNumber(item, "pause", out double? pause)
+            || pause is null or < 0 or > MaxBreakMs
+        )
+            return null;
+
+        return (int)Math.Round(pause.Value);
     }
 
     // Absent or null is "no override" (true, null); a present non-number is a malformed segment (false).

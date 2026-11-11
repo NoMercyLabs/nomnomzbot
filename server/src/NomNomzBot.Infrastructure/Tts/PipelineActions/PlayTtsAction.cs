@@ -456,8 +456,9 @@ public sealed class PlayTtsAction : ICommandAction
 
     /// <summary>
     /// Reads the <c>segments</c> field — a JSON array (or JSON text of one) of
-    /// <c>{text, voice, rate, pitch, breakAfterMs}</c> — and resolves text, voice, rate and pitch through the
-    /// template resolver. Returns the error message instead of segments when the field is not a non-empty array
+    /// blocks. A text block is <c>{text, voice, rate, pitch, volume, stress, breakAfterMs}</c>; a pause block is
+    /// <c>{pause}</c>. Blocks combine in any order. Every value goes through the template resolver, or the whole
+    /// list comes from one variable. Returns the error message instead of segments when the field is not a non-empty array
     /// of objects that each carry <c>text</c>, or a rate/pitch is not a number.
     /// </summary>
     private async Task<(List<TtsSpeakSegment>? Segments, string? Error)> ResolveSegmentsAsync(
@@ -469,11 +470,18 @@ public sealed class PlayTtsAction : ICommandAction
         try
         {
             JsonElement array = raw;
+            // A list that arrives whole in one variable (a program hands over its own blocks) is used as it
+            // is: its words are data, so no template in them is resolved a second time.
+            bool literal = false;
             if (raw.ValueKind == JsonValueKind.String)
             {
+                string json = raw.GetString() ?? string.Empty;
+                literal = !LooksLikeJsonArray(json);
+                if (literal)
+                    json = await ResolveAsync(json, ctx);
                 try
                 {
-                    owned = JsonDocument.Parse(raw.GetString() ?? string.Empty);
+                    owned = JsonDocument.Parse(json);
                     array = owned.RootElement;
                 }
                 catch (JsonException)
@@ -489,35 +497,64 @@ public sealed class PlayTtsAction : ICommandAction
             int index = 0;
             foreach (JsonElement item in array.EnumerateArray())
             {
-                if (
-                    item.ValueKind != JsonValueKind.Object
-                    || !item.TryGetProperty("text", out JsonElement textElement)
-                    || textElement.ValueKind != JsonValueKind.String
-                )
+                if (item.ValueKind != JsonValueKind.Object)
+                    return (null, $"play_tts segment {index} must be an object.");
+
+                // A pause block: silence after the block before it. A pause with nothing before it is dropped.
+                if (!item.TryGetProperty("text", out JsonElement textElement))
+                {
+                    if (!item.TryGetProperty("pause", out _))
+                        return (null, $"play_tts segment {index} needs a 'text' or a 'pause'.");
+                    int pauseMs = await ResolveMillisecondsAsync(item, "pause", ctx, literal);
+                    if (segments.Count > 0)
+                        segments[^1] = segments[^1] with
+                        {
+                            BreakAfterMs = segments[^1].BreakAfterMs + pauseMs,
+                        };
+                    index++;
+                    continue;
+                }
+
+                if (textElement.ValueKind != JsonValueKind.String)
                     return (null, $"play_tts segment {index} needs a 'text' string.");
 
-                string text = await ResolveAsync(textElement.GetString() ?? string.Empty, ctx);
-                string voice = (await ResolveFieldAsync(item, "voice", ctx)).Trim();
+                string voice = (await ResolveFieldAsync(item, "voice", ctx, literal)).Trim();
                 if (
-                    !TryParseRate(await ResolveFieldAsync(item, "rate", ctx), out double? rate)
-                    || !TryParseRate(await ResolveFieldAsync(item, "pitch", ctx), out double? pitch)
+                    !TryParseRate(
+                        await ResolveFieldAsync(item, "rate", ctx, literal),
+                        out double? rate
+                    )
+                    || !TryParseRate(
+                        await ResolveFieldAsync(item, "pitch", ctx, literal),
+                        out double? pitch
+                    )
+                    || !TryParseRate(
+                        await ResolveFieldAsync(item, "volume", ctx, literal),
+                        out double? volume
+                    )
                 )
-                    return (null, $"play_tts segment {index} 'rate'/'pitch' must be a number.");
-
-                int breakMs = 0;
-                if (item.TryGetProperty("breakAfterMs", out JsonElement breakElement))
-                    _ = int.TryParse(
-                        breakElement.ToString(),
-                        System.Globalization.NumberStyles.Integer,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out breakMs
+                    return (
+                        null,
+                        $"play_tts segment {index} 'rate', 'pitch' and 'volume' must be numbers."
                     );
 
+                string stress = await ResolveFieldAsync(item, "stress", ctx, literal);
                 segments.Add(
-                    new(text, voice.Length == 0 ? null : voice, rate, pitch, Math.Max(0, breakMs))
+                    new(
+                        await ResolveFieldAsync(item, "text", ctx, literal),
+                        voice.Length == 0 ? null : voice,
+                        rate,
+                        pitch,
+                        await ResolveMillisecondsAsync(item, "breakAfterMs", ctx, literal),
+                        VolumePercent: volume,
+                        Stressed: stress.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
+                    )
                 );
                 index++;
             }
+
+            if (segments.Count == 0)
+                return (null, "play_tts 'segments' needs at least one block with 'text'.");
 
             return (segments, null);
         }
@@ -527,15 +564,39 @@ public sealed class PlayTtsAction : ICommandAction
         }
     }
 
+    private static bool LooksLikeJsonArray(string text) => text.TrimStart().StartsWith('[');
+
+    private async Task<int> ResolveMillisecondsAsync(
+        JsonElement item,
+        string name,
+        PipelineExecutionContext ctx,
+        bool literal
+    )
+    {
+        _ = int.TryParse(
+            await ResolveFieldAsync(item, name, ctx, literal),
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out int milliseconds
+        );
+        return Math.Max(0, milliseconds);
+    }
+
     private async Task<string> ResolveFieldAsync(
         JsonElement item,
         string name,
-        PipelineExecutionContext ctx
-    ) =>
-        !item.TryGetProperty(name, out JsonElement element) ? string.Empty
-        : element.ValueKind == JsonValueKind.String
-            ? await ResolveAsync(element.GetString() ?? string.Empty, ctx)
-        : element.ToString();
+        PipelineExecutionContext ctx,
+        bool literal
+    )
+    {
+        if (!item.TryGetProperty(name, out JsonElement element))
+            return string.Empty;
+        if (element.ValueKind != JsonValueKind.String)
+            return element.ValueKind is JsonValueKind.True ? "true" : element.ToString();
+
+        string value = element.GetString() ?? string.Empty;
+        return literal ? value : await ResolveAsync(value, ctx);
+    }
 
     private Task<string> ResolveAsync(string template, PipelineExecutionContext ctx) =>
         _resolver.ResolveAsync(template, ctx.Variables, ctx.BroadcasterId, ctx.CancellationToken);

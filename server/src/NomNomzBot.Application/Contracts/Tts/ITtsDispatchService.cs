@@ -211,6 +211,8 @@ public sealed record TtsSpokenEmotes(IReadOnlyList<string> Codes, string? OwnerL
 /// event announcement never goes silent because a viewer wrote a long message.
 /// </param>
 /// <param name="SpeakerTwitchUserId">The platform user id whose saved voice a <see cref="TtsSpeaker.Viewer"/> part uses.</param>
+/// <param name="VolumePercent">Optional loudness change (percent, clamped by the provider).</param>
+/// <param name="Stressed">These words carry the stress; a provider that cannot stress speaks them plain.</param>
 public sealed record TtsSpeakSegment(
     string Text,
     string? VoiceId = null,
@@ -218,7 +220,9 @@ public sealed record TtsSpeakSegment(
     double? PitchPercent = null,
     int BreakAfterMs = 0,
     TtsSpeaker? Speaker = null,
-    string? SpeakerTwitchUserId = null
+    string? SpeakerTwitchUserId = null,
+    double? VolumePercent = null,
+    bool Stressed = false
 );
 
 /// <summary>Whose words a TTS line carries; picks the voice (see <see cref="TtsSpeakRequest.Speaker"/>).</summary>

@@ -200,8 +200,10 @@ public sealed class AzureTtsProvider : ITtsProvider
             """;
 
     /// <summary>
-    /// One <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment. A pause sits inside the voice that
-    /// speaks before it: Azure refuses a <c>&lt;break&gt;</c> between two voices (BadRequest, seen 2026-11-11).
+    /// One <c>&lt;speak&gt;</c>. Blocks of one voice that follow each other share one <c>&lt;voice&gt;</c>, so
+    /// they flow as one sentence; each block is its own <c>&lt;prosody&gt;</c>. A pause sits inside the voice
+    /// that speaks before it: Azure refuses a <c>&lt;break&gt;</c> between two voices (BadRequest, seen
+    /// 2026-11-11).
     /// </summary>
     internal static string BuildSsml(IReadOnlyList<TtsSegment> segments)
     {
@@ -210,26 +212,63 @@ public sealed class AzureTtsProvider : ITtsProvider
         );
         for (int i = 0; i < segments.Count; i++)
         {
-            TtsSegment segment = segments[i];
-            ssml.Append("<voice name='")
-                .Append(SecurityElement.Escape(segment.VoiceId))
-                .Append("'><prosody rate='")
-                .Append(TtsProsody.FormatPercent(segment.RatePercent))
-                .Append("' pitch='")
-                .Append(TtsProsody.FormatPercent(segment.PitchPercent))
-                .Append("'>")
-                .Append(SecurityElement.Escape(segment.Text))
-                .Append("</prosody>");
+            TtsSegment block = segments[i];
+            bool last = i == segments.Count - 1;
+            bool flowsOn = i > 0 && segments[i - 1].VoiceId == block.VoiceId;
+            if (!flowsOn)
+                ssml.Append("<voice name='")
+                    .Append(SecurityElement.Escape(block.VoiceId))
+                    .Append("'>");
 
-            if (i < segments.Count - 1 && segment.BreakAfterMs > 0)
+            AppendBlock(ssml, block, flowsOn);
+
+            if (!last && block.BreakAfterMs > 0)
                 ssml.Append("<break time='")
-                    .Append(Math.Min(segment.BreakAfterMs, TtsProsody.MaxBreakMs))
+                    .Append(Math.Min(block.BreakAfterMs, TtsProsody.MaxBreakMs))
                     .Append("ms'/>");
 
-            ssml.Append("</voice>");
+            if (last || segments[i + 1].VoiceId != block.VoiceId)
+                ssml.Append("</voice>");
         }
 
         return ssml.Append("</speak>").ToString();
+    }
+
+    // How Azure speaks a stressed block: slower, higher and louder than the block asked for. The emphasis
+    // element is no use here: Azure honors it for three voices only (docs read 2026-11-11).
+    private const double StressRate = -15;
+    private const double StressPitch = 12;
+    private const double StressVolume = 30;
+
+    /// <summary>
+    /// One block: a prosody with its rate, pitch and volume, moved by the stress steps when stressed. A block
+    /// that flows on from the one before it starts with a space INSIDE its prosody: an XML reader may drop a
+    /// space that stands alone between two elements, and the words would run together.
+    /// </summary>
+    private static void AppendBlock(StringBuilder ssml, TtsSegment block, bool flowsOn)
+    {
+        double? volume = block.Stressed
+            ? (block.VolumePercent ?? 0) + StressVolume
+            : block.VolumePercent;
+        ssml.Append("<prosody rate='")
+            .Append(
+                TtsProsody.FormatPercent(
+                    block.Stressed ? (block.RatePercent ?? 0) + StressRate : block.RatePercent
+                )
+            )
+            .Append("' pitch='")
+            .Append(
+                TtsProsody.FormatPercent(
+                    block.Stressed ? (block.PitchPercent ?? 0) + StressPitch : block.PitchPercent
+                )
+            )
+            .Append('\'');
+        if (volume is not null)
+            ssml.Append(" volume='").Append(TtsProsody.FormatPercent(volume)).Append('\'');
+        ssml.Append('>')
+            .Append(flowsOn ? " " : string.Empty)
+            .Append(SecurityElement.Escape(block.Text))
+            .Append("</prosody>");
     }
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>

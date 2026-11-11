@@ -118,6 +118,20 @@ internal static class SdkRuntimeSurface
             "  /** Silence after this part, 0 to 10000 ms. Ignored after the last part. */"
         );
         sb.AppendLine("  breakAfterMs?: number;");
+        sb.AppendLine("  /** Loudness change in percent, for example 20. */");
+        sb.AppendLine("  volume?: number;");
+        sb.AppendLine(
+            "  /** Speak this block with stress. A voice service that cannot stress speaks it plain. */"
+        );
+        sb.AppendLine("  stress?: boolean;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** A pause block of nnz.api.tts.speakSequence: silence after the block before it. */"
+        );
+        sb.AppendLine("interface NnzApiTtsPause {");
+        sb.AppendLine("  /** The silence, 0 to 10000 ms. */");
+        sb.AppendLine("  pause: number;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/** A channel-point reward as nnz.api.reward.get returns it. */");
@@ -813,7 +827,9 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "  /** Speaks 1 to 20 parts, each in its own voice, as ONE audio clip. Null when a part is invalid or TTS refused the line. */"
         );
-        sb.AppendLine("  speakSequence(segments: NnzApiTtsSegment[]): NnzApiTtsResult | null;");
+        sb.AppendLine(
+            "  speakSequence(segments: (NnzApiTtsSegment | NnzApiTtsPause)[]): NnzApiTtsResult | null;"
+        );
         sb.AppendLine(
             "  /** The voice assigned to a viewer. userIdOrLogin is optional and defaults to the user who triggered the script. null when the viewer uses the channel default or no viewer matches. */"
         );

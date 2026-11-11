@@ -172,18 +172,38 @@ public sealed class EdgeTtsProvider : ITtsProvider
         };
     }
 
-    /// <summary>The segments cut into runs of consecutive segments that share one voice.</summary>
+    /// <summary>
+    /// The blocks cut into runs of consecutive blocks that share one voice. Inside a run, a block that sounds
+    /// the same as the one before it (same rate, pitch and volume, no pause between) is joined to it: Edge
+    /// cannot stress, so such blocks are one stretch of plain speech, and every block saved is one fewer of the
+    /// two a request may carry.
+    /// </summary>
     internal static List<List<TtsSegment>> VoiceRuns(IReadOnlyList<TtsSegment> segments)
     {
         List<List<TtsSegment>> runs = [];
-        foreach (TtsSegment segment in segments)
-            if (runs.Count > 0 && runs[^1][0].VoiceId == segment.VoiceId)
-                runs[^1].Add(segment);
+        foreach (TtsSegment block in segments)
+        {
+            if (runs.Count == 0 || runs[^1][0].VoiceId != block.VoiceId)
+            {
+                runs.Add([block]);
+                continue;
+            }
+
+            List<TtsSegment> run = runs[^1];
+            if (FlowsOn(run[^1], block))
+                run[^1] = block with { Text = $"{run[^1].Text} {block.Text}" };
             else
-                runs.Add([segment]);
+                run.Add(block);
+        }
 
         return runs;
     }
+
+    private static bool FlowsOn(TtsSegment before, TtsSegment next) =>
+        before.BreakAfterMs <= 0
+        && before.RatePercent == next.RatePercent
+        && before.PitchPercent == next.PitchPercent
+        && before.VolumePercent == next.VolumePercent;
 
     /// <summary>The longest one-voice request the read-aloud endpoint answers with audio (probed 2026-11-05).</summary>
     internal const int MaxSegmentsPerRequest = 2;
@@ -830,7 +850,8 @@ public sealed class EdgeTtsProvider : ITtsProvider
     /// The SSML for one run of segments that share a voice: one <c>&lt;voice&gt;</c> element holding one
     /// <c>&lt;prosody&gt;</c> per segment, and nothing else. Edge answers a document with two
     /// <c>&lt;voice&gt;</c> elements with no audio, even when both name the same voice (probed 2026-11-03), and
-    /// the same for a <c>&lt;break&gt;</c> (probed 2026-11-11).
+    /// the same for a <c>&lt;break&gt;</c> and for a prosody inside a prosody (probed 2026-11-11). So a part
+    /// keeps its rate, pitch and volume, and a stressed phrase is spoken plain.
     /// </summary>
     internal static string BuildRunSsml(IReadOnlyList<TtsSegment> run)
     {
@@ -842,13 +863,20 @@ public sealed class EdgeTtsProvider : ITtsProvider
             .Append(System.Security.SecurityElement.Escape(run[0].VoiceId))
             .Append("'>");
         foreach (TtsSegment segment in run)
+        {
             ssml.Append("<prosody rate='")
                 .Append(TtsProsody.FormatPercent(segment.RatePercent))
                 .Append("' pitch='")
                 .Append(TtsProsody.FormatPercent(segment.PitchPercent))
-                .Append("'>")
+                .Append('\'');
+            if (segment.VolumePercent is not null)
+                ssml.Append(" volume='")
+                    .Append(TtsProsody.FormatPercent(segment.VolumePercent))
+                    .Append('\'');
+            ssml.Append('>')
                 .Append(System.Security.SecurityElement.Escape(segment.Text))
                 .Append("</prosody>");
+        }
 
         return ssml.Append("</voice></speak>").ToString();
     }

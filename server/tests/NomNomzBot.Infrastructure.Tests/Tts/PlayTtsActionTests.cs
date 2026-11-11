@@ -860,6 +860,93 @@ public sealed class PlayTtsActionTests
             );
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Blocks_CarryVolumeStressAndPauses_AndAPauseBlockAddsToTheBlockBeforeIt()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = BuildWithTemplateMap(
+            new Dictionary<string, string>
+            {
+                ["a"] = "a",
+                ["b"] = "b",
+                ["c"] = "c",
+                ["{v.volume}"] = "+20%",
+                ["{v.stress}"] = "true",
+                ["{v.pause}"] = "320",
+            }
+        );
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Outcome());
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(
+                (
+                    "segments",
+                    "[{\"pause\":900},"
+                        + "{\"text\":\"a\",\"volume\":\"{v.volume}\",\"stress\":true,\"breakAfterMs\":\"{v.pause}\"},"
+                        + "{\"pause\":200},{\"text\":\"b\",\"stress\":\"{v.stress}\"},{\"text\":\"c\"}]"
+                )
+            )
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Segments != null
+                    && r.Segments.Count == 3
+                    && r.Segments[0].VolumePercent == 20
+                    && r.Segments[0].Stressed
+                    && r.Segments[0].BreakAfterMs == 520
+                    && r.Segments[1].VolumePercent == null
+                    && r.Segments[1].Stressed
+                    && !r.Segments[2].Stressed
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // A program hands its own block list over in one variable. The words in it are data: a template inside
+    // them is spoken as written, never resolved a second time.
+    [Fact]
+    public async Task ExecuteAsync_AWholeBlockListFromOneVariable_IsUsedAsItIs()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = BuildWithTemplateMap(
+            new Dictionary<string, string>
+            {
+                ["{perform.blocks}"] =
+                    "[{\"text\":\"{user.name} said hi\",\"voice\":\"en-US-AnaNeural\",\"stress\":true},"
+                    + "{\"pause\":400},{\"text\":\"b\",\"rate\":-12}]",
+            }
+        );
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Outcome());
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(("segments", "{perform.blocks}"))
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Segments != null
+                    && r.Segments.Count == 2
+                    && r.Segments[0].Text == "{user.name} said hi"
+                    && r.Segments[0].VoiceId == "en-US-AnaNeural"
+                    && r.Segments[0].Stressed
+                    && r.Segments[0].BreakAfterMs == 400
+                    && r.Segments[1].RatePercent == -12
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Theory]
     [InlineData("not json")]
     [InlineData("[]")]

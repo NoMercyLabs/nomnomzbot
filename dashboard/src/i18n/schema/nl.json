@@ -2120,7 +2120,7 @@
         "help": "Het scene_reserve-token ({'{'}scene.token{'}'}) waartoe deze regel behoort, indien van toepassing. Laat deze regel meteen spelen, zelfs terwijl die reservering actief is; een lege waarde wacht gewoon op haar beurt zoals elk ander verzoek."
       },
       "segments": {
-        "help": "Meerdere stemmen in een fragment. Een JSON-lijst met delen, elk met text en optioneel voice, rate, pitch en breakAfterMs (stilte na het deel, tot 5000 ms). Als dit is ingevuld, vervangt het Tekst. Ondersteunt sjabloonvariabelen."
+        "help": "Meerdere stemmen in een fragment. Een JSON-lijst met delen, elk met text en optioneel voice, rate, pitch, volume, stress (de woorden met klemtoon, gescheiden door {'|'}) en breakAfterMs (stilte na het deel, tot 5000 ms). Als dit is ingevuld, vervangt het Tekst. Ondersteunt sjabloonvariabelen."
       },
       "text": {
         "help": "De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."

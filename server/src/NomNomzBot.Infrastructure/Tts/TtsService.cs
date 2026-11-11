@@ -277,7 +277,7 @@ public sealed class TtsService : ITtsService
         string key = string.Join(
             "\n",
             segments.Select(s =>
-                $"{s.Text}|{s.VoiceId}|{s.RatePercent}|{s.PitchPercent}|{s.BreakAfterMs}"
+                $"{s.Text}|{s.VoiceId}|{s.RatePercent}|{s.PitchPercent}|{s.BreakAfterMs}|{s.VolumePercent}|{s.Stressed}"
             )
         );
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..24];

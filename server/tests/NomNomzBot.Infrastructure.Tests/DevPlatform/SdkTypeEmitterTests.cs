@@ -330,7 +330,7 @@ public sealed class SdkTypeEmitterTests
                   /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. The line speaks in the bot's own voice unless asUser is set: 'viewer' reads it in the triggering viewer's saved voice, a login or id in that user's saved voice. Null when TTS refused the line or asUser is unknown. */
                   speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number, asUser?: string): NnzApiTtsResult | null;
                   /** Speaks 1 to 20 parts, each in its own voice, as ONE audio clip. Null when a part is invalid or TTS refused the line. */
-                  speakSequence(segments: NnzApiTtsSegment[]): NnzApiTtsResult | null;
+                  speakSequence(segments: (NnzApiTtsSegment | NnzApiTtsPause)[]): NnzApiTtsResult | null;
                   /** The voice assigned to a viewer. userIdOrLogin is optional and defaults to the user who triggered the script. null when the viewer uses the channel default or no viewer matches. */
                   getVoice(userIdOrLogin?: string): NnzApiTtsVoice | null;
                   /** Assigns a voice to a viewer. voiceId is optional: leave it out to clear back to the channel default. Returns false when it fails. */

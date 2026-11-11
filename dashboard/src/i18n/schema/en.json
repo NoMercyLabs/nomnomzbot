@@ -2120,7 +2120,7 @@
         "help": "The scene_reserve token ({'{'}scene.token{'}'}) this line belongs to, if any. Lets this line play immediately even while that reservation is active; a blank value waits its turn like any other request."
       },
       "segments": {
-        "help": "Several voices in one clip. A JSON list of parts, each with text, and optionally voice, rate, pitch and breakAfterMs (silence after the part, up to 5000 ms). When set, it replaces Text. Supports template variables."
+        "help": "Several voices in one clip. A JSON list of parts, each with text, and optionally voice, rate, pitch, volume, stress (the words to stress, separated by {'|'}) and breakAfterMs (silence after the part, up to 5000 ms). When set, it replaces Text. Supports template variables."
       },
       "text": {
         "help": "The text to speak. Supports template variables (e.g. {'{'}user.name{'}'})."

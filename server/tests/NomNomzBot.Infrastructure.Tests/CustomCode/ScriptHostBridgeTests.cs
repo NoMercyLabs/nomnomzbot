@@ -1926,6 +1926,40 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
+    public void Tts_speakSequence_takes_blocks_with_volume_and_stress_and_a_pause_block_between_them()
+    {
+        TtsSpeakRequest? seen = null;
+        ITtsDispatchService tts = SpeakingDispatch(r => seen = r);
+        const string blocks =
+            """[{"text":"That is","volume":20},{"text":"not a fix","stress":true},{"pause":400},{"text":"plain"}]""";
+
+        Build(tts: tts)
+            .Resolve("tts.speakSequence")("tts.speakSequence", [blocks], CancellationToken.None);
+
+        seen!
+            .Segments.Should()
+            .Equal(
+                new TtsSpeakSegment("That is", VolumePercent: 20),
+                new TtsSpeakSegment("not a fix", BreakAfterMs: 400, Stressed: true),
+                new TtsSpeakSegment("plain")
+            );
+    }
+
+    [Theory]
+    [InlineData("""[{"text":"hi","stress":"yes"}]""")]
+    [InlineData("""[{"pause":400}]""")]
+    [InlineData("""[{"text":"hi"},{"pause":99999}]""")]
+    public void Tts_speakSequence_refuses_a_malformed_block(string blocks)
+    {
+        ScriptHostBridge bridge = Build(tts: SpeakingDispatch(_ => { }));
+
+        bridge
+            .Resolve("tts.speakSequence")("tts.speakSequence", [blocks], CancellationToken.None)
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
     public void Tts_speakSequence_returns_null_and_sets_last_error_when_the_gate_refuses()
     {
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();

@@ -111,10 +111,10 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         }
     }
 
-    // ElevenLabs has no SSML, so each segment is its own synthesis call and the mp3 bytes are joined into one
-    // clip. A segment's trailing silence (BreakAfterMs) is not rendered: there is no SSML break to carry it, and
-    // inventing silent mp3 frames would misrepresent what the provider produced. One failed segment fails the
-    // whole clip — a half-spoken sentence is worse than a clear "no audio" rejection.
+    // ElevenLabs has no SSML: no rate, pitch, volume, stress or pause. So the blocks of one voice that follow
+    // each other are spoken as one text in one call (a sentence cut into blocks stays one sentence), each voice
+    // change is its own call, and the mp3 bytes are joined into one clip. A pause is not rendered. One failed
+    // call fails the whole clip — a half-spoken sentence is worse than a clear "no audio" rejection.
     public async Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
         IReadOnlyList<TtsSegment> segments,
         CancellationToken cancellationToken = default
@@ -122,14 +122,12 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
     {
         string firstVoice = segments[0].VoiceId;
         using MemoryStream joined = new();
-        foreach (TtsSegment segment in segments)
+        foreach ((string voiceId, string text) in VoiceRuns(segments))
         {
             TtsSynthesisResult part = await SynthesizeAsync(
-                segment.Text,
-                segment.VoiceId,
-                segment.RatePercent,
-                segment.PitchPercent,
-                cancellationToken
+                text,
+                voiceId,
+                cancellationToken: cancellationToken
             );
             if (part.AudioData.Length == 0)
                 return EmptyResult(firstVoice);
@@ -152,6 +150,21 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
             VoiceId = firstVoice,
             ContentHash = hash,
         };
+    }
+
+    /// <summary>The blocks as one text per run of consecutive blocks that share a voice.</summary>
+    internal static List<(string VoiceId, string Text)> VoiceRuns(
+        IReadOnlyList<TtsSegment> segments
+    )
+    {
+        List<(string VoiceId, string Text)> runs = [];
+        foreach (TtsSegment block in segments)
+            if (runs.Count > 0 && runs[^1].VoiceId == block.VoiceId)
+                runs[^1] = (block.VoiceId, $"{runs[^1].Text} {block.Text}");
+            else
+                runs.Add((block.VoiceId, block.Text));
+
+        return runs;
     }
 
     public async Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(

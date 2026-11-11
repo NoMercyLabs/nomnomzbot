@@ -2364,6 +2364,28 @@ public sealed class TtsDispatchServiceTests
                 .GetArguments()[0]!;
 
     [Fact]
+    public async Task RequestSpeakAsync_Segments_HandTheVolumeAndTheStressToTheProvider()
+    {
+        Harness h = await BuildWithVoicesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("ignored when segments are set") with
+            {
+                AssignVoiceIfMissing = false,
+                Segments = [new("not a fix", VolumePercent: 20, Stressed: true), new("plain")],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        SentSegments(h)
+            .Should()
+            .Equal(
+                new TtsSegment("not a fix", "default-voice", VolumePercent: 20, Stressed: true),
+                new TtsSegment("plain", "default-voice")
+            );
+    }
+
+    [Fact]
     public async Task RequestSpeakAsync_Segments_DispatchesOneAudioCarryingAllSegmentsInOrder()
     {
         Harness h = await BuildWithVoicesAsync();

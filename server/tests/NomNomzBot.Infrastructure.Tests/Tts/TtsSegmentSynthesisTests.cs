@@ -75,7 +75,7 @@ public sealed class TtsSegmentSynthesisTests
             ])
         );
 
-        runs.Select(r => string.Concat(r.Select(s => s.Text))).Should().Equal("a", "bc");
+        runs.Select(r => string.Concat(r.Select(s => s.Text))).Should().Equal("a", "b c");
     }
 
     [Fact]
@@ -147,7 +147,8 @@ public sealed class TtsSegmentSynthesisTests
             new("d", "bot"),
         ]);
 
-        runs.Select(r => string.Concat(r.Select(s => s.Text))).Should().Equal("ab", "c", "d");
+        // Two blocks that sound the same are one stretch of speech.
+        runs.Select(r => string.Concat(r.Select(s => s.Text))).Should().Equal("a b", "c", "d");
         runs.Select(r => r[0].VoiceId).Should().Equal("bot", "viewer", "bot");
     }
 
@@ -159,11 +160,11 @@ public sealed class TtsSegmentSynthesisTests
     {
         List<List<TtsSegment>> runs = EdgeTtsProvider.ChunkRuns(
             EdgeTtsProvider.VoiceRuns([
-                new("a", "bot"),
-                new("b", "bot"),
-                new("c", "bot"),
-                new("d", "bot"),
-                new("e", "bot"),
+                new("a", "bot", RatePercent: 1),
+                new("b", "bot", RatePercent: 2),
+                new("c", "bot", RatePercent: 3),
+                new("d", "bot", RatePercent: 4),
+                new("e", "bot", RatePercent: 5),
                 new("f", "viewer"),
             ])
         );
@@ -222,6 +223,96 @@ public sealed class TtsSegmentSynthesisTests
             .Attribute("time")!
             .Value.Should()
             .Be($"{TtsProsody.MaxBreakMs}ms");
+    }
+
+    // The same three blocks, one voice: plain words, a stressed word, plain words. Every provider gets this list.
+    private static readonly IReadOnlyList<TtsSegment> StressedSentence =
+    [
+        new("Duka, that is", "en-US-AnaNeural", RatePercent: 4, VolumePercent: -10),
+        new("not a fix", "en-US-AnaNeural", RatePercent: 4, VolumePercent: -10, Stressed: true),
+        new("<at all>", "en-US-AnaNeural", RatePercent: 4, VolumePercent: -10),
+    ];
+
+    // Azure speaks blocks of one voice as one flowing sentence: one <voice>, one prosody per block. It has no
+    // stress tag for most voices (the emphasis element works for three voices only), so a stressed block is
+    // slower, higher and louder than the block asked for.
+    [Fact]
+    public void Azure_BuildSsml_BlocksOfOneVoice_ShareOneVoice_AndAStressedBlockIsSlowerHigherAndLouder()
+    {
+        XDocument doc = XDocument.Parse(AzureTtsProvider.BuildSsml(StressedSentence));
+
+        XElement voice = doc.Root!.Elements().Single();
+        voice.Value.Should().Be("Duka, that is not a fix <at all>");
+        List<XElement> blocks = voice.Elements().ToList();
+        blocks.Select(e => e.Name.LocalName).Should().Equal("prosody", "prosody", "prosody");
+        blocks.Select(e => e.Attribute("rate")!.Value).Should().Equal("+4%", "-11%", "+4%");
+        blocks.Select(e => e.Attribute("pitch")!.Value).Should().Equal("+0%", "+12%", "+0%");
+        blocks.Select(e => e.Attribute("volume")!.Value).Should().Equal("-10%", "+20%", "-10%");
+    }
+
+    [Fact]
+    public void Azure_BuildSsml_APlainBlockWithNoVolume_CarriesNoVolume_AndAVoiceChangeOpensANewVoice()
+    {
+        XDocument doc = XDocument.Parse(
+            AzureTtsProvider.BuildSsml([
+                new("one", "v1"),
+                new("two", "v1", BreakAfterMs: 250),
+                new("three", "v2"),
+            ])
+        );
+
+        List<XElement> voices = doc.Root!.Elements().ToList();
+        voices.Select(v => v.Attribute("name")!.Value).Should().Equal("v1", "v2");
+        voices[0]
+            .Elements()
+            .Select(e => e.Name.LocalName)
+            .Should()
+            .Equal("prosody", "prosody", "break");
+        voices[0].Elements().First().Attribute("volume").Should().BeNull();
+    }
+
+    // Edge answers a request with three or more prosody elements, or a nested one, with no audio at all
+    // (probed 2026-11-11). It cannot stress, so blocks that sound the same become one stretch of plain speech:
+    // the stressed sentence is ONE prosody in ONE request, with its volume.
+    [Fact]
+    public void Edge_SpeaksTheStressedSentenceAsOnePlainStretch_WithItsVolume()
+    {
+        List<List<TtsSegment>> requests = EdgeTtsProvider.ChunkRuns(
+            EdgeTtsProvider.VoiceRuns(StressedSentence)
+        );
+
+        requests.Should().ContainSingle();
+        XElement voice = XDocument
+            .Parse(EdgeTtsProvider.BuildRunSsml(requests[0]))
+            .Root!.Elements()
+            .Single();
+        XElement block = voice.Elements().Single();
+        block.Value.Should().Be("Duka, that is not a fix <at all>");
+        block.Attribute("volume")!.Value.Should().Be("-10%");
+        block.Elements().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Edge_VoiceRuns_KeepBlocksThatSoundDifferentApart_AndNeverJoinAcrossAPause()
+    {
+        List<List<TtsSegment>> runs = EdgeTtsProvider.VoiceRuns([
+            new("a", "bot", BreakAfterMs: 300),
+            new("b", "bot"),
+            new("c", "bot", PitchPercent: 8),
+            new("d", "bot", PitchPercent: 8, VolumePercent: 20),
+        ]);
+
+        runs.Single().Select(block => block.Text).Should().Equal("a", "b", "c", "d");
+    }
+
+    // ElevenLabs has no SSML at all: a run of one voice is one text in one call.
+    [Fact]
+    public void ElevenLabs_VoiceRuns_JoinTheBlocksOfOneVoiceIntoOneText()
+    {
+        ElevenLabsTtsProvider
+            .VoiceRuns([.. StressedSentence, new("and you", "voice-b")])
+            .Should()
+            .Equal(("en-US-AnaNeural", "Duka, that is not a fix <at all>"), ("voice-b", "and you"));
     }
 
     // MPEG-1 Layer III, 128 kbit/s, 44.1 kHz: 417-byte frames of 1152 samples.
