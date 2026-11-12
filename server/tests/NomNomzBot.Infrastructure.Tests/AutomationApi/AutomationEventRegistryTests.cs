@@ -13,6 +13,7 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Commands.Events;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
@@ -102,6 +103,26 @@ public sealed class AutomationEventRegistryTests
                 ["fromDisplayName", "viewerCount"],
                 "the user id and login stay internal"
             );
+    }
+
+    [Fact]
+    public void A_heard_sentence_goes_out_as_its_text_only()
+    {
+        VoiceTranscriptHeardEventDescriptor descriptor = new();
+        VoiceTranscriptHeardEvent domainEvent = new()
+        {
+            BroadcasterId = Guid.NewGuid(),
+            Text = "pipsqueek what do you think",
+        };
+
+        JsonElement payload = JsonSerializer.SerializeToElement(
+            descriptor.ProjectPayload(domainEvent)
+        );
+
+        descriptor.PublicName.Should().Be("Voice.TranscriptHeard");
+        descriptor.DomainEventType.Should().Be(typeof(VoiceTranscriptHeardEvent));
+        payload.GetProperty("text").GetString().Should().Be("pipsqueek what do you think");
+        payload.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(["text"]);
     }
 
     [Fact]

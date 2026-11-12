@@ -254,6 +254,35 @@ public sealed class VoiceTriggerServiceTests
     }
 
     [Fact]
+    public async Task Report_tells_listeners_every_heard_sentence_also_when_no_stream_is_live_and_no_word_matches()
+    {
+        (VoiceTriggerService service, _, _, IEventBus eventBus, _) = Build();
+
+        await service.ReportAsync(Tenant, "  pipsqueek what do you think of this bug  ");
+
+        await eventBus
+            .Received(1)
+            .PublishAsync(
+                Arg.Is<VoiceTranscriptHeardEvent>(e =>
+                    e.BroadcasterId == Tenant && e.Text == "pipsqueek what do you think of this bug"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Report_of_a_blank_chunk_tells_listeners_nothing()
+    {
+        (VoiceTriggerService service, _, _, IEventBus eventBus, _) = Build();
+
+        await service.ReportAsync(Tenant, "   ");
+
+        await eventBus
+            .DidNotReceive()
+            .PublishAsync(Arg.Any<VoiceTranscriptHeardEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Report_with_no_live_stream_drops_the_segment_instead_of_storing_it_orphaned()
     {
         (VoiceTriggerService service, AuthDbContext db, _, _, _) = Build();

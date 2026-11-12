@@ -218,6 +218,17 @@ public sealed class VoiceTriggerService : IVoiceTriggerService
 
         DateTimeOffset now = _clock.GetUtcNow();
 
+        string heard = transcript.Trim();
+        await _eventBus.PublishAsync(
+            new VoiceTranscriptHeardEvent
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = now,
+                Text = heard.Length > 1000 ? heard[..1000] : heard,
+            },
+            cancellationToken
+        );
+
         // The full-transcript ask (owner, 2026-09-14): the same continuous recognition loop that spots trigger
         // words hears everything, so every finalized chunk is kept against the channel's CURRENT live stream —
         // not only the ones that happen to match a trigger. No live stream → nothing to attribute it to, so the

@@ -11,6 +11,7 @@
 
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Commands.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Supporters.Events;
@@ -122,5 +123,19 @@ public sealed class SupporterReceivedEventDescriptor : IAutomationEventDescripto
             message = e.MessageText,
             isRecurring = e.IsRecurring,
         };
+    }
+}
+
+/// <summary>A sentence the streamer said out loud (voice-listener page) → <c>Voice.TranscriptHeard</c>.</summary>
+public sealed class VoiceTranscriptHeardEventDescriptor : IAutomationEventDescriptor
+{
+    public string PublicName => "Voice.TranscriptHeard";
+    public string Description => "The voice listener page heard the streamer finish a sentence.";
+    public Type DomainEventType => typeof(VoiceTranscriptHeardEvent);
+
+    public object ProjectPayload(DomainEventBase domainEvent)
+    {
+        VoiceTranscriptHeardEvent e = (VoiceTranscriptHeardEvent)domainEvent;
+        return new { text = e.Text };
     }
 }
