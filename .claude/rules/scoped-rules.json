@@ -995,7 +995,7 @@
   {
    "id": "dispatch-one-sentence-report",
    "require": "report:[ \\t]*one sentence",
-   "text": "Every brief ends with 'Report: one sentence; details go to a file.' The agent never repeats lists or status already on disk.",
+   "text": "Every brief ends with 'Report: one sentence; details go to a file.' The agent never repeats lists or status already on disk. An agent type without a Write tool (Explore, Plan, claude-code-guide, grimoira:knowledge-lookup) cannot write that file, so its brief ends with 'Report: one sentence, then only the detail lines under it.'",
    "source": "Stoney 2026-10-04: \"Stop eens met het nutteloos verspillen van tokens. Gewoon het werk uitvoeren en gewoon kort één klein kutzinnetje\"; memory feedback-one-line-reports-no-repeats.md",
    "covers": [
     "feedback-one-line-reports-no-repeats.md"
