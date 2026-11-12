@@ -11,7 +11,11 @@
 
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application;
 using NomNomzBot.Application.AutomationApi.Dtos;
+using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
@@ -34,6 +38,35 @@ public sealed class AutomationHistoryServiceTests
     private static readonly DateTimeOffset To = From.AddDays(1);
 
     [Fact]
+    public void The_real_registration_binds_the_history_service_once_per_request()
+    {
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Encryption:Key"] = Convert.ToBase64String(new byte[32]),
+                    ["Jwt:Secret"] = "test-secret-key-at-least-32-characters-long!!",
+                    ["ConnectionStrings:DefaultConnection"] =
+                        "Host=localhost;Database=history_di_test;Username=test;Password=test",
+                }
+            )
+            .Build();
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddSingleton(configuration);
+        services.AddApplication();
+        services.AddInfrastructure(configuration);
+
+        List<ServiceDescriptor> bindings = services
+            .Where(descriptor => descriptor.ServiceType == typeof(IAutomationHistoryService))
+            .ToList();
+
+        bindings.Should().ContainSingle();
+        bindings[0].ImplementationType.Should().Be(typeof(AutomationHistoryService));
+        bindings[0].Lifetime.Should().Be(ServiceLifetime.Scoped);
+    }
+
+    [Fact]
     public async Task Returns_live_frames_in_occurrence_order_with_chat_text_and_event_projection()
     {
         await using AutomationTestDbContext db = AutomationTestDbContext.New();
@@ -43,7 +76,7 @@ public sealed class AutomationHistoryServiceTests
         await db.SaveChangesAsync();
 
         Result<AutomationHistoryPage> result = await Service(db)
-            .ReadAsync(Principal(Channel), From, To, null, 500);
+            .ReadAsync(Principal(Channel), From, To, null);
 
         result.IsSuccess.Should().BeTrue();
         result
@@ -129,7 +162,7 @@ public sealed class AutomationHistoryServiceTests
         await using AutomationTestDbContext db = AutomationTestDbContext.New();
         IRateLimiterPartitionStore limiter = Substitute.For<IRateLimiterPartitionStore>();
         Result<AutomationHistoryPage> result = await Service(db, limiter)
-            .ReadAsync(Principal(Channel, ["read"]), From, To, null, 500);
+            .ReadAsync(Principal(Channel, ["read"]), From, To, null);
         result.ErrorCode.Should().Be("FORBIDDEN");
         await limiter.DidNotReceiveWithAnyArgs().AcquireAsync(default!, default, default);
     }
@@ -146,7 +179,7 @@ public sealed class AutomationHistoryServiceTests
         await db.SaveChangesAsync();
 
         Result<AutomationHistoryPage> result = await Service(db)
-            .ReadAsync(Principal(Channel), From, To, null, 500);
+            .ReadAsync(Principal(Channel), From, To, null);
         result.Value.Items.Should().ContainSingle();
         JsonElement frame = JsonSerializer.SerializeToElement(result.Value.Items[0]);
         frame.GetProperty("data").GetProperty("messageId").GetString().Should().Be("visible");
@@ -200,7 +233,7 @@ public sealed class AutomationHistoryServiceTests
             .Returns(Task.FromResult(new RateLimitLease(false, 0, TimeSpan.FromSeconds(17))));
 
         Result<AutomationHistoryPage> result = await Service(db, limiter, protector)
-            .ReadAsync(Principal(Channel), From, To, null, 500);
+            .ReadAsync(Principal(Channel), From, To, null);
 
         result.ErrorCode.Should().Be("RATE_LIMITED");
         result.ErrorDetail.Should().Be("17");
@@ -212,7 +245,7 @@ public sealed class AutomationHistoryServiceTests
                 TimeSpan.FromMinutes(1),
                 Arg.Any<CancellationToken>()
             );
-        await protector.DidNotReceiveWithAnyArgs().UnprotectAsync(default!, default);
+        await protector.DidNotReceiveWithAnyArgs().UnprotectAsync(default!);
     }
 
     private static AutomationHistoryService Service(

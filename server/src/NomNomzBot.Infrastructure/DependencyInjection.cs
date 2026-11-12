@@ -1495,10 +1495,6 @@ public static class DependencyInjection
             AutomationApi.Stream.AutomationSessionRegistry
         >();
         services.AddSingleton<AutomationApi.Stream.AutomationStreamCoordinator>();
-        services.AddScoped<
-            Application.AutomationApi.Services.IAutomationHistoryService,
-            AutomationApi.Stream.AutomationHistoryService
-        >();
 
         // OBS control (obs-control.md §8). Two concrete transports — the direct one holds per-channel
         // OBS-WS v5 sockets, the bridge one routes to the leader browser-source — behind a per-channel
