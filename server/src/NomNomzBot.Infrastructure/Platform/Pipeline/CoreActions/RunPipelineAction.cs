@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
@@ -149,14 +150,34 @@ public sealed class RunPipelineAction : ICommandAction
     {
         // Fail closed up front — never spawn a detached run against a pipeline this channel does
         // not own, whether or not the caller waits for it.
-        bool owned = await _db
+        NomNomzBot.Domain.Commands.Entities.Pipeline? target = await _db
             .Pipelines.AsNoTracking()
-            .AnyAsync(
+            .FirstOrDefaultAsync(
                 p => p.Id == targetPipelineId && p.BroadcasterId == ctx.BroadcasterId,
                 ctx.CancellationToken
             );
-        if (!owned)
+        if (target is null)
             return ActionResult.Failure("run_pipeline: target pipeline not found in this channel");
+
+        IReadOnlyList<PipelineInputDefinition> definitions = PipelineInputs.Parse(
+            target.ParameterNamesJson
+        );
+        if (definitions.Count > 0 && namedArgs is not null)
+        {
+            string? unknownName = namedArgs.Keys.FirstOrDefault(name =>
+                definitions.All(definition => definition.Name != name)
+            );
+            if (unknownName is not null)
+                return ActionResult.Failure(
+                    $"run_pipeline: '{unknownName}' is not a declared parameter of the target pipeline"
+                );
+        }
+        Result<Dictionary<string, string>> binding = PipelineInputs.BindStrings(
+            definitions,
+            definitions.Count == 0 ? null : namedArgs
+        );
+        if (binding.IsFailure)
+            return ActionResult.Failure(binding.ErrorMessage!);
 
         Dictionary<string, string> initialVariables = [];
         if (args is not null)
@@ -168,6 +189,8 @@ public sealed class RunPipelineAction : ICommandAction
         if (namedArgs is not null)
             foreach ((string name, string value) in namedArgs)
                 initialVariables[name] = value;
+        foreach ((string name, string value) in binding.Value)
+            initialVariables[name] = value;
 
         PipelineRequest request = new()
         {
@@ -196,7 +219,9 @@ public sealed class RunPipelineAction : ICommandAction
             detachedResult.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped;
         return succeeded
             ? ActionResult.Success($"detached run {detachedResult.Outcome}")
-            : ActionResult.Failure($"detached run {detachedResult.Outcome}");
+            : ActionResult.Failure(
+                detachedResult.ErrorMessage ?? $"detached run {detachedResult.Outcome}"
+            );
     }
 
     /// <summary>Legacy positional args — a callee reads these as <c>{{args.1}}</c>..<c>{{args.N}}</c>,

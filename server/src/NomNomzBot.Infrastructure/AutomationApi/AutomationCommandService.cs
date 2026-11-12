@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
@@ -125,6 +126,16 @@ public class AutomationCommandService : IAutomationCommandService
             );
         OutboundSanction sanction = SanctionFor(target, needsMusicControl, creatorUserId);
 
+        Result<Dictionary<string, string>> boundInputs = PipelineInputs.Bind(
+            PipelineInputs.Parse(resolved.Value.Pipeline?.ParameterNamesJson),
+            request.Inputs
+        );
+        if (boundInputs.IsFailure)
+            return Result.Failure<AutomationInvokeResult>(
+                boundInputs.ErrorMessage!,
+                boundInputs.ErrorCode!
+            );
+
         Result limited = await AcquireAsync(principal, "invoke", InvokePerMinute, ct);
         if (limited.IsFailure)
             return Result.Failure<AutomationInvokeResult>(
@@ -134,7 +145,11 @@ public class AutomationCommandService : IAutomationCommandService
             );
 
         Guid correlationId = Guid.CreateVersion7();
-        Dictionary<string, string> variables = BuildRunVariables(request, correlationId);
+        Dictionary<string, string> variables = BuildRunVariables(
+            request,
+            correlationId,
+            boundInputs.Value
+        );
 
         // A command or pipeline run is attributed to the token (broadcaster role); a Stream Deck action runs as the
         // channel's system invoker.
@@ -222,13 +237,16 @@ public class AutomationCommandService : IAutomationCommandService
 
     private static Dictionary<string, string> BuildRunVariables(
         AutomationInvokeRequest request,
-        Guid correlationId
+        Guid correlationId,
+        IReadOnlyDictionary<string, string> inputs
     )
     {
         Dictionary<string, string> variables = request.Variables is null
             ? new()
             : new Dictionary<string, string>(request.Variables);
         variables["automation.correlation_id"] = correlationId.ToString();
+        foreach ((string name, string value) in inputs)
+            variables[name] = value;
         return variables;
     }
 
@@ -257,7 +275,10 @@ public class AutomationCommandService : IAutomationCommandService
                 .Where(p =>
                     principal.Allows(new BindingTarget(BindingTargetKind.Pipeline, p.Id.ToString()))
                 )
-                .Select(p => new AutomationPipelineRef(p.Id, p.Name)),
+                .Select(p => new AutomationPipelineRef(p.Id, p.Name)
+                {
+                    Inputs = PipelineInputs.Parse(p.ParameterNamesJson),
+                }),
         ];
         return Result.Success(refs);
     }

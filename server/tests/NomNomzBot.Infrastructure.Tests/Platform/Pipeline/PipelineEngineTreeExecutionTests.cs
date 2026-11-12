@@ -2258,6 +2258,37 @@ public sealed class PipelineEngineTreeExecutionTests
     }
 
     [Fact]
+    public async Task RunPipelineDetached_NamedArgs_UnknownName_FailsBeforeCalleeRuns()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid calleePipelineId = Guid.NewGuid();
+        db.Pipelines.Add(NewPipelineRow(calleePipelineId, TestChannel, parameterNames: ["known"]));
+        db.PipelineSteps.AddRange(
+            NewLeaf(calleePipelineId, null, null, 0, "record_ran", """{"type":"record_ran"}"""),
+            NewLeaf(
+                callerPipelineId,
+                null,
+                null,
+                0,
+                "run_pipeline",
+                $$$"""
+                {"type":"run_pipeline","pipeline":"{{{calleePipelineId}}}","mode":"detached","wait":true,"named_args":{"unknown":"x"}}
+                """
+            )
+        );
+        await db.SaveChangesAsync();
+
+        CountingAction ranMarker = new() { ActionType = "record_ran" };
+        PipelineEngine engine = CreateEngine(db, [ranMarker]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(callerPipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.PartiallyFailed);
+        ranMarker.Count.Should().Be(0);
+        db.PipelineExecutions.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task ReturnValue_TemplatedValue_ResolvesBeforeBecomingCallResult()
     {
         using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();

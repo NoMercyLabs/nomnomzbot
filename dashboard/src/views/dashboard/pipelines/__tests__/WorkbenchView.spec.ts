@@ -23,6 +23,7 @@ import type {
   PipelineOptionList,
   PipelineStep,
   PipelineTestRun,
+  PipelineInput,
 } from '@/api/pipelines';
 import { ApiError } from '@/api/errors';
 import { BackHost, position, pressBack, settle, steps as layerSteps } from '@/__tests__/backHistory';
@@ -212,6 +213,7 @@ type SaveChange = {
   id: string;
   graph?: { steps: PipelineStep[] };
   isEnabled?: boolean;
+  inputs?: PipelineInput[];
 };
 
 const save = vi.hoisted(() => ({
@@ -228,6 +230,8 @@ type TestRunAsk = {
   variables: Record<string, string>;
   graph: { steps: PipelineStep[] };
   mode?: 'dry' | 'live';
+  inputs?: Record<string, unknown>;
+  inputDefinitions?: PipelineInput[];
 };
 
 const testing = vi.hoisted(() => ({
@@ -437,6 +441,7 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
+  pipeline.inputs = [];
   i18n.global.mergeLocaleMessage('en', en);
   i18n.global.mergeLocaleMessage('en', schemaEn);
   held.value = ['pipelines:read', 'pipelines:write'];
@@ -811,6 +816,65 @@ const numbers = (): (string | undefined)[] =>
   cards().map((item) => item.dataset.stepNumber);
 
 describe('changing the steps', () => {
+  it('saves a declared input with its type and description', async () => {
+    await open();
+    await press('[data-input-add]');
+    await typeInto('[data-input-name]', 'greeting');
+    await typeInto('[data-input-description]', 'Words to say');
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].inputs).toEqual([
+      {
+        name: 'greeting',
+        type: 'text',
+        required: true,
+        defaultValue: null,
+        description: 'Words to say',
+      },
+    ]);
+  });
+
+  it('passes a declared twelve-block list into a test run', async () => {
+    pipeline.inputs = [{
+      name: 'blocks',
+      type: 'list',
+      required: true,
+      defaultValue: null,
+      description: 'Speech blocks',
+    }];
+
+    await open();
+    await press('[data-workbench-test]');
+    expect(testing.mutateAsync).not.toHaveBeenCalled();
+    const blocks = Array.from({ length: 12 }, (_, index) => ({ text: `block ${index + 1}` }));
+
+    await typeInto('[data-run-input-name="blocks"]', JSON.stringify(blocks));
+    await press('[data-run-input-dialog] [data-form-action]');
+
+    expect(testing.mutateAsync.mock.calls[0]?.[0].inputs?.blocks).toEqual(blocks);
+  });
+
+  it('tests a new input declaration before the pipeline is saved', async () => {
+    await open();
+    await press('[data-input-add]');
+    await typeInto('[data-input-name]', 'greeting');
+    await press('[data-workbench-test]');
+    await typeInto('[data-run-input-name="greeting"]', 'hello');
+    await press('[data-run-input-dialog] [data-form-action]');
+
+    expect(testing.mutateAsync.mock.calls[0]?.[0].inputs).toEqual({ greeting: 'hello' });
+
+    expect(testing.mutateAsync.mock.calls[0]?.[0].inputDefinitions).toEqual([
+      {
+        name: 'greeting',
+        type: 'text',
+        required: true,
+        defaultValue: null,
+        description: '',
+      },
+    ]);
+  });
+
   it('has nothing to undo right after the pipeline loads', async () => {
     await open();
 

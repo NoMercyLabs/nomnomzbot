@@ -152,6 +152,21 @@
           "duplicate": "Duplicate",
           "remove": "Remove"
         },
+        "inputs": {
+          "title": "Inputs",
+          "help": "Declare values a caller supplies when it starts this pipeline. Steps can use them in braces, such as {'{'}blocks{'}'}.",
+          "empty": "This pipeline has no declared inputs.",
+          "add": "Add input",
+          "remove": "Remove input",
+          "name": "Name",
+          "type": "Type",
+          "description": "Description",
+          "required": "Required",
+          "default": "Default value",
+          "defaultHelp": "Optional inputs can have a default. Enter JSON for number, boolean, list, and object values.",
+          "runHelp": "Enter JSON for number, boolean, list, and object values.",
+          "types": { "text": "Text", "number": "Number", "boolean": "Boolean", "list": "List", "object": "Object" }
+        },
         "save": "Save",
         "saved": "Pipeline saved.",
         "saveFailed": "The bot did not save the pipeline.",
@@ -187,6 +202,11 @@
           "again": "Run again",
           "summary": "Test run {number}: no steps ran. | Test run {number}: 1 step ran. | Test run {number}: {ran} steps ran.",
           "input": "Input | Input (1) | Input ({count})",
+          "inputDialog": {
+            "title": "Test run inputs",
+            "description": "Supply the values this pipeline reads when it starts.",
+            "action": "Continue"
+          },
           "inputHelp": "Names with values the steps read as {'{'}name{'}'}, as a real start fills them in. Nothing is sent, said or changed.",
           "failedToStart": "The test run did not start.",
           "done": "Done",

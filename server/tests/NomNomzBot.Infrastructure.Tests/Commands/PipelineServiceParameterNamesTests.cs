@@ -73,6 +73,40 @@ public sealed class PipelineServiceParameterNamesTests
     }
 
     [Fact]
+    public async Task Create_and_get_round_trip_typed_inputs_with_defaults()
+    {
+        (PipelineService service, PipelineTestRunDbContext db) = Build();
+        PipelineInputDefinition blocks = new("blocks", "list", true, null, "Speech blocks");
+        PipelineInputDefinition voice = new(
+            "voice",
+            "text",
+            false,
+            JsonSerializer.SerializeToElement("default-voice"),
+            "Voice to use"
+        );
+
+        Result<PipelineDto> created = await service.CreateAsync(
+            Broadcaster.ToString(),
+            new CreatePipelineDto { Name = "speak", Inputs = [blocks, voice] }
+        );
+
+        created.IsSuccess.Should().BeTrue();
+        Result<PipelineDto> fetched = await service.GetAsync(
+            Broadcaster.ToString(),
+            created.Value.Id
+        );
+        fetched.IsSuccess.Should().BeTrue();
+        fetched.Value.Inputs.Should().HaveCount(2);
+        fetched.Value.Inputs[0].Should().BeEquivalentTo(blocks);
+        fetched.Value.Inputs[1].Name.Should().Be(voice.Name);
+        fetched.Value.Inputs[1].Type.Should().Be(voice.Type);
+        fetched.Value.Inputs[1].Required.Should().BeFalse();
+        fetched.Value.Inputs[1].Description.Should().Be(voice.Description);
+        fetched.Value.Inputs[1].DefaultValue!.Value.GetString().Should().Be("default-voice");
+        db.Pipelines.Single().ParameterNamesJson.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
     public async Task GetAsync_maps_declared_parameter_names_in_order()
     {
         (PipelineService service, PipelineTestRunDbContext db) = Build();

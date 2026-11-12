@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -104,6 +105,13 @@ public sealed class PipelineLiveRunTests
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
         IPipelineService pipelines = Substitute.For<IPipelineService>();
+        pipelines
+            .ValidateGraphAsync(Arg.Any<object?>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+                Task.FromResult(
+                    Result.Success<string?>(JsonSerializer.Serialize(call.ArgAt<object?>(0)))
+                )
+            );
 
         ICommandAction[] actions = [.. fixtureActions, new SetVariableAction()];
         PipelineTestRunService sut = new(
@@ -139,6 +147,96 @@ public sealed class PipelineLiveRunTests
 
     private static PipelineTestRunRequest Live(params (string, string)[] vars) =>
         new(vars.ToDictionary(v => v.Item1, v => v.Item2), Mode: PipelineTestRunModes.Live);
+
+    [Fact]
+    public async Task Test_run_uses_unsaved_input_declarations_with_the_draft_graph()
+    {
+        RecordingAction recorder = new("record_it");
+        Harness h = Build(recorder);
+        await SeedAsync(h);
+        PipelineInputDefinition declaration = new("blocks", "list", true, null, "Speech blocks");
+        JsonElement graph = JsonSerializer.SerializeToElement(
+            new
+            {
+                steps = new[] { new { action = new { type = "record_it", message = "{blocks}" } } },
+            }
+        );
+        JsonElement blocks = JsonSerializer.SerializeToElement(
+            Enumerable.Range(1, 12).Select(index => new { text = $"block {index}" })
+        );
+
+        Result<TestRunResultDto> missing = await h.Sut.RunAsync(
+            PipelineId,
+            new(new Dictionary<string, string>(), Graph: graph, InputDefinitions: [declaration])
+        );
+        missing.IsFailure.Should().BeTrue();
+        missing.ErrorCode.Should().Be("VALIDATION_FAILED");
+        recorder.Calls.Should().BeEmpty();
+        h.Db.PipelineExecutions.Should().BeEmpty();
+
+        Result<TestRunResultDto> result = await h.Sut.RunAsync(
+            PipelineId,
+            new(
+                new Dictionary<string, string>(),
+                Graph: graph,
+                Mode: PipelineTestRunModes.Live,
+                Inputs: new Dictionary<string, JsonElement> { ["blocks"] = blocks },
+                InputDefinitions: [declaration]
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        recorder.Calls.Should().ContainSingle();
+        using JsonDocument received = JsonDocument.Parse(recorder.Calls.Single().Message!);
+        received.RootElement.GetArrayLength().Should().Be(12);
+        received.RootElement[11].GetProperty("text").GetString().Should().Be("block 12");
+    }
+
+    [Fact]
+    public async Task Test_run_requires_declared_input_before_any_step_or_run_record()
+    {
+        RecordingAction recorder = new("record_it");
+        Harness h = Build(recorder);
+        await SeedAsync(h);
+        h.Db.Pipelines.Single().ParameterNamesJson = JsonSerializer.Serialize(
+            new[] { new PipelineInputDefinition("viewers", "number", true, null, "Viewer count") }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TestRunResultDto> result = await h.Sut.RunAsync(PipelineId, Live());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("viewers");
+        recorder.Calls.Should().BeEmpty();
+        h.Db.PipelineExecutions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Test_run_binds_declared_default_to_steps()
+    {
+        RecordingAction recorder = new("record_it");
+        Harness h = Build(recorder);
+        await SeedAsync(h, """{"steps":[{"action":{"type":"record_it","message":"{voice}"}}]}""");
+        h.Db.Pipelines.Single().ParameterNamesJson = JsonSerializer.Serialize(
+            new[]
+            {
+                new PipelineInputDefinition(
+                    "voice",
+                    "text",
+                    false,
+                    JsonSerializer.SerializeToElement("narrator"),
+                    "Voice"
+                ),
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TestRunResultDto> result = await h.Sut.RunAsync(PipelineId, Live());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        recorder.Calls.Should().ContainSingle().Which.Message.Should().Be("narrator");
+    }
 
     [Fact]
     public async Task A_live_run_calls_the_real_action_with_the_resolved_arguments()

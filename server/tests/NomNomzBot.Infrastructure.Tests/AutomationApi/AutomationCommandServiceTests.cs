@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,6 +18,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
@@ -285,7 +287,11 @@ public sealed class AutomationCommandServiceTests
         return id;
     }
 
-    private static void SeedPipeline(AutomationTestDbContext db, bool enabled = true)
+    private static void SeedPipeline(
+        AutomationTestDbContext db,
+        bool enabled = true,
+        string? inputsJson = null
+    )
     {
         db.Pipelines.Add(
             new()
@@ -294,9 +300,109 @@ public sealed class AutomationCommandServiceTests
                 BroadcasterId = Channel,
                 Name = "confetti",
                 IsEnabled = enabled,
+                ParameterNamesJson = inputsJson,
             }
         );
         db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Invoke_rejects_missing_or_wrong_typed_inputs_before_enqueue()
+    {
+        string declaration = JsonSerializer.Serialize(
+            new[] { new PipelineInputDefinition("blocks", "list", true, null, "Speech blocks") }
+        );
+        Harness h = Build();
+        SeedPipeline(h.Db, inputsJson: declaration);
+
+        Result<AutomationInvokeResult> missing = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new() { PipelineId = PipelineId }
+        );
+        Result<AutomationInvokeResult> wrong = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new()
+            {
+                PipelineId = PipelineId,
+                Inputs = new Dictionary<string, JsonElement>
+                {
+                    ["blocks"] = JsonSerializer.SerializeToElement("not a list"),
+                },
+            }
+        );
+
+        missing.IsFailure.Should().BeTrue();
+        missing.ErrorCode.Should().Be("VALIDATION_FAILED");
+        missing.ErrorMessage.Should().Contain("blocks");
+        wrong.IsFailure.Should().BeTrue();
+        wrong.ErrorMessage.Should().Contain("blocks");
+        h.EngineCalled.Task.IsCompleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Invoke_binds_a_twelve_block_list_and_default_before_enqueue()
+    {
+        string declaration = JsonSerializer.Serialize(
+            new[]
+            {
+                new PipelineInputDefinition("blocks", "list", true, null, "Speech blocks"),
+                new PipelineInputDefinition(
+                    "voice",
+                    "text",
+                    false,
+                    JsonSerializer.SerializeToElement("narrator"),
+                    "Voice"
+                ),
+            }
+        );
+        Harness h = Build();
+        SeedPipeline(h.Db, inputsJson: declaration);
+        object[] blocks = Enumerable
+            .Range(1, 12)
+            .Select(index => (object)new { text = $"block {index}" })
+            .ToArray();
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new()
+            {
+                PipelineId = PipelineId,
+                Inputs = new Dictionary<string, JsonElement>
+                {
+                    ["blocks"] = JsonSerializer.SerializeToElement(blocks),
+                },
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        PipelineRequest run = await h.EngineCalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        JsonDocument
+            .Parse(run.InitialVariables["blocks"])
+            .RootElement.GetArrayLength()
+            .Should()
+            .Be(12);
+        run.InitialVariables["voice"].Should().Be("narrator");
+    }
+
+    [Fact]
+    public async Task Pipeline_listing_exposes_declared_inputs()
+    {
+        string declaration = JsonSerializer.Serialize(
+            new[] { new PipelineInputDefinition("blocks", "list", true, null, "Speech blocks") }
+        );
+        Harness h = Build();
+        SeedPipeline(h.Db, inputsJson: declaration);
+
+        Result<IReadOnlyList<AutomationPipelineRef>> result = await h.Service.ListPipelinesAsync(
+            Principal()
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().ContainSingle();
+        result.Value[0].Inputs.Should().ContainSingle();
+        result.Value[0].Inputs[0].Name.Should().Be("blocks");
+        result.Value[0].Inputs[0].Type.Should().Be("list");
+        result.Value[0].Inputs[0].Required.Should().BeTrue();
     }
 
     [Fact]

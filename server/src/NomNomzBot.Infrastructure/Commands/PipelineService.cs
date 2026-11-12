@@ -83,6 +83,7 @@ public class PipelineService : IPipelineService
             )
             {
                 HasPlatformDefault = p.PlatformSourceDefinitionId != null,
+                Inputs = PipelineInputs.Parse(p.ParameterNamesJson),
             })
             .ToList();
 
@@ -155,6 +156,11 @@ public class PipelineService : IPipelineService
                 graphValidation.ErrorCode
             );
 
+        IReadOnlyList<PipelineInputDefinition> inputs = request.Inputs ?? [];
+        Result inputsValid = PipelineInputs.ValidateDeclaration(inputs);
+        if (inputsValid.IsFailure)
+            return Result.Failure<PipelineDto>(inputsValid.ErrorMessage!, inputsValid.ErrorCode!);
+
         PipelineEntity entity = new()
         {
             BroadcasterId = broadcaster,
@@ -163,6 +169,7 @@ public class PipelineService : IPipelineService
             IsEnabled = request.IsEnabled,
             TriggerKind = request.TriggerKind,
             GraphJsonCache = graphValidation.Value,
+            ParameterNamesJson = inputs.Count == 0 ? null : JsonSerializer.Serialize(inputs),
         };
 
         await _unitOfWork.ExecuteInTransactionAsync(
@@ -208,6 +215,16 @@ public class PipelineService : IPipelineService
         if (entity is null)
             return Errors.NotFound<PipelineDto>("Pipeline", id.ToString());
 
+        if (request.Inputs is not null)
+        {
+            Result inputsValid = PipelineInputs.ValidateDeclaration(request.Inputs);
+            if (inputsValid.IsFailure)
+                return Result.Failure<PipelineDto>(
+                    inputsValid.ErrorMessage!,
+                    inputsValid.ErrorCode!
+                );
+        }
+
         if (request.Name is not null)
             entity.Name = request.Name;
         if (request.Description is not null)
@@ -232,6 +249,9 @@ public class PipelineService : IPipelineService
             entity.GraphJsonCache = graphValidation.Value;
             graphChanged = true;
         }
+        if (request.Inputs is not null)
+            entity.ParameterNamesJson =
+                request.Inputs.Count == 0 ? null : JsonSerializer.Serialize(request.Inputs);
 
         await _unitOfWork.ExecuteInTransactionAsync(
             async token =>
@@ -348,7 +368,7 @@ public class PipelineService : IPipelineService
                 BlockConfigJson = stepDef.BlockConfig?.GetRawText(),
                 Order = stepDef.Order ?? i,
                 ContinueOnError = stepDef.ContinueOnError,
-                StopOnMatch = stepDef.StopOnMatch && stepDef.Condition is not null,
+                StopOnMatch = stepDef is { StopOnMatch: true, Condition: not null },
                 ActionType = stepDef.Action.Type,
                 ConfigJson = JsonSerializer.Serialize(normalizedAction),
                 IsEnabled = true,
@@ -623,5 +643,8 @@ public class PipelineService : IPipelineService
             p.CreatedAt,
             p.UpdatedAt,
             PipelineParameterNames.Parse(p.ParameterNamesJson)
-        );
+        )
+        {
+            Inputs = PipelineInputs.Parse(p.ParameterNamesJson),
+        };
 }

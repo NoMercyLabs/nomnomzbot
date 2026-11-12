@@ -152,6 +152,21 @@
           "duplicate": "Dupliceren",
           "remove": "Verwijderen"
         },
+        "inputs": {
+          "title": "Invoer",
+          "help": "Leg vast welke waarden een aanroeper meegeeft bij het starten. Stappen gebruiken ze tussen accolades, zoals {'{'}blocks{'}'}.",
+          "empty": "Deze pipeline heeft geen vastgelegde invoer.",
+          "add": "Invoer toevoegen",
+          "remove": "Invoer verwijderen",
+          "name": "Naam",
+          "type": "Type",
+          "description": "Beschrijving",
+          "required": "Verplicht",
+          "default": "Standaardwaarde",
+          "defaultHelp": "Optionele invoer kan een standaardwaarde hebben. Gebruik JSON voor getallen, booleans, lijsten en objecten.",
+          "runHelp": "Gebruik JSON voor getallen, booleans, lijsten en objecten.",
+          "types": { "text": "Tekst", "number": "Getal", "boolean": "Boolean", "list": "Lijst", "object": "Object" }
+        },
         "save": "Opslaan",
         "saved": "Pipeline opgeslagen.",
         "saveFailed": "De bot heeft de pipeline niet opgeslagen.",
@@ -187,6 +202,11 @@
           "again": "Opnieuw draaien",
           "summary": "Testrun {number}: geen stappen gedraaid. | Testrun {number}: 1 stap gedraaid. | Testrun {number}: {ran} stappen gedraaid.",
           "input": "Invoer | Invoer (1) | Invoer ({count})",
+          "inputDialog": {
+            "title": "Invoer voor testrun",
+            "description": "Geef de waarden op die deze pipeline bij de start leest.",
+            "action": "Doorgaan"
+          },
           "inputHelp": "Namen met waarden die de stappen lezen als {'{'}name{'}'}, zoals een echte start ze invult. Er wordt niets verstuurd, gezegd of veranderd.",
           "failedToStart": "De testrun is niet gestart.",
           "done": "Klaar",

@@ -9,7 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-import type { JsonObject } from '@/lib/json';
+import type { JsonObject, JsonValue } from '@/lib/json';
 import {
   keepPreviousData,
   useMutation,
@@ -77,9 +77,18 @@ export type PipelineStep = {
 
 export type PipelineGraph = { steps: PipelineStep[] };
 
-export type Pipeline = Omit<components['schemas']['Pipeline'], 'graph' | 'triggerCount'> & {
+export type PipelineInput = {
+  name: string;
+  type: 'text' | 'number' | 'boolean' | 'list' | 'object';
+  required: boolean;
+  defaultValue: JsonValue | null;
+  description: string;
+};
+
+export type Pipeline = Omit<components['schemas']['Pipeline'], 'graph' | 'triggerCount' | 'inputs'> & {
   triggerCount: number;
   graph: PipelineGraph;
+  inputs: PipelineInput[];
 };
 
 const version = '1';
@@ -158,6 +167,7 @@ function parsePipeline(dto: components['schemas']['Pipeline']) {
     ...dto,
     triggerCount: Number(dto.triggerCount),
     graph: parseGraph(dto.graph),
+    inputs: (dto.inputs ?? []) as PipelineInput[],
   } as const satisfies Pipeline;
 }
 
@@ -223,6 +233,7 @@ export type PipelineChange = {
   description?: string | null;
   isEnabled?: boolean;
   graph?: PipelineGraph;
+  inputs?: PipelineInput[];
 };
 
 async function writePipeline(
@@ -494,6 +505,8 @@ export function usePipelineOption(
 export type TestRunRequest = {
   id: string;
   variables: Record<string, string>;
+  inputs?: Record<string, JsonValue>;
+  inputDefinitions?: PipelineInput[];
   graph?: PipelineGraph;
   // Left out for a dry run; live runs the real actions as the caller.
   mode?: 'dry' | 'live';
@@ -512,7 +525,7 @@ export function useTestRunPipeline(
     onSuccess: (_run: PipelineTestRun, { id }: TestRunRequest) =>
       queries.invalidateQueries({ queryKey: pipelineRunsKey(toValue(channelId), id) }),
     mutationFn: async (request: TestRunRequest): Promise<PipelineTestRun> => {
-      const { id, variables, graph, mode } = request;
+      const { id, variables, inputs, inputDefinitions, graph, mode } = request;
       const { data, error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/pipelines/{id}/test-run',
         {
@@ -523,6 +536,8 @@ export function useTestRunPipeline(
           } },
           body: {
             variables,
+            inputs,
+            inputDefinitions,
             graph,
             mode,
           },

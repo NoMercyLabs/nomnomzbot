@@ -39,7 +39,10 @@ public sealed record PipelineDto(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     IReadOnlyList<string>? ParameterNames
-);
+)
+{
+    public IReadOnlyList<PipelineInputDefinition> Inputs { get; init; } = [];
+}
 
 /// <summary>Lightweight pipeline summary for list views.</summary>
 /// <param name="ParameterNames">See <see cref="PipelineDto.ParameterNames"/> — carried on the list item too so
@@ -56,6 +59,8 @@ public sealed record PipelineListItemDto(
     IReadOnlyList<string>? ParameterNames
 )
 {
+    public IReadOnlyList<PipelineInputDefinition> Inputs { get; init; } = [];
+
     /// <summary>True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to
     /// the platform default.</summary>
     public bool HasPlatformDefault { get; init; }
@@ -72,17 +77,11 @@ public static class PipelineParameterNames
 {
     public static IReadOnlyList<string>? Parse(string? parameterNamesJson)
     {
-        if (string.IsNullOrWhiteSpace(parameterNamesJson))
-            return null;
-        try
-        {
-            List<string>? names = JsonSerializer.Deserialize<List<string>>(parameterNamesJson);
-            return names is { Count: > 0 } ? names : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        IReadOnlyList<string> names =
+        [
+            .. PipelineInputs.Parse(parameterNamesJson).Select(input => input.Name),
+        ];
+        return names.Count == 0 ? null : names;
     }
 }
 
@@ -140,6 +139,8 @@ public sealed record CreatePipelineDto
 
     [JsonPropertyName("graph")]
     public object? GraphJsonCache { get; init; }
+
+    public IReadOnlyList<PipelineInputDefinition>? Inputs { get; init; }
 }
 
 /// <summary>Request to update an existing pipeline.</summary>
@@ -158,6 +159,8 @@ public sealed record UpdatePipelineDto
 
     [JsonPropertyName("graph")]
     public object? GraphJsonCache { get; init; }
+
+    public IReadOnlyList<PipelineInputDefinition>? Inputs { get; init; }
 }
 
 /// <summary>

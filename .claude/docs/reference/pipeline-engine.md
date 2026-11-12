@@ -54,6 +54,12 @@ Templates use single braces: `{user}`, `{channel.title}`, `{args.1}`, and so on.
 The double-brace form (`{{user.name}}`) is **not** implemented.
 The template grammar is an open owner question. Do not spec or build a new form until the owner answers.
 
+## Declared inputs
+
+A pipeline can declare named `text`, `number`, `boolean`, `list`, or `object` inputs. Each declaration has a required flag, an optional default, and a description. The dashboard editor saves them with the pipeline and asks for their values in a test-run dialog. When testing an unsaved graph with changed declarations, the dashboard sends `inputDefinitions` with the draft graph and `inputs` values so validation uses the draft. Automation clients send an `inputs` object to `POST /automation/v1/invoke` and discover declarations in `GET /automation/v1/pipelines`.
+
+Missing required values and values of the wrong JSON type fail before any step runs. A default fills an omitted optional input. Steps read a bound input with the same single-brace syntax as other variables, for example `{blocks}`. A list or object stays JSON when bound as a whole to an action field; `play_tts` accepts `{blocks}` in its `segments` field. `run_pipeline` passes named values through `named_args`. Pipelines with no declarations keep their previous invocation behavior.
+
 ## Scripting
 
 `run_code` executes sandboxed user scripts (Jint on self-host) via `IScriptExecutor`. All other actions are compiled C# classes.

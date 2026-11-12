@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -87,10 +88,24 @@ public sealed class PipelineTestRunService(
         // missing row (null wrapper → NOT_FOUND) is distinct from a found pipeline with an empty graph.
         var found = await db
             .Pipelines.Where(p => p.Id == pipelineId && p.BroadcasterId == broadcasterId)
-            .Select(p => new { p.GraphJsonCache })
+            .Select(p => new { p.GraphJsonCache, p.ParameterNamesJson })
             .FirstOrDefaultAsync(cancellationToken);
         if (found is null)
             return Result.Failure<TestRunResultDto>("Pipeline not found.", "NOT_FOUND");
+        if (request.InputDefinitions is not null && request.Graph is null)
+            return Result.Failure<TestRunResultDto>(
+                "Draft input declarations require a draft graph.",
+                "VALIDATION_FAILED"
+            );
+        Result<Dictionary<string, string>> boundInputs = PipelineInputs.Bind(
+            request.InputDefinitions ?? PipelineInputs.Parse(found.ParameterNamesJson),
+            request.Inputs
+        );
+        if (boundInputs.IsFailure)
+            return Result.Failure<TestRunResultDto>(
+                boundInputs.ErrorMessage!,
+                boundInputs.ErrorCode!
+            );
         string graphJson = string.IsNullOrWhiteSpace(found.GraphJsonCache)
             ? "{}"
             : found.GraphJsonCache;
@@ -166,6 +181,8 @@ public sealed class PipelineTestRunService(
         TestRunTrigger trigger = live
             ? TestRunTrigger.Live(request.Variables, currentUser)
             : TestRunTrigger.Dry(request.Variables, broadcasterId);
+        foreach ((string name, string value) in boundInputs.Value)
+            trigger.Variables[name] = value;
 
         // Pass BOTH the id and the graph: the engine uses PipelineStep rows when they exist and falls back
         // to PipelineJson otherwise (its own resolution order). Real pipelines are graph-only, so the graph

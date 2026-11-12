@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 
@@ -22,13 +23,16 @@ namespace NomNomzBot.Application.Commands.Services;
 /// graph a person is editing (the same JSON the save takes); when set it is validated like a save and runs
 /// instead of the saved graph, flat or tree. <paramref name="Mode"/> is <see cref="PipelineTestRunModes.Dry"/> when
 /// absent (the capture run, unchanged) or <see cref="PipelineTestRunModes.Live"/> (the real actions run, with the
-/// variables as the start values; the trigger user defaults to the caller).
+/// variables as the start values; the trigger user defaults to the caller). <paramref name="InputDefinitions"/>
+/// supplies unsaved declarations alongside a draft <paramref name="Graph"/>.
 /// </summary>
 public sealed record PipelineTestRunRequest(
     IReadOnlyDictionary<string, string> Variables,
     JsonElement? Step = null,
     JsonElement? Graph = null,
-    string? Mode = null
+    string? Mode = null,
+    IReadOnlyDictionary<string, JsonElement>? Inputs = null,
+    IReadOnlyList<PipelineInputDefinition>? InputDefinitions = null
 );
 
 /// <summary>The two ways a pipeline test run can go. The wire value of <see cref="PipelineTestRunRequest.Mode"/>.</summary>

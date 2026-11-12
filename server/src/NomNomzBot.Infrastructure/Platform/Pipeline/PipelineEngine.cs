@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.Commands.Entities;
@@ -193,6 +194,29 @@ public sealed class PipelineEngine : IPipelineEngine
 
         DateTimeOffset startedAt = _timeProvider.GetUtcNow();
 
+        Dictionary<string, string> boundInputs = [];
+        if (request.PipelineId is { } boundPipelineId)
+        {
+            string? inputJson = await _db
+                .Pipelines.AsNoTracking()
+                .Where(p => p.Id == boundPipelineId && p.BroadcasterId == request.BroadcasterId)
+                .Select(p => p.ParameterNamesJson)
+                .FirstOrDefaultAsync(ct);
+            Result<Dictionary<string, string>> binding = PipelineInputs.BindStrings(
+                PipelineInputs.Parse(inputJson),
+                request.InitialVariables
+            );
+            if (binding.IsFailure)
+                return new PipelineExecutionResult
+                {
+                    ExecutionId = Guid.NewGuid().ToString("N")[..12],
+                    Outcome = PipelineOutcome.Failed,
+                    Duration = _timeProvider.GetUtcNow() - startedAt,
+                    ErrorMessage = binding.ErrorMessage,
+                };
+            boundInputs = binding.Value;
+        }
+
         // Concurrency gate — tiered/resource-aware when a provider is wired in (S-CONCURRENCY-DRAIN),
         // falling back to the fixed default for callers (mostly tests) that don't supply one.
         int maxConcurrentPerChannel = _concurrencyLimit is null
@@ -324,6 +348,8 @@ public sealed class PipelineEngine : IPipelineEngine
         // Seed initial variables
         foreach ((string k, string v) in request.InitialVariables)
             execCtx.Variables[k] = v;
+        foreach ((string name, string value) in boundInputs)
+            execCtx.Variables[name] = value;
 
         // Register for cancellation via ChannelContext
         using CancellationTokenSource timeoutCts = new(ExecutionTimeout);
@@ -1201,19 +1227,8 @@ public sealed class PipelineEngine : IPipelineEngine
     /// declared name list. Malformed/absent JSON is treated the same as "no declared parameters" —
     /// this is a labelling aid for the editor and a named-binding allow-list, never a hard schema a
     /// bad row should be able to break a caller over.</summary>
-    private static List<string> ParseParameterNames(string? parameterNamesJson)
-    {
-        if (string.IsNullOrWhiteSpace(parameterNamesJson))
-            return [];
-        try
-        {
-            return JsonSerializer.Deserialize<List<string>>(parameterNamesJson) ?? [];
-        }
-        catch (JsonException)
-        {
-            return [];
-        }
-    }
+    private static List<string> ParseParameterNames(string? parameterNamesJson) =>
+        [.. PipelineInputs.Parse(parameterNamesJson).Select(input => input.Name)];
 
     /// <summary>
     /// Builds an <see cref="ActionDefinition"/> from a DB row's raw <c>ConfigJson</c> + <c>ActionType</c>
@@ -1387,6 +1402,9 @@ public sealed class PipelineEngine : IPipelineEngine
         // S-PIPE-TREE-d2b(a): named binding is only checked against declared names when the callee
         // HAS declared at least one — a callee with no declared parameters keeps accepting any
         // named/positional binding, unchanged from before this slice.
+        IReadOnlyList<PipelineInputDefinition> declaredInputs = PipelineInputs.Parse(
+            calleePipeline.ParameterNamesJson
+        );
         if (namedArgs is { Count: > 0 })
         {
             List<string> declaredNames = ParseParameterNames(calleePipeline.ParameterNamesJson);
@@ -1403,6 +1421,13 @@ public sealed class PipelineEngine : IPipelineEngine
             }
         }
 
+        Result<Dictionary<string, string>> boundNamedArgs = PipelineInputs.BindStrings(
+            declaredInputs,
+            namedArgs
+        );
+        if (boundNamedArgs.IsFailure)
+            return Result.Failure<string?>(boundNamedArgs.ErrorMessage!, boundNamedArgs.ErrorCode!);
+
         List<PipelineStep> rows = await LoadStepRowsAsync(
             callerCtx.BroadcasterId,
             targetPipelineId,
@@ -1417,9 +1442,11 @@ public sealed class PipelineEngine : IPipelineEngine
 
         // Named binding is independent of argument order in the caller's config — each entry is
         // bound straight to its own name, never derived from dictionary enumeration order.
-        if (namedArgs is not null)
+        if (namedArgs is not null && declaredInputs.Count == 0)
             foreach ((string name, string value) in namedArgs)
                 callerCtx.Variables[name] = value;
+        foreach ((string name, string value) in boundNamedArgs.Value)
+            callerCtx.Variables[name] = value;
 
         callerCtx.CallDepth++;
         string? previousReturnValue = callerCtx.ReturnValue;

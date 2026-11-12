@@ -13,6 +13,7 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
@@ -910,6 +911,48 @@ public sealed class PlayTtsActionTests
 
     // A program hands its own block list over in one variable. The words in it are data: a template inside
     // them is spoken as written, never resolved a second time.
+    [Fact]
+    public async Task Declared_list_input_reaches_speech_as_twelve_ordered_blocks()
+    {
+        PipelineInputDefinition definition = new("blocks", "list", true, null, "Speech blocks");
+        object[] blocks = Enumerable
+            .Range(1, 12)
+            .Select(index => (object)new { text = $"block {index}" })
+            .ToArray();
+        Result<Dictionary<string, string>> bound = PipelineInputs.Bind(
+            [definition],
+            new Dictionary<string, JsonElement>
+            {
+                ["blocks"] = JsonSerializer.SerializeToElement(blocks),
+            }
+        );
+        bound.IsSuccess.Should().BeTrue(bound.ErrorMessage);
+        (PlayTtsAction action, ITtsDispatchService dispatch) = BuildWithTemplateMap(
+            new Dictionary<string, string> { ["{blocks}"] = bound.Value["blocks"] }
+        );
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Outcome());
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(("segments", "{blocks}"))
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(request =>
+                    request.Segments != null
+                    && request.Segments.Count == 12
+                    && request.Segments[0].Text == "block 1"
+                    && request.Segments[11].Text == "block 12"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task ExecuteAsync_AWholeBlockListFromOneVariable_IsUsedAsItIs()
     {

@@ -111001,6 +111001,13 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "inputs": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": { }
           }
         },
         "description": "Data-plane invocation. Name the target with string? AutomationInvokeRequest.Kind + string? AutomationInvokeRequest.Id (+ string? AutomationInvokeRequest.ActionType and\r\nIReadOnlyDictionary&lt;string, JsonElement&gt;? AutomationInvokeRequest.Params for an action), or the older way: a pipeline by id or by (unique) name."
@@ -111301,6 +111308,12 @@
           },
           "name": {
             "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineInputDefinition"
+            }
           }
         },
         "description": "An invocable pipeline as the data plane lists it."
@@ -117125,7 +117138,16 @@
             "maxLength": 30,
             "type": "string"
           },
-          "graph": { }
+          "graph": { },
+          "inputs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PipelineInputDefinition"
+            }
+          }
         },
         "description": "Request to create a new pipeline."
       },
@@ -130946,6 +130968,12 @@
               "type": "string"
             },
             "description": "The named sub-pipeline parameters this pipeline declares (S-PIPE-TREE-d2b(a)), deserialized from\r\nstring? Pipeline.ParameterNamesJson — null/empty when the\r\npipeline declares none, in which case a caller's `run_pipeline` block falls back to positional\r\n`args`. Surfaced so the pipeline builder can render one labelled field per declared name when this\r\npipeline is picked as a `run_pipeline` target, instead of a raw positional/generic argument list."
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineInputDefinition"
+            }
           }
         },
         "description": "Full pipeline details including the deserialized node graph cache."
@@ -131454,6 +131482,40 @@
           }
         }
       },
+      "PipelineInputDefinition": {
+        "required": [
+          "name",
+          "type",
+          "required",
+          "defaultValue",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "defaultValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
       "PipelineListItem": {
         "required": [
           "id",
@@ -131509,6 +131571,12 @@
               "type": "string"
             },
             "description": "See IReadOnlyList&lt;string&gt;? PipelineDto.ParameterNames — carried on the list item too so\r\n            the `run_pipeline` target picker (fed by the list endpoint) knows a target's declared parameters without\r\n            a second per-row fetch."
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineInputDefinition"
+            }
           },
           "hasPlatformDefault": {
             "type": "boolean",
@@ -131655,9 +131723,25 @@
               "null",
               "string"
             ]
+          },
+          "inputs": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": { }
+          },
+          "inputDefinitions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PipelineInputDefinition"
+            }
           }
         },
-        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional:\r\none action object (`{\"type\":\"send_message\", ...params}`); when set, only that action runs, through the\r\nsame capture engine, instead of the saved pipeline's graph. Graph is optional too: the draft\r\ngraph a person is editing (the same JSON the save takes); when set it is validated like a save and runs\r\ninstead of the saved graph, flat or tree. Mode is string PipelineTestRunModes.Dry when\r\nabsent (the capture run, unchanged) or string PipelineTestRunModes.Live (the real actions run, with the\r\nvariables as the start values; the trigger user defaults to the caller)."
+        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied. Step is optional:\r\none action object (`{\"type\":\"send_message\", ...params}`); when set, only that action runs, through the\r\nsame capture engine, instead of the saved pipeline's graph. Graph is optional too: the draft\r\ngraph a person is editing (the same JSON the save takes); when set it is validated like a save and runs\r\ninstead of the saved graph, flat or tree. Mode is string PipelineTestRunModes.Dry when\r\nabsent (the capture run, unchanged) or string PipelineTestRunModes.Live (the real actions run, with the\r\nvariables as the start values; the trigger user defaults to the caller). InputDefinitions\r\nsupplies unsaved declarations alongside a draft Graph."
       },
       "PipelineTraceStep": {
         "required": [
@@ -157990,7 +158074,16 @@
               "string"
             ]
           },
-          "graph": { }
+          "graph": { },
+          "inputs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PipelineInputDefinition"
+            }
+          }
         },
         "description": "Request to update an existing pipeline."
       },

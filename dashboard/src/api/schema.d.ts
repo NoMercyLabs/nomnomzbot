@@ -91459,6 +91459,9 @@ export interface components {
             variables?: null | {
                 [key: string]: string;
             };
+            inputs?: null | {
+                [key: string]: unknown;
+            };
         };
         /**
          * @description The invoke outcome. Execution is fire-and-forget (automation-api.md D5): bool AutomationInvokeResult.Accepted
@@ -91591,6 +91594,7 @@ export interface components {
              */
             id: string;
             name: string;
+            inputs?: components["schemas"]["PipelineInputDefinition"][];
         };
         /** @description One of the broadcaster's playlists on the active music provider. */
         AutomationPlaylist: {
@@ -93526,6 +93530,7 @@ export interface components {
             isEnabled?: boolean;
             triggerKind?: string;
             graph?: unknown;
+            inputs?: null | components["schemas"]["PipelineInputDefinition"][];
         };
         CreatePoll: {
             title: string;
@@ -98089,6 +98094,7 @@ export interface components {
              *     pipeline is picked as a `run_pipeline` target, instead of a raw positional/generic argument list.
              */
             parameterNames?: null | string[];
+            inputs?: components["schemas"]["PipelineInputDefinition"][];
         };
         /** @description One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13). */
         PipelineActionDescriptor: {
@@ -98237,6 +98243,13 @@ export interface components {
         PipelineGraphInput: {
             steps: components["schemas"]["PipelineStepInput"][];
         };
+        PipelineInputDefinition: {
+            name: string;
+            type: string;
+            required: boolean;
+            defaultValue: null | components["schemas"]["JsonElement"];
+            description: string;
+        };
         /** @description Lightweight pipeline summary for list views. */
         PipelineListItem: {
             /**
@@ -98259,6 +98272,7 @@ export interface components {
              *                 a second per-row fetch.
              */
             parameterNames?: null | string[];
+            inputs?: components["schemas"]["PipelineInputDefinition"][];
             /**
              * @description True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to
              *                 the platform default.
@@ -98325,7 +98339,8 @@ export interface components {
          *     graph a person is editing (the same JSON the save takes); when set it is validated like a save and runs
          *     instead of the saved graph, flat or tree. Mode is string PipelineTestRunModes.Dry when
          *     absent (the capture run, unchanged) or string PipelineTestRunModes.Live (the real actions run, with the
-         *     variables as the start values; the trigger user defaults to the caller).
+         *     variables as the start values; the trigger user defaults to the caller). InputDefinitions
+         *     supplies unsaved declarations alongside a draft Graph.
          */
         PipelineTestRunRequest: {
             variables: {
@@ -98334,6 +98349,10 @@ export interface components {
             step?: unknown;
             graph?: unknown;
             mode?: null | string;
+            inputs?: null | {
+                [key: string]: unknown;
+            };
+            inputDefinitions?: null | components["schemas"]["PipelineInputDefinition"][];
         };
         /**
          * @description One row of a pipeline test-run trace: what one executed step did. `Branch` names the arm an `if` took
@@ -107513,6 +107532,7 @@ export interface components {
             isEnabled?: null | boolean;
             triggerKind?: null | string;
             graph?: unknown;
+            inputs?: null | components["schemas"]["PipelineInputDefinition"][];
         };
         UpdateRewardRequest: {
             title?: null | string;

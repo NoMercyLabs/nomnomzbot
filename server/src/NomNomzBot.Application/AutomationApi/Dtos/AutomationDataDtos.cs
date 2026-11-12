@@ -11,6 +11,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 
@@ -71,6 +72,8 @@ public sealed record AutomationInvokeRequest
     public IReadOnlyList<string>? Args { get; init; }
 
     public IDictionary<string, string>? Variables { get; init; }
+
+    public IReadOnlyDictionary<string, JsonElement>? Inputs { get; init; }
 }
 
 /// <summary>
@@ -106,7 +109,10 @@ public sealed record AutomationChatRequest
 }
 
 /// <summary>An invocable pipeline as the data plane lists it.</summary>
-public sealed record AutomationPipelineRef(Guid Id, string Name);
+public sealed record AutomationPipelineRef(Guid Id, string Name)
+{
+    public IReadOnlyList<PipelineInputDefinition> Inputs { get; init; } = [];
+}
 
 /// <summary>A chat command as the data plane lists it.</summary>
 public sealed record AutomationCommandRef(string Name, IReadOnlyList<string> Aliases);

@@ -20,7 +20,7 @@ import Flag from '~icons/nnz/flag';
 import Lightning from '~icons/nnz/lightning';
 import Play from '~icons/nnz/play';
 import { toast } from 'vue-sonner';
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 
@@ -34,7 +34,9 @@ import {
   useTestRunPipeline,
   type PipelineStep,
   type PipelineTestRun,
+  type PipelineInput,
 } from '@/api/pipelines';
+import type { JsonValue } from '@/lib/json';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DateTime from '@/components/layout/DateTime.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -51,12 +53,14 @@ import { errorText } from '@/lib/errors';
 import { usePanelState } from '@/composables/usePanelState';
 import { useQueryPane } from '@/composables/useQueryPane';
 import { useShortcut } from '@/composables/useShortcut';
+import { merge } from '@/lib/array';
 
 import { newAction, newBlock, type AddableBlock } from './components/newSteps';
 import LiveRunConfirm from './components/LiveRunConfirm.vue';
 import LiveRunResult from './components/LiveRunResult.vue';
 import PipelineDeleteButton from './components/PipelineDeleteButton.vue';
 import PipelinePowerSwitch from './components/PipelinePowerSwitch.vue';
+import PipelineInputsEditor from './components/PipelineInputsEditor.vue';
 import RunsPanel from './components/RunsPanel.vue';
 import StepCard from './components/StepCard.vue';
 import { declaredVariables, earlierTexts } from './components/stepChain';
@@ -108,6 +112,18 @@ const access = useChannelAccess(channelId);
 const canWrite = computed(() => access.can('pipelines:write'));
 
 const draft = useStepDraft(pipeline.data);
+const inputDraft = shallowRef<PipelineInput[]>([]);
+const savedInputs = ref('[]');
+
+watch(() => pipeline.data.value?.inputs, (inputs) => {
+  if (!inputs) return;
+
+  inputDraft.value = inputs.map((input) => ({ ...input }));
+  savedInputs.value = JSON.stringify(inputs);
+}, { immediate: true });
+
+const inputDirty = computed(() => JSON.stringify(inputDraft.value) !== savedInputs.value);
+const dirty = computed(() => draft.dirty.value || inputDirty.value);
 
 // Unsaved steps survive a reload in this browser, one entry per channel and pipeline.
 const stored = useDraftStorage<PipelineStep[]>(
@@ -258,10 +274,15 @@ const earlier = computed(() =>
     ? []
     : earlierTexts(tree.value, selectedKey.value, descriptors.value));
 // The variables earlier steps write; the open step's template fields accept them as known names.
-const variables = computed(() =>
-  selectedKey.value === null
-    ? []
-    : declaredVariables(tree.value, selectedKey.value, descriptors.value));
+const inputNames = computed(() => inputDraft.value.map((input) => input.name).filter(Boolean));
+const variables = computed(() => {
+  if (selectedKey.value === null)
+    return [];
+
+  const declared = declaredVariables(tree.value, selectedKey.value, descriptors.value);
+
+  return Array.from(merge(inputNames.value, declared));
+});
 const palette = useTemplateRef<InstanceType<typeof StepPalette>>('palette');
 
 // The lane the person chose to add to, with its words; none adds at the end of the top level.
@@ -323,6 +344,8 @@ const testing = useTestRunPipeline(channelId);
 const lastRun = ref<PipelineTestRun | null>(null);
 const runCount = ref(0);
 const runInput = ref<Record<string, string>>({});
+const runValues = ref<Record<string, JsonValue>>({});
+const testRunInputs = useTemplateRef<InstanceType<typeof TestRunInput>>('testRunInputs');
 const marks = computed(() =>
   lastRun.value === null
     ? null
@@ -382,6 +405,12 @@ async function testRun(): Promise<void> {
     lastRun.value = await testing.mutateAsync({
       id: id.value,
       variables: runInput.value,
+      ...(Object.keys(runValues.value).length > 0
+        ? { inputs: runValues.value }
+        : {}),
+      ...(inputDirty.value
+        ? { inputDefinitions: inputDraft.value }
+        : {}),
       graph: { steps: draft.steps.value },
       mode: runMode.value === 'live'
         ? 'live'
@@ -406,12 +435,22 @@ async function testRun(): Promise<void> {
   }
 }
 
-function startRun(): void {
+function continueRun(): void {
   if (runMode.value === 'live') {
     liveOpen.value = true;
   } else {
     void testRun();
   }
+}
+
+function startRun(): void {
+  if (inputDraft.value.length > 0) {
+    testRunInputs.value?.show();
+
+    return;
+  }
+
+  continueRun();
 }
 
 function toggleRun(): void {
@@ -428,10 +467,19 @@ async function save(): Promise<void> {
     document.activeElement.blur();
   }
 
-  if (!draft.dirty.value || !canWrite.value) return;
+  if (!dirty.value || !canWrite.value) return;
 
   try {
-    await saving.mutateAsync({ id: id.value, graph: { steps: draft.steps.value } });
+    await saving.mutateAsync({
+      id: id.value,
+      ...(draft.dirty.value
+        ? { graph: { steps: draft.steps.value } }
+        : {}),
+      ...(inputDirty.value
+        ? { inputs: inputDraft.value }
+        : {}),
+    });
+
     toast.success(t(`${page}.saved`));
   } catch (error: unknown) {
     toast.error(error instanceof Error
@@ -493,7 +541,7 @@ const leavingTo = ref<string | null>(null);
 let leaveAnyway = false;
 
 onBeforeRouteLeave((to) => {
-  if (leaveAnyway || !draft.dirty.value)
+  if (leaveAnyway || !dirty.value)
     return true;
 
   leavingTo.value = to.fullPath;
@@ -589,6 +637,12 @@ const leaveOpen = computed<boolean>({
           :options="modeOptions"
           :disabled="testing.isPending.value"
         />
+        <TestRunInput ref="testRunInputs"
+                      v-model="runInput"
+                      v-model:inputs="runValues"
+                      :definitions="inputDraft"
+                      @confirm="continueRun"
+        />
         <!-- A live run has real effects, so its button takes the destructive variant, never the accent. -->
         <Button
           data-workbench-test
@@ -605,7 +659,7 @@ const leaveOpen = computed<boolean>({
           data-workbench-save
           type="button"
           size="sm"
-          :disabled="!canWrite || !draft.dirty.value || saving.isPending.value"
+          :disabled="!canWrite || !dirty || saving.isPending.value"
           @click="save"
         >
           {{ $t("dashboard.pipelines.workbench.save") }}
@@ -648,7 +702,6 @@ const leaveOpen = computed<boolean>({
             :label="$t(`${page}.run.summary`, { number: runCount, ran: summary.ran }, summary.ran)"
             class="text-xs"
           />
-          <TestRunInput v-model="runInput" />
           <Button
             v-if="canWrite"
             data-run-again
@@ -710,6 +763,7 @@ const leaveOpen = computed<boolean>({
           {{ liveError }}
         </p>
         <LiveRunResult v-if="lastRun?.mode === 'live'" :run="lastRun" />
+        <PipelineInputsEditor v-model="inputDraft" :read-only="!canWrite" />
         <p
           data-workbench-start
           class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm"
