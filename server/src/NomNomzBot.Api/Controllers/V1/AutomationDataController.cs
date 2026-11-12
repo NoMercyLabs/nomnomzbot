@@ -35,6 +35,7 @@ public class AutomationDataController(
     IAutomationCommandService commands,
     IAutomationPairingService pairing,
     IAutomationApiTokenService tokens,
+    IAutomationHistoryService history,
     IConfiguration configuration
 ) : BaseController
 {
@@ -131,6 +132,22 @@ public class AutomationDataController(
         if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(await commands.ListCommandsAsync(principal, ct));
+    }
+
+    /// <summary>Past events for the paired channel (scope <c>events</c>), oldest first.</summary>
+    [HttpGet("events/history")]
+    [ProducesResponseType<StatusResponseDto<AutomationHistoryPage>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetEventHistory(
+        [FromQuery] DateTimeOffset from,
+        [FromQuery] DateTimeOffset to,
+        [FromQuery] string? cursor = null,
+        [FromQuery] int pageSize = 500,
+        CancellationToken ct = default
+    )
+    {
+        if (Principal is not { } principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await history.ReadAsync(principal, from, to, cursor, pageSize, ct));
     }
 
     /// <summary>Run a pipeline fire-and-forget (scope <c>invoke</c> + allowlist).</summary>

@@ -12,8 +12,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.YouTube;
@@ -78,6 +80,7 @@ public class ClipsController(ITwitchClipsApi clips, IYouTubeClipUploadService up
     /// unless the request chooses another privacy.
     /// </summary>
     [HttpPost("{clipId}/youtube")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("live-ops:clips:write")]
     [ProducesResponseType<StatusResponseDto<YouTubeClipUploadDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UploadToYouTube(

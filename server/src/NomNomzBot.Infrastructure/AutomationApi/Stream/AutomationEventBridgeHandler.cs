@@ -11,6 +11,7 @@
 
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -62,14 +63,13 @@ public sealed class AutomationEventBridgeHandler<TEvent> : IEventHandler<TEvent>
             return;
 
         string frame = JsonSerializer.Serialize(
-            new
-            {
-                op = "event",
-                type = descriptor.PublicName,
-                broadcasterId = @event.BroadcasterId,
-                occurredAt = @event.OccurredAt,
-                data = descriptor.ProjectPayload(@event),
-            },
+            new AutomationEventFrame(
+                "event",
+                descriptor.PublicName,
+                @event.BroadcasterId.ToString("D"),
+                @event.OccurredAt,
+                descriptor.ProjectPayload(@event)
+            ),
             WireJson
         );
 

@@ -11524,6 +11524,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/automation/v1/events/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Past events for the paired channel (scope `events`), oldest first. */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    cursor?: string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfAutomationHistoryPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/automation/v1/invoke": {
         parameters: {
             query?: never;
@@ -91318,6 +91413,18 @@ export interface components {
             publicName: string;
             description: string;
         };
+        AutomationEventFrame: {
+            op: string;
+            type: string;
+            broadcasterId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            data: unknown;
+        };
+        AutomationHistoryPage: {
+            items: components["schemas"]["AutomationEventFrame"][];
+            nextCursor?: null | string;
+        };
         /** @description Broadcaster + instance summary for `GET /automation/v1/info`. */
         AutomationInfo: {
             /**
@@ -100301,6 +100408,19 @@ export interface components {
         StatusResponseOfAlertQueue: {
             status?: string;
             data?: null | components["schemas"]["AlertQueue"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfAutomationHistoryPage: {
+            status?: string;
+            data?: null | components["schemas"]["AutomationHistoryPage"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on

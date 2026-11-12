@@ -148,6 +148,16 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
                     v => ReplyDeliveryJson.Deserialize(v)
                 );
         });
+        b.Entity<EventJournal>(e => e.HasKey(j => j.Id));
+        b.Entity<ChatMessage>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.Ignore(m => m.Channel);
+            e.Ignore(m => m.Stream);
+            e.Ignore(m => m.Fragments);
+            e.Ignore(m => m.Badges);
+            e.Ignore(m => m.SourceBadges);
+        });
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
@@ -167,6 +177,8 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
         typeof(Pipeline),
         typeof(PipelineStep),
         typeof(Command),
+        typeof(EventJournal),
+        typeof(ChatMessage),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -290,7 +302,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
-    public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
         throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
@@ -365,7 +377,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
         throw new NotSupportedException();
     public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
-    public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
+    public DbSet<EventJournal> EventJournals => Set<EventJournal>();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();
     public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();

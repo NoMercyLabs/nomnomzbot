@@ -151,6 +151,8 @@ public sealed class EndpointAuthorizationInvariantTests
             "API-token plane: token scheme + scope 'read' + allowlist enforced in AutomationCommandService (automation-api.md §4.1)",
         ["AutomationDataController.ListCommands"] =
             "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (automation-api.md §4.1)",
+        ["AutomationDataController.GetEventHistory"] =
+            "API-token plane: token scheme + scope 'events' and channel-bound history enforced in AutomationHistoryService",
         ["AutomationDataController.Invoke"] =
             "API-token plane: token scheme + scope 'invoke' + pipeline allowlist enforced in AutomationCommandService (automation-api.md §4.1/D5)",
         ["AutomationDataController.SendChat"] =
