@@ -110,7 +110,9 @@ public sealed class RewardRedeemedHandlerViewerTemplateTests
                         false,
                         null,
                         false,
-                        0
+                        0,
+                        null,
+                        null
                     )
                 )
             );

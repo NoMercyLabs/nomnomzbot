@@ -322,6 +322,57 @@ public sealed class PlayTtsActionTests
             );
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Block_list_forwards_named_provider_and_share()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = BuildWithTemplateMap(
+            new Dictionary<string, string>
+            {
+                ["{{provider}}"] = "azure",
+                ["{{share}}"] = "journal",
+                ["voice"] = "voice",
+                ["hello"] = "hello",
+            }
+        );
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "voice",
+                        "azure",
+                        5,
+                        500,
+                        "audio"
+                    )
+                )
+            );
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(
+                ("segments", "[{\"text\":\"hello\",\"voice\":\"voice\"}]"),
+                ("provider", "{{provider}}"),
+                ("share", "{{share}}")
+            )
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(request =>
+                    request.ProviderOverride == "azure"
+                    && request.BudgetShare == "journal"
+                    && request.Segments != null
+                    && request.Segments.Count == 1
+                    && request.Segments[0].Text == "hello"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // Unknown-voice honest failure (project truthful-data rule): the dispatch service's reject reason must
     // surface through the action unchanged — never swallowed, never reported as if a different voice spoke.
     [Fact]

@@ -543,7 +543,7 @@ describe('TtsView on a phone', () => {
     expect(older?.closest('footer')).not.toBeNull();
   });
 
-  it('stacks the three panels of Rules and the one of Keys without a picker', async () => {
+  it('stacks three Rules panels and the Keys and Budgets panels without a picker', async () => {
     await open('?view=rules');
     expect(document.body.querySelector('[data-slot="board-panel-picker"]')).toBeNull();
 
@@ -558,7 +558,7 @@ describe('TtsView on a phone', () => {
 
     expect(
       document.body.querySelectorAll('[data-slot="tts-stack"] [data-slot="panel-card"]'),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
   });
 
   it('keeps the board at laptop width', async () => {

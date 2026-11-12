@@ -28,6 +28,8 @@ public class TtsUsageRecordConfiguration : IEntityTypeConfiguration<TtsUsageReco
         builder.Property(e => e.CharacterCount).IsRequired();
 
         builder.Property(e => e.Provider).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.Share).IsRequired().HasMaxLength(80).HasDefaultValue("default");
+        builder.Property(e => e.FallbackReason).HasMaxLength(30);
 
         builder.Property(e => e.VoiceId).IsRequired().HasMaxLength(255);
 
@@ -35,5 +37,12 @@ public class TtsUsageRecordConfiguration : IEntityTypeConfiguration<TtsUsageReco
 
         builder.HasIndex(e => new { e.BroadcasterId, e.StreamId });
         builder.HasIndex(e => new { e.BroadcasterId, e.OccurredAt });
+        builder.HasIndex(e => new
+        {
+            e.BroadcasterId,
+            e.Provider,
+            e.Share,
+            e.OccurredAt,
+        });
     }
 }

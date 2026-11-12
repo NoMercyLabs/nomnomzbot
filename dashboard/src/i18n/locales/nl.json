@@ -1241,6 +1241,8 @@
         "attention_audio_source_missing_live_title": "De Audio-bron ontbreekt",
         "attention_audio_source_missing_live_message": "Geluiden kunnen nergens afspelen. Voeg de Audio-widget toe als browserbron in OBS.",
         "attention_tts_source_missing_title": "TTS heeft geen TTS Caption-pagina",
+        "attention_tts_budget_title": "Spraakbudget op {threshold}%",
+        "attention_tts_budget_message": "{provider} ({share}) gebruikte deze maand {used} van {limit} tekens. Controleer het providerbudget en de volgorde bij uitval.",
         "attention_tts_source_missing_message": "TTS speelt alleen af vanaf de TTS Caption-pagina. Voeg die toe als browserbron in OBS. Tot die tijd blijft TTS stil.",
         "attention_music_player_missing_title": "Voeg de Music Player toe aan OBS",
         "attention_music_player_missing_message": "Muziek speelt nu af op de Music Player-widget. Voeg die toe als browserbron in OBS met de overlay-URL. Tot die tijd speelt er geen muziek op stream.",

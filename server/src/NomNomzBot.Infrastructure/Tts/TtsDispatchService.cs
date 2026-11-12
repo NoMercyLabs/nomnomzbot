@@ -143,6 +143,11 @@ public sealed class TtsDispatchService : ITtsDispatchService
             if (configResult.IsFailure)
                 return TtsPreparation.Skipped;
             config = configResult.Value;
+            if (
+                config.ProviderBudgets is { Count: > 0 }
+                || !string.IsNullOrWhiteSpace(request.ProviderOverride)
+            )
+                return TtsPreparation.Skipped;
             if (config.Mode == "byok")
             {
                 Result<ITtsProvider> provider = await _byokProviders.CreateForChannelAsync(
@@ -334,6 +339,13 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
         TtsConfigDto config = configResult.Value;
 
+        Result providerSelection = await ValidateProviderSelectionAsync(request, config, ct);
+        if (providerSelection.IsFailure)
+            return Result.Failure<TtsDispatchOutcome>(
+                providerSelection.ErrorMessage!,
+                providerSelection.ErrorCode!
+            );
+
         if (!config.IsEnabled)
             return await RejectRequestAsync(
                 request,
@@ -498,7 +510,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
             segments: null,
             KnownNames(request),
             ct,
-            prepared
+            prepared,
+            request.ProviderOverride,
+            request.BudgetShare
         );
     }
 
@@ -677,7 +691,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
             segments,
             KnownNames(request),
             ct,
-            prepared
+            prepared,
+            request.ProviderOverride,
+            request.BudgetShare
         );
     }
 
@@ -725,7 +741,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
             pitchPercent: null,
             segments: null,
             entry.SpokenNames,
-            ct
+            ct,
+            providerOverride: entry.ProviderOverride,
+            budgetShare: entry.BudgetShare
         );
         if (played.IsFailure)
             return played;
@@ -858,7 +876,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         CancellationToken ct
     )
     {
-        string provider = await ResolveProviderAsync(voiceId, ct);
+        string provider = request.ProviderOverride ?? await ResolveProviderAsync(voiceId, ct);
         TtsApprovalQueueEntry entry = new()
         {
             Id = Guid.CreateVersion7(),
@@ -870,6 +888,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             CensoredText = wasCensored ? spokenText : null,
             VoiceId = voiceId,
             Provider = provider,
+            ProviderOverride = request.ProviderOverride,
+            BudgetShare = request.BudgetShare,
             Status = "pending",
             WasCensored = wasCensored,
             SourceMessageId = request.SourceMessageId,
@@ -969,6 +989,308 @@ public sealed class TtsDispatchService : ITtsDispatchService
         }
     }
 
+    private sealed record TtsBudgetedAudio(TtsResult Audio, string Share, string? FallbackReason);
+
+    private async Task<string?> VoiceForProviderAsync(
+        string provider,
+        string voiceId,
+        ITtsProvider adapter,
+        CancellationToken ct
+    )
+    {
+        TtsVoice? requested = await _db
+            .TtsVoices.AsNoTracking()
+            .FirstOrDefaultAsync(voice => voice.Id == voiceId, ct);
+        if (provider is "edge" or "azure")
+            return requested?.Provider == "elevenlabs" ? TtsVoice.FallbackDefaultVoiceId : voiceId;
+        if (requested?.Provider == provider)
+            return voiceId;
+
+        string? catalogueVoice = await _db
+            .TtsVoices.AsNoTracking()
+            .Where(voice => voice.Provider == provider)
+            .OrderByDescending(voice => voice.IsDefault)
+            .ThenBy(voice => voice.Id)
+            .Select(voice => voice.Id)
+            .FirstOrDefaultAsync(ct);
+        if (catalogueVoice is not null)
+            return catalogueVoice;
+
+        try
+        {
+            IReadOnlyList<TtsVoiceInfo> voices = await adapter.GetVoicesAsync(ct);
+            return voices.FirstOrDefault()?.Id;
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "TTS voice lookup failed for provider {Provider}.", provider);
+            return null;
+        }
+    }
+
+    private async Task<Result> ValidateProviderSelectionAsync(
+        TtsSpeakRequest request,
+        TtsConfigDto config,
+        CancellationToken ct
+    )
+    {
+        string provider = string.IsNullOrWhiteSpace(request.ProviderOverride)
+            ? config.DefaultProvider
+            : request.ProviderOverride.Trim().ToLowerInvariant();
+        if (!TtsConfigOptions.Providers.Contains(provider))
+            return Errors.ValidationFailed($"Unknown TTS provider '{provider}'.");
+        if (!string.IsNullOrWhiteSpace(request.ProviderOverride))
+        {
+            Result<ITtsProvider> configured = await _byokProviders.CreateForChannelAsync(
+                request.BroadcasterId,
+                provider,
+                ct
+            );
+            if (configured.IsFailure)
+                return Errors.ValidationFailed($"TTS provider '{provider}' is not configured.");
+        }
+        if (!string.IsNullOrWhiteSpace(request.BudgetShare))
+        {
+            TtsProviderBudgetStatusDto? budget = config.ProviderBudgets?.FirstOrDefault(item =>
+                item.Provider == provider
+            );
+            if (budget is null || !budget.Shares.Any(item => item.Name == request.BudgetShare))
+                return Errors.ValidationFailed(
+                    $"TTS share '{request.BudgetShare}' is not configured for '{provider}'."
+                );
+        }
+        return Result.Success();
+    }
+
+    private async Task<Result<TtsBudgetedAudio>> SynthesizeBudgetedAsync(
+        Guid broadcasterId,
+        TtsConfigDto config,
+        string text,
+        string voiceId,
+        double? ratePercent,
+        double? pitchPercent,
+        IReadOnlyList<TtsSegment>? segments,
+        string requestedByTwitchUserId,
+        bool wasCensored,
+        bool? wasModApproved,
+        Guid? streamId,
+        string? providerOverride,
+        string? requestedShare,
+        CancellationToken ct
+    )
+    {
+        string first = string.IsNullOrWhiteSpace(providerOverride)
+            ? config.DefaultProvider
+            : providerOverride.Trim().ToLowerInvariant();
+        if (!TtsConfigOptions.Providers.Contains(first))
+            return Errors
+                .ValidationFailed($"Unknown TTS provider '{first}'.")
+                .ToTyped<TtsBudgetedAudio>();
+
+        List<string> candidates = [first];
+        foreach (string provider in config.FallbackProviders ?? [])
+            if (!candidates.Contains(provider))
+                candidates.Add(provider);
+
+        string? reason = null;
+        foreach (string provider in candidates)
+        {
+            TtsProviderBudgetStatusDto? budget = config.ProviderBudgets?.FirstOrDefault(item =>
+                item.Provider == provider
+            );
+            string share = string.IsNullOrWhiteSpace(requestedShare)
+                ? "default"
+                : requestedShare.Trim();
+            if (budget is null && provider != first)
+                share = "default";
+            TtsBudgetShareStatusDto? shareBudget = budget?.Shares.FirstOrDefault(item =>
+                item.Name == share
+            );
+            if (budget is not null && shareBudget is null && share != "default")
+            {
+                if (provider == first)
+                    return Errors
+                        .ValidationFailed(
+                            $"TTS share '{share}' is not configured for '{provider}'."
+                        )
+                        .ToTyped<TtsBudgetedAudio>();
+                share = "default";
+                shareBudget = budget.Shares.FirstOrDefault(item => item.Name == share);
+            }
+
+            if (budget is not null)
+            {
+                TtsBudgetUsage usage = await TtsBudgetLedger.ReadAsync(
+                    _db,
+                    broadcasterId,
+                    provider,
+                    share,
+                    _clock.GetUtcNow().UtcDateTime,
+                    ct
+                );
+                if (
+                    usage.ProviderUsed + text.Length > budget.MonthlyCharacters
+                    || (
+                        shareBudget is not null
+                        && usage.ShareUsed + text.Length > shareBudget.MonthlyCharacters
+                    )
+                )
+                {
+                    reason ??= "budget";
+                    continue;
+                }
+            }
+
+            Result<ITtsProvider> available = await _byokProviders.CreateForChannelAsync(
+                broadcasterId,
+                provider,
+                ct
+            );
+            if (available.IsFailure)
+            {
+                if (provider == first && !string.IsNullOrWhiteSpace(providerOverride))
+                    return Errors
+                        .ValidationFailed($"TTS provider '{provider}' is not configured.")
+                        .ToTyped<TtsBudgetedAudio>();
+                reason ??= "provider_failure";
+                continue;
+            }
+
+            string? selectedVoice = await VoiceForProviderAsync(
+                provider,
+                voiceId,
+                available.Value,
+                ct
+            );
+            List<TtsSegment>? selectedSegments = null;
+            if (selectedVoice is not null && segments is not null)
+            {
+                selectedSegments = [];
+                foreach (TtsSegment segment in segments)
+                {
+                    string? segmentVoice = await VoiceForProviderAsync(
+                        provider,
+                        segment.VoiceId,
+                        available.Value,
+                        ct
+                    );
+                    if (segmentVoice is null)
+                    {
+                        selectedVoice = null;
+                        break;
+                    }
+                    selectedSegments.Add(segment with { VoiceId = segmentVoice });
+                }
+            }
+            if (selectedVoice is null)
+            {
+                reason ??= "provider_failure";
+                continue;
+            }
+
+            TtsConfigDto providerConfig = config with { Mode = "byok", DefaultProvider = provider };
+            Result<TtsResult> synthesized = await SynthesizeAudioAsync(
+                broadcasterId,
+                providerConfig,
+                text,
+                selectedVoice,
+                ratePercent,
+                pitchPercent,
+                selectedSegments,
+                ct,
+                available.Value
+            );
+            if (synthesized.IsSuccess && synthesized.Value.AudioData.Length > 0)
+                return Result.Success(new TtsBudgetedAudio(synthesized.Value, share, reason));
+
+            await RecordFailedClipAsync(
+                NewLedgerRow(
+                    broadcasterId,
+                    requestedByTwitchUserId,
+                    provider,
+                    selectedVoice,
+                    text,
+                    wasCensored,
+                    wasModApproved,
+                    streamId,
+                    0,
+                    failed: true
+                )
+            );
+            reason ??= "provider_failure";
+        }
+
+        return Result.Failure<TtsBudgetedAudio>(
+            "No configured TTS provider has enough budget and working audio for this line.",
+            reason == "budget" ? "QUOTA_EXCEEDED" : "SERVICE_UNAVAILABLE"
+        );
+    }
+
+    private async Task PublishBudgetWarningsAsync(
+        Guid broadcasterId,
+        TtsProviderBudgetStatusDto budget,
+        string share,
+        TtsBudgetUsage before,
+        int count,
+        CancellationToken ct
+    )
+    {
+        await PublishThresholdsAsync(
+            broadcasterId,
+            budget.Provider,
+            null,
+            budget.MonthlyCharacters,
+            before.ProviderUsed,
+            count,
+            ct
+        );
+        TtsBudgetShareStatusDto? shareBudget = budget.Shares.FirstOrDefault(item =>
+            item.Name == share
+        );
+        if (shareBudget is not null && budget.Shares.Count > 1)
+            await PublishThresholdsAsync(
+                broadcasterId,
+                budget.Provider,
+                share,
+                shareBudget.MonthlyCharacters,
+                before.ShareUsed,
+                count,
+                ct
+            );
+    }
+
+    private async Task PublishThresholdsAsync(
+        Guid broadcasterId,
+        string provider,
+        string? share,
+        int limit,
+        int before,
+        int count,
+        CancellationToken ct
+    )
+    {
+        foreach (int threshold in new[] { 80, 100 })
+        {
+            if (
+                (long)before * 100 >= (long)limit * threshold
+                || (long)(before + count) * 100 < (long)limit * threshold
+            )
+                continue;
+            await _eventBus.PublishAsync(
+                new TtsBudgetWarningEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    Provider = provider,
+                    Share = share,
+                    ThresholdPercent = threshold,
+                    MonthlyCharacters = limit,
+                    UsedCharacters = before + count,
+                },
+                ct
+            );
+        }
+    }
+
     /// <summary>
     /// Routes a passing utterance to server-side synthesis: the audio always comes from the server, never the browser.
     /// Shared by direct dispatch and post-approval so both planes obey the channel's <c>Mode</c>.
@@ -991,7 +1313,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
         IReadOnlyList<TtsSegment>? segments,
         IReadOnlyList<string>? spokenNames,
         CancellationToken ct,
-        TtsPreparedClip? prepared = null
+        TtsPreparedClip? prepared = null,
+        string? providerOverride = null,
+        string? budgetShare = null
     )
     {
         if (segments is not null)
@@ -1037,7 +1361,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 pitchPercent,
                 segments,
                 ct,
-                prepared
+                prepared,
+                providerOverride,
+                budgetShare
             )
         );
     }
@@ -1057,7 +1383,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
         double? pitchPercent,
         IReadOnlyList<TtsSegment>? segments,
         CancellationToken ct,
-        TtsPreparedClip? prepared
+        TtsPreparedClip? prepared,
+        string? providerOverride,
+        string? budgetShare
     )
     {
         // The plan's monthly total counts the shared voices only; a byok channel pays its own provider.
@@ -1073,6 +1401,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         TtsResult synth;
+        string selectedShare = "default";
+        string? fallbackReason = null;
         long synthesisStartedAt = _clock.GetTimestamp();
         bool matchesPreparation =
             prepared is not null
@@ -1091,7 +1421,37 @@ public sealed class TtsDispatchService : ITtsDispatchService
                     && segments.SequenceEqual(prepared.Segments)
                 )
             );
-        if (matchesPreparation)
+        if (
+            config.ProviderBudgets is { Count: > 0 }
+            || !string.IsNullOrWhiteSpace(providerOverride)
+        )
+        {
+            Result<TtsBudgetedAudio> selected = await SynthesizeBudgetedAsync(
+                broadcasterId,
+                config,
+                text,
+                voiceId,
+                ratePercent,
+                pitchPercent,
+                segments,
+                requestedByTwitchUserId,
+                wasCensored,
+                wasModApproved,
+                streamId,
+                providerOverride,
+                budgetShare,
+                ct
+            );
+            if (selected.IsFailure)
+                return Result.Failure<TtsDispatchOutcome>(
+                    selected.ErrorMessage!,
+                    selected.ErrorCode!
+                );
+            synth = selected.Value.Audio;
+            selectedShare = selected.Value.Share;
+            fallbackReason = selected.Value.FallbackReason;
+        }
+        else if (matchesPreparation)
         {
             synth = prepared!.Audio;
         }
@@ -1200,8 +1560,32 @@ public sealed class TtsDispatchService : ITtsDispatchService
             synthesisMs,
             failed: false
         );
+        usage.Share = selectedShare;
+        usage.FallbackReason = fallbackReason;
+        TtsProviderBudgetStatusDto? selectedBudget = config.ProviderBudgets?.FirstOrDefault(b =>
+            b.Provider == synth.Provider
+        );
+        TtsBudgetUsage? beforeUsage = selectedBudget is null
+            ? null
+            : await TtsBudgetLedger.ReadAsync(
+                _db,
+                broadcasterId,
+                synth.Provider,
+                selectedShare,
+                _clock.GetUtcNow().UtcDateTime,
+                ct
+            );
         _db.TtsUsageRecords.Add(usage);
         await _db.SaveChangesAsync(ct);
+        if (selectedBudget is not null && beforeUsage is not null)
+            await PublishBudgetWarningsAsync(
+                broadcasterId,
+                selectedBudget,
+                selectedShare,
+                beforeUsage,
+                text.Length,
+                ct
+            );
         if (metered)
             await TtsMonthlyAllowance.RecordAsync(_usage, broadcasterId, text.Length, ct);
 

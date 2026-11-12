@@ -45,6 +45,7 @@ public class TtsConfigService : ITtsConfigService
     private readonly ITtsLexiconService _lexicon;
     private readonly ISpokenNameFormatter _spokenNames;
     private readonly ITtsVoiceSampleStore? _samples;
+    private readonly TimeProvider _clock;
 
     public TtsConfigService(
         IApplicationDbContext db,
@@ -55,10 +56,12 @@ public class TtsConfigService : ITtsConfigService
         IPlatformTtsVoiceDefault platformVoice,
         ITtsLexiconService lexicon,
         ISpokenNameFormatter spokenNames,
-        ITtsVoiceSampleStore? samples = null
+        ITtsVoiceSampleStore? samples = null,
+        TimeProvider? clock = null
     )
     {
         _samples = samples;
+        _clock = clock ?? TimeProvider.System;
         _db = db;
         _ttsService = ttsService;
         _eventBus = eventBus;
@@ -117,6 +120,13 @@ public class TtsConfigService : ITtsConfigService
                 "minBitsToTts"
             );
 
+        Result budgetCheck = TtsBudgetPlan.Validate(
+            request.ProviderBudgets,
+            request.FallbackProviders
+        );
+        if (budgetCheck.IsFailure)
+            return Result.Failure<TtsConfigDto>(budgetCheck.ErrorMessage!, budgetCheck.ErrorCode!);
+
         TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId,
             cancellationToken
@@ -133,6 +143,14 @@ public class TtsConfigService : ITtsConfigService
             config.Mode = request.Mode;
         if (request.DefaultProvider is not null)
             config.DefaultProvider = request.DefaultProvider;
+        if (request.ProviderBudgets is not null)
+            config.ProviderBudgetsJson = System.Text.Json.JsonSerializer.Serialize(
+                request.ProviderBudgets
+            );
+        if (request.FallbackProviders is not null)
+            config.FallbackProvidersJson = System.Text.Json.JsonSerializer.Serialize(
+                request.FallbackProviders
+            );
         // A channel's own pick takes it off the platform default; the explicit follow flag puts it back.
         if (request.FollowPlatformDefaultVoice == true)
             config.DefaultVoiceId = null;
@@ -189,6 +207,8 @@ public class TtsConfigService : ITtsConfigService
         config.IsEnabled = defaults.IsEnabled;
         config.Mode = defaults.Mode;
         config.DefaultProvider = defaults.DefaultProvider;
+        config.ProviderBudgetsJson = defaults.ProviderBudgetsJson;
+        config.FallbackProvidersJson = defaults.FallbackProvidersJson;
         config.MaxCharacters = defaults.MaxCharacters;
         config.MinPermission = defaults.MinPermission;
         config.CooldownSeconds = defaults.CooldownSeconds;
@@ -895,6 +915,48 @@ public class TtsConfigService : ITtsConfigService
     // voice, resolved here on every read so an admin change shows (and speaks) without a redeploy.
     private async Task<TtsConfigDto> ToDtoAsync(TtsConfig c, CancellationToken cancellationToken)
     {
+        IReadOnlyList<TtsProviderBudgetDto> budgets = TtsBudgetPlan.Parse(c.ProviderBudgetsJson);
+        List<TtsProviderBudgetStatusDto> budgetStatuses = [];
+        foreach (TtsProviderBudgetDto budget in budgets)
+        {
+            TtsBudgetUsage providerUsage = await TtsBudgetLedger.ReadAsync(
+                _db,
+                c.BroadcasterId,
+                budget.Provider,
+                "default",
+                _clock.GetUtcNow().UtcDateTime,
+                cancellationToken
+            );
+            List<TtsBudgetShareStatusDto> shares = [];
+            foreach (TtsBudgetShareDto share in TtsBudgetPlan.EffectiveShares(budget))
+            {
+                TtsBudgetUsage usage = await TtsBudgetLedger.ReadAsync(
+                    _db,
+                    c.BroadcasterId,
+                    budget.Provider,
+                    share.Name,
+                    _clock.GetUtcNow().UtcDateTime,
+                    cancellationToken
+                );
+                shares.Add(
+                    new(
+                        share.Name,
+                        share.MonthlyCharacters,
+                        usage.ShareUsed,
+                        Math.Max(0, share.MonthlyCharacters - usage.ShareUsed)
+                    )
+                );
+            }
+            budgetStatuses.Add(
+                new(
+                    budget.Provider,
+                    budget.MonthlyCharacters,
+                    providerUsage.ProviderUsed,
+                    Math.Max(0, budget.MonthlyCharacters - providerUsage.ProviderUsed),
+                    shares
+                )
+            );
+        }
         bool follows = c.DefaultVoiceId is null;
         string? voiceId = follows
             ? await _platformVoice.GetVoiceIdAsync(cancellationToken)
@@ -916,7 +978,9 @@ public class TtsConfigService : ITtsConfigService
             HasElevenLabsByokKey: c.ElevenLabsApiKeyCipher is not null,
             AzureRegion: c.AzureRegion,
             FollowsPlatformDefaultVoice: follows,
-            CooldownSeconds: c.CooldownSeconds
+            CooldownSeconds: c.CooldownSeconds,
+            ProviderBudgets: budgetStatuses,
+            FallbackProviders: TtsBudgetPlan.ParseFallback(c.FallbackProvidersJson)
         );
     }
 }

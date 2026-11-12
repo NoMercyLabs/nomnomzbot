@@ -977,6 +977,8 @@
     "pipeline.play_tts.scene_token.help",
     "pipeline.play_tts.segments.help",
     "pipeline.play_tts.text.help",
+    "pipeline.play_tts.provider.help",
+    "pipeline.play_tts.share.help",
     "pipeline.play_tts.voice.help",
     "pipeline.playlist_add.already_message.help",
     "pipeline.playlist_add.description",

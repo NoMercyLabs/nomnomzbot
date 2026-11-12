@@ -27,6 +27,12 @@ public class TtsUsageRecord : BaseEntity, ITenantScoped
     [MaxLength(50)]
     public string Provider { get; set; } = null!;
 
+    [MaxLength(80)]
+    public string Share { get; set; } = "default";
+
+    [MaxLength(30)]
+    public string? FallbackReason { get; set; }
+
     [MaxLength(255)]
     public string VoiceId { get; set; } = null!;
 

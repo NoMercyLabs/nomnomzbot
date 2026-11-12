@@ -48,6 +48,32 @@ export type TtsRulesChange = {
   azureRegion?: string;
 };
 
+export type TtsBudgetChange = {
+  providerBudgets: {
+    provider: string;
+    monthlyCharacters: number;
+    shares: { name: string; monthlyCharacters: number }[];
+  }[];
+  fallbackProviders: string[];
+};
+
+export function useSaveTtsBudgets(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, TtsBudgetChange>({
+    mutationFn: async (change): Promise<void> => {
+      const { error, response } = await client.PUT('/api/v{version}/channels/{channelId}/tts/config', {
+        params: { path: { version, channelId: toValue(channelId) as string } },
+        body: change,
+      });
+
+      if (error !== undefined)
+        throw refusal('tts config', error, response.status);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: ttsConfigKey(toValue(channelId)) }),
+  });
+}
+
 // The providers that take a channel's own key.
 export const byokProviders = ['azure', 'elevenlabs'] as const;
 export type ByokProvider = (typeof byokProviders)[number];

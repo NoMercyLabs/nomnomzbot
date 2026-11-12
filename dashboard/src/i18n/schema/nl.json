@@ -2150,6 +2150,9 @@
       "mode": {
         "help": "async (standaard) gaat door zodra de regel naar de overlay is gestuurd. sync wacht tot het fragment klaar is met afspelen (de echte lengte, maximaal 60 seconden, plus een kwart seconde zodat de overlay kan starten), zodat een latere stap, zoals het herstellen van het muziekvolume, pas na het einde van de spraak draait. Beide modi zetten {'{'}tts.durationMs{'}'} en {'{'}tts.voiceId{'}'}."
       },
+      "provider": {
+        "help": "Gebruik deze provider voor deze regel. Leeg gebruikt de kanaalstandaard."
+      },
       "rate": {
         "help": "Hoe snel de regel wordt gesproken, als percentage van de normale snelheid: +30% sneller, -20% langzamer. Leeg houdt de normale snelheid. Waarden zijn beperkt tot -50% tot +50%."
       },
@@ -2158,6 +2161,9 @@
       },
       "segments": {
         "help": "Meerdere stemmen in één fragment. Voeg tekstblokken of pauzes toe in de editor. Elk tekstblok kan voice, rate, pitch, volume, stress, style en sayAs instellen. Stijlen: cheerful, excited, sad, whispering, shouting, friendly, unfriendly, terrified, hopeful. Leesvormen: spell-out, cardinal, ordinal, digits, date, time, telephone. Azure gebruikt alleen stijlen die de stem ondersteunt; andere aanbieders benaderen ze. Een pauze is in milliseconden, tot 5000. Ingevulde blokken vervangen Tekst. Ondersteunt sjabloonvariabelen en JSON-bewerking."
+      },
+      "share": {
+        "help": "Boek deze regel op een benoemd provideraandeel. Leeg gebruikt het standaardaandeel."
       },
       "text": {
         "help": "De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."

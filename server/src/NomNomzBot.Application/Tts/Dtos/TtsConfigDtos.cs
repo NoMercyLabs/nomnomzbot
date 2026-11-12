@@ -38,7 +38,32 @@ public sealed record TtsConfigDto(
     bool HasElevenLabsByokKey,
     string? AzureRegion,
     bool FollowsPlatformDefaultVoice,
-    int CooldownSeconds
+    int CooldownSeconds,
+    IReadOnlyList<TtsProviderBudgetStatusDto>? ProviderBudgets,
+    IReadOnlyList<string>? FallbackProviders
+);
+
+public sealed record TtsBudgetShareDto(string Name, int MonthlyCharacters);
+
+public sealed record TtsProviderBudgetDto(
+    string Provider,
+    int MonthlyCharacters,
+    IReadOnlyList<TtsBudgetShareDto> Shares
+);
+
+public sealed record TtsBudgetShareStatusDto(
+    string Name,
+    int MonthlyCharacters,
+    int Used,
+    int Remaining
+);
+
+public sealed record TtsProviderBudgetStatusDto(
+    string Provider,
+    int MonthlyCharacters,
+    int Used,
+    int Remaining,
+    IReadOnlyList<TtsBudgetShareStatusDto> Shares
 );
 
 /// <summary>
@@ -133,6 +158,10 @@ public sealed record UpdateTtsConfigDto
     /// <summary>Azure Cognitive Services region for the channel's BYOK key; an empty string clears it.</summary>
     [MaxLength(50)]
     public string? AzureRegion { get; init; }
+
+    public IReadOnlyList<TtsProviderBudgetDto>? ProviderBudgets { get; init; }
+
+    public IReadOnlyList<string>? FallbackProviders { get; init; }
 }
 
 /// <summary>A viewer's assigned TTS voice within a channel (overrides the channel default when they speak).</summary>

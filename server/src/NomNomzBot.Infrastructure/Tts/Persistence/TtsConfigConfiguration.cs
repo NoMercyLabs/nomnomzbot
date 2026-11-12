@@ -25,6 +25,8 @@ public class TtsConfigConfiguration : IEntityTypeConfiguration<TtsConfig>
 
         builder.Property(e => e.Mode).IsRequired().HasMaxLength(20);
         builder.Property(e => e.DefaultProvider).IsRequired().HasMaxLength(20);
+        builder.Property(e => e.ProviderBudgetsJson).IsRequired();
+        builder.Property(e => e.FallbackProvidersJson).IsRequired();
         builder.Property(e => e.MinPermission).IsRequired().HasMaxLength(20);
 
         // Viewer self-service is on by default (spec decision 6) — a DB default of true backfills every

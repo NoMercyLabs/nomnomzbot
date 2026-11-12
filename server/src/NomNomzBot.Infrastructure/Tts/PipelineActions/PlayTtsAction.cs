@@ -88,6 +88,18 @@ public sealed class PlayTtsAction : ICommandAction
                 Description: new("pipeline.play_tts.voice.help")
             ),
             new(
+                "provider",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.play_tts.provider.help")
+            ),
+            new(
+                "share",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.play_tts.share.help")
+            ),
+            new(
                 "as",
                 PipelineActionFieldKind.TtsSpeaker,
                 Templated: true,
@@ -189,7 +201,9 @@ public sealed class PlayTtsAction : ICommandAction
     {
         if (action.Parameters is null)
             return false;
-        foreach (string field in new[] { "text", "voice", "as", "rate", "segments" })
+        foreach (
+            string field in new[] { "text", "voice", "provider", "share", "as", "rate", "segments" }
+        )
         {
             if (!action.Parameters.TryGetValue(field, out JsonElement value))
                 continue;
@@ -352,6 +366,29 @@ public sealed class PlayTtsAction : ICommandAction
             voiceOverride = string.IsNullOrWhiteSpace(resolvedVoice) ? null : resolvedVoice;
         }
 
+        string providerTemplate = action.GetString("provider") ?? string.Empty;
+        string? providerOverride = string.IsNullOrWhiteSpace(providerTemplate)
+            ? null
+            : (
+                await _resolver.ResolveAsync(
+                    providerTemplate,
+                    ctx.Variables,
+                    ctx.BroadcasterId,
+                    ctx.CancellationToken
+                )
+            ).Trim();
+        string shareTemplate = action.GetString("share") ?? string.Empty;
+        string? budgetShare = string.IsNullOrWhiteSpace(shareTemplate)
+            ? null
+            : (
+                await _resolver.ResolveAsync(
+                    shareTemplate,
+                    ctx.Variables,
+                    ctx.BroadcasterId,
+                    ctx.CancellationToken
+                )
+            ).Trim();
+
         // WHOSE voice speaks this line. Blank (or "bot"/"channel"/"default") is the bot's own line and reads
         // in the CHANNEL's voice. "user"/"viewer"/"trigger" is the triggering viewer's own words (a TTS
         // reward) and reads in their saved voice; "broadcaster" reads in the channel owner's saved voice,
@@ -449,7 +486,9 @@ public sealed class PlayTtsAction : ICommandAction
             Speaker: IsBotSpeaker(asField) ? TtsSpeaker.Bot : TtsSpeaker.Viewer,
             SpokenNames: SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName),
             Emotes: TtsViewerWords.EmotesIn(ctx.Variables, ctx.TriggeredByDisplayName),
-            SceneToken: sceneToken
+            SceneToken: sceneToken,
+            ProviderOverride: providerOverride,
+            BudgetShare: budgetShare
         );
 
         return (request, null);

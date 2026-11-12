@@ -44,6 +44,10 @@ public class TtsConfig : SoftDeletableEntity, ITenantScoped
     [MaxLength(20)]
     public string DefaultProvider { get; set; } = "edge";
 
+    public string ProviderBudgetsJson { get; set; } = "[]";
+
+    public string FallbackProvidersJson { get; set; } = "[]";
+
     /// <summary>
     /// Channel default voice (→ TtsVoice.Id); viewers may override per-user. Null = the channel never picked
     /// one and follows the platform default voice (plan item A4), resolved at read time so an admin change

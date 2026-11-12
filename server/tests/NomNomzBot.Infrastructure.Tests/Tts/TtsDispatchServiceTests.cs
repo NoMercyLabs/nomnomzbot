@@ -47,6 +47,457 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// </summary>
 public sealed class TtsDispatchServiceTests
 {
+    private static TtsProviderBudgetStatusDto Budget(string provider, int limit) =>
+        new(provider, limit, 0, limit, [new("default", limit, 0, limit)]);
+
+    private static ITtsProvider Provider(string name)
+    {
+        ITtsProvider provider = Substitute.For<ITtsProvider>();
+        provider
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Task.FromResult(
+                    new TtsSynthesisResult
+                    {
+                        AudioData = [1, 2, 3],
+                        DurationMs = 500,
+                        Provider = name,
+                        VoiceId = call.ArgAt<string>(1),
+                        ContentHash = "hash",
+                    }
+                )
+            );
+        provider
+            .SynthesizeSegmentsAsync(
+                Arg.Any<IReadOnlyList<TtsSegment>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Task.FromResult(
+                    new TtsSynthesisResult
+                    {
+                        AudioData = [1, 2, 3],
+                        DurationMs = 500,
+                        Provider = name,
+                        VoiceId = call.Arg<IReadOnlyList<TtsSegment>>()[0].VoiceId,
+                        ContentHash = "hash",
+                    }
+                )
+            );
+        return provider;
+    }
+
+    [Fact]
+    public async Task Budget_limit_speaks_with_next_provider_and_ledgers_reason()
+    {
+        Harness h = Build(
+            defaultProvider: "azure",
+            providerBudgets: [Budget("azure", 5), Budget("edge", 100)],
+            fallbackProviders: ["edge"]
+        );
+        h.Db.TtsUsageRecords.Add(
+            new TtsUsageRecord
+            {
+                BroadcasterId = Tenant,
+                UserId = Viewer,
+                Provider = "azure",
+                Share = "default",
+                CharacterCount = 5,
+                VoiceId = "default-voice",
+                OccurredAt = T0,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+        ITtsProvider edge = Provider("edge");
+        h.ByokProviders.CreateForChannelAsync(Tenant, "edge", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(edge));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Provider.Should().Be("edge");
+        TtsUsageRecord spoken = (
+            await h.Db.TtsUsageRecords.OrderByDescending(r => r.Id).FirstAsync()
+        );
+        spoken.Provider.Should().Be("edge");
+        spoken.FallbackReason.Should().Be("budget");
+        spoken.CharacterCount.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Provider_failure_speaks_with_next_provider_without_reject_event()
+    {
+        Harness h = Build(
+            defaultProvider: "azure",
+            providerBudgets: [Budget("azure", 50), Budget("edge", 50)],
+            fallbackProviders: ["edge"]
+        );
+        ITtsProvider azure = Provider("azure");
+        azure
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns<Task<TtsSynthesisResult>>(_ => throw new InvalidOperationException("down"));
+        h.ByokProviders.CreateForChannelAsync(Tenant, "azure", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(azure));
+        ITtsProvider edge = Provider("edge");
+        h.ByokProviders.CreateForChannelAsync(Tenant, "edge", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(edge));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Provider.Should().Be("edge");
+        (await h.Db.TtsUsageRecords.SingleAsync(r => !r.Failed))
+            .FallbackReason.Should()
+            .Be("provider_failure");
+        await h
+            .Bus.DidNotReceive()
+            .PublishAsync(Arg.Any<TtsUtteranceRejectedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Named_provider_and_share_are_used_for_one_line()
+    {
+        Harness h = Build(
+            providerBudgets:
+            [
+                new("azure", 100, 0, 100, [new("default", 60, 0, 60), new("journal", 40, 0, 40)]),
+            ]
+        );
+        ITtsProvider azure = Provider("azure");
+        h.ByokProviders.CreateForChannelAsync(Tenant, "azure", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(azure));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("entry") with
+            {
+                ProviderOverride = "azure",
+                BudgetShare = "journal",
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync();
+        row.Provider.Should().Be("azure");
+        row.Share.Should().Be("journal");
+    }
+
+    [Fact]
+    public async Task Named_elevenlabs_provider_uses_its_own_voice_for_the_line()
+    {
+        Harness h = Build(
+            defaultVoice: "en-US-AriaNeural",
+            providerBudgets: [Budget("elevenlabs", 50)]
+        );
+        h.Db.TtsVoices.Add(CatalogueVoice("eleven-voice", "en-US", provider: "elevenlabs"));
+        await h.Db.SaveChangesAsync();
+        ITtsProvider elevenlabs = Provider("elevenlabs");
+        elevenlabs
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Task.FromResult(
+                    new TtsSynthesisResult
+                    {
+                        AudioData = call.ArgAt<string>(1) == "eleven-voice" ? [1, 2, 3] : [],
+                        DurationMs = 500,
+                        Provider = "elevenlabs",
+                        VoiceId = call.ArgAt<string>(1),
+                        ContentHash = "hash",
+                    }
+                )
+            );
+        h.ByokProviders.CreateForChannelAsync(Tenant, "elevenlabs", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(elevenlabs));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hello") with
+            {
+                ProviderOverride = "elevenlabs",
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.VoiceId.Should().Be("eleven-voice");
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync();
+        row.Provider.Should().Be("elevenlabs");
+        row.VoiceId.Should().Be("eleven-voice");
+        await elevenlabs
+            .Received(1)
+            .SynthesizeAsync(
+                "hello",
+                "eleven-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Provider_failure_uses_a_voice_the_fallback_can_speak()
+    {
+        Harness h = Build(
+            defaultProvider: "elevenlabs",
+            defaultVoice: "eleven-voice",
+            providerBudgets: [Budget("elevenlabs", 50), Budget("edge", 50)],
+            fallbackProviders: ["edge"]
+        );
+        h.Db.TtsVoices.Add(CatalogueVoice("eleven-voice", "en-US", provider: "elevenlabs"));
+        await h.Db.SaveChangesAsync();
+        ITtsProvider elevenlabs = Provider("elevenlabs");
+        elevenlabs
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns<Task<TtsSynthesisResult>>(_ => throw new InvalidOperationException("down"));
+        h.ByokProviders.CreateForChannelAsync(Tenant, "elevenlabs", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(elevenlabs));
+        ITtsProvider edge = Provider("edge");
+        edge.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Task.FromResult(
+                    new TtsSynthesisResult
+                    {
+                        AudioData =
+                            call.ArgAt<string>(1) == TtsVoice.FallbackDefaultVoiceId
+                                ? [1, 2, 3]
+                                : [],
+                        DurationMs = 500,
+                        Provider = "edge",
+                        VoiceId = call.ArgAt<string>(1),
+                        ContentHash = "hash",
+                    }
+                )
+            );
+        h.ByokProviders.CreateForChannelAsync(Tenant, "edge", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(edge));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Provider.Should().Be("edge");
+        result.Value.VoiceId.Should().Be(TtsVoice.FallbackDefaultVoiceId);
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync(record => !record.Failed);
+        row.VoiceId.Should().Be(TtsVoice.FallbackDefaultVoiceId);
+        row.FallbackReason.Should().Be("provider_failure");
+    }
+
+    [Fact]
+    public async Task Named_provider_maps_each_block_to_a_voice_it_can_speak()
+    {
+        Harness h = Build(
+            defaultVoice: "en-US-AriaNeural",
+            providerBudgets: [Budget("elevenlabs", 50)]
+        );
+        h.Db.TtsVoices.Add(CatalogueVoice("eleven-voice", "en-US", provider: "elevenlabs"));
+        await h.Db.SaveChangesAsync();
+        ITtsProvider elevenlabs = Provider("elevenlabs");
+        elevenlabs
+            .SynthesizeSegmentsAsync(
+                Arg.Any<IReadOnlyList<TtsSegment>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                IReadOnlyList<TtsSegment> parts = call.Arg<IReadOnlyList<TtsSegment>>();
+                return Task.FromResult(
+                    new TtsSynthesisResult
+                    {
+                        AudioData = parts.All(part => part.VoiceId == "eleven-voice")
+                            ? [1, 2, 3]
+                            : [],
+                        DurationMs = 500,
+                        Provider = "elevenlabs",
+                        VoiceId = parts[0].VoiceId,
+                        ContentHash = "hash",
+                    }
+                );
+            });
+        h.ByokProviders.CreateForChannelAsync(Tenant, "elevenlabs", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(elevenlabs));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("unused") with
+            {
+                ProviderOverride = "elevenlabs",
+                Segments = [new("hello"), new("world")],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Provider.Should().Be("elevenlabs");
+        result.Value.VoiceId.Should().Be("eleven-voice");
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync();
+        row.Text.Should().Be("hello world");
+        row.VoiceId.Should().Be("eleven-voice");
+        IReadOnlyList<TtsSegment> spoken = elevenlabs
+            .ReceivedCalls()
+            .Where(call =>
+                call.GetMethodInfo().Name == nameof(ITtsProvider.SynthesizeSegmentsAsync)
+            )
+            .Select(call => (IReadOnlyList<TtsSegment>)call.GetArguments()[0]!)
+            .Single();
+        spoken.Select(part => part.VoiceId).Should().Equal("eleven-voice", "eleven-voice");
+    }
+
+    [Fact]
+    public async Task Exhausted_share_falls_back_while_the_provider_still_has_room()
+    {
+        Harness h = Build(
+            defaultProvider: "azure",
+            providerBudgets:
+            [
+                new("azure", 100, 0, 100, [new("default", 80, 0, 80), new("journal", 20, 0, 20)]),
+                Budget("edge", 100),
+            ],
+            fallbackProviders: ["edge"]
+        );
+        h.Db.TtsUsageRecords.Add(
+            new TtsUsageRecord
+            {
+                BroadcasterId = Tenant,
+                UserId = Viewer,
+                Provider = "azure",
+                Share = "journal",
+                CharacterCount = 20,
+                VoiceId = "default-voice",
+                OccurredAt = T0,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+        ITtsProvider edge = Provider("edge");
+        h.ByokProviders.CreateForChannelAsync(Tenant, "edge", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(edge));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("entry") with
+            {
+                BudgetShare = "journal",
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        TtsUsageRecord row = await h
+            .Db.TtsUsageRecords.OrderByDescending(item => item.Id)
+            .FirstAsync();
+        row.Provider.Should().Be("edge");
+        row.Share.Should().Be("default");
+        row.FallbackReason.Should().Be("budget");
+    }
+
+    [Fact]
+    public async Task Moderator_approval_keeps_the_named_provider_and_share()
+    {
+        Harness h = Build(
+            modApprovalRequired: true,
+            providerBudgets:
+            [
+                new("azure", 100, 0, 100, [new("default", 60, 0, 60), new("journal", 40, 0, 40)]),
+            ]
+        );
+        ITtsProvider azure = Provider("azure");
+        h.ByokProviders.CreateForChannelAsync(Tenant, "azure", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(azure));
+
+        Result<TtsDispatchOutcome> queued = await h.Service.RequestSpeakAsync(
+            Speak("entry") with
+            {
+                ProviderOverride = "azure",
+                BudgetShare = "journal",
+            }
+        );
+        TtsApprovalQueueEntry entry = await h.Db.TtsApprovalQueueEntries.SingleAsync();
+
+        queued.Value.Disposition.Should().Be(TtsDispatchDisposition.Queued);
+        entry.ProviderOverride.Should().Be("azure");
+        entry.BudgetShare.Should().Be("journal");
+        (await h.Service.ApproveAsync(Tenant, entry.Id, Guid.NewGuid()))
+            .IsSuccess.Should()
+            .BeTrue();
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync();
+        row.Provider.Should().Be("azure");
+        row.Share.Should().Be("journal");
+        row.WasModApproved.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Unknown_provider_is_a_validation_error_and_writes_no_ledger_row()
+    {
+        Harness h = Build(providerBudgets: [Budget("edge", 50)]);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hello") with
+            {
+                ProviderOverride = "unknown",
+            }
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Budget_warnings_fire_once_at_eighty_and_one_hundred_percent()
+    {
+        Harness h = Build(providerBudgets: [Budget("edge", 10)]);
+        ITtsProvider edge = Provider("edge");
+        h.ByokProviders.CreateForChannelAsync(Tenant, "edge", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(edge));
+
+        (await h.Service.RequestSpeakAsync(Speak("12345678"))).IsSuccess.Should().BeTrue();
+        (await h.Service.RequestSpeakAsync(Speak("90"))).IsSuccess.Should().BeTrue();
+        (await h.Service.RequestSpeakAsync(Speak("x"))).IsFailure.Should().BeTrue();
+
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsBudgetWarningEvent>(e =>
+                    e.Provider == "edge"
+                    && e.Share == null
+                    && e.ThresholdPercent == 80
+                    && e.UsedCharacters == 8
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsBudgetWarningEvent>(e =>
+                    e.Provider == "edge"
+                    && e.Share == null
+                    && e.ThresholdPercent == 100
+                    && e.UsedCharacters == 10
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static readonly Guid Tenant = Guid.Parse("019f2a00-0000-7000-8000-000000000001");
     private const string Viewer = "viewer-123";
     private static readonly DateTime T0 = new(2026, 7, 17, 8, 0, 0, DateTimeKind.Utc);
@@ -79,7 +530,9 @@ public sealed class TtsDispatchServiceTests
         Random? random = null,
         int cooldownSeconds = 0,
         IUsageMeteringService? usage = null,
-        ITtsSceneReservation? sceneReservation = null
+        ITtsSceneReservation? sceneReservation = null,
+        IReadOnlyList<TtsProviderBudgetStatusDto>? providerBudgets = null,
+        IReadOnlyList<string>? fallbackProviders = null
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -106,7 +559,9 @@ public sealed class TtsDispatchServiceTests
                         false,
                         null,
                         false,
-                        cooldownSeconds
+                        cooldownSeconds,
+                        providerBudgets,
+                        fallbackProviders
                     )
                 )
             );

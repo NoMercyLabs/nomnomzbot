@@ -1769,6 +1769,8 @@ interface NnzActionParams {
     text?: string;
     segments?: string;
     voice?: string;
+    provider?: string;
+    share?: string;
     as?: string;
     rate?: string;
     mode?: 'async' | 'sync';

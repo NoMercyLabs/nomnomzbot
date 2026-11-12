@@ -1241,6 +1241,8 @@
         "attention_audio_source_missing_live_title": "The Audio source is missing",
         "attention_audio_source_missing_live_message": "Sounds have nowhere to play. Add the Audio widget as a browser source in OBS.",
         "attention_tts_source_missing_title": "TTS has no TTS Caption page",
+        "attention_tts_budget_title": "Speech budget at {threshold}%",
+        "attention_tts_budget_message": "{provider} ({share}) used {used} of {limit} characters this month. Review the provider budget and fallback order.",
         "attention_tts_source_missing_message": "TTS plays only from the TTS Caption page. Add it as a browser source in OBS. Until then, TTS stays silent.",
         "attention_music_player_missing_title": "Add the Music Player to OBS",
         "attention_music_player_missing_message": "Music now plays on the Music Player widget. Add it as a browser source in OBS with its overlay URL. Until then, no music plays on stream.",

@@ -186,7 +186,9 @@ public sealed record TtsSpeakRequest(
     IReadOnlyList<string>? SpokenNames = null,
     bool AlreadyPaid = false,
     TtsSpokenEmotes? Emotes = null,
-    string? SceneToken = null
+    string? SceneToken = null,
+    string? ProviderOverride = null,
+    string? BudgetShare = null
 );
 
 /// <summary>

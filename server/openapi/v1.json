@@ -157627,6 +157627,44 @@
         },
         "description": "The per-channel thresholds an operator may tune (§L4.1: \"thresholds are per-channel tunable; the\r\ninvariant is not\"). Defaults are the spec's."
       },
+      "TtsBudgetShare": {
+        "required": ["name", "monthlyCharacters"],
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "monthlyCharacters": { "type": "integer", "format": "int32" }
+        }
+      },
+      "TtsProviderBudget": {
+        "required": ["provider", "monthlyCharacters", "shares"],
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string" },
+          "monthlyCharacters": { "type": "integer", "format": "int32" },
+          "shares": { "type": "array", "items": { "$ref": "#/components/schemas/TtsBudgetShare" } }
+        }
+      },
+      "TtsBudgetShareStatus": {
+        "required": ["name", "monthlyCharacters", "used", "remaining"],
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "monthlyCharacters": { "type": "integer", "format": "int32" },
+          "used": { "type": "integer", "format": "int32" },
+          "remaining": { "type": "integer", "format": "int32" }
+        }
+      },
+      "TtsProviderBudgetStatus": {
+        "required": ["provider", "monthlyCharacters", "used", "remaining", "shares"],
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string" },
+          "monthlyCharacters": { "type": "integer", "format": "int32" },
+          "used": { "type": "integer", "format": "int32" },
+          "remaining": { "type": "integer", "format": "int32" },
+          "shares": { "type": "array", "items": { "$ref": "#/components/schemas/TtsBudgetShareStatus" } }
+        }
+      },
       "TtsConfig": {
         "required": [
           "isEnabled",
@@ -157718,6 +157756,14 @@
               "string"
             ],
             "format": "int32"
+          },
+          "providerBudgets": {
+            "type": ["null", "array"],
+            "items": { "$ref": "#/components/schemas/TtsProviderBudgetStatus" }
+          },
+          "fallbackProviders": {
+            "type": ["null", "array"],
+            "items": { "type": "string" }
           }
         },
         "description": "TTS configuration for a channel (tts.md P.1). BYOK keys never leave the server — only their\r\npresence is surfaced, so the dashboard can show configured-state truthfully.\r\nDefaultVoiceId is the EFFECTIVE voice (the channel's own pick, else the platform default\r\nvoice), so the page never shows a voice the runtime does not speak; FollowsPlatformDefaultVoice\r\nsays which of the two it is."
@@ -161557,6 +161603,14 @@
               "string"
             ],
             "description": "Azure Cognitive Services region for the channel's BYOK key; an empty string clears it."
+          },
+          "providerBudgets": {
+            "type": ["null", "array"],
+            "items": { "$ref": "#/components/schemas/TtsProviderBudget" }
+          },
+          "fallbackProviders": {
+            "type": ["null", "array"],
+            "items": { "type": "string" }
           }
         },
         "description": "Request to update TTS configuration; every field optional — only what is sent changes."

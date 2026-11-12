@@ -113,3 +113,21 @@ public sealed class TtsUtteranceReviewedEvent : DomainEventBase
     /// <summary><c>approved</c> | <c>rejected</c>.</summary>
     public required string Decision { get; init; }
 }
+
+public sealed class TtsBudgetWarningEvent : DomainEventBase
+{
+    /// <summary>The provider whose monthly budget crossed a threshold.</summary>
+    public required string Provider { get; init; }
+
+    /// <summary>The named share, or null for the whole provider budget.</summary>
+    public string? Share { get; init; }
+
+    /// <summary>The crossed percentage: 80 or 100.</summary>
+    public required int ThresholdPercent { get; init; }
+
+    /// <summary>The budget limit in characters.</summary>
+    public required int MonthlyCharacters { get; init; }
+
+    /// <summary>Characters spoken this month after the crossing line.</summary>
+    public required int UsedCharacters { get; init; }
+}

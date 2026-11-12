@@ -108260,6 +108260,36 @@ export interface components {
             /** Format: double */
             establishedStrikeFreeDays?: number | string;
         };
+        TtsBudgetShare: {
+            name: string;
+            /** Format: int32 */
+            monthlyCharacters: number;
+        };
+        TtsProviderBudget: {
+            provider: string;
+            /** Format: int32 */
+            monthlyCharacters: number;
+            shares: components["schemas"]["TtsBudgetShare"][];
+        };
+        TtsBudgetShareStatus: {
+            name: string;
+            /** Format: int32 */
+            monthlyCharacters: number;
+            /** Format: int32 */
+            used: number;
+            /** Format: int32 */
+            remaining: number;
+        };
+        TtsProviderBudgetStatus: {
+            provider: string;
+            /** Format: int32 */
+            monthlyCharacters: number;
+            /** Format: int32 */
+            used: number;
+            /** Format: int32 */
+            remaining: number;
+            shares: components["schemas"]["TtsBudgetShareStatus"][];
+        };
         /**
          * @description TTS configuration for a channel (tts.md P.1). BYOK keys never leave the server — only their
          *     presence is surfaced, so the dashboard can show configured-state truthfully.
@@ -108288,6 +108318,8 @@ export interface components {
             followsPlatformDefaultVoice: boolean;
             /** Format: int32 */
             cooldownSeconds: number | string;
+            providerBudgets?: null | components["schemas"]["TtsProviderBudgetStatus"][];
+            fallbackProviders?: null | string[];
         };
         /**
          * @description What the TTS settings page may offer: the providers, dispatch modes and standings the update accepts, and
@@ -109379,6 +109411,8 @@ export interface components {
             viewerVoiceSelfServiceEnabled?: null | boolean;
             /** @description Azure Cognitive Services region for the channel's BYOK key; an empty string clears it. */
             azureRegion?: null | string;
+            providerBudgets?: null | components["schemas"]["TtsProviderBudget"][];
+            fallbackProviders?: null | string[];
         };
         /**
          * @description Update the channel's Twitch AutoMod levels. Twitch treats `OverallLevel` and the per-category

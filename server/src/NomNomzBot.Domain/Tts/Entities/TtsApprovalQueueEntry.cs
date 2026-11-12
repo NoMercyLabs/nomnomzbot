@@ -53,6 +53,12 @@ public class TtsApprovalQueueEntry : SoftDeletableEntity, ITenantScoped
     [MaxLength(20)]
     public string Provider { get; set; } = string.Empty;
 
+    [MaxLength(20)]
+    public string? ProviderOverride { get; set; }
+
+    [MaxLength(80)]
+    public string? BudgetShare { get; set; }
+
     /// <summary>Queue state: <c>pending</c> → <c>approved</c> / <c>rejected</c> / <c>expired</c>.</summary>
     [MaxLength(20)]
     public string Status { get; set; } = "pending";

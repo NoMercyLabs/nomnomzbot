@@ -33,6 +33,89 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// </summary>
 public sealed class TtsConfigServiceTests
 {
+    [Fact]
+    public async Task Budget_settings_return_ledger_usage_and_persist_fallback_order()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+        db.TtsUsageRecords.AddRange(
+            new TtsUsageRecord
+            {
+                BroadcasterId = Channel,
+                UserId = "viewer",
+                Provider = "azure",
+                Share = "bot",
+                VoiceId = "voice",
+                CharacterCount = 30,
+                OccurredAt = DateTime.UtcNow,
+            },
+            new TtsUsageRecord
+            {
+                BroadcasterId = Channel,
+                UserId = "viewer",
+                Provider = "azure",
+                Share = "journal",
+                VoiceId = "voice",
+                CharacterCount = 10,
+                OccurredAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<TtsConfigDto> saved = await sut.UpdateConfigAsync(
+            Channel,
+            new()
+            {
+                ProviderBudgets =
+                [
+                    new("azure", 100, [new("bot", 60), new("journal", 40)]),
+                    new("edge", 200, []),
+                    new("elevenlabs", 300, []),
+                ],
+                FallbackProviders = ["edge", "elevenlabs"],
+            }
+        );
+
+        saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+        saved.Value.ProviderBudgets.Should().HaveCount(3);
+        saved.Value.ProviderBudgets![0].Used.Should().Be(40);
+        saved.Value.ProviderBudgets[0].Remaining.Should().Be(60);
+        saved
+            .Value.ProviderBudgets[0]
+            .Shares.Single(s => s.Name == "bot")
+            .Remaining.Should()
+            .Be(30);
+        saved.Value.FallbackProviders.Should().Equal("edge", "elevenlabs");
+        (await sut.GetConfigAsync(Channel)).Value.ProviderBudgets![0].Used.Should().Be(40);
+    }
+
+    [Fact]
+    public async Task Share_sum_over_provider_budget_is_rejected_without_writing_config()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new() { ProviderBudgets = [new("azure", 100, [new("bot", 80), new("journal", 40)])] }
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.TtsConfigs.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Fallback_without_a_budget_is_rejected_in_settings()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new() { ProviderBudgets = [new("azure", 100, [])], FallbackProviders = ["edge"] }
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.TtsConfigs.CountAsync()).Should().Be(0);
+    }
+
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-000000000d01");
     private static readonly Guid DekId = Guid.Parse("0192a000-0000-7000-8000-000000000d0e");
 

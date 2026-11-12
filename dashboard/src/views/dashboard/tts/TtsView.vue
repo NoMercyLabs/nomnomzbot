@@ -28,6 +28,7 @@ import { useProviderName } from '@/composables/useProviderName';
 import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import HistoryPanel from './HistoryPanel.vue';
+import BudgetPanel from './BudgetPanel.vue';
 import KeysPanel from './KeysPanel.vue';
 import LexiconPanel from './LexiconPanel.vue';
 import RulesPanel from './RulesPanel.vue';
@@ -154,7 +155,10 @@ const rulesPanels = computed(
 );
 const keysPanels = computed(
   () =>
-    [{ id: 'keys', label: t('dashboard.tts.keys.title') }] as const satisfies readonly BoardPanel[],
+    [
+      { id: 'keys', label: t('dashboard.tts.keys.title') },
+      { id: 'budgets', label: t('dashboard.tts.budget.title') },
+    ] as const satisfies readonly BoardPanel[],
 );
 const pronunciationPanels = computed(
   () =>
@@ -270,9 +274,10 @@ const pronunciationPanels = computed(
   <TtsBoard
     v-else-if="view === 'keys' && can('tts:config:write')"
     :panels="keysPanels"
-    :spans="{ keys: 12 }"
-    :rows="1"
+    :spans="{ keys: 12, budgets: 12 }"
+    :rows="2"
   >
     <template #keys><KeysPanel /></template>
+    <template #budgets><BudgetPanel /></template>
   </TtsBoard>
 </template>
