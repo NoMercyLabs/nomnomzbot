@@ -15,7 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useTimers, type Timer } from '@/api/liveOps';
 import ListPanel from '@/components/layout/ListPanel.vue';
-import type { PanelState } from '@/composables/usePanelState';
+import EmptyState from '@/components/layout/EmptyState.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -35,12 +35,6 @@ const search = ref('');
 
 const panel = usePanelState(timers, (data: Timer[]): boolean =>
   data.length === 0);
-// The empty state holds a button, so the panel shows it as ready content.
-const state = computed<PanelState>(() =>
-  panel.value === 'empty'
-    ? 'ready'
-    : panel.value);
-const none = computed<boolean>(() => panel.value === 'empty');
 
 const rows = computed<Timer[]>(() => {
   const needle = search.value.trim().toLowerCase();
@@ -67,26 +61,26 @@ function detailOf(row: Timer): string {
       v-model="search"
       :title="$t('dashboard.timers.list.title')"
       :placeholder="$t('dashboard.timers.list.search')"
-      :state="state"
+      :state="panel"
       :error-text="$t('dashboard.timers.list.error')"
       @retry="timers.refetch()"
     >
-      <div
-        v-if="none"
-        data-slot="panel-empty"
-        class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
-      >
-        {{ $t('dashboard.timers.list.empty') }}
-        <Button v-if="can('timers:write')" type="button" size="sm" @click="emit('create')">{{
-          $t('dashboard.timers.list.makeFirst')
-        }}</Button>
-      </div>
-      <p v-else-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-        {{ $t('dashboard.timers.list.noMatch') }}
-      </p>
+      <template #empty>
+        <EmptyState kind="none" :description="$t('dashboard.timers.list.empty')">
+          <template v-if="can('timers:write')" #action>
+            <Button type="button" size="sm" variant="outline" @click="emit('create')">{{
+              $t('dashboard.timers.list.makeFirst')
+            }}</Button>
+          </template>
+        </EmptyState>
+      </template>
+      <EmptyState
+        v-if="rows.length === 0"
+        kind="noMatch"
+        :description="$t('dashboard.timers.list.noMatch')"
+      />
       <SummaryRow
         v-for="row in rows"
-        v-else
         :key="row.id"
         pick
         :selected="row.id === selected"

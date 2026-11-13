@@ -19,7 +19,7 @@ import { usePipelines, type PipelineListItem } from '@/api/pipelines';
 import ListPanel from '@/components/layout/ListPanel.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import type { PanelState } from '@/composables/usePanelState';
+import EmptyState from '@/components/layout/EmptyState.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
@@ -42,12 +42,6 @@ const search = ref('');
 
 const panel = usePanelState(pipelines, (data: PipelineListItem[]) =>
   data.length === 0);
-// The empty state holds a button, so the panel shows it as ready content.
-const state = computed<PanelState>(() =>
-  panel.value === 'empty'
-    ? 'ready'
-    : panel.value);
-const none = computed(() => panel.value === 'empty');
 
 const rows = computed(() => {
   const needle = search.value.trim().toLowerCase();
@@ -98,23 +92,24 @@ const creating = ref(false);
       v-model="search"
       :title="$t('dashboard.pipelines.list.title')"
       :placeholder="$t('dashboard.pipelines.list.search')"
-      :state="state"
+      :state="panel"
       :error-text="$t('dashboard.pipelines.list.error')"
       @retry="pipelines.refetch()"
     >
-      <div
-        v-if="none"
-        data-slot="panel-empty"
-        class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
-      >
-        {{ $t("dashboard.pipelines.list.empty") }}
-        <Button v-if="canWrite" type="button" size="sm" @click="creating = true">
-          {{ $t("dashboard.pipelines.list.makeFirst") }}
-        </Button>
-      </div>
-      <p v-else-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-        {{ $t("dashboard.pipelines.list.noMatch") }}
-      </p>
+      <template #empty>
+        <EmptyState kind="none" :description="$t('dashboard.pipelines.list.empty')">
+          <template v-if="canWrite" #action>
+            <Button type="button" size="sm" variant="outline" @click="creating = true">
+              {{ $t("dashboard.pipelines.list.makeFirst") }}
+            </Button>
+          </template>
+        </EmptyState>
+      </template>
+      <EmptyState
+        v-if="rows.length === 0"
+        kind="noMatch"
+        :description="$t('dashboard.pipelines.list.noMatch')"
+      />
       <SummaryRow
         v-for="row in rows"
         v-else

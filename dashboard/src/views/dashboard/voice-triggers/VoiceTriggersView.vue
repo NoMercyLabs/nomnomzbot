@@ -25,7 +25,7 @@ import ListDetail from '@/components/layout/ListDetail.vue';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import type { PanelState } from '@/composables/usePanelState';
+import EmptyState from '@/components/layout/EmptyState.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -50,12 +50,6 @@ const remove = useDeleteVoiceTrigger(channelId);
 
 const panel = usePanelState(triggers, (data: VoiceTrigger[]): boolean =>
   data.length === 0);
-// The empty state holds a button, so the panel shows it as ready content.
-const state = computed<PanelState>(() =>
-  panel.value === 'empty'
-    ? 'ready'
-    : panel.value);
-const none = computed<boolean>(() => panel.value === 'empty');
 
 const pane = useQueryPane('voice');
 const selected = pane.id;
@@ -96,7 +90,7 @@ function removeTrigger(item: VoiceTrigger): void {
     <template #list>
       <PanelCard
         :title="$t('dashboard.voiceTriggers.list.title')"
-        :state="state"
+        :state="panel"
         :error-text="$t('dashboard.voiceTriggers.list.error')"
         @retry="triggers.refetch()"
       >
@@ -107,19 +101,17 @@ function removeTrigger(item: VoiceTrigger): void {
             :label="$t('dashboard.voiceTriggers.list.copyListener')"
           />
         </template>
-        <div
-          v-if="none"
-          data-slot="panel-empty"
-          class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
-        >
-          {{ $t('dashboard.voiceTriggers.list.empty') }}
-          <Button v-if="canWrite" type="button" size="sm" @click="creating = true">{{
-            $t('dashboard.voiceTriggers.list.makeFirst')
-          }}</Button>
-        </div>
+        <template #empty>
+          <EmptyState kind="none" :description="$t('dashboard.voiceTriggers.list.empty')">
+            <template v-if="canWrite" #action>
+              <Button type="button" size="sm" variant="outline" @click="creating = true">{{
+                $t('dashboard.voiceTriggers.list.makeFirst')
+              }}</Button>
+            </template>
+          </EmptyState>
+        </template>
         <SummaryRow
           v-for="item in triggers.data.value ?? []"
-          v-else
           :key="item.id"
           pick
           :selected="item.id === selected"

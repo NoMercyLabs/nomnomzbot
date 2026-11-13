@@ -18,6 +18,7 @@ import { computed, ref, watch } from 'vue';
 
 import Cross from '~icons/nnz/cross';
 
+import EmptyState from '@/components/layout/EmptyState.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDrawerClose } from '@/composables/useDrawerClose';
@@ -173,14 +174,13 @@ watch(
           <Skeleton v-for="line in 3" :key="line" class="h-11 rounded-[12px]" />
         </template>
       </div>
-      <div
+      <slot v-else-if="state === 'empty' && $slots.empty" name="empty" />
+      <EmptyState
         v-else-if="state === 'empty'"
-        data-slot="panel-empty"
-        class="text-sm text-muted-foreground"
-        :class="bare ? '' : 'flex h-full flex-col items-center justify-center gap-1 p-4 text-center'"
-      >
-        {{ emptyText ?? $t('common.panel.empty') }}
-      </div>
+        :bare="bare"
+        :icon="false"
+        :description="emptyText ?? $t('common.panel.empty')"
+      />
       <div
         v-else
         data-slot="panel-error"

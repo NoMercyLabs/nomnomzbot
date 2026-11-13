@@ -16,7 +16,7 @@ import { computed } from 'vue';
 import { useChatTriggers, useDeleteChatTrigger, type ChatTrigger } from '@/api/chatTriggers';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import type { PanelState } from '@/composables/usePanelState';
+import EmptyState from '@/components/layout/EmptyState.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -37,12 +37,6 @@ const remove = useDeleteChatTrigger(channelId);
 
 const panel = usePanelState(triggers, (data: ChatTrigger[]): boolean =>
   data.length === 0);
-// The empty state holds a button, so the panel shows it as ready content.
-const state = computed<PanelState>(() =>
-  panel.value === 'empty'
-    ? 'ready'
-    : panel.value);
-const none = computed<boolean>(() => panel.value === 'empty');
 
 const pane = useQueryPane('trigger');
 const selected = pane.id;
@@ -61,23 +55,21 @@ function removeTrigger(item: ChatTrigger): void {
     <template #list>
       <PanelCard
         :title="$t('dashboard.timers.triggers.list.title')"
-        :state="state"
+        :state="panel"
         :error-text="$t('dashboard.timers.triggers.list.error')"
         @retry="triggers.refetch()"
       >
-        <div
-          v-if="none"
-          data-slot="panel-empty"
-          class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
-        >
-          {{ $t('dashboard.timers.triggers.list.empty') }}
-          <Button v-if="can('chattriggers:write')" type="button" size="sm" @click="creating = true">{{
-            $t('dashboard.timers.triggers.list.makeFirst')
-          }}</Button>
-        </div>
+        <template #empty>
+          <EmptyState kind="none" :description="$t('dashboard.timers.triggers.list.empty')">
+            <template v-if="can('chattriggers:write')" #action>
+              <Button type="button" size="sm" variant="outline" @click="creating = true">{{
+                $t('dashboard.timers.triggers.list.makeFirst')
+              }}</Button>
+            </template>
+          </EmptyState>
+        </template>
         <SummaryRow
           v-for="item in triggers.data.value ?? []"
-          v-else
           :key="item.id"
           pick
           :selected="item.id === selected"

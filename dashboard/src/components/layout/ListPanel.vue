@@ -66,6 +66,9 @@ const search = defineModel<string>({ default: '' });
       />
     </template>
     <slot />
+    <template v-if="$slots.empty" #empty>
+      <slot name="empty" />
+    </template>
     <template v-if="$slots.footer" #footer>
       <slot name="footer" />
     </template>

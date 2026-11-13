@@ -26,7 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
-import type { PanelState } from '@/composables/usePanelState';
+import EmptyState from '@/components/layout/EmptyState.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -64,12 +64,6 @@ const search = ref('');
 
 const panel = usePanelState(commands, (data: CommandListItem[]): boolean =>
   data.length === 0);
-// The empty state holds a button, so the panel shows it as ready content.
-const state = computed<PanelState>(() =>
-  panel.value === 'empty'
-    ? 'ready'
-    : panel.value);
-const none = computed<boolean>(() => panel.value === 'empty');
 
 function matches(row: CommandListItem, needle: string): boolean {
   return [row.name, ...row.aliases].some((word): boolean => word.toLowerCase().includes(needle));
@@ -158,56 +152,66 @@ function detailOf(row: CommandListItem): string {
       :title="$t('dashboard.commands.list.title')"
       :placeholder="$t('dashboard.commands.list.search')"
       :headless="!tablet"
-      :state="state"
+      :state="panel"
       :error-text="$t('dashboard.commands.list.error')"
       @retry="commands.refetch()"
     >
+      <template #empty>
+        <EmptyState kind="none" :description="$t('dashboard.commands.list.empty')">
+          <template v-if="can('commands:write')" #action>
+            <Button type="button" size="sm" variant="outline" @click="emit('create')">{{
+              $t("dashboard.commands.list.makeFirst")
+            }}</Button>
+          </template>
+        </EmptyState>
+      </template>
       <div
-        v-if="none"
-        data-slot="panel-empty"
-        class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
+        v-if="duplicates > 0"
+        class="flex flex-col items-start gap-2 px-4 py-2"
       >
-        {{ $t("dashboard.commands.list.empty") }}
-        <Button v-if="can('commands:write')" type="button" size="sm" @click="emit('create')">{{
-          $t("dashboard.commands.list.makeFirst")
-        }}</Button>
-      </div>
-      <template v-else>
-        <div
-          v-if="duplicates > 0"
-          class="flex flex-col items-start gap-2 px-4 py-2"
-        >
-          <p data-system-duplicates class="text-sm text-muted-foreground">
-            {{ $t("dashboard.commands.list.duplicates", { count: duplicates, total: all.length }) }}
-          </p>
-          <Button
-            v-if="can('commands:write')"
-            type="button"
-            size="sm"
-            variant="outline"
-            :disabled="removeCommand.isPending.value"
-            @click="moveOpen = true"
-          >
-            {{ $t("dashboard.commands.list.moveCopies") }}
-          </Button>
-        </div>
-        <p v-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-          {{ $t("dashboard.commands.list.noMatch") }}
+        <p data-system-duplicates class="text-sm text-muted-foreground">
+          {{ $t("dashboard.commands.list.duplicates", { count: duplicates, total: all.length }) }}
         </p>
-        <SummaryRow
-          v-for="row in rows"
-          :key="row.id"
-          pick
-          :selected="row.name === selected"
-          :title="`!${row.name}`"
-          :detail="detailOf(row)"
-          data-command-row
-          :data-command-name="row.name"
-          @click="emit('pick', row.name)"
+        <Button
+          v-if="can('commands:write')"
+          type="button"
+          size="sm"
+          variant="outline"
+          :disabled="removeCommand.isPending.value"
+          @click="moveOpen = true"
         >
-          <!-- From the tablet width the chips sit beside the switch; on a phone they sit under the name, so
+          {{ $t("dashboard.commands.list.moveCopies") }}
+        </Button>
+      </div>
+      <EmptyState
+        v-if="rows.length === 0"
+        kind="noMatch"
+        :description="$t('dashboard.commands.list.noMatch')"
+      />
+      <SummaryRow
+        v-for="row in rows"
+        :key="row.id"
+        pick
+        :selected="row.name === selected"
+        :title="`!${row.name}`"
+        :detail="detailOf(row)"
+        data-command-row
+        :data-command-name="row.name"
+        @click="emit('pick', row.name)"
+      >
+        <!-- From the tablet width the chips sit beside the switch; on a phone they sit under the name, so
                the switch column keeps one x position on every row. -->
-          <template v-if="tablet && (!row.isEnabled || systemTwin(row))" #end>
+        <template v-if="tablet && (!row.isEnabled || systemTwin(row))" #end>
+          <StatusBadge
+            v-if="systemTwin(row)"
+            data-system-duplicate
+            tone="off"
+            :label="$t('dashboard.commands.list.repeats', { name: `!${systemTwin(row)}` })"
+          />
+          <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.commands.list.off')" />
+        </template>
+        <template v-if="!tablet && (!row.isEnabled || systemTwin(row))" #meta>
+          <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <StatusBadge
               v-if="systemTwin(row)"
               data-system-duplicate
@@ -215,27 +219,16 @@ function detailOf(row: CommandListItem): string {
               :label="$t('dashboard.commands.list.repeats', { name: `!${systemTwin(row)}` })"
             />
             <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.commands.list.off')" />
-          </template>
-          <template v-if="!tablet && (!row.isEnabled || systemTwin(row))" #meta>
-            <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <StatusBadge
-                v-if="systemTwin(row)"
-                data-system-duplicate
-                tone="off"
-                :label="$t('dashboard.commands.list.repeats', { name: `!${systemTwin(row)}` })"
-              />
-              <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.commands.list.off')" />
-            </span>
-          </template>
-          <template v-if="can('commands:write')" #trailing>
-            <Switch
-              :model-value="row.isEnabled"
-              :aria-label="`!${row.name}`"
-              @update:model-value="toggle(row.name, $event)"
-            />
-          </template>
-        </SummaryRow>
-      </template>
+          </span>
+        </template>
+        <template v-if="can('commands:write')" #trailing>
+          <Switch
+            :model-value="row.isEnabled"
+            :aria-label="`!${row.name}`"
+            @update:model-value="toggle(row.name, $event)"
+          />
+        </template>
+      </SummaryRow>
     </ListPanel>
     <ConfirmDialog
       v-model:open="moveOpen"

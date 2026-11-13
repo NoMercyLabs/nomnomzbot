@@ -106,6 +106,29 @@ describe('the panel card states', () => {
     expect(wrapper.text()).toContain('the rows');
   });
 
+  it('puts the empty slot inside the empty state, with its action', () => {
+    const wrapper = mount(PanelCard, {
+      props: {
+        title: 'Chat',
+        state: 'empty',
+      },
+      slots: {
+        empty: '<div data-slot="panel-empty" data-empty-kind="none"><button data-make>Make one</button></div>',
+      },
+      global: { plugins: [i18n] },
+    });
+
+    expect(wrapper.findAll('[data-slot="panel-empty"]')).toHaveLength(1);
+    expect(wrapper.find('[data-slot="panel-empty"] button[data-make]').text()).toBe('Make one');
+  });
+
+  it('renders the empty text through the empty state with its kind', () => {
+    const empty = panel('empty', { emptyText: 'No commands yet.' }).find('[data-slot="panel-empty"]');
+
+    expect(empty.attributes('data-empty-kind')).toBe('none');
+    expect(empty.text()).toBe('No commands yet.');
+  });
+
   it('shows the empty text it is given, else the shared words', () => {
     expect(panel('empty', { emptyText: 'No commands yet.' }).text()).toContain('No commands yet.');
     expect(panel('empty').text()).toContain('Nothing here yet.');
