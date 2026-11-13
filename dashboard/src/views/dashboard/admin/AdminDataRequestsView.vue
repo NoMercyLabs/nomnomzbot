@@ -27,6 +27,7 @@ import {
   type ErasureRequest,
 } from '@/api/adminDataRequests';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
@@ -170,8 +171,8 @@ async function submit(): Promise<void> {
 
 <template>
   <PageHeader :title="$t('dashboard.admin.dataRequests.title')" :crumb="$t('dashboard.admin.crumb')" />
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <div class="flex flex-wrap items-center gap-2">
+  <PageBody dense data-page-body>
+    <div data-page-inset class="flex flex-wrap items-center gap-2">
       <Select v-model="status">
         <SelectTrigger
           data-status-filter
@@ -205,6 +206,7 @@ async function submit(): Promise<void> {
 
     <PanelCard
       tier="lead"
+      class="min-h-80 min-w-0 flex-1"
       :title="$t('dashboard.admin.dataRequests.list.title')"
       :description="$t('dashboard.admin.dataRequests.list.description')"
       :state="listState"
@@ -260,5 +262,5 @@ async function submit(): Promise<void> {
       @update:open="close"
       @submit="submit"
     />
-  </div>
+  </PageBody>
 </template>

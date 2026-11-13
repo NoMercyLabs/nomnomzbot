@@ -24,6 +24,7 @@ import {
   useStartPlatformBotReconnect,
 } from '@/api/adminPlatformBot';
 import { isBotLoginWaiting } from '@/api/whiteLabelBot';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
@@ -129,7 +130,7 @@ async function checkApproval(): Promise<void> {
 
 <template>
   <PageHeader :title="$t('dashboard.admin.platformBot.title')" :crumb="$t('dashboard.admin.crumb')" />
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
+  <PageBody data-page-body>
     <PanelCard
       tier="lead"
       :title="$t('dashboard.admin.platformBot.state.title')"
@@ -210,5 +211,5 @@ async function checkApproval(): Promise<void> {
         </div>
       </template>
     </PanelCard>
-  </div>
+  </PageBody>
 </template>

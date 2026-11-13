@@ -31,6 +31,7 @@ import DateTime from '@/components/layout/DateTime.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
@@ -205,7 +206,7 @@ async function submit(): Promise<void> {
     :title="$t('dashboard.admin.eventReplay.title')"
     :crumb="$t('dashboard.admin.crumb')"
   />
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
+  <PageBody data-page-body>
     <PanelCard
       tier="lead"
       :title="$t('dashboard.admin.eventReplay.scope.title')"
@@ -324,5 +325,5 @@ async function submit(): Promise<void> {
       @update:open="close"
       @submit="submit"
     />
-  </div>
+  </PageBody>
 </template>

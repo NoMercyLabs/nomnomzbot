@@ -23,16 +23,11 @@ import { useAdminTenants, type AdminTenant, type AdminTenantsParams } from '@/ap
 import { ApiError } from '@/api/errors';
 import FilterBar from '@/components/layout/FilterBar.vue';
 import type { FilterOption } from '@/components/layout/filterOption';
-import PageActionFooter from '@/components/layout/PageActionFooter.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelBeside from '@/components/layout/PanelBeside.vue';
-import ListPanel from '@/components/layout/ListPanel.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
-import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 import { useQueryPane } from '@/composables/useQueryPane';
 
-import AdminPager from './components/AdminPager.vue';
+import AdminCollectionPage from './components/AdminCollectionPage.vue';
 import SupportContactPanel from './components/SupportContactPanel.vue';
 import TenantDetailPanel from './components/TenantDetailPanel.vue';
 import TenantsTable from './components/TenantsTable.vue';
@@ -41,7 +36,6 @@ const PAGE_SIZE: number = 25;
 const SEARCH_PAUSE_MS: number = 300;
 
 const { t } = useI18n();
-const tablet = useScreenFrom('tablet');
 const route = useRoute();
 const router = useRouter();
 
@@ -93,6 +87,10 @@ const statusOptions = computed<FilterOption[]>(() =>
 const liveOptions = computed<FilterOption[]>(() =>
   optionsOf('live', ['all', 'live', 'offline']));
 
+const count = computed<string | undefined>(() =>
+  tenants.data.value
+    ? t('dashboard.admin.tenants.count', { count: total.value })
+    : undefined);
 const panelState = usePanelState(tenants, (data) =>
   (data.data?.length ?? 0) === 0);
 const listError = computed<string>(() =>
@@ -132,12 +130,22 @@ function open({ userId, channel }: AdminTenant): void {
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.admin.tenants.title')" :crumb="$t('dashboard.admin.crumb')">
-    <template #status>
-      <span v-if="tenants.data.value" class="text-sm text-muted-foreground tabular-nums">
-        {{ $t('dashboard.admin.tenants.count', { count: total }) }}
-      </span>
-    </template>
+  <AdminCollectionPage
+    v-model:search="search"
+    :title="$t('dashboard.admin.tenants.title')"
+    :count="count"
+    :page="page"
+    :pages="pages"
+    :state="panelState"
+    :list-title="$t('dashboard.admin.tenants.list.title')"
+    :search-placeholder="$t('dashboard.admin.tenants.search')"
+    :description="$t('dashboard.admin.tenants.list.newestFirst')"
+    :empty-text="$t('dashboard.admin.tenants.list.empty')"
+    :error-text="listError"
+    @previous="page -= 1"
+    @next="page += 1"
+    @retry="tenants.refetch()"
+  >
     <template #bar>
       <div class="flex min-w-0 flex-1 items-center gap-x-4 gap-y-2 max-md:flex-wrap md:overflow-x-auto md:scrollbar-none md:justify-end">
         <div class="flex shrink-0 items-center gap-2">
@@ -172,36 +180,14 @@ function open({ userId, channel }: AdminTenant): void {
         </div>
       </div>
     </template>
-  </PageHeader>
-  <PanelBeside>
-    <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-      <ListPanel
-        v-model="search"
-        tier="lead"
-        class="min-h-80 min-w-0 flex-1"
-        :title="$t('dashboard.admin.tenants.list.title')"
-        :placeholder="$t('dashboard.admin.tenants.search')"
-        :description="$t('dashboard.admin.tenants.list.newestFirst')"
-        :state="panelState"
-        :empty-text="$t('dashboard.admin.tenants.list.empty')"
-        :error-text="listError"
-        @retry="tenants.refetch()"
-      >
-        <TenantsTable :rows="rows" :selected-id="selectedId" @open="open" />
-        <template v-if="tablet" #footer>
-          <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-        </template>
-      </ListPanel>
-      <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
-      <PageActionFooter v-if="!tablet">
-        <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-      </PageActionFooter>
+    <TenantsTable :rows="rows" :selected-id="selectedId" @open="open" />
+    <template #secondary>
       <SupportContactPanel />
-    </div>
+    </template>
     <template #panel>
       <SidePanel v-model:open="detailOpen" :label="$t('dashboard.admin.tenants.detail.title')">
         <TenantDetailPanel v-if="selected" :tenant="selected" />
       </SidePanel>
     </template>
-  </PanelBeside>
+  </AdminCollectionPage>
 </template>

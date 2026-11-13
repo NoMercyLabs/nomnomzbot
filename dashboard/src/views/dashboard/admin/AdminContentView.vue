@@ -26,6 +26,7 @@ import {
   type ContentDefinition,
 } from '@/api/adminContent';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
@@ -194,8 +195,8 @@ async function submit(): Promise<void> {
       <Button v-if="can('content:author')" @click="openCreate">{{ $t("dashboard.admin.content.create.open") }}</Button>
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <div class="grid gap-1.5">
+  <PageBody data-page-body>
+    <div data-page-inset class="grid gap-1.5">
       <Label for="content-kind">{{ $t("dashboard.admin.content.kindFilter") }}</Label>
       <Input
         id="content-kind"
@@ -335,5 +336,5 @@ async function submit(): Promise<void> {
         />
       </div>
     </FormDialog>
-  </div>
+  </PageBody>
 </template>

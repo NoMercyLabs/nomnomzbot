@@ -37,6 +37,22 @@ function allPaths(folder: string): string[] {
   });
 }
 
+const specializedPageBodies = new Set<string>([
+  'views/dashboard/chat/ChatView.vue',
+  'views/dashboard/chat/ExternalChatView.vue',
+  'views/dashboard/economy/EconomyView.vue',
+  'views/dashboard/pipelines/PipelinesView.vue',
+  'views/dashboard/pipelines/WorkbenchView.vue',
+  'views/dashboard/stream/StreamView.vue',
+  'views/dashboard/tts/TtsBoard.vue',
+]);
+
+function writesPlainPageBody(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return /<(div|section)\b[^>]*\bdata-page-body\b/.test(text);
+}
+
 // Section 2a of frontend-vue-foundation.md: code lives by topic, never in a grab bag.
 describe('folder layout', () => {
   it('keeps lib/utils.ts to the cn() that shadcn-vue needs', () => {
@@ -257,7 +273,7 @@ describe('folder layout', () => {
     const bodies = [
       'components/layout/BoardGrid.vue',
       'views/dashboard/chat/ChatView.vue',
-      'views/dashboard/admin/AdminTenantsView.vue',
+      'views/dashboard/admin/components/AdminCollectionPage.vue',
       'components/layout/ListDetail.vue',
     ];
 
@@ -287,6 +303,23 @@ describe('folder layout', () => {
       .map((path) => relative(src, path));
 
     expect(offenders).toEqual([]);
+  });
+
+  // Aaoa's design-system-layout-todo P1: a page body is PageBody (or BoardGrid, ListDetail, AdminCollectionPage),
+  // never a plain element that repeats its classes. These specialized bodies keep their own markup; a body that
+  // becomes PageBody leaves the list (below).
+  it('writes data-page-body on a plain element only in the specialized bodies', () => {
+    const offenders = viewFiles()
+      .filter((path) => writesPlainPageBody(path))
+      .filter((path) => !specializedPageBodies.has(path));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps no clean file on the specialized page body list', () => {
+    const stale = Array.from(specializedPageBodies).filter((path) => !writesPlainPageBody(path));
+
+    expect(stale).toEqual([]);
   });
 
   // A search field or a back button outside a panel would touch the screen edge once the body drops its margin;

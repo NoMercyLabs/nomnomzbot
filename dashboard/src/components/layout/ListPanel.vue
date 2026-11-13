@@ -19,7 +19,8 @@ import type { PanelState } from '@/composables/usePanelState';
 withDefaults(
   defineProps<{
     title: string;
-    placeholder: string;
+    // Absent: the panel keeps its head without a search (a page that searches elsewhere or has no search).
+    placeholder?: string;
     description?: string;
     state?: PanelState;
     emptyText?: string;
@@ -28,6 +29,7 @@ withDefaults(
     headless?: boolean;
   }>(),
   {
+    placeholder: undefined,
     description: undefined,
     state: 'ready',
     emptyText: undefined,
@@ -59,6 +61,7 @@ const search = defineModel<string>({ default: '' });
       <slot name="actions" />
       <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
       <SearchField
+        v-if="placeholder !== undefined"
         v-model="search"
         class="-mr-2 w-52 rounded-[12px]"
         :placeholder="placeholder"

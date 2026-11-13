@@ -9,13 +9,15 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// A paged admin list: header with the result count, a dense body, filters and a notice above one lead panel, and
-// the pager. The pager sits in the panel footer from the tablet width up and in the sticky page footer on a phone.
-// The page keeps its data, its panel state and its table.
+// A paged admin list: header with the result count (and a filter bar in the header's bar slot), a dense body,
+// filters and a notice above one lead panel with an optional search, and the pager. The pager sits in the panel
+// footer from the tablet width up and in the sticky page footer on a phone. A panel slot opens a detail beside the
+// list. The page keeps its data, its panel state and its table.
+import ListPanel from '@/components/layout/ListPanel.vue';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
+import PanelBeside from '@/components/layout/PanelBeside.vue';
 import { useScreenFrom } from '@/composables/useLayout';
 import type { PanelState } from '@/composables/usePanelState';
 
@@ -32,7 +34,11 @@ defineProps<{
   description?: string;
   emptyText?: string;
   errorText?: string;
+  // Set: the lead panel carries a search field, bound to v-model:search.
+  searchPlaceholder?: string;
 }>();
+
+const search = defineModel<string>('search', { default: '' });
 
 defineEmits<{
   previous: [];
@@ -48,29 +54,39 @@ const tablet = useScreenFrom('tablet');
     <template #status>
       <span v-if="count" class="text-sm text-muted-foreground tabular-nums">{{ count }}</span>
     </template>
+    <template v-if="$slots.bar" #bar>
+      <slot name="bar" />
+    </template>
   </PageHeader>
-  <PageBody dense data-page-body>
-    <slot name="filters" />
-    <slot name="notice" />
-    <PanelCard
-      tier="lead"
-      class="min-h-80 min-w-0 flex-1"
-      :title="listTitle"
-      :description="description"
-      :state="state"
-      :empty-text="emptyText"
-      :error-text="errorText"
-      @retry="$emit('retry')"
-    >
-      <slot />
-      <template v-if="tablet" #footer>
+  <PanelBeside>
+    <PageBody dense data-page-body>
+      <slot name="filters" />
+      <slot name="notice" />
+      <ListPanel
+        v-model="search"
+        tier="lead"
+        class="min-h-80 min-w-0 flex-1"
+        :title="listTitle"
+        :placeholder="searchPlaceholder"
+        :description="description"
+        :state="state"
+        :empty-text="emptyText"
+        :error-text="errorText"
+        @retry="$emit('retry')"
+      >
+        <slot />
+        <template v-if="tablet" #footer>
+          <AdminPager :page="page" :pages="pages" @previous="$emit('previous')" @next="$emit('next')" />
+        </template>
+      </ListPanel>
+      <slot name="secondary" />
+      <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
+      <PageActionFooter v-if="!tablet">
         <AdminPager :page="page" :pages="pages" @previous="$emit('previous')" @next="$emit('next')" />
-      </template>
-    </PanelCard>
-    <slot name="secondary" />
-    <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
-    <PageActionFooter v-if="!tablet">
-      <AdminPager :page="page" :pages="pages" @previous="$emit('previous')" @next="$emit('next')" />
-    </PageActionFooter>
-  </PageBody>
+      </PageActionFooter>
+    </PageBody>
+    <template #panel>
+      <slot name="panel" />
+    </template>
+  </PanelBeside>
 </template>

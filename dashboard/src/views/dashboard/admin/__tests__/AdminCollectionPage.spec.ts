@@ -118,6 +118,48 @@ describe('the admin collection page', () => {
     expect(wrapper.emitted('previous')).toHaveLength(1);
   });
 
+  it('puts a search in the lead panel head, a bar in the header and a detail panel beside the list', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+    setWidth(laptopWidth);
+
+    mounted = mount(AdminCollectionPage, {
+      attachTo: document.body,
+      props: {
+        title: 'Tenants',
+        page: 1,
+        pages: 1,
+        state: 'ready',
+        listTitle: 'People',
+        searchPlaceholder: 'Find a tenant',
+      },
+      slots: {
+        bar: () => h('div', { 'data-test': 'bar' }, 'Bar'),
+        panel: () => h('aside', { 'data-test': 'detail' }, 'Detail'),
+        default: () => h('table'),
+      },
+      global: { plugins: [i18n] },
+    });
+
+    await flushPromises();
+
+    expect(mounted.find('header [data-test=bar]').exists()).toBe(true);
+    expect(mounted.find('[data-slot=panel-beside] [data-test=detail]').exists()).toBe(true);
+
+    const field = mounted.find('[data-slot=panel-card] input');
+
+    expect(field.attributes('placeholder')).toBe('Find a tenant');
+
+    await field.setValue('kit');
+
+    expect(mounted.emitted('update:search')).toEqual([['kit']]);
+  });
+
+  it('shows no search field in the lead panel head without a placeholder', async () => {
+    const wrapper = await open(laptopWidth);
+
+    expect(wrapper.find('[data-slot=panel-card] input').exists()).toBe(false);
+  });
+
   it('emits retry from the error state', async () => {
     document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
     setWidth(laptopWidth);
