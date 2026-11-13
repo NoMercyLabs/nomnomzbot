@@ -43,9 +43,9 @@ const open = ref(false);
 <template>
   <Drawer v-model:open="open">
     <DrawerTrigger as-child>
-      <Button variant="ghost" class="flex-1 h-auto! min-h-11 min-w-0 flex-col gap-1! px-1! py-1.5 text-xs">
+      <Button variant="ghost" class="flex-1 h-auto! min-h-11 min-w-0 flex-col gap-1! px-1! py-1.5 text-xs no-underline!">
         <MenuDotsHorizontal class="size-5" aria-hidden="true" />
-        <span class="min-w-0 max-w-full text-center leading-tight">{{ t('frame.nav.more') }}</span>
+        <span class="min-w-0 max-w-full truncate text-center leading-tight">{{ t('frame.nav.more') }}</span>
       </Button>
     </DrawerTrigger>
     <DrawerContent data-slot="more-drawer">

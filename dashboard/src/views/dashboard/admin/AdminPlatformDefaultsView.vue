@@ -41,7 +41,7 @@ function jumpTo(key: string): void {
     :title="$t('dashboard.admin.platformDefaults.title')"
     :crumb="$t('dashboard.admin.platformDefaults.crumb')"
   />
-  <PageBody>
+  <PageBody data-page-body>
     <p class="text-sm text-muted-foreground">
       {{ $t("dashboard.admin.platformDefaults.explain") }}
     </p>

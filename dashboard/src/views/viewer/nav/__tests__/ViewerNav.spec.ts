@@ -102,6 +102,8 @@ describe('ViewerNav', () => {
       const more = wrapper.findAll('button').filter((button) => button.text() === 'More');
 
       expect(more).toHaveLength(1);
+      // The More tab reads as a tab, like the four links beside it: no underline.
+      expect(more[0]?.classes()).toContain('no-underline!');
 
       const hidden = wrapper.findAll('a span').filter((span) => span.classes().includes('max-md:sr-only'));
 

@@ -53,7 +53,7 @@ const uptime = computed<string>(() => {
 
 <template>
   <PageHeader :title="$t('dashboard.admin.overview.title')" :crumb="$t('dashboard.admin.crumb')" />
-  <PageBody>
+  <PageBody data-page-body>
     <PanelCard
       tier="lead"
       :title="$t('dashboard.admin.overview.panel')"

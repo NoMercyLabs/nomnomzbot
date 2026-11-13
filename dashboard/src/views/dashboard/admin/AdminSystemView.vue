@@ -185,7 +185,7 @@ async function submit(): Promise<void> {
 
 <template>
   <PageHeader :title="$t('dashboard.admin.system.title')" :crumb="$t('dashboard.admin.crumb')" />
-  <PageBody>
+  <PageBody data-page-body>
     <div class="flex flex-none flex-col gap-4">
       <PanelCard
         tier="lead"

@@ -190,6 +190,13 @@ describe('VtsView', () => {
     expect(view.get('[data-vts-overall]').text()).toContain(en.dashboard.vts.status.unauthorized);
     expect(view.get('[data-vts-token-dot]').classes()).toContain('warn');
 
+    // On a phone a long status ends in an ellipsis in its own share of the row, so the header buttons stay beside it.
+    const overall = view.get('[data-vts-overall]');
+
+    expect(overall.classes()).toContain('min-w-0');
+    expect(overall.classes()).toContain('flex-1');
+    expect(overall.get('[data-vts-overall-text]').classes()).toContain('truncate');
+
     await view.get('[data-vts-authorize]').trigger('click');
     await flushPromises();
 

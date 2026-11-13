@@ -193,13 +193,17 @@ describe('the bottom bar tabs', () => {
       .map((tab) =>
         tab.text());
 
-    const cutLabels = tabs
-      .filter((tab) =>
-        tab.find('span').classes().includes('truncate'))
+    // A label stays on one line and ends in an ellipsis, so the bar keeps one height (ui-expectations 1.15).
+    const wrappingLabels = tabs
+      .filter((tab) => {
+        const classes = tab.find('span').classes();
+
+        return !classes.includes('truncate') || classes.includes('text-balance');
+      })
       .map((tab) =>
         tab.text());
 
-    expect(cutLabels).toEqual([]);
+    expect(wrappingLabels).toEqual([]);
     expect(tabsThatCannotShrink).toEqual([]);
     expect(labelsThatCannotShrink).toEqual([]);
   });

@@ -60,7 +60,7 @@ const current = computed<string>(() => String(route.name ?? ''));
         :aria-current="route.name === entry.route ? 'page' : undefined"
       >
         <component :is="entry.icon" class="size-5 md:size-4" aria-hidden="true" />
-        <span class="min-w-0 max-w-full text-center leading-tight">{{ t(`frame.nav.${phone ? entry.shortLabel : entry.label}`) }}</span>
+        <span class="min-w-0 max-w-full truncate text-center leading-tight">{{ t(`frame.nav.${phone ? entry.shortLabel : entry.label}`) }}</span>
       </RouterLink>
     </Button>
     <ViewerNavMore v-if="more.length > 0" :entries="more" :channel="channel" :current="current" />

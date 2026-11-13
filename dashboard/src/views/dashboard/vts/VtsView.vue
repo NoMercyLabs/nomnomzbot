@@ -65,10 +65,10 @@ function retry(): void {
       <span
         v-if="can('vts:config:read')"
         data-vts-overall
-        class="inline-flex items-center gap-2 text-sm text-muted-foreground"
+        class="inline-flex min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground"
       >
-        <span class="dot" :class="health.dot" aria-hidden="true" />
-        {{ $t(`dashboard.vts.status.${health.reason}`) }}
+        <span class="dot flex-none" :class="health.dot" aria-hidden="true" />
+        <span data-vts-overall-text class="min-w-0 truncate">{{ $t(`dashboard.vts.status.${health.reason}`) }}</span>
       </span>
     </template>
     <template #bar><PageTabs v-if="can('vts:config:read')" :tabs="tabs" /></template>

@@ -64,7 +64,7 @@ const sheetGroups = computed<VisibleGroup[]>(() =>
     >
       <RouterLink :to="linkTo(entry)">
         <component :is="entry.icon" class="size-5" aria-hidden="true" />
-        <span class="min-w-0 max-w-full text-center leading-tight text-balance">{{ t(`frame.nav.${entry.label}`) }}</span>
+        <span class="min-w-0 max-w-full truncate text-center leading-tight">{{ t(`frame.nav.${entry.label}`) }}</span>
       </RouterLink>
     </Button>
     <!-- The rest opens in a bottom drawer, as the "More" tab of a phone app does: a handle to swipe it away,
@@ -73,7 +73,7 @@ const sheetGroups = computed<VisibleGroup[]>(() =>
       <DrawerTrigger as-child>
         <Button variant="ghost" class="h-auto! min-h-11 min-w-0 flex-1 flex-col gap-1! px-1! py-1.5 text-xs">
           <MenuDotsHorizontal class="size-5" aria-hidden="true" />
-          <span class="min-w-0 max-w-full text-center leading-tight">{{ t('frame.nav.more') }}</span>
+          <span class="min-w-0 max-w-full truncate text-center leading-tight">{{ t('frame.nav.more') }}</span>
         </Button>
       </DrawerTrigger>
       <DrawerContent data-slot="more-drawer">
