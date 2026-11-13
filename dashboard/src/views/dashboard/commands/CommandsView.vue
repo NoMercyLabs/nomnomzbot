@@ -26,14 +26,13 @@ import ListDetail from '@/components/layout/ListDetail.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useScreenFrom } from '@/composables/useLayout';
-import { usePageView } from '@/composables/usePageView';
 import { useQueryPane } from '@/composables/useQueryPane';
 import { isTyping } from '@/composables/useShortcut';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import BuiltinEditor from './components/BuiltinEditor.vue';
 import BuiltinList from './components/BuiltinList.vue';
@@ -55,15 +54,15 @@ const canWrite = computed<boolean>(() => can('commands:write'));
 const VIEWS = ['custom', 'builtin'] as const;
 
 type CommandView = (typeof VIEWS)[number];
-const allTabs = computed<PageTab<CommandView>[]>(() => [
+const specs = (): readonly TabSpec<CommandView>[] => [
   { value: 'custom', label: t('dashboard.commands.tabs.custom') },
-  { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
-]);
-const tabs = computed(() =>
-  allTabs.value.filter((tab) => canWrite.value || tab.value !== 'builtin'),
-);
-const view = usePageView(VIEWS, 'view', () =>
-  tabs.value.map((tab) => tab.value));
+  {
+    value: 'builtin',
+    label: t('dashboard.commands.tabs.builtin'),
+    read: 'commands:write',
+  },
+];
+const { tabs, view } = useTabbedPage(VIEWS, specs);
 const listed = computed<boolean>(() => view.value !== 'builtin');
 
 const sort = useLocalStorage<CommandSort>('nnz.commands.sort', 'uses');

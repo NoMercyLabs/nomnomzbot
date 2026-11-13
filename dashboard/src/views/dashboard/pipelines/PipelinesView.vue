@@ -17,6 +17,7 @@ import { useRouter } from 'vue-router';
 import { useChannelAccess } from '@/api/access';
 import { usePipelines, type PipelineListItem } from '@/api/pipelines';
 import ListPanel from '@/components/layout/ListPanel.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import EmptyState from '@/components/layout/EmptyState.vue';
@@ -86,7 +87,7 @@ const creating = ref(false);
       />
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:overflow-y-auto max-md:p-4 max-md:*:shrink-0">
+  <PageBody dense>
     <ListPanel
       v-if="access.can('pipelines:read')"
       v-model="search"
@@ -137,6 +138,6 @@ const creating = ref(false);
         </template>
       </SummaryRow>
     </ListPanel>
-  </div>
+  </PageBody>
   <NewPipelineDialog v-if="canWrite" v-model:open="creating" @created="open" />
 </template>

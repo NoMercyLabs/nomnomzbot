@@ -40,10 +40,7 @@ function allPaths(folder: string): string[] {
 const specializedPageBodies = new Set<string>([
   'views/dashboard/chat/ChatView.vue',
   'views/dashboard/chat/ExternalChatView.vue',
-  'views/dashboard/economy/EconomyView.vue',
-  'views/dashboard/pipelines/PipelinesView.vue',
   'views/dashboard/pipelines/WorkbenchView.vue',
-  'views/dashboard/stream/StreamView.vue',
   'views/dashboard/tts/TtsBoard.vue',
 ]);
 

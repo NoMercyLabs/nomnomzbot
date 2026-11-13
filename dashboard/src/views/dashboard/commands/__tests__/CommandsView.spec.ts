@@ -576,6 +576,15 @@ describe('CommandsView editor', () => {
     expect(switchOf('Read it aloud').getAttribute('aria-checked')).toBe('true');
   });
 
+  it('gives the editor form one shrinkable column, so a narrow phone never pushes its select or button past the edge', async () => {
+    rows[0] = command('hello');
+    await open('/app/commands?command=hello');
+
+    const form = editor()?.querySelector('[data-command-form]');
+
+    expect(form?.classList.contains('grid-cols-[minmax(0,1fr)]')).toBe(true);
+  });
+
   it('keeps the picked command in the address so a refresh keeps it', async () => {
     await open();
     expect(editor()).toBeNull();

@@ -18,10 +18,9 @@ import { useVtsConnection, useVtsInventory } from '@/api/vts';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { usePageView } from '@/composables/usePageView';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 import { usePanelState } from '@/composables/usePanelState';
 
 import VtsConnectionPanel from './components/VtsConnectionPanel.vue';
@@ -33,11 +32,18 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
-const VIEWS = ['connection', 'hotkeys', 'expressions'] as const satisfies readonly string[];
-const view = usePageView(VIEWS);
-const tabs = computed<PageTab[]>(() =>
-  VIEWS.map((value) => ({ value, label: t(`dashboard.vts.tabs.${value}`) })),
-);
+const VIEWS = ['connection', 'hotkeys', 'expressions'] as const;
+
+type VtsTab = (typeof VIEWS)[number];
+
+// The whole page needs the VTS config read key, so every tab carries it.
+const specs = (): readonly TabSpec<VtsTab>[] =>
+  VIEWS.map((value) => ({
+    value,
+    label: t(`dashboard.vts.tabs.${value}`),
+    read: 'vts:config:read',
+  }));
+const { tabs, view } = useTabbedPage(VIEWS, specs);
 
 const connection = useVtsConnection(channelId);
 const ready = computed<boolean>(() => vtsReady(connection.data.value));

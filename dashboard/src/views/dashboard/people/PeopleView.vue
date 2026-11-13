@@ -37,7 +37,6 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import type { ProfilePreview } from '@/components/layout/profile/ProfileHeader.vue';
 import ProfileView from '@/components/layout/profile/ProfileView.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -48,9 +47,9 @@ import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
 import { useQueryPane } from '@/composables/useQueryPane';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import Cross from '~icons/nnz/cross';
 
@@ -103,7 +102,6 @@ const youTubeTotal = computed<number | undefined>(() => {
     : undefined;
 });
 
-const view = usePageView(TAB_VALUES);
 const search = ref('');
 const pausedSearch = refDebounced(search, SEARCH_PAUSE_MS);
 const typed = computed<string>(() => search.value.trim());
@@ -122,7 +120,7 @@ function totalOf(query: typeof everyone): number | undefined {
   return query.data.value?.pages[0]?.total ?? undefined;
 }
 
-const tabs = computed<PageTab<PeopleTab>[]>(() => [
+const specs = () => [
   {
     value: 'all',
     label: t('dashboard.people.tabs.all'),
@@ -154,7 +152,8 @@ const tabs = computed<PageTab<PeopleTab>[]>(() => [
     label: t('dashboard.people.tabs.youtube'),
     count: youTubeTotal.value,
   },
-]);
+] as const satisfies readonly TabSpec<PeopleTab>[];
+const { tabs, view } = useTabbedPage(TAB_VALUES, specs);
 
 const activeQuery = computed<typeof everyone>(() => {
   if (view.value === 'moderator')

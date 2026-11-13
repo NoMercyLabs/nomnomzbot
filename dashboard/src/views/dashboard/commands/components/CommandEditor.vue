@@ -304,7 +304,9 @@ function remove(): void {
       />
       <DetailClose @click="emit('close')" />
     </template>
-    <div class="grid gap-5">
+    <!-- One column that may shrink to 0: a plain grid column grows to its widest child, which pushed the role
+         select and the pipeline button past the right edge of a phone. -->
+    <div data-command-form class="grid grid-cols-[minmax(0,1fr)] gap-5">
       <!-- Who may trigger it comes first: it decides whether the reaction below ever runs. -->
       <Field class="md:max-w-sm">
         <FieldLabel>{{ $t("dashboard.commands.editor.role") }}</FieldLabel>

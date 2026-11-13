@@ -143,10 +143,11 @@ describe('the pipelines list', () => {
       expect(row.className).toContain('line-clamp-2');
     }
 
-    const body = document.body.querySelector<HTMLElement>('[data-page-body]')!;
+    const body = document.body.querySelector<HTMLElement>('[data-slot="page-body"]')!;
 
-    expect(body.className).toContain('max-md:overflow-y-auto');
-    expect(body.className).toContain('max-md:*:shrink-0');
+    expect(body.className).toContain('gap-3');
+    expect(body.className).toContain('max-md:p-4');
+    expect(body.querySelector('[data-slot="panel-card"]')).not.toBeNull();
   });
 
   it('filters by name and description as the person types', async () => {

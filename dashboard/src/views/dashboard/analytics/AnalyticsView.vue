@@ -19,10 +19,9 @@ import { ANALYTICS_RANGES, type AnalyticsRange } from '@/api/analytics';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { useCan } from '@/composables/useCan';
-import { usePageView } from '@/composables/usePageView';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import AnalyticsChat from './AnalyticsChat.vue';
 import AnalyticsOverview from './AnalyticsOverview.vue';
@@ -33,10 +32,13 @@ import AnalyticsYouTube from './AnalyticsYouTube.vue';
 const { t } = useI18n();
 const { can } = useCan();
 
-const VIEWS = ['overview', 'streams', 'chat', 'youtube', 'recaps'] as const satisfies readonly string[];
-const view = usePageView(VIEWS);
-const views = computed<PageTab[]>(() =>
-  VIEWS.map((value) => ({ value, label: t(`dashboard.analytics.views.${value}`) })));
+const VIEWS = ['overview', 'streams', 'chat', 'youtube', 'recaps'] as const;
+
+type AnalyticsTab = (typeof VIEWS)[number];
+
+const specs = (): readonly TabSpec<AnalyticsTab>[] =>
+  VIEWS.map((value) => ({ value, label: t(`dashboard.analytics.views.${value}`) }));
+const { tabs: views, view } = useTabbedPage(VIEWS, specs);
 
 const range = useLocalStorage<AnalyticsRange>('nnz.analytics.range', 'r30');
 const rangeOptions = computed(() =>

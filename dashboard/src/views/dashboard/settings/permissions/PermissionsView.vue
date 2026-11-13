@@ -21,10 +21,10 @@ import { useActionMatrix, useMembers, usePersonGrants } from '@/api/permissions'
 import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { useQueryPane } from '@/composables/useQueryPane';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import { groupByArea, matchesSearch, useActionName, useAreaLabel } from './actionArea';
@@ -43,22 +43,24 @@ const grants = usePersonGrants(channelId);
 const labelOf = useAreaLabel();
 const nameOf = useActionName();
 
-const VIEWS = ['team', 'actions', 'capabilities'] as const satisfies readonly string[];
-const view = usePageView(VIEWS);
+const VIEWS = ['team', 'actions', 'capabilities'] as const;
+
+type PermissionsTab = (typeof VIEWS)[number];
 
 const counts = computed(() =>
   ({
     team: members.data.value?.length,
     actions: matrix.data.value?.length,
     capabilities: grants.data.value?.filter(isAllowedGrant).length,
-  }) as const satisfies Record<(typeof VIEWS)[number], number | undefined>);
+  }) as const satisfies Record<PermissionsTab, number | undefined>);
 
-const tabs = computed<PageTab[]>(() =>
+const specs = (): readonly TabSpec<PermissionsTab>[] =>
   VIEWS.map((value) => ({
     value,
     label: t(`dashboard.settings.permissions.tabs.${value}`),
     count: counts.value[value],
-  })));
+  }));
+const { tabs, view } = useTabbedPage(VIEWS, specs);
 
 const search = ref('');
 const areas = computed(() =>

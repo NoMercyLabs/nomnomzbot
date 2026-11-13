@@ -11,12 +11,10 @@
 <script setup lang="ts">
 // Event journal: what happened in the channel, in plain words. Saving or loading the journal and rebuilding the
 // pages built from it are upkeep, so they sit on their own tab.
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
-import { usePageView } from '@/composables/usePageView';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
@@ -30,11 +28,11 @@ const VIEWS = ['events', 'tools'] as const;
 type JournalView = (typeof VIEWS)[number];
 
 const { t } = useI18n();
-const view = usePageView(VIEWS);
-const tabs = computed<PageTab<JournalView>[]>(() => [
+const specs = () => [
   { value: 'events', label: t('dashboard.settings.eventJournal.tabs.events') },
   { value: 'tools', label: t('dashboard.settings.eventJournal.tabs.tools') },
-]);
+] as const satisfies readonly TabSpec<JournalView>[];
+const { tabs, view } = useTabbedPage(VIEWS, specs);
 </script>
 
 <template>

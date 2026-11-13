@@ -14,6 +14,7 @@ import Plus from '~icons/nnz/add';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import { Button } from '@/components/ui/button';
@@ -121,12 +122,12 @@ const { tabs, view, action, canAct } = useTabbedPage(VIEWS, specs);
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
-  <div data-page-body class="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
+  <PageBody>
     <CurrencyPanel v-if="view === 'currency'" />
     <BalancesPanel v-else-if="view === 'balances'" />
     <EarningRules v-else-if="view === 'rules'" v-model:adding="addingRule" />
     <SavingsJars v-else-if="view === 'jars'" v-model:adding="addingJar" />
     <CatalogPanel v-else-if="view === 'catalog'" v-model:adding="addingItem" />
     <LeaderboardsPanel v-else-if="view === 'leaderboards'" v-model:adding="addingBoard" />
-  </div>
+  </PageBody>
 </template>

@@ -249,7 +249,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function open(): Promise<void> {
+async function open(view?: string): Promise<void> {
   // The frame's sticky footer, where a phone-width page moves its Save and Discard.
   document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
 
@@ -265,7 +265,9 @@ async function open(): Promise<void> {
     ],
   });
 
-  await router.push('/app/stream');
+  await router.push(view === undefined
+    ? '/app/stream'
+    : `/app/stream?view=${view}`);
 
   mounted = mount(StreamView, {
     attachTo: document.body,
@@ -736,5 +738,27 @@ describe('before you go live', () => {
     expect(text()).toContain('Could not check the rewards');
     expect(text()).not.toContain('rewards are on');
     expect(text()).not.toContain(' is off');
+  });
+});
+
+describe('the tabs and the raid tab layout', () => {
+  it('draws the tabs the held keys open and nothing else', async () => {
+    access.held = ['stream:read', 'live-ops:raids:read'];
+    await open();
+
+    const strip = document.body.querySelector('[role="tablist"]');
+    const labels = [...(strip?.querySelectorAll('[role="tab"]') ?? [])].map((tab) => tab.textContent?.trim());
+
+    expect(labels).toEqual(['Overview', 'Raid rules']);
+  });
+
+  it('puts the raid cards in the page body, whose gap token keeps them apart', async () => {
+    access.held = [...everyKey, 'live-ops:raids:write'];
+    await open('raids');
+
+    const body = document.body.querySelector('[data-slot="page-body"]');
+
+    expect(body?.querySelector('[data-raid-form]')).not.toBeNull();
+    expect(body?.children.length).toBe(2);
   });
 });
