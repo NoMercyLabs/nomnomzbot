@@ -35,6 +35,38 @@ interface Opener {
 // The button that opened each overlay and the input that pressed it, found by the overlay's focus scope.
 const openers = new WeakMap<EventTarget, Opener>();
 
+// A Select emits no open event, and a mouse open never focuses its trigger, so rememberOpener cannot see it (fault
+// 25b: the Escape close then drew the ring on the trigger). Its wrapper names the trigger and the id of the list it
+// controls when it opens; the close finds the opener by that list inside the closing focus scope.
+const controlOpeners = new Map<string, Opener>();
+
+export function rememberControlOpener(element: HTMLElement, controlsId: string): void {
+  controlOpeners.set(controlsId, { element, input: lastInput });
+}
+
+function takeControlOpener(scope: EventTarget): Opener | undefined {
+  if (!(scope instanceof Element))
+    return undefined;
+
+  for (const [id, opener] of controlOpeners) {
+    if (scope.id === id || scope.querySelector(`[id="${id}"]`)) {
+      controlOpeners.delete(id);
+
+      return opener;
+    }
+  }
+
+  return undefined;
+}
+
+function takeOpener(scope: EventTarget): Opener | undefined {
+  const opener = openers.get(scope);
+
+  openers.delete(scope);
+
+  return opener ?? takeControlOpener(scope);
+}
+
 // Runs when an overlay opens, before its focus moves: the focused element is the opener.
 export function rememberOpener(event: Event): void {
   const element = document.activeElement;
@@ -51,7 +83,7 @@ export function rememberOpener(event: Event): void {
 // keyboard user keeps their place. Every overlay wrapper in components/ui binds this to close-auto-focus.
 export function returnFocusOnlyForKeyboard(event: Event): void {
   const opener = event.target
-    ? openers.get(event.target)
+    ? takeOpener(event.target)
     : undefined;
 
   if (!opener) {
@@ -61,8 +93,6 @@ export function returnFocusOnlyForKeyboard(event: Event): void {
 
     return;
   }
-
-  openers.delete(event.target!);
 
   if (opener.input === 'keyboard' || !opener.element.isConnected) return;
 

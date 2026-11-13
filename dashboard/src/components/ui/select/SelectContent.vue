@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { SelectContentEmits, SelectContentProps } from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
+import { watch, type HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import {
+  injectSelectRootContext,
   SelectContent,
   SelectPortal,
   SelectViewport,
   useForwardPropsEmits,
 } from 'reka-ui'
-import { returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
+import { rememberControlOpener, returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
 import { cn } from '@/lib/utils'
 import { SelectScrollDownButton, SelectScrollUpButton } from '.'
 
@@ -29,6 +30,17 @@ const emits = defineEmits<SelectContentEmits>()
 const delegatedProps = reactiveOmit(props, 'class')
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
+
+// Fault 25b: a Select emits no open event, so its open state is the signal. On open the trigger and the list it
+// controls are remembered; the close then hands the focus back quietly after a mouse open (lib/focusReturn.ts).
+const root = injectSelectRootContext()
+
+watch(root.open, (open) => {
+  const trigger = root.triggerElement.value
+
+  if (open && trigger)
+    rememberControlOpener(trigger, root.contentId)
+})
 </script>
 
 <template>
