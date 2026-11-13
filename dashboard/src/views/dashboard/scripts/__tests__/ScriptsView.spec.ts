@@ -17,6 +17,7 @@ import { ref } from 'vue';
 import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
 import { position, pressBack } from '@/__tests__/backHistory';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import { Select, SelectItem } from '@/components/ui/select';
 import { i18n } from '@/i18n';
 
@@ -431,7 +432,7 @@ const typeSearch = async (value: string): Promise<void> => {
 describe('ScriptsView history', () => {
   const page = '/app/scripts';
   const backLink = (): HTMLElement =>
-    document.body.querySelector<HTMLElement>('[data-slot="script-back"]')!;
+    document.body.querySelector<HTMLElement>('[data-detail-back]')!;
 
   beforeEach(() => {
     window.history.replaceState(null, '', '/');
@@ -1089,8 +1090,9 @@ describe('ScriptsView', () => {
   it('gives the phone a labeled back button that returns to the list', async () => {
     await open('/app/scripts?script=s1');
 
-    const back = document.body.querySelector<HTMLElement>('[data-slot="script-back"]');
+    const back = document.body.querySelector<HTMLElement>('[data-detail-back]');
 
+    expect(mounted!.findComponent(DetailEditorPane).props('open')).toBe(true);
     expect(back?.textContent?.trim()).toBe('Back to the list');
     expect(back?.className).toContain('md:hidden');
 
@@ -1121,7 +1123,7 @@ describe('ScriptsView', () => {
   ])('ignores the back target %s that leaves the dashboard', async (bad: string) => {
     await open(`/app/scripts?script=s1&back=${encodeURIComponent(bad)}`);
 
-    expect(document.body.querySelector('[data-slot="back-link"]')).toBeNull();
+    expect(document.body.querySelector('[data-slot="back-link"]:not([data-detail-back])')).toBeNull();
   });
 
   it('sets Delete apart from Run test in its own footer, below the content', async () => {

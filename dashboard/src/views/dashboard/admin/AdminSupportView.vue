@@ -18,12 +18,11 @@ import { useI18n } from 'vue-i18n';
 
 import { useSupportPeople, type SupportPerson } from '@/api/adminSupport';
 import { ApiError } from '@/api/errors';
-import BackLink from '@/components/layout/BackLink.vue';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
@@ -54,6 +53,11 @@ const listState = computed<PanelState>(() =>
 const emptyText = computed<string>(() =>
   ready.value
     ? t('dashboard.admin.support.list.empty')
+    : t('dashboard.admin.support.needReason'),
+);
+const idleText = computed<string>(() =>
+  ready.value
+    ? t('dashboard.admin.support.pick')
     : t('dashboard.admin.support.needReason'),
 );
 const listError = computed<string>(() =>
@@ -116,26 +120,21 @@ function pick(row: SupportPerson): void {
       </div>
     </template>
     <template #detail>
-      <PanelCard
-        v-if="selectedId === null || !ready"
-        :title="t('dashboard.admin.support.title')"
-        state="empty"
-        :empty-text="
-          ready ? t('dashboard.admin.support.pick') : t('dashboard.admin.support.needReason')
-        "
-      />
-      <DetailPane v-else>
-        <template #header>
-          <BackLink
-            data-detail-back
-            class="-ms-2 md:hidden"
-            @click="pane.close()"
-          />
-          <h2 class="text-lg font-semibold">{{ selected?.displayName }}</h2>
-        </template>
-        <SupportPersonPanels :person-id="selectedId" :justification="justification" />
-        <SupportActivityPanels :person-id="selectedId" :justification="justification" />
-      </DetailPane>
+      <DetailEditorPane
+        :open="selectedId !== null && ready"
+        :idle-title="t('dashboard.admin.support.title')"
+        :idle-text="idleText"
+        :back-label="t('common.back')"
+        @back="pane.close()"
+      >
+        <DetailPane v-if="selectedId !== null">
+          <template #header>
+            <h2 class="text-lg font-semibold">{{ selected?.displayName }}</h2>
+          </template>
+          <SupportPersonPanels :person-id="selectedId" :justification="justification" />
+          <SupportActivityPanels :person-id="selectedId" :justification="justification" />
+        </DetailPane>
+      </DetailEditorPane>
     </template>
   </ListDetail>
   <p data-saas-restricted class="px-6 pb-4 text-sm text-muted-foreground">

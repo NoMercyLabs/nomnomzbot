@@ -19,6 +19,7 @@ import { ref } from 'vue';
 import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
 import { position, pressBack } from '@/__tests__/backHistory';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import { i18n } from '@/i18n';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 
@@ -616,6 +617,17 @@ describe('Permissions layout', () => {
 
     expect(router.currentRoute.value.query).toMatchObject({ view: 'actions', area: 'obs' });
     expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['Switch scenes and sources in OBS']);
+  });
+
+  it('renders the picked area through the shared detail pane, with its Back link', async () => {
+    const view = await open('actions', 'obs');
+    const pane = view.findComponent(DetailEditorPane);
+
+    expect(pane.exists()).toBe(true);
+    expect(pane.props('open')).toBe(true);
+    expect(pane.props('backLabel')).toBe('All areas');
+    expect(pane.find('[data-detail-back]').text()).toBe('All areas');
+    expect(pane.find('[data-action="bot:manager:author"]').exists()).toBe(false);
   });
 
   // Stoney 2026-11-03: "a close is a history pop". The real router on the real history.

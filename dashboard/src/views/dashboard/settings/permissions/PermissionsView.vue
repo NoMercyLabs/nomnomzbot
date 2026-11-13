@@ -18,7 +18,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useChannelAccess } from '@/api/access';
 import { useActionMatrix, useMembers, usePersonGrants } from '@/api/permissions';
-import BackLink from '@/components/layout/BackLink.vue';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -94,16 +94,15 @@ const areaOpen = computed<boolean>(() => pane.id.value !== null);
       />
     </template>
     <template v-if="area" #detail>
-      <div class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <BackLink
-          data-detail-back
-          data-page-inset
-          class="self-start md:hidden"
-          :label="$t('dashboard.settings.permissions.areas.back')"
-          @click="pane.close"
-        />
+      <DetailEditorPane
+        :open="Boolean(area)"
+        :idle-title="$t('dashboard.settings.permissions.areas.title')"
+        :idle-text="$t('dashboard.settings.permissions.areas.search')"
+        :back-label="$t('dashboard.settings.permissions.areas.back')"
+        @back="pane.close"
+      >
         <ActionMatrixPanel :can-manage="access.can('roles:manage')" :area="area" :search="search" />
-      </div>
+      </DetailEditorPane>
     </template>
   </ListDetail>
 

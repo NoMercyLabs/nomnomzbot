@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { queryClient } from '@/api/queryClient';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import { i18n } from '@/i18n';
 import { dashboardRoutes } from '@/router/dashboard';
 
@@ -280,6 +281,29 @@ describe('AdminSupportView', () => {
 
     expect(router.currentRoute.value.query).toEqual({ tab: 'x' });
     expect(document.body.querySelector('[data-detail-back]')).toBeNull();
+  });
+
+  it('renders the person column through the shared detail pane and keeps the name header', async () => {
+    await open('u1');
+    await type('[data-justification]', 'Ticket 41');
+    await type('input[type="search"]', 'stoney');
+
+    const pane = mounted!.findComponent(DetailEditorPane);
+
+    expect(pane.props('open')).toBe(true);
+    expect(pane.find('[data-detail-back]').exists()).toBe(true);
+    expect(pane.find('h2').text()).toBe('Stoney_Eagle');
+  });
+
+  it('keeps the idle panel on the need-a-reason text while no reason is given', async () => {
+    await open('u1');
+
+    const pane = mounted!.findComponent(DetailEditorPane);
+
+    expect(pane.props('open')).toBe(false);
+    expect(pane.props('idleText')).toBe('Give a reason first. Every lookup is kept in the audit log.');
+    expect(pane.text()).toContain('Give a reason first.');
+    expect(pane.find('[data-detail-back]').exists()).toBe(false);
   });
 
   it('shows the forbidden message when the bot refuses', async () => {

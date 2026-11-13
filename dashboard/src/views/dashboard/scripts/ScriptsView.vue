@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
@@ -24,7 +25,6 @@ import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
@@ -215,23 +215,22 @@ function opened(id: string | null): void {
       </ListPanel>
     </template>
     <template #detail>
-      <ScriptDetail
-        v-if="asked !== ''"
-        :key="asked"
-        :script-id="asked"
-        :summary="loaded?.find((one: CodeScriptSummary) => one.id === asked)"
+      <DetailEditorPane
+        :open="asked !== ''"
+        :idle-title="$t('dashboard.scripts.detail.title')"
+        :idle-text="$t('dashboard.scripts.detail.pick')"
+        :back-label="$t('dashboard.scripts.detail.back')"
         @back="pane.close"
-        @deleted="pane.close"
-        @duplicated="opened"
-        @ran="ran"
-      />
-      <PanelCard
-        v-else
-        class="flex-1"
-        :title="$t('dashboard.scripts.detail.title')"
-        state="empty"
-        :empty-text="$t('dashboard.scripts.detail.pick')"
-      />
+      >
+        <ScriptDetail
+          :key="asked"
+          :script-id="asked"
+          :summary="loaded?.find((one: CodeScriptSummary) => one.id === asked)"
+          @deleted="pane.close"
+          @duplicated="opened"
+          @ran="ran"
+        />
+      </DetailEditorPane>
     </template>
     <template v-if="runs.length > 0" #aside>
       <ScriptRunsPanel :runs="runs" @open="failedRun = $event" />

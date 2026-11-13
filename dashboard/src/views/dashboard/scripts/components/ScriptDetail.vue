@@ -29,7 +29,6 @@ import {
   type BlastRadius,
   type CodeScriptSummary,
 } from '@/api/codeScripts';
-import BackLink from '@/components/layout/BackLink.vue';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
@@ -57,7 +56,6 @@ const props = defineProps<{ scriptId: string; summary?: CodeScriptSummary }>();
 const emit = defineEmits<{
   deleted: [];
   duplicated: [id: string | null];
-  back: [];
   ran: [run: Omit<SessionRun, 'id'>];
 }>();
 
@@ -216,13 +214,6 @@ function confirmDelete(): void {
     class="max-md:flex-none max-md:**:data-[slot=detail-pane-body]:flex-none max-md:**:data-[slot=detail-pane-body]:overflow-visible"
   >
     <template #header>
-      <BackLink
-        data-page-inset
-        data-slot="script-back"
-        class="mb-2 md:hidden"
-        :label="$t('dashboard.scripts.detail.back')"
-        @click="$emit('back')"
-      />
       <div data-page-inset class="flex flex-wrap items-center gap-3">
         <h2 class="min-w-0 truncate text-lg font-semibold">{{ script.name }}</h2>
         <div class="ml-auto flex flex-wrap items-center gap-3">
