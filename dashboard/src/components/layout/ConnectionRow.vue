@@ -13,7 +13,7 @@
 // dot with words, a detail line, and the buttons. It only shows. The page owns the sign-in, the mutations and the
 // confirm dialog, and puts its buttons in the actions slot: one solid button per row (Connect or Reconnect when it
 // is the one thing to do), Disconnect as a ghost or outline button.
-import PlatformLogo from './PlatformLogo.vue';
+import ProviderMark from './ProviderMark.vue';
 import StatusBadge, { type StatusTone } from './StatusBadge.vue';
 import SummaryRow from './SummaryRow.vue';
 
@@ -46,11 +46,11 @@ defineProps<{
   <div data-slot="connection-row" :data-state="state">
     <SummaryRow wrap :title="name" :detail="detail">
       <template #leading>
-        <!-- The box keeps its width when a provider has no logo, so every name in a list starts at the same edge. -->
+        <!-- ProviderMark draws the brand logo or a designer icon. A row with no provider keeps an empty box,
+             so every name in a list starts at the same edge. -->
         <slot name="leading">
-          <span data-slot="connection-logo" class="size-5 shrink-0">
-            <PlatformLogo v-if="provider" :platform="provider" class="size-5" />
-          </span>
+          <ProviderMark v-if="provider" :provider="provider" />
+          <span v-else data-slot="connection-logo" class="size-5 shrink-0" />
         </slot>
       </template>
       <template #title>

@@ -23,6 +23,7 @@ import VolumeTwo from '~icons/nnz/volume-two';
 import { computed, ref, watch } from 'vue';
 
 import type { NowPlaying } from '@/api/music';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -138,7 +139,7 @@ const nextRepeat = computed<RepeatMode>(() => {
         <div class="grid min-w-0 flex-[1_1_16rem] gap-3">
           <p
             data-player-title
-            class="line-clamp-2 text-2xl leading-tight font-bold wrap-break-word @xl:text-4xl"
+            class="line-clamp-2 text-2xl/tight  font-bold wrap-break-word @xl:text-4xl"
           >
             {{ track.trackName }}
           </p>
@@ -157,9 +158,11 @@ const nextRepeat = computed<RepeatMode>(() => {
             </template>
           </p>
           <p data-player-state class="flex h-5 items-center gap-2">
-            <Badge v-if="stateKey" :variant="track.state === 'blocked' ? 'destructive' : 'secondary'">
-              {{ $t(stateKey) }}
-            </Badge>
+            <StatusBadge
+              v-if="stateKey"
+              :tone="track.state === 'blocked' ? 'bad' : 'off'"
+              :label="$t(stateKey)"
+            />
             <Badge v-if="track.muted" data-player-muted variant="secondary">
               <VolumeMuted aria-hidden="true" />
               {{ $t('dashboard.music.now.mutedBadge') }}

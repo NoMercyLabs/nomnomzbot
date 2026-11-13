@@ -13,10 +13,11 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useDataRequests } from '@/api/yourData';
+import { useDataRequests, type DataRequest } from '@/api/yourData';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { lookup } from '@/lib/array';
 import { shortDate } from '@/lib/time';
@@ -44,6 +45,13 @@ function word(group: string, key: string): string {
     ? t(path)
     : key.replaceAll('_', ' ');
 }
+
+function requestMeta(request: DataRequest): string {
+  return t('dashboard.settings.yourData.requests.meta', {
+    date: shortDate(request.requestedAt, locale.value),
+    scope: word('scope', request.scope),
+  });
+}
 </script>
 
 <template>
@@ -58,27 +66,15 @@ function word(group: string, key: string): string {
     @retry="requests.refetch()"
   >
     <RowGroup>
-      <div
-        v-for="request in rows"
-        :key="request.id"
-        :data-request="request.id"
-        class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2"
-      >
-        <div class="min-w-0 flex-1">
-          <span class="block text-sm font-medium">{{ word('type', request.requestType) }}</span>
-          <span class="block text-sm text-muted-foreground">
-            {{
-              $t('dashboard.settings.yourData.requests.meta', {
-                date: shortDate(request.requestedAt, locale),
-                scope: word('scope', request.scope),
-              })
-            }}
-          </span>
-          <span v-if="request.failureReason" data-failure class="block text-sm text-destructive">
-            {{ request.failureReason }}
-          </span>
-        </div>
-        <StatusBadge :tone="tone(request.status)" :label="word('status', request.status)" />
+      <div v-for="request in rows" :key="request.id" :data-request="request.id">
+        <SummaryRow :title="word('type', request.requestType)" :detail="requestMeta(request)">
+          <template v-if="request.failureReason" #meta>
+            <span data-failure class="text-destructive">{{ request.failureReason }}</span>
+          </template>
+          <template #trailing>
+            <StatusBadge :tone="tone(request.status)" :label="word('status', request.status)" />
+          </template>
+        </SummaryRow>
       </div>
     </RowGroup>
   </PanelCard>

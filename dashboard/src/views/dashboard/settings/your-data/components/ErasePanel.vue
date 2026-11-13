@@ -21,6 +21,7 @@ import {
   useRequestOptOut,
   type ErasurePreview,
 } from '@/api/yourData';
+import ActionRow from '@/components/layout/ActionRow.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -107,31 +108,25 @@ async function confirmOptOut(): Promise<void> {
     :description="$t('dashboard.settings.yourData.erase.description')"
   >
     <RowGroup>
-      <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
-        <div class="min-w-0 flex-1">
-          <span class="block text-sm font-medium">{{ $t('dashboard.settings.yourData.optOut.title') }}</span>
-          <span class="block text-sm text-muted-foreground">
-            {{ $t('dashboard.settings.yourData.optOut.description') }}
-          </span>
-        </div>
+      <ActionRow
+        :title="$t('dashboard.settings.yourData.optOut.title')"
+        :description="$t('dashboard.settings.yourData.optOut.description')"
+      >
         <Button variant="outline" data-opt-out @click="optOutOpen = true">
           {{ $t('dashboard.settings.yourData.optOut.action') }}
         </Button>
-      </div>
-      <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
-        <div class="min-w-0 flex-1">
-          <span class="block text-sm font-medium">{{ $t('dashboard.settings.yourData.erase.rowTitle') }}</span>
-          <span class="block text-sm text-muted-foreground">
-            {{ $t('dashboard.settings.yourData.erase.rowDescription') }}
-          </span>
-        </div>
+      </ActionRow>
+      <ActionRow
+        :title="$t('dashboard.settings.yourData.erase.rowTitle')"
+        :description="$t('dashboard.settings.yourData.erase.rowDescription')"
+      >
         <Button variant="destructive" data-erase @click="askErase">
           {{ $t('dashboard.settings.yourData.erase.action') }}
         </Button>
-      </div>
+      </ActionRow>
     </RowGroup>
-    <p v-if="notice" data-notice class="px-3 py-3 text-sm text-muted-foreground">{{ notice }}</p>
-    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
+    <p v-if="notice" data-notice class="p-3  text-sm text-muted-foreground">{{ notice }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="p-3 ">{{ failure }}</InlineNotice>
   </PanelCard>
 
   <ConfirmDialog

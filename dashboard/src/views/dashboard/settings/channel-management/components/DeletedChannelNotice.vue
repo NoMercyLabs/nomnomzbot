@@ -13,6 +13,7 @@
 // offers the way back, for as long as this page stays open.
 import { computed } from 'vue';
 
+import ActionRow from '@/components/layout/ActionRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useTime } from '@/composables/useTime';
@@ -33,15 +34,11 @@ const until = computed(() =>
 </script>
 
 <template>
-  <div data-slot="deleted-channel" class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
-    <div class="min-w-0 flex-1">
-      <p class="text-sm font-medium">
-        {{ name ?? $t('dashboard.settings.channelManagement.deleted.title') }}
-      </p>
-      <p class="text-sm text-muted-foreground">
-        {{ $t('dashboard.settings.channelManagement.deleted.help', { when: until }) }}
-      </p>
-    </div>
+  <ActionRow
+    data-slot="deleted-channel"
+    :title="name ?? $t('dashboard.settings.channelManagement.deleted.title')"
+    :description="$t('dashboard.settings.channelManagement.deleted.help', { when: until })"
+  >
     <Button v-if="can('setup:write')"
             data-restore
             variant="outline"
@@ -50,5 +47,5 @@ const until = computed(() =>
     >
       {{ $t('dashboard.settings.channelManagement.deleted.restore') }}
     </Button>
-  </div>
+  </ActionRow>
 </template>

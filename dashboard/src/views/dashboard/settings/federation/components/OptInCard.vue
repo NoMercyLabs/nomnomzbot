@@ -15,6 +15,7 @@ import type { UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import ActionRow from '@/components/layout/ActionRow.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -59,11 +60,7 @@ async function change(on: boolean): Promise<void> {
     @retry="optIn.refetch()"
   >
     <RowGroup>
-      <div class="flex min-h-11 flex-col gap-2 rounded-[8px] px-3 py-2 md:flex-row md:flex-wrap md:items-center md:gap-3">
-        <div class="min-w-0 md:flex-1">
-          <span class="block text-sm font-medium wrap-break-word">{{ $t(`${scope}.label`) }}</span>
-          <span class="block text-sm text-muted-foreground">{{ $t(`${scope}.hint`) }}</span>
-        </div>
+      <ActionRow :title="$t(`${scope}.label`)" :description="$t(`${scope}.hint`)">
         <label data-labeled-switch class="flex w-fit items-center gap-2 text-sm font-medium">
           {{ $t(`${scope}.switch`) }}
           <GatedSwitch
@@ -73,7 +70,7 @@ async function change(on: boolean): Promise<void> {
             :disabled="pending"
           />
         </label>
-      </div>
+      </ActionRow>
     </RowGroup>
     <InlineNotice v-if="failure" tone="error" compact class="pt-3">{{ failure }}</InlineNotice>
   </PanelCard>

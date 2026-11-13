@@ -12,6 +12,7 @@
 // One row per audit entry, newest first: when, who, what permission, which tenant and what the answer was.
 import type { AdminAuditEntry } from '@/api/adminAudit';
 import DateTime from '@/components/layout/DateTime.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -51,9 +52,11 @@ defineProps<{ rows: readonly AdminAuditEntry[] }>();
         <TableCell class="max-w-64 truncate text-sm max-md:max-w-none max-md:overflow-visible max-md:whitespace-normal" :label="$t('dashboard.admin.audit.columns.justification')">{{ row.justification }}</TableCell>
         <TableCell :label="$t('dashboard.admin.audit.columns.outcome')">
           <div class="flex items-center gap-2">
-            <Badge :variant="row.outcome === 'Denied' ? 'destructive' : 'secondary'" data-outcome>
-              {{ $t(`dashboard.admin.audit.outcome.${row.outcome}`) }}
-            </Badge>
+            <StatusBadge
+              data-outcome
+              :tone="row.outcome === 'Denied' ? 'bad' : 'ok'"
+              :label="$t(`dashboard.admin.audit.outcome.${row.outcome}`)"
+            />
             <Badge v-if="row.breakGlass" variant="outline" data-break-glass>
               {{ $t("dashboard.admin.audit.breakGlass") }}
             </Badge>

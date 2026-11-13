@@ -117,7 +117,7 @@ describe('the now playing card shows the director state', () => {
     const badge = card({ state: 'blocked', isPlaying: false }).find('[data-player-state]');
 
     expect(badge.text()).toBe('Blocked: the player cannot start');
-    expect(badge.html()).toContain('text-destructive');
+    expect(badge.find('[data-slot="status-badge"]').attributes('data-tone')).toBe('bad');
   });
 
   it('says a start is waiting to be seen while the director is starting', () => {

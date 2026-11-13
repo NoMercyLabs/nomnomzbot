@@ -19,6 +19,7 @@ import { useInvoices, type ChannelInvoice } from '@/api/billing';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { centsAsMoney } from '@/lib/number';
@@ -87,27 +88,31 @@ function detailsOf(invoice: ChannelInvoice): string {
   >
     <div class="grid gap-3">
       <RowGroup>
-        <div
+        <SummaryRow
           v-for="invoice in rows"
           :key="invoice.id"
           data-invoice
-          class="flex flex-wrap items-center gap-3 rounded-[8px] px-3 py-2"
+          :title="invoice.number ?? $t('dashboard.settings.billing.invoices.number')"
+          :detail="detailsOf(invoice)"
         >
-          <Receipt class="size-5 flex-none text-muted-foreground" />
-          <div class="min-w-0 flex-1 basis-56">
-            <div class="flex flex-wrap items-baseline gap-x-3">
-              <span class="text-sm font-medium">{{ invoice.number ?? $t('dashboard.settings.billing.invoices.number') }}</span>
-              <span data-invoice-amount class="text-sm">{{ moneyOf(invoice.amountDueCents, invoice) }}</span>
-              <span data-invoice-status class="text-sm text-muted-foreground">{{ invoice.status }}</span>
-            </div>
-            <p class="text-sm text-muted-foreground">{{ detailsOf(invoice) }}</p>
-          </div>
-          <Button v-if="invoice.hostedInvoiceUrl" size="sm" variant="outline" as-child>
-            <a :href="invoice.hostedInvoiceUrl" target="_blank" rel="noopener">
-              {{ $t('dashboard.settings.billing.invoices.open') }}
-            </a>
-          </Button>
-        </div>
+          <template #leading>
+            <Receipt class="size-5 flex-none text-muted-foreground" />
+          </template>
+          <template #title>
+            <span class="flex flex-wrap items-baseline gap-x-3">
+              <span>{{ invoice.number ?? $t('dashboard.settings.billing.invoices.number') }}</span>
+              <span data-invoice-amount class="font-normal">{{ moneyOf(invoice.amountDueCents, invoice) }}</span>
+              <span data-invoice-status class="font-normal text-muted-foreground">{{ invoice.status }}</span>
+            </span>
+          </template>
+          <template v-if="invoice.hostedInvoiceUrl" #trailing>
+            <Button size="sm" variant="outline" as-child>
+              <a :href="invoice.hostedInvoiceUrl" target="_blank" rel="noopener">
+                {{ $t('dashboard.settings.billing.invoices.open') }}
+              </a>
+            </Button>
+          </template>
+        </SummaryRow>
       </RowGroup>
       <div v-if="page > 1 || hasMore" class="flex items-center justify-between gap-2">
         <Button

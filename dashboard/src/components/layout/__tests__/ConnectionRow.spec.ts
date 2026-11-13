@@ -78,10 +78,22 @@ describe('the connection row content', () => {
     expect(mountRow('disconnected').find('[data-slot="connection-account"]').exists()).toBe(false);
   });
 
-  it('draws the platform logo for a known provider and none for an unknown one', () => {
-    expect(mountRow('connected', { provider: 'twitch' }).find('svg').exists()).toBe(true);
-    expect(mountRow('connected', { provider: 'spotify' }).find('svg').exists()).toBe(false);
-    expect(mountRow('connected', { provider: 'spotify' }).find('[data-slot="connection-logo"]').classes()).toContain('size-5');
+  it('draws the brand logo for a provider that has one and a designer icon for one that does not', () => {
+    const twitch = mountRow('connected', { provider: 'twitch' });
+    const spotify = mountRow('connected', { provider: 'spotify' });
+
+    expect(twitch.find('svg').exists()).toBe(true);
+    expect(twitch.find('[data-slot="provider-icon"]').exists()).toBe(false);
+    expect(spotify.find('[data-slot="provider-icon"]').exists()).toBe(true);
+    expect(spotify.find('[data-slot="connection-logo"]').classes()).toContain('size-5');
+  });
+
+  it('keeps an empty 20px box for a row with no provider, so the names still start at one edge', () => {
+    const logo = mountRow('connected').find('[data-slot="connection-logo"]');
+
+    expect(logo.exists()).toBe(true);
+    expect(logo.classes()).toContain('size-5');
+    expect(logo.element.children).toHaveLength(0);
   });
 
   it('puts the credential and detail slots under the row and the actions beside it', () => {

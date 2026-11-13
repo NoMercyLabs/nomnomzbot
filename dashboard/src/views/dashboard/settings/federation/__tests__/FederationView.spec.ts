@@ -340,14 +340,15 @@ describe('Network block opt-in card', () => {
     expect(card().querySelector('[data-labeled-switch]')?.textContent?.trim()).toBe('Ban here');
   });
 
-  it('stacks the ban row below md so the description keeps the full width', async () => {
+  it('wraps the ban row so the switch drops under the description and the text keeps the full width', async () => {
     held = [...held, 'moderation:networkblock:optin'];
     await open();
 
-    const line = card().querySelector('[data-labeled-switch]')?.closest('div.flex');
+    const line = card().querySelector('[data-labeled-switch]')?.closest('[data-slot="action-row"]');
+    const text = line?.querySelector('[data-slot="action-row-text"]');
 
-    expect(line?.className).toContain('flex-col');
-    expect(line?.className).toContain('md:flex-row');
+    expect(line?.className).toContain('flex-wrap');
+    expect(text?.className).toContain('flex-1');
   });
 
   it('gives a person without the broadcaster key a read-only state and no switch', async () => {

@@ -30,7 +30,7 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -239,9 +239,10 @@ async function submit(): Promise<void> {
               row.failureReason
             }}</span>
           </div>
-          <Badge :variant="row.status === 'failed' ? 'destructive' : 'outline'">{{
-            $t(statusLabelKey(row.status))
-          }}</Badge>
+          <StatusBadge
+            :tone="row.status === 'failed' ? 'bad' : 'off'"
+            :label="$t(statusLabelKey(row.status))"
+          />
           <Button
             v-if="row.status === 'failed' && row.requestType === 'erasure' && can('compliance:erasure')"
             variant="outline"
