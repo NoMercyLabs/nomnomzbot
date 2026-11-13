@@ -69,6 +69,7 @@ using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Platform.Transport;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix;
+using NomNomzBot.Infrastructure.Platform.Transport.LivePlaylist;
 using NomNomzBot.Infrastructure.Tts;
 using NomNomzBot.Infrastructure.Webhooks;
 
@@ -1705,6 +1706,15 @@ public static class DependencyInjection
 
         // Twitch HTTP clients with resilience
         services.AddHttpClient("twitch-auth");
+
+        // The dashboard player's live playlist proxy. The handler follows no redirect (one could leave the
+        // Twitch host allowlist) and keeps no cookie jar, so nothing of ours or of an earlier answer reaches Twitch.
+        services
+            .AddHttpClient(TwitchLivePlaylistProxy.ClientName)
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false }
+            );
+        services.AddSingleton<ITwitchLivePlaylistProxy, TwitchLivePlaylistProxy>();
 
         // Per-device-code poll rate limiter (singleton) — keeps the Device Code Flow poll within Twitch's
         // interval no matter how fast/many clients call us. Shared state, so it must outlive the scoped auth
