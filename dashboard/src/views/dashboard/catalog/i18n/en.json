@@ -7,7 +7,216 @@
       "tabs": {
         "blocks": "Blocks",
         "states": "Panel states",
-        "layouts": "Layouts"
+        "layouts": "Layouts",
+        "feedback": "Empty and notices",
+        "rows": "Rows and editors",
+        "pages": "Page recipes",
+        "locked": "Locked tab"
+      },
+      "lockedReason": "A tab with a lock: it cannot open, and this is its reason.",
+      "width": {
+        "label": "Frame width",
+        "desktop": "Desktop",
+        "narrow": "Narrow",
+        "phone": "Phone"
+      },
+      "feedback": {
+        "kind": {
+          "none": "EmptyState: none",
+          "noMatch": "EmptyState: noMatch",
+          "filtered": "EmptyState: filtered",
+          "gated": "EmptyState: gated"
+        },
+        "empty": {
+          "none": {
+            "title": "Nothing here yet",
+            "text": "Nothing was made yet. The one action starts it.",
+            "action": "Create the first one"
+          },
+          "noMatch": {
+            "title": "No match",
+            "text": "The search found nothing. Clear it to see all rows.",
+            "action": "Clear search"
+          },
+          "filtered": {
+            "title": "Hidden by the filter",
+            "text": "The open filter hides every row.",
+            "action": "Show all"
+          },
+          "gated": {
+            "title": "You cannot see this",
+            "text": "Your role does not include this page. Ask the channel owner.",
+            "action": "Ask for access"
+          }
+        },
+        "tone": {
+          "info": "InlineNotice: info",
+          "warning": "InlineNotice: warning",
+          "error": "InlineNotice: error",
+          "success": "InlineNotice: success",
+          "gated": "InlineNotice: gated"
+        },
+        "noticeText": "One line says what happened. The action sits at the end.",
+        "noticeAction": "Fix it",
+        "compactError": "Compact error: a single red line under a field.",
+        "compactGated": "Compact gated: a single muted line that says why a control is off."
+      },
+      "connections": {
+        "title": "ConnectionRow",
+        "account": "stoney_eagle",
+        "tone": {
+          "ok": "ok",
+          "bad": "bad",
+          "live": "live",
+          "off": "off",
+          "attention": "attention"
+        },
+        "name": {
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "attention": "Needs attention"
+        },
+        "detail": {
+          "connected": "The link works.",
+          "disconnected": "No account is linked.",
+          "attention": "The link needs a new sign-in."
+        },
+        "action": {
+          "connected": "Disconnect",
+          "disconnected": "Connect",
+          "attention": "Reconnect"
+        }
+      },
+      "rows": {
+        "summary": "SummaryRow",
+        "plain": "Plain row",
+        "plainDetail": "Title, detail and meta.",
+        "pick": "Pick row with a chevron",
+        "selected": "Selected row",
+        "meta": "meta",
+        "long": "A long title that truncates on a narrow frame instead of wrapping into three lines",
+        "longDetail": "truncate keeps one line",
+        "setting": "SettingRow",
+        "on": "On",
+        "onHelp": "A switch with a one-line help.",
+        "off": "Off with a hint",
+        "offHint": "A hint shows under the row.",
+        "disabled": "Disabled",
+        "disabledHelp": "A rule outside this page keeps it on.",
+        "readonly": "Read-only",
+        "readonlyHelp": "You can see the value but not change it.",
+        "editDelete": "RowEditDelete",
+        "both": "Edit and Delete",
+        "bothDetail": "Edited {edits} times, deleted {deletes} times",
+        "editOnly": "Edit only",
+        "editOnlyDetail": "A fixed item has no Delete.",
+        "readOnlyRow": "Read-only",
+        "readOnlyRowDetail": "Both actions are off inside a read-only scope.",
+        "readOnlyReason": "Your role can view this but not change it.",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "editors": {
+        "footer": "EditorFooter",
+        "delete": "Delete",
+        "reset": "Reset to default",
+        "discard": "Discard",
+        "save": "Save",
+        "unsaved": "{count} deleted",
+        "fixedItem": "A fixed item: no Delete, only Reset",
+        "saving": "Saving",
+        "paneTitle": "Editor",
+        "idle": "Pick a row to edit it here.",
+        "open": "Open",
+        "openText": "The editor of the picked row.",
+        "missing": "The row is gone. Pick another one.",
+        "back": "Back to the list",
+        "list": {
+          "loading": "ListPanel: loading",
+          "empty": "ListPanel: empty",
+          "error": "ListPanel: error"
+        }
+      },
+      "pages": {
+        "body": "PageBody: dense and scrolling",
+        "dense": "Dense",
+        "denseText": "A dense body does not scroll; its panels do.",
+        "scroll": "Scrolling",
+        "scrollText": "The body scrolls and keeps a stable gutter.",
+        "settings": "SettingsPageFrame",
+        "settingsTitle": "Settings page",
+        "settingsPanel": "Panel",
+        "settingsText": "The frame owns the header, the actions and the body.",
+        "admin": "AdminCollectionPage",
+        "adminTitle": "Admin list",
+        "adminCount": "3 rows",
+        "adminList": "Rows",
+        "task": "PublicTaskShell with TaskActions and WizardActions",
+        "brand": "NomNomzBot",
+        "taskTitle": "Sign in",
+        "taskPrimary": "Continue",
+        "taskSecondary": "Cancel",
+        "wizardTitle": "Wizard step",
+        "back": "Back",
+        "next": "Next",
+        "below": "Below the card: a link or a note."
+      },
+      "guide": {
+        "tiers": {
+          "title": "PanelCard tiers",
+          "source": "tier is a prop of src/components/layout/PanelCard.vue.",
+          "lead": {
+            "title": "lead",
+            "rule": "The page's main purpose. One per page or per column. Its title is full weight."
+          },
+          "default": {
+            "title": "default",
+            "rule": "A supporting workflow. The tier a panel gets when you set none."
+          },
+          "quiet": {
+            "title": "quiet",
+            "rule": "Secondary status, or danger content. Its title is muted so it never competes with the lead."
+          }
+        },
+        "actions": {
+          "title": "Stable action placement",
+          "source": "RowEditDelete.vue, EditorFooter.vue and PageHeader.vue in src/components/layout.",
+          "rule": {
+            "group": "One primary action per group. Its siblings are outline or ghost.",
+            "rows": "Edit and Delete of a row live in RowEditDelete, always at the end of the row.",
+            "header": "The page action sits in the header actions slot, next to a secondary outline action.",
+            "footer": "Save, Discard and Delete of an editor live in EditorFooter, at the bottom of the editor."
+          },
+          "headerExample": "Header actions: one outline, one primary",
+          "rowExample": "Row actions: RowEditDelete",
+          "rowResult": "Last edit: {edited}. Last delete: {deleted}.",
+          "footerExample": "Editor footer: Discard outline, Save primary",
+          "footerNote": "Unsaved changes sit at the left"
+        },
+        "filters": {
+          "title": "Advanced filters: the third query-control recipe",
+          "source": "Built from FilterBar.vue, ListPanel.vue and the Collapsible primitive. AuditFilters.vue in src/views/dashboard/admin/components is the page that uses it.",
+          "step": {
+            "bar": "1. Compact filters (a tab or a segmented choice) sit in PageHeader#bar.",
+            "search": "2. The search sits in the header of the list panel (ListPanel).",
+            "advanced": "3. Rare filters fold behind one Advanced trigger. A count badge says how many are set."
+          },
+          "list": "Rows",
+          "advanced": "Advanced",
+          "enabled": "Only enabled",
+          "noMatch": "No row matches the filters.",
+          "kind": {
+            "label": "Kind",
+            "all": "All",
+            "command": "Commands",
+            "timer": "Timers"
+          },
+          "created": {
+            "label": "Created",
+            "any": "Any time",
+            "week": "This week"
+          }
+        }
       },
       "primary": "Save changes",
       "outline": "Discard",

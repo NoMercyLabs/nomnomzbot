@@ -7,7 +7,216 @@
       "tabs": {
         "blocks": "Blokken",
         "states": "Paneelstanden",
-        "layouts": "Indelingen"
+        "layouts": "Indelingen",
+        "feedback": "Leeg en meldingen",
+        "rows": "Rijen en editors",
+        "pages": "Paginarecepten",
+        "locked": "Vergrendeld tabblad"
+      },
+      "lockedReason": "Een tabblad met slot: het gaat niet open, en dit is de reden.",
+      "width": {
+        "label": "Framebreedte",
+        "desktop": "Bureaublad",
+        "narrow": "Smal",
+        "phone": "Telefoon"
+      },
+      "feedback": {
+        "kind": {
+          "none": "EmptyState: none",
+          "noMatch": "EmptyState: noMatch",
+          "filtered": "EmptyState: filtered",
+          "gated": "EmptyState: gated"
+        },
+        "empty": {
+          "none": {
+            "title": "Hier is nog niets",
+            "text": "Er is nog niets gemaakt. De ene actie begint het.",
+            "action": "Maak de eerste"
+          },
+          "noMatch": {
+            "title": "Geen resultaat",
+            "text": "De zoekopdracht vond niets. Wis hem om alle rijen te zien.",
+            "action": "Zoekopdracht wissen"
+          },
+          "filtered": {
+            "title": "Verborgen door het filter",
+            "text": "Het open filter verbergt elke rij.",
+            "action": "Alles tonen"
+          },
+          "gated": {
+            "title": "Je kunt dit niet zien",
+            "text": "Jouw rol hoort niet bij deze pagina. Vraag het de kanaaleigenaar.",
+            "action": "Toegang vragen"
+          }
+        },
+        "tone": {
+          "info": "InlineNotice: info",
+          "warning": "InlineNotice: warning",
+          "error": "InlineNotice: error",
+          "success": "InlineNotice: success",
+          "gated": "InlineNotice: gated"
+        },
+        "noticeText": "Eén regel zegt wat er gebeurde. De actie staat aan het einde.",
+        "noticeAction": "Herstellen",
+        "compactError": "Compacte fout: één rode regel onder een veld.",
+        "compactGated": "Compact vergrendeld: één gedempte regel die zegt waarom een knop uit staat."
+      },
+      "connections": {
+        "title": "ConnectionRow",
+        "account": "stoney_eagle",
+        "tone": {
+          "ok": "ok",
+          "bad": "bad",
+          "live": "live",
+          "off": "off",
+          "attention": "attention"
+        },
+        "name": {
+          "connected": "Verbonden",
+          "disconnected": "Niet verbonden",
+          "attention": "Aandacht nodig"
+        },
+        "detail": {
+          "connected": "De koppeling werkt.",
+          "disconnected": "Er is geen account gekoppeld.",
+          "attention": "De koppeling heeft een nieuwe aanmelding nodig."
+        },
+        "action": {
+          "connected": "Ontkoppelen",
+          "disconnected": "Verbinden",
+          "attention": "Opnieuw verbinden"
+        }
+      },
+      "rows": {
+        "summary": "SummaryRow",
+        "plain": "Gewone rij",
+        "plainDetail": "Titel, detail en meta.",
+        "pick": "Kiesrij met een pijltje",
+        "selected": "Gekozen rij",
+        "meta": "meta",
+        "long": "Een lange titel die op een smal frame wordt afgekapt in plaats van over drie regels te lopen",
+        "longDetail": "truncate houdt één regel",
+        "setting": "SettingRow",
+        "on": "Aan",
+        "onHelp": "Een schakelaar met een hulpregel.",
+        "off": "Uit met een hint",
+        "offHint": "Een hint staat onder de rij.",
+        "disabled": "Uitgeschakeld",
+        "disabledHelp": "Een regel buiten deze pagina houdt hem aan.",
+        "readonly": "Alleen lezen",
+        "readonlyHelp": "Je ziet de waarde maar kunt hem niet wijzigen.",
+        "editDelete": "RowEditDelete",
+        "both": "Bewerken en verwijderen",
+        "bothDetail": "{edits} keer bewerkt, {deletes} keer verwijderd",
+        "editOnly": "Alleen bewerken",
+        "editOnlyDetail": "Een vast item heeft geen Verwijderen.",
+        "readOnlyRow": "Alleen lezen",
+        "readOnlyRowDetail": "Beide acties staan uit in een alleen-lezen-gebied.",
+        "readOnlyReason": "Jouw rol mag dit bekijken maar niet wijzigen.",
+        "edit": "Bewerken",
+        "delete": "Verwijderen"
+      },
+      "editors": {
+        "footer": "EditorFooter",
+        "delete": "Verwijderen",
+        "reset": "Terug naar standaard",
+        "discard": "Weggooien",
+        "save": "Opslaan",
+        "unsaved": "{count} verwijderd",
+        "fixedItem": "Een vast item: geen Verwijderen, alleen Terugzetten",
+        "saving": "Bezig met opslaan",
+        "paneTitle": "Editor",
+        "idle": "Kies een rij om hem hier te bewerken.",
+        "open": "Open",
+        "openText": "De editor van de gekozen rij.",
+        "missing": "De rij is weg. Kies een andere.",
+        "back": "Terug naar de lijst",
+        "list": {
+          "loading": "ListPanel: laden",
+          "empty": "ListPanel: leeg",
+          "error": "ListPanel: fout"
+        }
+      },
+      "pages": {
+        "body": "PageBody: dicht en scrollend",
+        "dense": "Dicht",
+        "denseText": "Een dichte body scrolt niet; zijn panelen wel.",
+        "scroll": "Scrollend",
+        "scrollText": "De body scrolt en houdt een vaste goot.",
+        "settings": "SettingsPageFrame",
+        "settingsTitle": "Instellingenpagina",
+        "settingsPanel": "Paneel",
+        "settingsText": "Het frame bezit de kop, de acties en de body.",
+        "admin": "AdminCollectionPage",
+        "adminTitle": "Adminlijst",
+        "adminCount": "3 rijen",
+        "adminList": "Rijen",
+        "task": "PublicTaskShell met TaskActions en WizardActions",
+        "brand": "NomNomzBot",
+        "taskTitle": "Inloggen",
+        "taskPrimary": "Doorgaan",
+        "taskSecondary": "Annuleren",
+        "wizardTitle": "Wizardstap",
+        "back": "Terug",
+        "next": "Volgende",
+        "below": "Onder de kaart: een link of een notitie."
+      },
+      "guide": {
+        "tiers": {
+          "title": "PanelCard-lagen",
+          "source": "tier is een prop van src/components/layout/PanelCard.vue.",
+          "lead": {
+            "title": "lead",
+            "rule": "Het hoofddoel van de pagina. Eén per pagina of per kolom. De titel heeft volle dikte."
+          },
+          "default": {
+            "title": "default",
+            "rule": "Een ondersteunende werkstroom. De laag die een paneel krijgt als je er geen kiest."
+          },
+          "quiet": {
+            "title": "quiet",
+            "rule": "Bijstatus of gevaarlijke inhoud. De titel is gedempt, zodat hij nooit met de lead strijdt."
+          }
+        },
+        "actions": {
+          "title": "Vaste plek van acties",
+          "source": "RowEditDelete.vue, EditorFooter.vue en PageHeader.vue in src/components/layout.",
+          "rule": {
+            "group": "Eén hoofdactie per groep. De andere zijn outline of ghost.",
+            "rows": "Bewerken en Verwijderen van een rij staan in RowEditDelete, altijd aan het einde van de rij.",
+            "header": "De paginaactie staat in de actieslot van de kop, naast een tweede outline-actie.",
+            "footer": "Opslaan, Weggooien en Verwijderen van een editor staan in EditorFooter, onderaan de editor."
+          },
+          "headerExample": "Kopacties: één outline, één primair",
+          "rowExample": "Rijacties: RowEditDelete",
+          "rowResult": "Laatste bewerking: {edited}. Laatste verwijdering: {deleted}.",
+          "footerExample": "Editorvoet: Weggooien outline, Opslaan primair",
+          "footerNote": "Niet-opgeslagen wijzigingen staan links"
+        },
+        "filters": {
+          "title": "Geavanceerde filters: het derde zoekrecept",
+          "source": "Gebouwd uit FilterBar.vue, ListPanel.vue en het Collapsible-element. AuditFilters.vue in src/views/dashboard/admin/components is de pagina die het gebruikt.",
+          "step": {
+            "bar": "1. Compacte filters (een tabblad of een gesegmenteerde keuze) staan in PageHeader#bar.",
+            "search": "2. De zoekopdracht staat in de kop van het lijstpaneel (ListPanel).",
+            "advanced": "3. Zeldzame filters vouwen weg achter één knop Geavanceerd. Een teller zegt hoeveel er aan staan."
+          },
+          "list": "Rijen",
+          "advanced": "Geavanceerd",
+          "enabled": "Alleen ingeschakeld",
+          "noMatch": "Geen rij past bij de filters.",
+          "kind": {
+            "label": "Soort",
+            "all": "Alles",
+            "command": "Commando's",
+            "timer": "Timers"
+          },
+          "created": {
+            "label": "Gemaakt",
+            "any": "Altijd",
+            "week": "Deze week"
+          }
+        }
       },
       "primary": "Wijzigingen opslaan",
       "outline": "Weggooien",

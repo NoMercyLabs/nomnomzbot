@@ -136,6 +136,9 @@ const SECTIONS_BY_VIEW = {
   blocks: ['stats', 'filters', 'dialogs', 'code-editor', 'flows', 'charts', 'template', 'lists'],
   states: ['panel-states'],
   layouts: ['layouts'],
+  feedback: ['empty-states', 'notices', 'connections'],
+  rows: ['rows', 'editors'],
+  pages: ['page-body', 'settings-frame', 'admin-collection', 'task-shell'],
 } as const satisfies Record<string, readonly string[]>;
 
 describe('CatalogView sections', () => {
@@ -166,6 +169,20 @@ describe('CatalogView sections', () => {
 
     expect(labels.sort()).toEqual(Object.values(en.dashboard.catalog.tabs).sort());
     expect(selected.text()).toContain(en.dashboard.catalog.tabs.layouts);
+  });
+
+  it('shows the locked tab with its reason as the tooltip and does not open it', async () => {
+    await open();
+    await router.push('/app/catalog?view=locked');
+    await flushPromises();
+
+    const row = mounted!.findComponent(PageTabs);
+    const locked = row.findAll('span[title]').find((wrap) => wrap.text() === en.dashboard.catalog.tabs.locked);
+    const lockedTab = locked?.find('[role="tab"]');
+
+    expect(locked?.attributes('title')).toBe(en.dashboard.catalog.lockedReason);
+    expect(lockedTab?.attributes('disabled')).toBeDefined();
+    expect(locked?.find('[data-slot="tab-lock"]').exists()).toBe(true);
   });
 });
 

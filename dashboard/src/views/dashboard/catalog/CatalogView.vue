@@ -21,18 +21,23 @@ import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import CatalogCharts from './components/CatalogCharts.vue';
 import CatalogCodeEditor from './components/CatalogCodeEditor.vue';
+import CatalogConnections from './components/CatalogConnections.vue';
 import CatalogDialogs from './components/CatalogDialogs.vue';
+import CatalogEditors from './components/CatalogEditors.vue';
+import CatalogFeedback from './components/CatalogFeedback.vue';
 import CatalogFilters from './components/CatalogFilters.vue';
 import CatalogFlows from './components/CatalogFlows.vue';
 import CatalogLayouts from './components/CatalogLayouts.vue';
 import CatalogLists from './components/CatalogLists.vue';
+import CatalogPages from './components/CatalogPages.vue';
 import CatalogPanelStates from './components/CatalogPanelStates.vue';
+import CatalogRows from './components/CatalogRows.vue';
 import CatalogStats from './components/CatalogStats.vue';
 import CatalogTemplate from './components/CatalogTemplate.vue';
 
 const { t } = useI18n();
 
-const VIEWS = ['blocks', 'states', 'layouts'] as const;
+const VIEWS = ['blocks', 'states', 'layouts', 'feedback', 'rows', 'pages', 'locked'] as const;
 
 type CatalogTab = (typeof VIEWS)[number];
 
@@ -48,6 +53,23 @@ const specs = () => [
   {
     value: 'layouts',
     label: t('dashboard.catalog.tabs.layouts'),
+  },
+  {
+    value: 'feedback',
+    label: t('dashboard.catalog.tabs.feedback'),
+  },
+  {
+    value: 'rows',
+    label: t('dashboard.catalog.tabs.rows'),
+  },
+  {
+    value: 'pages',
+    label: t('dashboard.catalog.tabs.pages'),
+  },
+  {
+    value: 'locked',
+    label: t('dashboard.catalog.tabs.locked'),
+    disabledReason: t('dashboard.catalog.lockedReason'),
   },
 ] as const satisfies readonly TabSpec<CatalogTab>[];
 
@@ -82,7 +104,16 @@ const { tabs, view } = useTabbedPage(VIEWS, specs);
           <CatalogLists />
         </template>
         <CatalogPanelStates v-else-if="view === 'states'" />
-        <CatalogLayouts v-else />
+        <CatalogLayouts v-else-if="view === 'layouts'" />
+        <template v-else-if="view === 'feedback'">
+          <CatalogFeedback />
+          <CatalogConnections />
+        </template>
+        <template v-else-if="view === 'rows'">
+          <CatalogRows />
+          <CatalogEditors />
+        </template>
+        <CatalogPages v-else />
       </div>
     </div>
   </div>
