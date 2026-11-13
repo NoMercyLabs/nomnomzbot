@@ -394,6 +394,26 @@ const option = (id: string, label: string, inChannel: boolean) =>
   }) as const satisfies Record<string, unknown>;
 
 describe('PeopleView', () => {
+  // Same list header as Commands: the sort leads the page bar, the search sits at the right of the panel header.
+  it('puts the sort in the page bar and only the search in the list panel header', async () => {
+    // A desktop window: every min-width query matches.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      addEventListener: (): void => undefined,
+      removeEventListener: (): void => undefined,
+    }));
+
+    await open();
+
+    const bar = document.body.querySelector('[data-slot="page-bar"]')!;
+    const head = document.body.querySelector('[data-slot="list-detail-list"] [data-slot="panel-card"] header')!;
+
+    expect(bar.querySelector('[data-segmented]')?.textContent).toContain('A to Z');
+    expect(head.querySelector('[data-segmented]')).toBeNull();
+    expect(head.querySelector('[data-slot="search-field"]')).not.toBeNull();
+  });
+
   it('lists the people from the bot with the last seen time and a role icon', async () => {
     await open();
 

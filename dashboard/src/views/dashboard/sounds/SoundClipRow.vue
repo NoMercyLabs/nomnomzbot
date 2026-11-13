@@ -48,14 +48,6 @@ const detail = computed<string>(() =>
 <template>
   <SummaryRow :title="clip.displayName" :detail="detail">
     <template #trailing>
-      <GatedSwitch
-        action="sounds:write"
-        data-sound-enabled
-        :model-value="clip.isEnabled"
-        :disabled="pending"
-        :aria-label="t('dashboard.sounds.enabled', { name: clip.displayName })"
-        @update:model-value="$emit('toggle', $event)"
-      />
       <RowEditDelete
         :edit-label="t('dashboard.sounds.edit', { name: clip.displayName })"
         :delete-label="t('dashboard.sounds.delete.title', { name: clip.displayName })"
@@ -63,6 +55,14 @@ const detail = computed<string>(() =>
         :deletable="can('sounds:write')"
         @edit="$emit('edit')"
         @delete="$emit('remove')"
+      />
+      <GatedSwitch
+        action="sounds:write"
+        data-sound-enabled
+        :model-value="clip.isEnabled"
+        :disabled="pending"
+        :aria-label="t('dashboard.sounds.enabled', { name: clip.displayName })"
+        @update:model-value="$emit('toggle', $event)"
       />
     </template>
   </SummaryRow>

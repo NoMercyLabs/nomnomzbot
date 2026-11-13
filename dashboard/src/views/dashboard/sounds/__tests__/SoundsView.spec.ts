@@ -343,6 +343,27 @@ describe('SoundsView', () => {
     expect(rows()).toHaveLength(0);
   });
 
+  it('draws Add sound as the page create button, the one primary action', async () => {
+    await open();
+
+    const add = document.querySelector('[data-slot="page-create"] [data-sound-new]');
+
+    expect(add).not.toBeNull();
+    expect(add?.getAttribute('data-variant')).toBe('default');
+  });
+
+  it('orders a row Edit, Delete, then the switch last', async () => {
+    clips = [clip('boom', 'Boom')];
+    await open();
+
+    // The row's data hook sits on the body; the switch and the buttons are in its trailing sibling.
+    const row = document.querySelector('[data-sound-row]')!.parentElement!;
+    const toggle = row.querySelector('[data-sound-enabled]')!;
+    const remove = row.querySelector('[data-row-delete]')!;
+
+    expect(remove.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('hides add, edit and delete from a person who may only read', async () => {
     held.keys = new Set(['sounds:read']);
     clips = [clip('boom', 'Boom')];

@@ -517,6 +517,15 @@ describe('GiveawaysView', () => {
     expect(bodies[0]).toMatchObject({ prizeMode: 'pipeline', target: { kind: 0, id: 'c1' } });
   });
 
+  it('draws New giveaway as the page create button, the one primary action', async () => {
+    await open();
+
+    const add = document.querySelector('[data-slot="page-create"] [data-giveaway-new]');
+
+    expect(add).not.toBeNull();
+    expect(add?.getAttribute('data-variant')).toBe('default');
+  });
+
   it('shows what a delete would remove, then deletes and drops the row', async () => {
     giveaways = [giveaway('g1', 'Summer key', 'drawn', 12)];
     await open();

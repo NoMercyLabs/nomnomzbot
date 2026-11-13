@@ -124,7 +124,7 @@ describe('GiveawaysView shows only what the person may use', () => {
     expect(view.find('[data-winner-row]').exists()).toBe(false);
     expect(view.find('[data-entry-row]').exists()).toBe(false);
     expect(view.find('[data-pool-row]').exists()).toBe(false);
-    expect(view.find('[data-giveaway-new]').exists()).toBe(false);
+    expect(document.body.querySelector('[data-giveaway-new]')).toBeNull();
   });
 
   it('shows the reads but no write control with giveaways:read alone', async () => {
@@ -133,7 +133,7 @@ describe('GiveawaysView shows only what the person may use', () => {
     expect(view.find('[data-giveaway-row]').exists()).toBe(true);
     expect(view.find('[data-winner-row]').exists()).toBe(true);
     expect(view.find('[data-entry-row]').exists()).toBe(true);
-    expect(view.find('[data-giveaway-new]').exists()).toBe(false);
+    expect(document.body.querySelector('[data-giveaway-new]')).toBeNull();
     expect(view.find('[data-giveaway-action]').exists()).toBe(false);
     expect(view.find('[data-row-edit]').exists()).toBe(false);
     expect(view.find('[data-row-delete]').exists()).toBe(false);
@@ -144,7 +144,8 @@ describe('GiveawaysView shows only what the person may use', () => {
   it('shows every write control with giveaways:write', async () => {
     const view = await open(['giveaways:read', 'giveaways:write']);
 
-    expect(view.find('[data-giveaway-new]').exists()).toBe(true);
+    // The create button is the page create button, which may teleport to the frame footer, so ask the document.
+    expect(document.body.querySelector('[data-giveaway-new]')).not.toBeNull();
     expect(view.find('[data-giveaway-action]').exists()).toBe(true);
     expect(view.find('[data-row-edit]').exists()).toBe(true);
     expect(view.find('[data-row-delete]').exists()).toBe(true);

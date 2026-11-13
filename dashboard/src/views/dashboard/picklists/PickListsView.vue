@@ -34,7 +34,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 import { blastLines } from '@/views/dashboard/scripts/components/blastLines';
 
-import Plus from '~icons/nnz/add';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 
 import PickListDialog from './PickListDialog.vue';
 import PickListRow from './PickListRow.vue';
@@ -108,15 +108,12 @@ function loadMore(): void {
 <template>
   <PageHeader :title="t('dashboard.picklists.title')">
     <template #actions>
-      <Button v-if="can('picklists:write')"
-              type="button"
-              size="sm"
-              data-picklist-new
-              @click="openDialog(null)"
-      >
-        <Plus aria-hidden="true" />
-        {{ t("dashboard.picklists.new") }}
-      </Button>
+      <PageCreateButton
+        v-if="can('picklists:write')"
+        data-picklist-new
+        :label="t('dashboard.picklists.new')"
+        @create="openDialog(null)"
+      />
     </template>
   </PageHeader>
   <PageBody>

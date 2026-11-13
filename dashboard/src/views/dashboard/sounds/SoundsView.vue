@@ -34,7 +34,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 import { blastLines } from '@/views/dashboard/scripts/components/blastLines';
 
-import Plus from '~icons/nnz/add';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 
 import SoundClipAddDialog from './SoundClipAddDialog.vue';
 import SoundClipEditDialog from './SoundClipEditDialog.vue';
@@ -123,15 +123,12 @@ function loadMore(): void {
 <template>
   <PageHeader :title="t('dashboard.sounds.title')">
     <template #actions>
-      <Button v-if="can('sounds:write')"
-              type="button"
-              size="sm"
-              data-sound-new
-              @click="addOpen = true"
-      >
-        <Plus aria-hidden="true" />
-        {{ t("dashboard.sounds.new") }}
-      </Button>
+      <PageCreateButton
+        v-if="can('sounds:write')"
+        data-sound-new
+        :label="t('dashboard.sounds.new')"
+        @create="addOpen = true"
+      />
     </template>
   </PageHeader>
   <PageBody>

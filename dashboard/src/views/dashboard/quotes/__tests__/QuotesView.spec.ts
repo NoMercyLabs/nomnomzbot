@@ -351,6 +351,15 @@ describe('QuotesView', () => {
     expect(body?.parentElement?.querySelector('[data-slot="summary-row-trailing"]')).toBeNull();
   });
 
+  it('draws Add quote as the page create button, the one primary action', async () => {
+    await open();
+
+    const add = document.querySelector('[data-slot="page-create"] [data-quote-new]');
+
+    expect(add).not.toBeNull();
+    expect(add?.getAttribute('data-variant')).toBe('default');
+  });
+
   it('shows a reader the quotes but no add, edit or delete button', async () => {
     held.keys = new Set(['quotes:read']);
     await open();

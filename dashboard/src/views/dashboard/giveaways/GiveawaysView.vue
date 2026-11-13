@@ -36,6 +36,7 @@ import {
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowEditDelete from '@/components/layout/RowEditDelete.vue';
@@ -222,17 +223,12 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
 <template>
   <PageHeader :title="t('dashboard.giveaways.title')">
     <template #actions>
-      <Button
+      <PageCreateButton
         v-if="can('giveaways:write')"
-        type="button"
-        variant="outline"
-        size="sm"
         data-giveaway-new
-        @click="openDialog(null)"
-      >
-        <Plus aria-hidden="true" />
-        {{ t("dashboard.giveaways.new") }}
-      </Button>
+        :label="t('dashboard.giveaways.new')"
+        @create="openDialog(null)"
+      />
     </template>
   </PageHeader>
   <PageBody>

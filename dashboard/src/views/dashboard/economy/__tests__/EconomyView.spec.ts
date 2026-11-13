@@ -764,7 +764,39 @@ describe('Economy page', () => {
   });
 });
 
+describe('Economy list actions', () => {
+  it.each(['rules', 'jars', 'catalog', 'leaderboards'])(
+    'draws the %s create button as the page create button, the one primary action',
+    async (view) => {
+      await open(view);
+
+      const create = document.body.querySelector('[data-slot="page-create"] button');
+
+      expect(create).not.toBeNull();
+      expect(create?.getAttribute('data-variant')).toBe('default');
+    },
+  );
+
+  it('keeps the earning rule row order Edit, Delete, then the switch', async () => {
+    await open('rules');
+
+    const row = document.body.querySelector('[data-rule-row]')!;
+    const remove = row.querySelector('[data-row-delete]')!;
+    const toggle = row.querySelector('button[role="switch"]')!;
+
+    expect(remove.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('Economy balances tab', () => {
+  it('puts the search in the panel header, like Commands and Pipelines', async () => {
+    await open('balances');
+
+    const header = document.body.querySelector('[data-slot="panel-card"] header');
+
+    expect(header?.querySelector('input[type="search"], input')).not.toBeNull();
+  });
+
   it('lists every wallet with its balance', async () => {
     await open('balances');
 

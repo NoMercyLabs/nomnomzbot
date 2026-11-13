@@ -29,7 +29,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 
-import Plus from '~icons/nnz/add';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import Dices from '~icons/nnz/dices';
 
 import QuoteDialog from './QuoteDialog.vue';
@@ -123,15 +123,12 @@ function loadMore(): void {
         <!-- Below md the header has room for the icon only; the name stays for screen readers. -->
         <span class="max-md:sr-only">{{ t("dashboard.quotes.random") }}</span>
       </Button>
-      <Button v-if="can('quotes:write')"
-              type="button"
-              size="sm"
-              data-quote-new
-              @click="openDialog(null)"
-      >
-        <Plus aria-hidden="true" />
-        {{ t("dashboard.quotes.new") }}
-      </Button>
+      <PageCreateButton
+        v-if="can('quotes:write')"
+        data-quote-new
+        :label="t('dashboard.quotes.new')"
+        @create="openDialog(null)"
+      />
     </template>
   </PageHeader>
   <PageBody>

@@ -295,6 +295,15 @@ describe('PickListsView', () => {
     );
   });
 
+  it('draws New pick list as the page create button, the one primary action', async () => {
+    await open();
+
+    const add = document.querySelector('[data-slot="page-create"] [data-picklist-new]');
+
+    expect(add).not.toBeNull();
+    expect(add?.getAttribute('data-variant')).toBe('default');
+  });
+
   it('hides add, edit and delete from a person who may only read', async () => {
     held.keys = new Set(['picklists:read']);
     lists = [list('a', 'jokes', ['one'])];

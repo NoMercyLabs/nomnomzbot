@@ -10,14 +10,13 @@
 -->
 <script setup lang="ts">
 // The Economy page: the channel's currency, how viewers earn it, and the savings jars.
-import Plus from '~icons/nnz/add';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import PageBody from '@/components/layout/PageBody.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import { Button } from '@/components/ui/button';
 import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import BalancesPanel from './components/BalancesPanel.vue';
@@ -106,17 +105,12 @@ const { tabs, view, action, canAct } = useTabbedPage(VIEWS, specs);
 <template>
   <PageHeader :title="$t('dashboard.economy.title')" :crumb="$t('dashboard.economy.crumb')">
     <template #actions>
-      <Button
-        v-if="canAct"
+      <PageCreateButton
+        v-if="canAct && action"
         :key="view"
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="action?.run()"
-      >
-        <Plus aria-hidden="true" />
-        {{ action?.label }}
-      </Button>
+        :label="action.label"
+        @create="action.run()"
+      />
     </template>
     <template #bar>
       <PageTabs :tabs="tabs" />

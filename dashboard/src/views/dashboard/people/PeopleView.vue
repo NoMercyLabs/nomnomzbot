@@ -43,6 +43,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import ListPanel from '@/components/layout/ListPanel.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import { useScreenFrom } from '@/composables/useLayout';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -203,6 +204,10 @@ const sortOptions = computed(
       { value: 'alphabetical', label: t('dashboard.people.sort.alphabetical') },
     ] as const satisfies readonly { value: PeopleSort; label: string }[],
 );
+
+// The sort orders the tab list; the YouTube members panel and a typed search have their own order.
+const tablet = useScreenFrom('tablet');
+const sortShown = computed<boolean>(() => view.value !== 'youtube' && !searching.value);
 
 // A to Z on a list the bot cannot order sorts the loaded rows by name, so it loads every page first.
 const sortsHere = computed<boolean>(
@@ -433,6 +438,13 @@ useEventListener(document, 'keydown', closeOnEscape);
 <template>
   <PageHeader :title="$t('dashboard.people.title')" :crumb="$t('dashboard.people.crumb')">
     <template #bar>
+      <!-- Like Commands: the sort leads the bar over the list; on a phone it stays in the list's own head. -->
+      <SegmentedControl
+        v-if="sortShown && tablet"
+        v-model="sort"
+        :label="$t('dashboard.people.sort.label')"
+        :options="sortOptions"
+      />
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
@@ -455,7 +467,7 @@ useEventListener(document, 'keydown', closeOnEscape);
       >
         <template #actions>
           <SegmentedControl
-            v-if="!searching"
+            v-if="sortShown && !tablet"
             v-model="sort"
             :label="$t('dashboard.people.sort.label')"
             :options="sortOptions"

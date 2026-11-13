@@ -18,9 +18,8 @@ import { computed, ref } from 'vue';
 import { useAccounts, useFreezeAccount, type CurrencyAccount } from '@/api/economy';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import IconAction from '@/components/layout/IconAction.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
-import SearchField from '@/components/layout/SearchField.vue';
 import ShowMoreFooter from '@/components/layout/ShowMoreFooter.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
@@ -64,8 +63,9 @@ function toggle(row: CurrencyAccount): void {
 
 <template>
   <div class="flex max-w-2xl flex-col gap-3">
-    <SearchField v-model="search" :placeholder="$t('dashboard.economy.balances.search')" />
-    <PanelCard
+    <ListPanel
+      v-model="search"
+      :placeholder="$t('dashboard.economy.balances.search')"
       :title="$t('dashboard.economy.balances.title')"
       :description="$t('dashboard.economy.balances.description')"
       :state="state"
@@ -115,7 +115,7 @@ function toggle(row: CurrencyAccount): void {
       <template v-if="shown.hasMore.value" #footer>
         <ShowMoreFooter :remaining="shown.remaining.value" @more="shown.more()" />
       </template>
-    </PanelCard>
+    </ListPanel>
     <AdjustDialog v-model:open="adjustOpen" :account="adjusting" />
   </div>
 </template>
