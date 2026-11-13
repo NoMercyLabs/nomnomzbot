@@ -100,7 +100,7 @@ function pick(row: SupportPerson): void {
             <li v-for="row in rows" :key="row.userId" data-person-row>
               <button
                 type="button"
-                class="flex w-full min-w-0 flex-col px-2 py-2 text-left hover:bg-accent"
+                class="flex w-full min-w-0 flex-col p-2 text-left hover:bg-accent"
                 :class="row.userId === selectedId ? 'bg-accent' : ''"
                 @click="pick(row)"
               >

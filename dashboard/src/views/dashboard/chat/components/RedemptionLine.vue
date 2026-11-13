@@ -65,7 +65,7 @@ const stamp = computed<string>(() =>
     :data-line-id="line.id"
     data-redemption
     :data-kind="line.redemption?.kind"
-    class="flex gap-2 border-s-2 border-border text-sm leading-6"
+    class="flex gap-2 border-s-2 border-border text-sm/6"
     :class="[spacingPadding[display.spacing], compact ? 'px-2' : 'px-3']"
   >
     <time

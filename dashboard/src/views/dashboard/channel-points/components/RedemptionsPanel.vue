@@ -292,7 +292,7 @@ function rejectOpen(open: boolean): void {
                 <span aria-hidden="true">{{ $t('dashboard.channelPoints.redemptions.separator') }}</span>
                 <span>{{ $t('dashboard.channelPoints.redemptions.cost', { count: Number(row.cost) }) }}</span>
               </div>
-              <p v-if="row.userInput" class="mt-1 text-sm break-words">
+              <p v-if="row.userInput" class="mt-1 text-sm wrap-break-word">
                 {{ row.userInput }}
               </p>
             </div>

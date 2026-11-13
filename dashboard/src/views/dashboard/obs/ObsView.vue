@@ -252,15 +252,15 @@ function retry(): void {
               @retry="retry"
             />
             <ScenesPanel
-              class="[grid-area:scenes] @min-[48rem]:[contain:size]"
+              class="[grid-area:scenes] @min-[48rem]:contain-[size]"
               :scenes="scenes.data.value"
               :panel-state="scenesPanel"
               :offline="!enabled"
               @retry="retry"
             />
-            <AudioPanel class="[grid-area:audio] @min-[48rem]:[contain:size]" :offline="!enabled" />
+            <AudioPanel class="[grid-area:audio] @min-[48rem]:contain-[size]" :offline="!enabled" />
             <SourcesPanel
-              class="[grid-area:sources] @min-[48rem]:[contain:size]"
+              class="[grid-area:sources] @min-[48rem]:contain-[size]"
               :scene-name="state.data.value?.currentScene ?? null"
               :offline="!enabled"
             />

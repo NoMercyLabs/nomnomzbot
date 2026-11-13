@@ -247,11 +247,11 @@ async function confirmAction(): Promise<void> {
         :placeholder="t('dashboard.admin.billing.channel.id')"
       />
     </template>
-    <p v-if="noInvoices" data-no-invoices class="px-2 py-2 text-sm text-muted-foreground">
+    <p v-if="noInvoices" data-no-invoices class="p-2 text-sm text-muted-foreground">
       {{ t("dashboard.admin.billing.channel.noInvoices") }}
     </p>
     <ul v-else class="grid divide-y divide-border text-sm">
-      <li v-for="invoice in invoices.data.value ?? []" :key="invoice.id" data-invoice-row class="flex items-center gap-3 px-2 py-2">
+      <li v-for="invoice in invoices.data.value ?? []" :key="invoice.id" data-invoice-row class="flex items-center gap-3 p-2">
         <span class="min-w-0 flex-1">{{ invoice.number }} <span class="text-muted-foreground">{{ invoice.status }}</span></span>
         <span class="tabular-nums">{{ amount(invoice) }}</span>
         <Button v-if="can('billing:refund')"
@@ -264,14 +264,14 @@ async function confirmAction(): Promise<void> {
         </Button>
       </li>
     </ul>
-    <p v-if="noGifts" data-no-gifts class="border-t border-border px-2 py-2 text-sm text-muted-foreground">
+    <p v-if="noGifts" data-no-gifts class="border-t border-border p-2 text-sm text-muted-foreground">
       {{ t("dashboard.admin.billing.channel.noGifts") }}
     </p>
     <ul v-else class="grid divide-y divide-border border-t border-border text-sm">
       <li v-for="grant in grants.data.value ?? []"
           :key="grant.id"
           :data-grant-row="grant.id"
-          class="flex items-center gap-3 px-2 py-2"
+          class="flex items-center gap-3 p-2"
       >
         <span class="min-w-0 flex-1">
           {{ tierLabel(grant.grantedTierId) || grant.grantedTierKey }}

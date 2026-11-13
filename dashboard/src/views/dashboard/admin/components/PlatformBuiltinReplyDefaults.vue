@@ -156,7 +156,7 @@ function apply(): void {
               :label="$t('dashboard.admin.platformDefaults.replies.changed')"
             />
           </p>
-          <p class="break-words text-sm">{{ effective(row) }}</p>
+          <p class="wrap-break-word text-sm">{{ effective(row) }}</p>
           <p class="text-xs text-muted-foreground">
             {{
               $t(

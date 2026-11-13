@@ -41,7 +41,7 @@ const state = usePanelState(members, (page) =>
     @retry="members.refetch()"
   >
     <ul class="grid divide-y divide-border text-sm">
-      <li v-for="row in rows" :key="row.userId" data-member-row class="flex items-center gap-3 px-2 py-2">
+      <li v-for="row in rows" :key="row.userId" data-member-row class="flex items-center gap-3 p-2">
         <span class="min-w-0 flex-1 font-medium">{{ row.displayName }}</span>
         <span class="text-muted-foreground">
           {{ t(`dashboard.admin.tenants.members.relation.${row.relation}`, row.relation) }}

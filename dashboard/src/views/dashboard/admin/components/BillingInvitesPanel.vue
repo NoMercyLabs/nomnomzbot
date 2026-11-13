@@ -216,7 +216,7 @@ async function confirmRevoke(): Promise<void> {
       <li v-for="invite in rows"
           :key="invite.id"
           :data-invite-row="invite.id"
-          class="flex flex-wrap items-center gap-3 px-2 py-2"
+          class="flex flex-wrap items-center gap-3 p-2"
       >
         <code class="font-mono" :class="{ 'text-muted-foreground line-through': isEnded(invite) }">{{ invite.code }}</code>
         <span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">

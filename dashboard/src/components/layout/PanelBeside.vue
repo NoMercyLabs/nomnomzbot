@@ -18,7 +18,7 @@
 <template>
   <div
     data-slot="panel-beside"
-    class="flex min-h-0 min-w-0 flex-1 *:data-[slot=side-panel]:mt-6 *:data-[slot=side-panel]:mr-6 *:data-[slot=side-panel]:mb-6"
+    class="flex min-h-0 min-w-0 flex-1 *:data-[slot=side-panel]:my-6 *:data-[slot=side-panel]:mr-6"
   >
     <div data-slot="panel-beside-content" class="flex min-h-0 min-w-0 flex-1 flex-col">
       <slot />

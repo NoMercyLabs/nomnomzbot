@@ -69,20 +69,6 @@ if (-not (Test-Path $wt)) {
     # Untracked files from the last run only; node_modules is ignored, so its install is left alone.
     git -C $wt clean -fd -- dashboard/src | Out-Null
 }
-# The gate worktree owns its packages, the same install CI runs. A link to the main tree's node_modules is
-# refused by restore-guard (2026-10-27: a shared link let another worktree damage a running dev server).
-# Installed once, and again only when the lock file changes.
-$lockHash = (Get-FileHash "$wt/dashboard/package-lock.json").Hash
-$stamp = "$wt/dashboard/node_modules/.gate-lock-hash"
-if (-not (Test-Path $stamp) -or (Get-Content $stamp) -ne $lockHash) {
-    Push-Location "$wt/dashboard"
-    npm ci --no-audit --no-fund | Out-Null
-    $installed = $LASTEXITCODE -eq 0
-    Pop-Location
-    if (-not $installed) { 'NPM CI FAILED in the gate worktree'; exit 1 }
-    Set-Content -Path $stamp -Value $lockHash
-}
-
 foreach ($path in $Paths) {
     $source = "$repo/$path"
     $target = "$wt/$path"
@@ -95,6 +81,21 @@ foreach ($path in $Paths) {
     } elseif (Test-Path $target) {
         Remove-Item -Force $target
     }
+}
+
+# The gate worktree owns its packages, the same install CI runs. A link to the main tree's node_modules is
+# refused by restore-guard (2026-10-27: a shared link let another worktree damage a running dev server).
+# Installed once, and again only when the lock file changes. It runs after the copy, so a slice that changes
+# the lock file is gated with its own packages (2026-11-13: a new lint plugin failed type-check as missing).
+$lockHash = (Get-FileHash "$wt/dashboard/package-lock.json").Hash
+$stamp = "$wt/dashboard/node_modules/.gate-lock-hash"
+if (-not (Test-Path $stamp) -or (Get-Content $stamp) -ne $lockHash) {
+    Push-Location "$wt/dashboard"
+    npm ci --no-audit --no-fund | Out-Null
+    $installed = $LASTEXITCODE -eq 0
+    Pop-Location
+    if (-not $installed) { 'NPM CI FAILED in the gate worktree'; exit 1 }
+    Set-Content -Path $stamp -Value $lockHash
 }
 
 Push-Location "$wt/dashboard"

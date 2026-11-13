@@ -18,6 +18,7 @@ import pluginOxlint from 'eslint-plugin-oxlint';
 import pluginVueI18n from '@intlify/eslint-plugin-vue-i18n';
 import pluginUnusedImports from 'eslint-plugin-unused-imports';
 import pluginStylistic from '@stylistic/eslint-plugin';
+import pluginBetterTailwind from 'eslint-plugin-better-tailwindcss';
 import * as jsoncParser from 'jsonc-eslint-parser';
 
 import { arrowTernaryBody } from './eslint-rules/arrow-ternary-body';
@@ -114,6 +115,22 @@ export default defineConfigWithVueTs(
     },
     rules: {
       '@intlify/vue-i18n/no-duplicate-keys-in-locale': 'error',
+    },
+  },
+
+  {
+    // A Tailwind class has one canonical spelling (size-[18px] is size-4.5). The editor only hinted at it, so
+    // arbitrary values piled up (Stoney 2026-11-13: "why are these not formatted?"); eslint --fix now rewrites them
+    // with Tailwind's own canonicalizer. shadcn output stays as its CLI writes it.
+    name: 'app/tailwind-canonical',
+    files: ['src/**/*.{vue,ts}'],
+    ignores: ['src/components/ui/**'],
+    plugins: { 'better-tailwindcss': pluginBetterTailwind },
+    settings: { 'better-tailwindcss': { entryPoint: 'src/styles/main.css' } },
+    rules: {
+      'better-tailwindcss/enforce-canonical-classes': 'error',
+      // The canonical fix merges classes (px-2 py-2 -> p-2) and leaves the gap behind; this rule closes it.
+      'better-tailwindcss/no-unnecessary-whitespace': 'error',
     },
   },
 

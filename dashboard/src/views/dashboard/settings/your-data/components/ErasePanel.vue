@@ -125,8 +125,8 @@ async function confirmOptOut(): Promise<void> {
         </Button>
       </ActionRow>
     </RowGroup>
-    <p v-if="notice" data-notice class="p-3  text-sm text-muted-foreground">{{ notice }}</p>
-    <InlineNotice v-if="failure" tone="error" compact class="p-3 ">{{ failure }}</InlineNotice>
+    <p v-if="notice" data-notice class="p-3 text-sm text-muted-foreground">{{ notice }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="p-3">{{ failure }}</InlineNotice>
   </PanelCard>
 
   <ConfirmDialog

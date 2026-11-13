@@ -239,16 +239,11 @@ watch(replyTo, async (line) => {
 });
 
 const listKeys = {
-  ArrowDown: () =>
-    list.move(1),
-  ArrowUp: () =>
-    list.move(-1),
-  Tab: () =>
-    choose(list.suggestions.value[list.active.value]!),
-  Enter: () =>
-    choose(list.suggestions.value[list.active.value]!),
-  Escape: () =>
-    list.dismiss(),
+  ArrowDown: () => list.move(1),
+  ArrowUp: () => list.move(-1),
+  Tab: () => choose(list.suggestions.value[list.active.value]!),
+  Enter: () => choose(list.suggestions.value[list.active.value]!),
+  Escape: () => list.dismiss(),
 } as const satisfies Record<string, () => void>;
 
 // Up at the start of the box brings back an older sent message, Down at its end a newer one, as BTTV and FFZ do.
@@ -446,7 +441,7 @@ async function submit(): Promise<void> {
         >
           {{ $t('dashboard.chat.composer.placeholder') }}
         </span>
-        <div class="absolute end-0.5 bottom-0.5 flex items-center gap-1 max-md:static">
+        <div class="absolute inset-e-0.5 bottom-0.5 flex items-center gap-1 max-md:static">
           <!-- The same quiet key cap as the search field, until you are in the box. -->
           <Kbd
             v-if="text === ''"

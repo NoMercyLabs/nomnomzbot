@@ -31,7 +31,7 @@ describe('the page body', () => {
     const body = mount(PageBody);
     const classes = body.classes();
 
-    expect(classes).toContain('[scrollbar-gutter:stable]');
+    expect(classes).toContain('scrollbar-gutter-stable');
     expect(classes).toContain('pr-[calc(1.5rem-var(--scrollbar-width))]');
   });
 

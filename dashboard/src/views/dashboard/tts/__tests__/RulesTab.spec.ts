@@ -560,8 +560,8 @@ describe('TTS rules panels', () => {
     expect(columns(row)).toBe(columns(header));
     expect(header.children).toHaveLength(4);
     expect(row.children).toHaveLength(4);
-    expect(row.classList.contains('px-2')).toBe(true);
-    expect(header.classList.contains('px-2')).toBe(true);
+    expect(row.classList.contains('p-2')).toBe(true);
+    expect(header.classList.contains('p-2')).toBe(true);
   });
 
   it('shows a lexicon rule as separate values so phrase and replacement never run together', async () => {

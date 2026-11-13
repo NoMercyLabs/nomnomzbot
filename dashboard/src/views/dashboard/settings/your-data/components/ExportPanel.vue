@@ -55,7 +55,7 @@ async function run(): Promise<void> {
         {{ $t('dashboard.settings.yourData.export.action') }}
       </Button>
     </template>
-    <p v-if="last" data-export-result class="px-3 py-3 text-sm text-muted-foreground">
+    <p v-if="last" data-export-result class="p-3 text-sm text-muted-foreground">
       {{
         $t('dashboard.settings.yourData.export.result', {
           rows: Number(last.rowsAffected),
@@ -63,6 +63,6 @@ async function run(): Promise<void> {
         })
       }}
     </p>
-    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
+    <InlineNotice v-if="failure" tone="error" compact class="p-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

@@ -51,7 +51,7 @@ describe('the OBS Live tab is a bento grid with named areas', () => {
 
   // Review of lane-C2-after.png: the stretched Scenes panel left a hole, and Recording read 'Recor...'.
   it('sizes the top row by the outputs so the scenes never stretch into a hole', () => {
-    expect(view).toMatch(/\[grid-area:scenes\][^"]*\[contain:size\]/);
+    expect(view).toMatch(/\[grid-area:scenes\][^"]*contain-\[size\]/);
   });
 
   it('gives the outputs column the extra width its Recording row needs', () => {
@@ -65,7 +65,7 @@ describe('the OBS Live tab is a bento grid with named areas', () => {
   });
 
   it('lets the audio mixer scroll inside its cell instead of setting the row height', () => {
-    expect(view).toMatch(/\[grid-area:audio\][^"]*\[contain:size\]/);
+    expect(view).toMatch(/\[grid-area:audio\][^"]*contain-\[size\]/);
   });
 
   // Stoney: "span the page".

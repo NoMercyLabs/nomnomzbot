@@ -79,7 +79,7 @@ function percentOf(option: PollHistoryOption): number {
         data-poll-option
         class="flex items-center gap-2 text-xs text-muted-foreground"
       >
-        <span class="basis-2/5 flex-none break-words">{{ option.title }}</span>
+        <span class="basis-2/5 flex-none wrap-break-word">{{ option.title }}</span>
         <PollBar
           class="flex-1"
           size="sm"

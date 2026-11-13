@@ -712,7 +712,7 @@ describe('AdminAccessView', () => {
 
     const chips = document.body.querySelector('[data-principal-row] > div:nth-child(2)')!;
 
-    expect(chips.className).toContain('flex-[3]');
+    expect(chips.className).toContain('flex-3');
     expect(chips.className).toContain('basis-96');
   });
 

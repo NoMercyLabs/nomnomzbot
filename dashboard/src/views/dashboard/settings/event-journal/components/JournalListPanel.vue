@@ -201,7 +201,7 @@ function clear(): void {
         {{ $t('dashboard.settings.eventJournal.list.clear') }}
       </Button>
     </template>
-    <div class="flex flex-wrap items-center gap-2 px-3 py-3">
+    <div class="flex flex-wrap items-center gap-2 p-3">
       <FilterBar
         v-model="kindChoice"
         data-filter-type

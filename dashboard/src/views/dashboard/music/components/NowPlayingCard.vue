@@ -139,7 +139,7 @@ const nextRepeat = computed<RepeatMode>(() => {
         <div class="grid min-w-0 flex-[1_1_16rem] gap-3">
           <p
             data-player-title
-            class="line-clamp-2 text-2xl/tight  font-bold wrap-break-word @xl:text-4xl"
+            class="line-clamp-2 text-2xl/tight font-bold wrap-break-word @xl:text-4xl"
           >
             {{ track.trackName }}
           </p>

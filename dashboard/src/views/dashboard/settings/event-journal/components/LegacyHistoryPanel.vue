@@ -61,7 +61,7 @@ async function run(): Promise<void> {
         {{ $t('dashboard.settings.eventJournal.legacy.import') }}
       </Button>
     </template>
-    <div v-if="result" data-legacy-result class="px-3 py-3 text-sm text-muted-foreground">
+    <div v-if="result" data-legacy-result class="p-3 text-sm text-muted-foreground">
       <p>
         {{
           $t('dashboard.settings.eventJournal.legacy.imported', {
@@ -80,6 +80,6 @@ async function run(): Promise<void> {
         </li>
       </ul>
     </div>
-    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
+    <InlineNotice v-if="failure" tone="error" compact class="p-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

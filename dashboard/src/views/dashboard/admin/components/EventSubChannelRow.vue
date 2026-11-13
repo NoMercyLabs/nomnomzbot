@@ -56,7 +56,7 @@ const needsSignIn = computed(() =>
           :label="$t('dashboard.admin.eventsubHealth.needAttention', { broken: broken.length, total: topics.length })"
         />
       </span>
-      <span class="order-last min-w-0 basis-full text-sm text-muted-foreground truncate empty:hidden md:order-none md:flex-1 md:basis-0">
+      <span class="order-last min-w-0 basis-full text-sm text-muted-foreground truncate empty:hidden md:order-0 md:flex-1 md:basis-0">
         <template v-if="firstBroken">
           {{ needsSignIn ? $t('dashboard.admin.eventsubHealth.signInAgain') : humanize(firstBroken.status) }}
         </template>

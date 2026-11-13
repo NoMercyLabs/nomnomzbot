@@ -1015,7 +1015,7 @@ describe('the profile dialog', () => {
     const dialog = dialogs()[0]!;
     const area = dialog.querySelector<HTMLElement>('[role="tabpanel"]')!.parentElement!;
 
-    expect(dialog.classList).toContain('md:h-[48rem]');
+    expect(dialog.classList).toContain('md:h-192');
     expect(dialog.classList).toContain('max-h-[90vh]');
     expect(area.classList).toContain('md:overflow-y-auto');
   });

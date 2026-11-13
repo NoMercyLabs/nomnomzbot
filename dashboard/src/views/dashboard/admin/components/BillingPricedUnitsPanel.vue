@@ -68,7 +68,7 @@ async function submit(): Promise<void> {
       </Button>
     </template>
     <ul class="grid divide-y divide-border text-sm">
-      <li v-for="unit in rows" :key="unit.id" data-unit-row class="flex items-center gap-3 px-2 py-2">
+      <li v-for="unit in rows" :key="unit.id" data-unit-row class="flex items-center gap-3 p-2">
         <span class="min-w-0 flex-1 font-medium">{{ unit.unitKey }}</span>
         <span class="text-muted-foreground tabular-nums">
           {{ t("dashboard.admin.billing.units.price", { price: unit.priceMinorUnitsPerBatch, currency: unit.currency, batch: unit.batchSize }) }}

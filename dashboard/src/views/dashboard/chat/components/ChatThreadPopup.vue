@@ -50,20 +50,20 @@ const display = useChatDisplay();
         <Cross class="size-4" aria-hidden="true" />
       </Button>
     </div>
-    <p v-if="pending" class="px-2 py-2 text-sm text-muted-foreground">{{ $t('dashboard.chat.reply.threadLoading') }}</p>
-    <InlineNotice v-else-if="failed" tone="error" compact class="px-2 py-2">{{ $t('dashboard.chat.reply.threadError') }}</InlineNotice>
-    <p v-else-if="lines.length === 0" class="px-2 py-2 text-sm text-muted-foreground">{{ $t('dashboard.chat.reply.threadEmpty') }}</p>
+    <p v-if="pending" class="p-2 text-sm text-muted-foreground">{{ $t('dashboard.chat.reply.threadLoading') }}</p>
+    <InlineNotice v-else-if="failed" tone="error" compact class="p-2">{{ $t('dashboard.chat.reply.threadError') }}</InlineNotice>
+    <p v-else-if="lines.length === 0" class="p-2 text-sm text-muted-foreground">{{ $t('dashboard.chat.reply.threadEmpty') }}</p>
     <ol v-else class="space-y-0.5">
       <li
         v-for="line in lines"
         :key="line.id"
         :data-thread-line="line.id"
-        class="rounded-[calc(var(--radius-md)-4px)] px-2 py-1 text-sm leading-5"
+        class="rounded-[calc(var(--radius-md)-4px)] px-2 py-1 text-sm/5"
         :style="emoteVars(line, display)"
       >
         <span class="font-medium" :style="{ color: shownNameColor(line.color, display.nameColors) }">{{ line.displayName }}</span>
         <time class="ms-2 text-xs text-muted-foreground tabular-nums" :datetime="line.timestamp">{{ display.timestamps === '12' ? clock.time12(line.timestamp) : clock.time24(line.timestamp) }}</time>
-        <span class="block break-words">
+        <span class="block wrap-break-word">
           <ChatFragments
             v-if="line.fragments.length > 0"
             :fragments="line.fragments"

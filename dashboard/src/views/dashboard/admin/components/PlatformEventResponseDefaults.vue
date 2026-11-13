@@ -147,7 +147,7 @@ function apply(): void {
               :label="$t('dashboard.admin.platformDefaults.events.enabled')"
             />
           </p>
-          <p v-if="row.message" class="break-words text-sm">{{ row.message }}</p>
+          <p v-if="row.message" class="wrap-break-word text-sm">{{ row.message }}</p>
           <p class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
             <span>{{
               $t("dashboard.admin.platformDefaults.events.following", Number(row.channelsFollowing))

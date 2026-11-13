@@ -310,7 +310,7 @@ async function submit(): Promise<void> {
             </span>
           </div>
           <div
-            class="flex min-w-0 flex-[3] basis-96 flex-wrap items-center gap-2 max-md:basis-full"
+            class="flex min-w-0 flex-3 basis-96 flex-wrap items-center gap-2 max-md:basis-full"
           >
             <Badge v-if="!row.isActive" variant="outline">{{
               $t("dashboard.admin.access.principals.inactive")

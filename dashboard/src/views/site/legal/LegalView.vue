@@ -59,7 +59,7 @@ const sections = computed<Section[]>(() =>
 
 <template>
   <div class="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-8">
-    <header class="flex items-center justify-between gap-4">
+    <header class="flex flex-wrap items-center justify-between gap-4">
       <Button as-child variant="ghost">
         <RouterLink to="/">
           <AppMark />
@@ -91,8 +91,8 @@ const sections = computed<Section[]>(() =>
         class="flex flex-col gap-3"
       >
         <h2 class="text-lg font-semibold">{{ `${index + 1}. ${section.title}` }}</h2>
-        <p v-for="line in section.p" :key="line" class="text-base leading-relaxed">{{ line }}</p>
-        <ul v-if="section.list?.length" class="flex list-disc flex-col gap-2 pl-6 text-base leading-relaxed">
+        <p v-for="line in section.p" :key="line" class="text-base/relaxed">{{ line }}</p>
+        <ul v-if="section.list?.length" class="flex list-disc flex-col gap-2 pl-6 text-base/relaxed">
           <li v-for="item in section.list" :key="item">{{ item }}</li>
         </ul>
       </section>

@@ -103,7 +103,7 @@ function remove(entry: TtsLexiconEntry): void {
       v-if="showHeader"
       data-lexicon-header
       :class="columns"
-      class="hidden items-center gap-2 border-b border-border px-2 py-2 text-xs font-medium text-muted-foreground md:grid"
+      class="hidden items-center gap-2 border-b border-border p-2 text-xs font-medium text-muted-foreground md:grid"
     >
       <span>{{ $t("dashboard.tts.lexicon.phrase") }}</span>
       <span>{{ $t("dashboard.tts.lexicon.replacement") }}</span>
@@ -118,7 +118,7 @@ function remove(entry: TtsLexiconEntry): void {
         v-for="entry in entries"
         :key="entry.id"
         :class="columns"
-        class="grid items-center gap-2 px-2 py-2 text-sm"
+        class="grid items-center gap-2 p-2 text-sm"
         data-lexicon-row
       >
         <span data-lexicon-phrase class="min-w-0 font-medium wrap-break-word">

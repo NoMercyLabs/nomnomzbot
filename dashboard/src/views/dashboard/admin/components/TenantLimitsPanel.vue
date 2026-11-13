@@ -110,7 +110,7 @@ function expiry(at: string | null | undefined): string {
       </Button>
     </template>
     <ul class="grid divide-y divide-border text-sm">
-      <li v-for="row in limits.data.value" :key="row.id" data-limit-row class="flex items-center gap-3 px-2 py-2">
+      <li v-for="row in limits.data.value" :key="row.id" data-limit-row class="flex items-center gap-3 p-2">
         <div class="min-w-0 flex-1">
           <span class="font-medium">{{ row.limitKey }}</span>
           <span class="ml-2 tabular-nums">{{ row.limitValue }}</span>

@@ -121,16 +121,16 @@ async function load(event: Event): Promise<void> {
       v-if="exporter.isPending.value"
       data-export-progress
       role="status"
-      class="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground"
+      class="flex items-center gap-2 p-3 text-sm text-muted-foreground"
     >
       <LoaderFade class="size-5 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
       <span class="min-w-0 flex-1">{{ $t('dashboard.settings.eventJournal.file.exporting') }}</span>
       <DateTime :value="waited" variant="durationClock" class="tabular-nums" />
     </p>
-    <p v-if="exported" data-export-result class="px-3 py-3 text-sm text-muted-foreground">
+    <p v-if="exported" data-export-result class="p-3 text-sm text-muted-foreground">
       {{ $t('dashboard.settings.eventJournal.file.exported', { count: exported.lines }) }}
     </p>
-    <p v-if="imported" data-import-result class="px-3 py-3 text-sm text-muted-foreground">
+    <p v-if="imported" data-import-result class="p-3 text-sm text-muted-foreground">
       {{
         $t('dashboard.settings.eventJournal.file.imported', {
           total: Number(imported.totalLines),
@@ -140,6 +140,6 @@ async function load(event: Event): Promise<void> {
         })
       }}
     </p>
-    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
+    <InlineNotice v-if="failure" tone="error" compact class="p-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

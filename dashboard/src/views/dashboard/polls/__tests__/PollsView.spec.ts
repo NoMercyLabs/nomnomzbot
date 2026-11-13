@@ -340,7 +340,7 @@ describe('PollsView history', () => {
 
     expect(labels.length).toBeGreaterThan(0);
     expect(labels.filter((label) => label.className.includes('truncate'))).toHaveLength(0);
-    expect(labels.every((label) => label.className.includes('break-words'))).toBe(true);
+    expect(labels.every((label) => label.className.includes('wrap-break-word'))).toBe(true);
   });
 
   it('falls back to all kinds when the remembered kind is not one we offer', async () => {

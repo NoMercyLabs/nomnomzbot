@@ -353,7 +353,7 @@ function pick(event: MouseEvent): void {
         data-reply-parent
         type="button"
         :aria-label="$t('dashboard.chat.reply.openThread')"
-        class="flex max-w-full items-center gap-1 truncate text-start text-xs leading-5 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        class="flex max-w-full items-center gap-1 truncate text-start text-xs/5 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         @click="emit('thread', line)"
       >
         <EmailReply class="size-3.5 flex-none" aria-hidden="true" />
@@ -362,12 +362,12 @@ function pick(event: MouseEvent): void {
       <p
         v-if="hints.length > 0"
         data-hints
-        class="text-xs leading-5 text-muted-foreground"
+        class="text-xs/5 text-muted-foreground"
       >{{ hints.join(' · ') }}</p>
       <p
         v-if="powerUp"
         data-power-up
-        class="text-xs leading-5 text-muted-foreground"
+        class="text-xs/5 text-muted-foreground"
       >{{ powerUp }}</p>
       <p
         class="wrap-anywhere"

@@ -72,6 +72,6 @@ async function flip(record: ConsentRecord): Promise<void> {
         @update:model-value="flip(record)"
       />
     </RowGroup>
-    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
+    <InlineNotice v-if="failure" tone="error" compact class="p-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

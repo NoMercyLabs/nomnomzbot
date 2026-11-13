@@ -9,10 +9,6 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// The channel's live stream in the NoMercy video player, built the way the media share overlay builds it, with the
-// player's own controls. Live plays through the bot's playlist proxy: only the playlists pass through it, the video
-// loads from Twitch's CDN. An offline or ended channel shows the player's own message. It starts muted and never
-// unmutes by code: playing your own stream back on the streaming PC can loop its sound into the stream.
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
 import { TwitchPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/twitch';

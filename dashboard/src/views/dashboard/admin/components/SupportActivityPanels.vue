@@ -90,7 +90,7 @@ const kinds = computed(() =>
         v-for="row in historyRows"
         :key="row.eventId"
         data-history-row
-        class="flex items-center gap-3 px-2 py-2"
+        class="flex items-center gap-3 p-2"
       >
         <span class="min-w-0 flex-1 font-medium">{{ row.eventType }}</span>
         <span class="text-muted-foreground">{{
@@ -130,7 +130,7 @@ const kinds = computed(() =>
         :key="row.id"
         :data-command-row="kind === 'commands' ? '' : undefined"
         :data-pipeline-row="kind === 'pipelines' ? '' : undefined"
-        class="flex items-center gap-3 px-2 py-2"
+        class="flex items-center gap-3 p-2"
       >
         <span class="min-w-0 flex-1 font-medium">{{ row.name }}</span>
         <span class="text-muted-foreground">

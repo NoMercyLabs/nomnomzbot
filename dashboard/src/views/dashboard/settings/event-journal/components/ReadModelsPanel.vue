@@ -100,10 +100,10 @@ async function runRebuild(): Promise<void> {
         </Button>
       </div>
     </RowGroup>
-    <p v-if="replayed !== null" data-replay-result class="px-3 py-3 text-sm text-muted-foreground">
+    <p v-if="replayed !== null" data-replay-result class="p-3 text-sm text-muted-foreground">
       {{ $t('dashboard.settings.eventJournal.readModels.replayed', { count: replayed }) }}
     </p>
-    <ul v-if="rebuilt" data-rebuild-result class="px-3 py-3 text-sm text-muted-foreground">
+    <ul v-if="rebuilt" data-rebuild-result class="p-3 text-sm text-muted-foreground">
       <li v-for="row in rebuilt" :key="row.projectionName">
         {{
           $t('dashboard.settings.eventJournal.readModels.rebuilt', {
@@ -113,7 +113,7 @@ async function runRebuild(): Promise<void> {
         }}
       </li>
     </ul>
-    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
+    <InlineNotice v-if="failure" tone="error" compact class="p-3">{{ failure }}</InlineNotice>
   </PanelCard>
   <ConfirmDialog
     v-model:open="confirmOpen"
