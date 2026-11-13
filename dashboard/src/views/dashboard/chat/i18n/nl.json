@@ -23,6 +23,11 @@
       },
       "popout": "Los venster",
       "copyDockLink": "Docklink kopiëren",
+      "player": {
+        "show": "Toon de stream",
+        "hide": "Verberg de stream",
+        "title": "{name} live"
+      },
       "identity": {
         "title": "Chat-identiteit",
         "description": "Hoe je eruitziet in de Twitch-chat: je naamkleur en de badges die je draagt.",

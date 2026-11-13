@@ -12,12 +12,13 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
-import { refDebounced, useElementSize, useEventListener } from '@vueuse/core';
-import { computed, onMounted, ref, watch, watchEffect } from 'vue';
+import { refDebounced, useElementSize, useEventListener, useLocalStorage } from '@vueuse/core';
+import { computed, defineAsyncComponent, onMounted, ref, watch, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import ArrowUpRight from '~icons/nnz/arrow-up-right';
 import Cross from '~icons/nnz/cross';
+import MediaPlayer from '~icons/nnz/media-player';
 import SettingsFader from '~icons/nnz/settings-fader';
 import Settings from '~icons/nnz/settings';
 import UserCircle from '~icons/nnz/user-circle';
@@ -43,6 +44,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
+import IconAction from '@/components/layout/IconAction.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { useBackLayer } from '@/composables/useBackCloses';
@@ -110,6 +112,22 @@ const phone = usePhone();
 
 // The popout, the OBS dock and a phone share one slim header, so the feed keeps the height.
 const docked = computed(() => poppedOut.value || phone.value);
+
+// The channel's live stream beside the chat, like the Twitch app (Stoney 2026-11-13: "Player should be a toggle").
+// Off until asked for, remembered per browser; the docked chat has no room for it. The player bundle loads on demand.
+const StreamPlayer = defineAsyncComponent(() =>
+  import('./components/StreamPlayer.vue'));
+const playerOn = useLocalStorage<boolean>('nnz.chat.player', false);
+const playerLogin = computed<string>(() =>
+  viewerRoute
+    ? channelName.value
+    : current.value?.login ?? '');
+const playerShown = computed(() =>
+  playerOn.value && !docked.value && playerLogin.value !== '');
+const playerLabel = computed(() =>
+  playerOn.value
+    ? t('dashboard.chat.player.hide')
+    : t('dashboard.chat.player.show'));
 
 // The docked header keeps the search field shut until the person asks for it; the desktop page always shows it.
 const dockSearchOpen = ref(false);
@@ -409,13 +427,21 @@ async function confirmBan(): Promise<void> {
     </template>
     <template v-if="!docked" #bar>
       <!-- A phone has no second window to dock or pop out into; its toggles keep only their icons. -->
-      <div data-chat-controls class="ml-auto flex min-w-0 items-center gap-2 phone:ml-0 phone:flex-1">
+      <div data-chat-controls class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 phone:ml-0 phone:flex-1 phone:flex-nowrap">
         <SearchField
           v-if="!viewerMode"
           v-model="search"
           class="w-64 phone:w-auto phone:min-w-0 phone:flex-1"
           :placeholder="$t('dashboard.chat.search.placeholder')"
         />
+        <IconAction
+          data-player-toggle
+          :label="playerLabel"
+          :aria-pressed="playerOn"
+          @click="playerOn = !playerOn"
+        >
+          <MediaPlayer class="size-5" aria-hidden="true" />
+        </IconAction>
         <Button
           v-if="!viewerMode"
           data-mod-tools-toggle
@@ -499,88 +525,99 @@ async function confirmBan(): Promise<void> {
       {{ $t('dashboard.chat.ban.failed') }}
     </InlineNotice>
     <div class="flex min-h-0 flex-1 gap-3">
-      <PanelCard
-        :class="docked ? 'min-h-0 flex-1' : 'min-h-96 flex-1'"
-        tier="lead"
-        :headless="docked"
-        :flush="docked"
-        v-bind="feedPanel"
-        @retry="retryFeed"
-      >
-        <template v-if="focusedUserId !== null && !docked" #actions>
-          <Button data-focus-clear variant="ghost" size="sm" @click="focusedUserId = null">
-            <Cross class="size-4" aria-hidden="true" />
-            {{ $t('dashboard.chat.viewer.clearFocus', { name: focusedName }) }}
-          </Button>
-        </template>
-        <div class="flex h-full min-h-80 flex-col">
-          <VirtualList
-            :key="searching ? 'search' : 'feed'"
-            :stick="!searching"
-            :pause-on-hover="poppedOut"
-            :items="feedLines"
-            :item-key="(line: ChatLineData) => line.id"
-            :estimate-size="40"
-            :label="searching ? $t('dashboard.chat.search.label') : $t('dashboard.chat.feed.label')"
-          >
-            <template #default="{ item, index }">
-              <RedemptionLine
-                v-if="item.redemption"
-                :line="item"
-                :display="display"
-                :me="me"
-                :compact="poppedOut"
-              />
-              <ChatLine
-                v-else
-                :line="item"
-                :channel-id="channelId"
-                :display="display"
-                :compact="poppedOut"
-                :index="index"
-                :me="me"
-                :channel-login="current?.login ?? null"
-                :focus="focusOf(item)"
-                :parent="parentOf(item)"
-                :viewer="viewerMode"
-                :shared="sharedSession"
-                @ban="askBan"
-                @focus="pickChatter"
-                @reply="startReply"
-                @thread="threadTarget = $event"
-              />
-            </template>
-          </VirtualList>
-        </div>
-        <template #footer>
-          <template v-if="searching">
-            <Button
-              v-if="found.hasNextPage.value"
-              data-search-more
-              variant="outline"
-              size="sm"
-              :disabled="found.isFetchingNextPage.value"
-              @click="found.fetchNextPage()"
-            >
-              {{ $t('dashboard.chat.search.more') }}
-            </Button>
-            <p v-else-if="searchDone" data-search-end class="text-sm text-muted-foreground">
-              {{ $t('dashboard.chat.search.end') }}
-            </p>
-          </template>
-          <ChatComposer
-            v-else
-            v-model:reply-to="replyTo"
-            v-model:thread-target="threadTarget"
-            :channel-id="channelId"
-            :chatters="chatters"
-            :viewer="viewerMode"
-            :thread-lines="thread.data.value ?? []"
-            :thread-pending="thread.isPending.value"
-            :thread-failed="thread.isError.value"
+      <!-- With the stream on: the player on top and the chat under it on a narrow screen, the player taking the
+           free width and the chat in a side column from lg up, like the Twitch app. -->
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row">
+        <div v-if="playerShown" class="min-w-0 lg:flex-1">
+          <StreamPlayer
+            :key="playerLogin"
+            :login="playerLogin"
+            :title="$t('dashboard.chat.player.title', { name: current?.displayName ?? playerLogin })"
           />
-        </template>
-      </PanelCard>
+        </div>
+        <PanelCard
+          :class="docked ? 'min-h-0 flex-1' : ['min-h-96 flex-1', { 'lg:w-85 lg:flex-none': playerShown }]"
+          tier="lead"
+          :headless="docked"
+          :flush="docked"
+          v-bind="feedPanel"
+          @retry="retryFeed"
+        >
+          <template v-if="focusedUserId !== null && !docked" #actions>
+            <Button data-focus-clear variant="ghost" size="sm" @click="focusedUserId = null">
+              <Cross class="size-4" aria-hidden="true" />
+              {{ $t('dashboard.chat.viewer.clearFocus', { name: focusedName }) }}
+            </Button>
+          </template>
+          <div class="flex h-full min-h-80 flex-col">
+            <VirtualList
+              :key="searching ? 'search' : 'feed'"
+              :stick="!searching"
+              :pause-on-hover="poppedOut"
+              :items="feedLines"
+              :item-key="(line: ChatLineData) => line.id"
+              :estimate-size="40"
+              :label="searching ? $t('dashboard.chat.search.label') : $t('dashboard.chat.feed.label')"
+            >
+              <template #default="{ item, index }">
+                <RedemptionLine
+                  v-if="item.redemption"
+                  :line="item"
+                  :display="display"
+                  :me="me"
+                  :compact="poppedOut"
+                />
+                <ChatLine
+                  v-else
+                  :line="item"
+                  :channel-id="channelId"
+                  :display="display"
+                  :compact="poppedOut"
+                  :index="index"
+                  :me="me"
+                  :channel-login="current?.login ?? null"
+                  :focus="focusOf(item)"
+                  :parent="parentOf(item)"
+                  :viewer="viewerMode"
+                  :shared="sharedSession"
+                  @ban="askBan"
+                  @focus="pickChatter"
+                  @reply="startReply"
+                  @thread="threadTarget = $event"
+                />
+              </template>
+            </VirtualList>
+          </div>
+          <template #footer>
+            <template v-if="searching">
+              <Button
+                v-if="found.hasNextPage.value"
+                data-search-more
+                variant="outline"
+                size="sm"
+                :disabled="found.isFetchingNextPage.value"
+                @click="found.fetchNextPage()"
+              >
+                {{ $t('dashboard.chat.search.more') }}
+              </Button>
+              <p v-else-if="searchDone" data-search-end class="text-sm text-muted-foreground">
+                {{ $t('dashboard.chat.search.end') }}
+              </p>
+            </template>
+            <ChatComposer
+              v-else
+              v-model:reply-to="replyTo"
+              v-model:thread-target="threadTarget"
+              :channel-id="channelId"
+              :chatters="chatters"
+              :viewer="viewerMode"
+              :thread-lines="thread.data.value ?? []"
+              :thread-pending="thread.isPending.value"
+              :thread-failed="thread.isError.value"
+            />
+          </template>
+        </PanelCard>
+      </div>
       <SidePanel
         v-if="!viewerMode"
         v-model:open="viewerOpen"

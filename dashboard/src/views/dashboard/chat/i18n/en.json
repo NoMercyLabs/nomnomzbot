@@ -23,6 +23,11 @@
       },
       "popout": "Pop out",
       "copyDockLink": "Copy dock link",
+      "player": {
+        "show": "Show the stream",
+        "hide": "Hide the stream",
+        "title": "{name} live"
+      },
       "identity": {
         "title": "Chat identity",
         "description": "How you look in Twitch chat: your name color and the badges you wear.",
