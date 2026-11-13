@@ -1183,10 +1183,6 @@ const rawSearchInputAllowlist = [
 const handDeleteButton = /~icons\/nnz\/(?:trash|delete)/;
 const handDeleteButtonAllowlist = [
   // List pages not moved yet (phase 2 lane): row-end or card delete icons written by hand.
-  'views/dashboard/economy/components/CatalogPanel.vue',
-  'views/dashboard/economy/components/EarningRules.vue',
-  'views/dashboard/economy/components/LeaderboardsPanel.vue',
-  'views/dashboard/economy/components/SavingsJars.vue',
   'views/dashboard/giveaways/GiveawaysView.vue',
   'views/dashboard/picklists/PickListRow.vue',
   'views/dashboard/quotes/QuoteRow.vue',

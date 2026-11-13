@@ -381,8 +381,8 @@ describe('Economy page gating', () => {
     await open('rules');
 
     expect(buttonByText(en.dashboard.economy.rules.new)).toBeUndefined();
-    expect(present('[data-rule-edit]')).toBe(false);
-    expect(present('[data-rule-delete]')).toBe(false);
+    expect(present('[data-rule-row] [data-row-edit]')).toBe(false);
+    expect(present('[data-rule-row] [data-row-delete]')).toBe(false);
     expect(present('[data-rule-row] [role="switch"]')).toBe(false);
     expect(present('[data-rule-row] [data-slot="enabled-state"]')).toBe(true);
   });
@@ -457,7 +457,7 @@ describe('Economy page gating', () => {
 
     expect(buttonByText(en.dashboard.economy.jars.new)).toBeUndefined();
     expect(present('[data-jar-invite]')).toBe(false);
-    expect(present('[data-jar-delete]')).toBe(false);
+    expect(present('[data-jar-row] [data-row-delete]')).toBe(false);
   });
 
   it('hides catalog and leaderboard edit and delete without their keys', async () => {
@@ -475,8 +475,8 @@ describe('Economy page gating', () => {
     await open('catalog');
 
     expect(present('[data-catalog-row]')).toBe(true);
-    expect(present('[data-catalog-edit]')).toBe(false);
-    expect(present('[data-catalog-delete]')).toBe(false);
+    expect(present('[data-catalog-row] [data-row-edit]')).toBe(false);
+    expect(present('[data-catalog-row] [data-row-delete]')).toBe(false);
     expect(buttonByText(en.dashboard.economy.catalog.new)).toBeUndefined();
   });
 
@@ -493,8 +493,8 @@ describe('Economy page gating', () => {
     await open('rules');
 
     expect(buttonByText(en.dashboard.economy.rules.new)).toBeDefined();
-    expect(present('[data-rule-edit]')).toBe(true);
-    expect(present('[data-rule-delete]')).toBe(true);
+    expect(present('[data-rule-row] [data-row-edit]')).toBe(true);
+    expect(present('[data-rule-row] [data-row-delete]')).toBe(true);
   });
 });
 
@@ -572,7 +572,7 @@ describe('Economy page', () => {
 
   it('changes the rate of a rule from its edit dialog', async () => {
     await open('rules');
-    await click(rowOf('rule', 'ChatMessage').querySelector('[data-rule-edit]') as HTMLElement);
+    await click(rowOf('rule', 'ChatMessage').querySelector('[data-row-edit]') as HTMLElement);
     await type(field('Amount earned'), '8');
     await click(buttonByText('Save rule'));
 
@@ -586,7 +586,7 @@ describe('Economy page', () => {
 
   it('deletes a rule only after the confirm', async () => {
     await open('rules');
-    await click(rowOf('rule', 'ChatMessage').querySelector('[data-rule-delete]') as HTMLElement);
+    await click(rowOf('rule', 'ChatMessage').querySelector('[data-row-delete]') as HTMLElement);
 
     expect(writes('DELETE')).toHaveLength(0);
 
@@ -705,7 +705,7 @@ describe('Economy page', () => {
     ];
 
     await open('catalog');
-    await click(document.body.querySelector<HTMLElement>('[data-catalog-edit]')!);
+    await click(document.body.querySelector<HTMLElement>('[data-catalog-row] [data-row-edit]')!);
 
     expect(document.body.querySelector('[data-target-picker]')!.textContent).toContain('!hello');
   });
@@ -754,7 +754,7 @@ describe('Economy page', () => {
 
   it('deletes a jar only after the confirm', async () => {
     await open('jars');
-    await click(rowOf('jar', 'New camera').querySelector('[data-jar-delete]') as HTMLElement);
+    await click(rowOf('jar', 'New camera').querySelector('[data-row-delete]') as HTMLElement);
 
     expect(writes('DELETE')).toHaveLength(0);
 

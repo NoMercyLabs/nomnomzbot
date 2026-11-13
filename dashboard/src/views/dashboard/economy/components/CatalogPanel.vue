@@ -11,8 +11,6 @@
 <script setup lang="ts">
 // The channel's store: items viewers buy with the currency. Each row switches on or off, opens its
 // editor, or is deleted after a confirm.
-import Pencil from '~icons/nnz/settings-fader';
-import Trash from '~icons/nnz/trash';
 import { computed, ref } from 'vue';
 
 import {
@@ -24,7 +22,9 @@ import {
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Button } from '@/components/ui/button';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -88,50 +88,33 @@ async function confirmDelete(): Promise<void> {
       :error-text="$t('dashboard.economy.catalog.error')"
       @retry="items.refetch()"
     >
-      <ul class="flex flex-col">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in rows"
           :key="row.id"
           data-catalog-row
           :data-catalog-name="row.name"
-          class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+          :title="row.name"
+          :detail="$t('dashboard.economy.catalog.cost', { cost: Number(row.cost) })"
         >
-          <span class="min-w-0 flex-1">
-            <span class="block text-sm font-medium wrap-break-word">{{ row.name }}</span>
-            <span class="block text-xs text-muted-foreground">{{
-              $t('dashboard.economy.catalog.cost', { cost: Number(row.cost) })
-            }}</span>
-          </span>
-          <Button
-            v-if="can('economy:catalog:update')"
-            data-catalog-edit
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.economy.catalog.edit')"
-            @click="editing = row"
-          >
-            <Pencil aria-hidden="true" class="size-5" />
-          </Button>
-          <Button
-            v-if="can('economy:catalog:delete')"
-            data-catalog-delete
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.economy.catalog.delete')"
-            @click="deleting = row"
-          >
-            <Trash aria-hidden="true" class="size-5" />
-          </Button>
-          <GatedSwitch
-            action="economy:catalog:update"
-            :model-value="row.isEnabled"
-            :aria-label="$t('dashboard.economy.catalog.toggle', { name: row.name })"
-            @update:model-value="toggle(row)"
-          />
-        </li>
-      </ul>
+          <template #end>
+            <RowEditDelete
+              :editable="can('economy:catalog:update')"
+              :deletable="can('economy:catalog:delete')"
+              :edit-label="$t('dashboard.economy.catalog.edit')"
+              :delete-label="$t('dashboard.economy.catalog.delete')"
+              @edit="editing = row"
+              @delete="deleting = row"
+            />
+            <GatedSwitch
+              action="economy:catalog:update"
+              :model-value="row.isEnabled"
+              :aria-label="$t('dashboard.economy.catalog.toggle', { name: row.name })"
+              @update:model-value="toggle(row)"
+            />
+          </template>
+        </SummaryRow>
+      </RowGroup>
     </PanelCard>
     <CatalogDialog v-model:open="dialogOpen" :item="editing" />
     <ConfirmDialog

@@ -17,11 +17,13 @@ import { computed, ref } from 'vue';
 
 import { useAccounts, useFreezeAccount, type CurrencyAccount } from '@/api/economy';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import IconAction from '@/components/layout/IconAction.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import ShowMoreFooter from '@/components/layout/ShowMoreFooter.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -71,49 +73,45 @@ function toggle(row: CurrencyAccount): void {
       :error-text="$t('dashboard.economy.balances.error')"
       @retry="accounts.refetch()"
     >
-      <ul class="flex flex-col">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in shown.visible.value"
           :key="row.id"
           data-account-row
           :data-account-name="row.viewerDisplayName"
-          class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+          :title="row.viewerDisplayName"
+          :detail="
+            $t('dashboard.economy.balances.lifetime', {
+              earned: Number(row.lifetimeEarned),
+              spent: Number(row.lifetimeSpent),
+            })
+          "
         >
-          <span class="min-w-0 flex-1">
+          <template #title>
             <UserName
               :user-id="row.viewerTwitchUserId"
               :name="row.viewerDisplayName"
-              class="block text-sm wrap-break-word"
             />
-            <span class="block text-xs text-muted-foreground">
-              {{
-                $t("dashboard.economy.balances.lifetime", {
-                  earned: Number(row.lifetimeEarned),
-                  spent: Number(row.lifetimeSpent),
-                })
-              }}
-            </span>
-          </span>
-          <span class="text-sm font-medium tabular-nums">{{ Number(row.balance) }}</span>
-          <Button
-            v-if="can('economy:account:adjust')"
-            data-account-adjust
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.economy.balances.adjust', { name: row.viewerDisplayName })"
-            @click="adjusting = row"
-          >
-            <Coins aria-hidden="true" class="size-5" />
-          </Button>
-          <GatedSwitch
-            action="economy:account:freeze"
-            :model-value="row.isFrozen"
-            :aria-label="$t('dashboard.economy.balances.freeze', { name: row.viewerDisplayName })"
-            @update:model-value="toggle(row)"
-          />
-        </li>
-      </ul>
+          </template>
+          <template #end>
+            <span class="text-sm font-medium tabular-nums">{{ Number(row.balance) }}</span>
+            <IconAction
+              v-if="can('economy:account:adjust')"
+              data-account-adjust
+              :label="$t('dashboard.economy.balances.adjust', { name: row.viewerDisplayName })"
+              @click="adjusting = row"
+            >
+              <Coins aria-hidden="true" class="size-5" />
+            </IconAction>
+            <GatedSwitch
+              action="economy:account:freeze"
+              :model-value="row.isFrozen"
+              :aria-label="$t('dashboard.economy.balances.freeze', { name: row.viewerDisplayName })"
+              @update:model-value="toggle(row)"
+            />
+          </template>
+        </SummaryRow>
+      </RowGroup>
       <template v-if="shown.hasMore.value" #footer>
         <ShowMoreFooter :remaining="shown.remaining.value" @more="shown.more()" />
       </template>

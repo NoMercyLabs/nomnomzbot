@@ -10,8 +10,6 @@
 -->
 <script setup lang="ts">
 // The leaderboards the channel runs: what each one ranks and for which period.
-import Pencil from '~icons/nnz/settings-fader';
-import Trash from '~icons/nnz/trash';
 import { computed, ref } from 'vue';
 
 import {
@@ -21,8 +19,10 @@ import {
 } from '@/api/economy';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
-import { Button } from '@/components/ui/button';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -83,55 +83,38 @@ async function confirmDelete(): Promise<void> {
       :error-text="$t('dashboard.economy.leaderboards.error')"
       @retry="configs.refetch()"
     >
-      <ul class="flex flex-col">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in rows"
           :key="row.id"
           data-leaderboard-row
           :data-leaderboard-name="row.id"
-          class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+          :title="$t(`dashboard.economy.leaderboards.metrics.${row.metric}`)"
+          :detail="
+            $t('dashboard.economy.leaderboards.detail', {
+              scope: $t(`dashboard.economy.leaderboards.scopes.${row.scope}`),
+              period: $t(`dashboard.economy.leaderboards.periods.${row.period}`),
+              top: Number(row.topN),
+            })
+          "
         >
-          <span class="min-w-0 flex-1">
-            <span class="block text-sm font-medium">{{
-              $t(`dashboard.economy.leaderboards.metrics.${row.metric}`)
-            }}</span>
-            <span class="block text-xs text-muted-foreground">{{
-              $t('dashboard.economy.leaderboards.detail', {
-                scope: $t(`dashboard.economy.leaderboards.scopes.${row.scope}`),
-                period: $t(`dashboard.economy.leaderboards.periods.${row.period}`),
-                top: Number(row.topN),
-              })
-            }}</span>
-          </span>
-          <StatusBadge
-            v-if="!row.isPublic"
-            tone="off"
-            :label="$t('dashboard.economy.leaderboards.private')"
-          />
-          <Button
-            v-if="can('economy:leaderboards:config:write')"
-            data-leaderboard-edit
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.economy.leaderboards.edit')"
-            @click="editing = row"
-          >
-            <Pencil aria-hidden="true" class="size-5" />
-          </Button>
-          <Button
-            v-if="can('economy:leaderboards:config:delete')"
-            data-leaderboard-delete
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.economy.leaderboards.delete')"
-            @click="deleting = row"
-          >
-            <Trash aria-hidden="true" class="size-5" />
-          </Button>
-        </li>
-      </ul>
+          <template #end>
+            <StatusBadge
+              v-if="!row.isPublic"
+              tone="off"
+              :label="$t('dashboard.economy.leaderboards.private')"
+            />
+            <RowEditDelete
+              :editable="can('economy:leaderboards:config:write')"
+              :deletable="can('economy:leaderboards:config:delete')"
+              :edit-label="$t('dashboard.economy.leaderboards.edit')"
+              :delete-label="$t('dashboard.economy.leaderboards.delete')"
+              @edit="editing = row"
+              @delete="deleting = row"
+            />
+          </template>
+        </SummaryRow>
+      </RowGroup>
     </PanelCard>
     <LeaderboardDialog v-model:open="dialogOpen" :config="editing" />
     <ConfirmDialog

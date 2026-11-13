@@ -70,4 +70,30 @@ describe('the row edit and delete actions', () => {
     expect(actions.emitted('delete')).toHaveLength(1);
     expect(rowClicks).not.toHaveBeenCalled();
   });
+
+  it('drops the button of an action the row cannot do, and keeps the other', () => {
+    mounted = mount(RowEditDelete, {
+      props: {
+        editLabel: 'Edit',
+        deleteLabel: 'Delete',
+        editable: false,
+      },
+    });
+
+    expect(mounted.find('[data-row-edit]').exists()).toBe(false);
+    expect(mounted.find('[data-row-delete]').exists()).toBe(true);
+
+    mounted.unmount();
+
+    mounted = mount(RowEditDelete, {
+      props: {
+        editLabel: 'Edit',
+        deleteLabel: 'Delete',
+        deletable: false,
+      },
+    });
+
+    expect(mounted.find('[data-row-edit]').exists()).toBe(true);
+    expect(mounted.find('[data-row-delete]').exists()).toBe(false);
+  });
 });

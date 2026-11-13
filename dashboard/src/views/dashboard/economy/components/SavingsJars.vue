@@ -11,7 +11,6 @@
 <script setup lang="ts">
 // The channel's savings jars: shared pots viewers put currency into toward a goal. An open jar takes
 // money; a closed jar keeps its balance.
-import Trash from '~icons/nnz/trash';
 import UserAdd from '~icons/nnz/user-add';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -25,8 +24,11 @@ import {
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import IconAction from '@/components/layout/IconAction.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
-import { Button } from '@/components/ui/button';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -102,49 +104,41 @@ async function confirmDelete(): Promise<void> {
       :error-text="$t('dashboard.economy.jars.error')"
       @retry="jars.refetch()"
     >
-      <ul class="flex flex-col">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in rows"
           :key="row.id"
           data-jar-row
           :data-jar-name="row.name"
-          class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+          :title="row.name"
+          :detail="detailOf(row)"
         >
-          <span class="min-w-0 flex-1">
-            <span class="block text-sm font-medium wrap-break-word">{{ row.name }}</span>
-            <span class="block text-xs text-muted-foreground">{{ detailOf(row) }}</span>
-          </span>
-          <StatusBadge v-if="!row.isOpen && can('economy:jars:update')" tone="off" :label="$t('dashboard.economy.jars.closed')" />
-          <Button
-            v-if="can('economy:jars:invite')"
-            data-jar-invite
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.economy.jars.invite.open')"
-            @click="inviting = row"
-          >
-            <UserAdd aria-hidden="true" class="size-5" />
-          </Button>
-          <Button
-            v-if="can('economy:jars:delete')"
-            data-jar-delete
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.economy.jars.delete')"
-            @click="deleting = row"
-          >
-            <Trash aria-hidden="true" class="size-5" />
-          </Button>
-          <GatedSwitch
-            action="economy:jars:update"
-            :model-value="row.isOpen"
-            :aria-label="$t('dashboard.economy.jars.toggle', { name: row.name })"
-            @update:model-value="toggle(row)"
-          />
-        </li>
-      </ul>
+          <template #end>
+            <StatusBadge v-if="!row.isOpen && can('economy:jars:update')" tone="off" :label="$t('dashboard.economy.jars.closed')" />
+            <IconAction
+              v-if="can('economy:jars:invite')"
+              data-jar-invite
+              :label="$t('dashboard.economy.jars.invite.open')"
+              @click="inviting = row"
+            >
+              <UserAdd aria-hidden="true" class="size-5" />
+            </IconAction>
+            <RowEditDelete
+              :editable="false"
+              :deletable="can('economy:jars:delete')"
+              edit-label=""
+              :delete-label="$t('dashboard.economy.jars.delete')"
+              @delete="deleting = row"
+            />
+            <GatedSwitch
+              action="economy:jars:update"
+              :model-value="row.isOpen"
+              :aria-label="$t('dashboard.economy.jars.toggle', { name: row.name })"
+              @update:model-value="toggle(row)"
+            />
+          </template>
+        </SummaryRow>
+      </RowGroup>
     </PanelCard>
     <PanelCard
       tier="quiet"
