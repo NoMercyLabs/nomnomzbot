@@ -12,6 +12,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { Fragment, h } from 'vue'
+import Button from '../Button.vue'
 import { buttonVariants } from '..'
 
 const tokens = readFileSync(resolve(__dirname, '../../../../styles/tokens.css'), 'utf8')
@@ -51,5 +54,27 @@ describe('buttonVariants touch height', () => {
     expect(classes).toContain('size-9')
     expect(classes).toContain('md:size-8')
     expect(classes).not.toContain('size-8')
+  })
+})
+
+// Slot fragments and translated strings must expose the icon's actual leading/trailing position.
+describe('button content geometry', () => {
+  it('wraps a plain label after a leading icon without adding a content container', () => {
+    const wrapper = mount(Button, { slots: { default: () => [h('svg'), 'Save changes'] } })
+    expect(wrapper.element.firstElementChild?.tagName).toBe('svg')
+    expect(wrapper.element.lastElementChild?.tagName).toBe('SPAN')
+    expect(wrapper.text()).toBe('Save changes')
+  })
+
+  it('wraps a label before a trailing icon inside a fragment', () => {
+    const wrapper = mount(Button, { slots: { default: () => h(Fragment, ['Next', h('svg')]) } })
+    expect(wrapper.element.firstElementChild?.tagName).toBe('SPAN')
+    expect(wrapper.element.lastElementChild?.tagName).toBe('svg')
+  })
+
+  it('keeps an icon-only control free of label wrappers', () => {
+    const wrapper = mount(Button, { props: { size: 'icon', 'aria-label': 'Search' }, slots: { default: () => h('svg') } })
+    expect(wrapper.element.children).toHaveLength(1)
+    expect(wrapper.attributes('aria-label')).toBe('Search')
   })
 })

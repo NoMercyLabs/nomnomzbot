@@ -446,7 +446,7 @@ async function confirmBan(): Promise<void> {
           v-if="!viewerMode"
           data-mod-tools-toggle
           variant="outline"
-          size="sm"
+          size="default"
           :aria-pressed="modToolsOpen"
           :aria-label="$t('dashboard.chat.modTools.title')"
           @click="modToolsOpen = !modToolsOpen"
@@ -458,7 +458,7 @@ async function confirmBan(): Promise<void> {
           v-if="!viewerMode"
           data-identity-toggle
           variant="outline"
-          size="sm"
+          size="default"
           :aria-pressed="identityOpen"
           :aria-label="$t('dashboard.chat.identity.title')"
           @click="identityOpen = !identityOpen"
@@ -469,7 +469,7 @@ async function confirmBan(): Promise<void> {
         <Button
           data-display-toggle
           variant="outline"
-          size="sm"
+          size="default"
           :aria-pressed="displayOpen"
           :aria-label="$t('dashboard.chat.display.toggle')"
           @click="displayOpen = !displayOpen"
@@ -487,7 +487,7 @@ async function confirmBan(): Promise<void> {
                 data-chat-popout
                 class="phone:hidden"
                 variant="outline"
-                size="sm"
+                size="default"
                 @click="popOut"
         >
           <ArrowUpRight class="size-4" aria-hidden="true" />

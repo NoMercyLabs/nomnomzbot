@@ -6,6 +6,7 @@ import { reactiveOmit } from '@vueuse/core'
 import { AlertDialogAction } from 'reka-ui'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
+import ButtonContent from '@/components/ui/button/ButtonContent'
 
 const props = withDefaults(
   defineProps<AlertDialogActionProps & {
@@ -24,10 +25,12 @@ const delegatedProps = reactiveOmit(props, 'class', 'variant', 'size')
 
 <template>
   <AlertDialogAction
+    :data-size="size"
+    :data-variant="variant"
     data-slot="alert-dialog-action"
     v-bind="delegatedProps"
     :class="cn('', buttonVariants({ variant, size }), props.class)"
   >
-    <slot />
+    <ButtonContent><slot /></ButtonContent>
   </AlertDialogAction>
 </template>
