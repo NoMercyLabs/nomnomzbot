@@ -24,13 +24,9 @@ import ListPanel from '@/components/layout/ListPanel.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
-import { usePageView } from '@/composables/usePageView';
-import { usePanelState } from '@/composables/usePanelState';
-import { useQueryPane } from '@/composables/useQueryPane';
-import { keysOf } from '@/lib/array';
+import { useFilteredResourceList } from '@/composables/useFilteredResourceList';
 import { errorText } from '@/lib/errors';
 import { dashboardReturn } from '@/router/returnTarget';
 
@@ -49,10 +45,6 @@ const FILTERS = {
   failed: (script: CodeScriptSummary) => Boolean(script.lastRuntimeError),
 } as const satisfies Record<string, (script: CodeScriptSummary) => boolean>;
 
-const TAB_VALUES = keysOf(FILTERS);
-
-type ScriptFilter = (typeof TAB_VALUES)[number];
-
 const { t } = useI18n();
 const { can } = useCan();
 const route = useRoute();
@@ -60,56 +52,38 @@ const router = useRouter();
 
 const scripts = useCodeScripts();
 const planGate = useScriptPlanGate();
-const view = usePageView(TAB_VALUES);
-const search = ref('');
 
 const loaded = computed(() => scripts.data.value);
 
-function countOf(tab: ScriptFilter): number | undefined {
-  return loaded.value?.filter(FILTERS[tab]).length;
-}
-
-const tabs = computed<PageTab[]>(() =>
-  TAB_VALUES.map((value) => ({
-    value,
-    label: t(`dashboard.scripts.tabs.${value}`),
-    count: countOf(value),
-  })),
-);
-
-const visible = computed<CodeScriptSummary[] | undefined>(() => {
-  const typed = search.value.trim().toLowerCase();
-
-  return loaded.value
-    ?.filter(FILTERS[view.value])
-    .filter(
-      (script: CodeScriptSummary) =>
-        typed === '' ||
-        script.name.toLowerCase().includes(typed) ||
-        (script.description ?? '').toLowerCase().includes(typed),
-    );
+const {
+  view,
+  tabs,
+  search,
+  visible,
+  panelState,
+  empty,
+  count: shown,
+  pane,
+  asked,
+  selectedId,
+} = useFilteredResourceList({
+  query: scripts,
+  items: () => loaded.value,
+  filters: FILTERS,
+  tabLabel: (tab) => t(`dashboard.scripts.tabs.${tab}`),
+  searchText: (script) => [script.name, script.description ?? ''],
+  paneKey: 'script',
 });
 
-const listState = usePanelState(scripts, () => false);
-const panelState = computed(() => {
-  if (listState.value !== 'ready')
-    return listState.value;
+const EMPTY_KEYS = {
+  none: 'dashboard.scripts.list.empty',
+  filtered: 'dashboard.scripts.list.emptyTab',
+} as const;
 
-  return visible.value?.length === 0
-    ? 'empty'
-    : 'ready';
-});
-
-const emptyText = computed<string>(() => {
-  if (search.value.trim() !== '')
-    return t('dashboard.scripts.noMatch', { query: search.value.trim() });
-
-  return t(
-    loaded.value?.length === 0
-      ? 'dashboard.scripts.list.empty'
-      : 'dashboard.scripts.list.emptyTab',
-  );
-});
+const emptyText = computed<string>(() =>
+  empty.value.kind === 'noMatch'
+    ? t('dashboard.scripts.noMatch', { query: empty.value.query })
+    : t(EMPTY_KEYS[empty.value.kind]));
 const listError = computed<string>(
   () =>
     scripts.error.value
@@ -119,14 +93,10 @@ const listError = computed<string>(
 
 const hint = computed<string>(() => t(`dashboard.scripts.hints.${view.value}`));
 const count = computed<string | undefined>(() =>
-  panelState.value === 'ready'
-    ? t('dashboard.scripts.count', { count: visible.value?.length ?? 0 })
-    : undefined,
+  shown.value === undefined
+    ? undefined
+    : t('dashboard.scripts.count', { count: shown.value }),
 );
-
-const pane = useQueryPane('script');
-const asked = computed<string>(() => pane.id.value ?? '');
-const selectedId = asked;
 
 // A page that sent the person here for one script (a pipeline step) names the way back in ?back=.
 const backTo = computed(() =>

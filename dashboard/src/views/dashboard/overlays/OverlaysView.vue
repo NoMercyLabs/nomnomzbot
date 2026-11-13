@@ -24,16 +24,12 @@ import ListPanel from '@/components/layout/ListPanel.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { usePageView } from '@/composables/usePageView';
-import { keysOf } from '@/lib/array';
-import { usePanelState } from '@/composables/usePanelState';
-import { useQueryPane } from '@/composables/useQueryPane';
+import { useFilteredResourceList } from '@/composables/useFilteredResourceList';
 
 import AudioMixPanel from './components/AudioMixPanel.vue';
 import NewOverlayDialog from './components/NewOverlayDialog.vue';
@@ -46,17 +42,12 @@ const FILTERS = {
   off: (widget: Widget) => !widget.isEnabled,
   problem: (widget: Widget) => Boolean(widget.lastRuntimeError),
 } as const satisfies Record<string, (widget: Widget) => boolean>;
-const TAB_VALUES = keysOf(FILTERS);
-
-type OverlayTab = (typeof TAB_VALUES)[number];
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
 const widgets = useWidgets(channelId);
-const view = usePageView(TAB_VALUES);
-const search = ref('');
 const audioOpen = ref(false);
 const creating = ref(false);
 
@@ -69,64 +60,44 @@ const loaded = computed(() =>
     : undefined,
 );
 
-function countOf(tab: OverlayTab): number | undefined {
-  return loaded.value?.filter(FILTERS[tab]).length;
-}
-
-const tabs = computed(() =>
-  TAB_VALUES.map((value) => ({
-    value,
-    label: t(`dashboard.overlays.tabs.${value}`),
-    count: countOf(value),
-  }) as const satisfies PageTab<OverlayTab>),
-);
-
-const visible = computed(() => {
-  const typed = search.value.trim().toLowerCase();
-
-  return loaded.value
-    ?.filter(FILTERS[view.value])
-    .filter((widget: Widget) => typed === '' || widget.name.toLowerCase().includes(typed));
+// An id in the address looks in every overlay, so a switched-off one stays open on the On tab.
+const {
+  view,
+  tabs,
+  search,
+  visible,
+  panelState,
+  empty,
+  count: shown,
+  pane,
+  asked,
+  selectedId,
+  selected,
+} = useFilteredResourceList({
+  query: widgets,
+  items: () => loaded.value,
+  filters: FILTERS,
+  tabLabel: (tab) => t(`dashboard.overlays.tabs.${tab}`),
+  searchText: (widget) => [widget.name],
+  paneKey: 'id',
 });
 
-const listState = usePanelState(widgets, () => false);
-const panelState = computed(() => {
-  if (listState.value !== 'ready')
-    return listState.value;
+const EMPTY_KEYS = {
+  none: 'dashboard.overlays.list.empty',
+  filtered: 'dashboard.overlays.list.emptyTab',
+} as const;
 
-  return visible.value?.length === 0
-    ? 'empty'
-    : 'ready';
-});
-
-const emptyText = computed<string>(() => {
-  if (search.value.trim() !== '')
-    return t('dashboard.overlays.noMatch', { query: search.value.trim() });
-
-  return t(
-    loaded.value?.length === 0
-      ? 'dashboard.overlays.list.empty'
-      : 'dashboard.overlays.list.emptyTab',
-  );
-});
+const emptyText = computed<string>(() =>
+  empty.value.kind === 'noMatch'
+    ? t('dashboard.overlays.noMatch', { query: empty.value.query })
+    : t(EMPTY_KEYS[empty.value.kind]));
 
 const hint = computed<string>(() => t(`dashboard.overlays.hints.${view.value}`));
 const count = computed<string | undefined>(() =>
-  panelState.value === 'ready'
-    ? t('dashboard.overlays.count', { count: visible.value?.length ?? 0 })
-    : undefined,
+  shown.value === undefined
+    ? undefined
+    : t('dashboard.overlays.count', { count: shown.value }),
 );
-
-const pane = useQueryPane('id');
-const asked = computed<string>(() => pane.id.value ?? '');
-// An id in the address looks in every overlay, so a switched-off one stays open on the On tab.
-const selected = computed<Widget | null>(() => {
-  if (asked.value === '')
-    return null;
-
-  return loaded.value?.find((widget: Widget) => widget.id === asked.value) ?? null;
-});
-const selectedId = computed<string>(() => selected.value?.id ?? '');
 
 function pick(widget: Widget): void {
   pane.open(widget.id);
