@@ -112,6 +112,31 @@ describe('White-label bot page', () => {
     expect(button('Disconnect')).toBeDefined();
   });
 
+  it('draws the bot account through the connection row: connected for the own bot, disconnected for the shared bot', async () => {
+    await open(connectedBot);
+
+    const own = document.body.querySelector('[data-slot="connection-row"]')!;
+
+    expect(own.getAttribute('data-state')).toBe('connected');
+    expect(own.querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone')).toBe('ok');
+    expect(own.textContent).toContain('NomNomz Helper');
+
+    mounted?.unmount();
+    document.body.innerHTML = '';
+
+    await open({
+      connected: true,
+      login: 'nomz_bot',
+      usesSharedBot: true,
+    });
+
+    const shared = document.body.querySelector('[data-slot="connection-row"]')!;
+
+    expect(shared.getAttribute('data-state')).toBe('disconnected');
+    expect(shared.querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone')).toBe('off');
+    expect(document.body.querySelectorAll('[data-slot="connection-row"]')).toHaveLength(1);
+  });
+
   it('shows the connected bot to a person with only the read key but offers no connect, replace or disconnect', async () => {
     held = ['channelbot:read'];
     await open(connectedBot);
@@ -221,7 +246,7 @@ describe('White-label bot page', () => {
       usesSharedBot: true,
     });
 
-    const identity = document.body.querySelector('[data-slot="bot-identity"]')!;
+    const identity = document.body.querySelector('[data-slot="connection-row"]')!;
 
     expect(identity.querySelector('[data-slot="bot-fallback-icon"]')).not.toBeNull();
     expect(identity.textContent).not.toContain('NO');

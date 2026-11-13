@@ -22,11 +22,11 @@ import { ApiError } from '@/api/errors';
 import { useBotStatus } from '@/api/home';
 import { useDisconnectBot } from '@/api/whiteLabelBot';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import ConnectionRow from '@/components/layout/ConnectionRow.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -55,6 +55,19 @@ const sharedTitle = computed(() =>
   bot.value?.login
     ? t('dashboard.settings.whiteLabelBot.shared.titleNamed', { login: bot.value.login })
     : t('dashboard.settings.whiteLabelBot.shared.title'));
+
+const rowName = computed(() =>
+  connected.value
+    ? name.value
+    : sharedTitle.value);
+const rowDetail = computed(() => {
+  if (!connected.value)
+    return t('dashboard.settings.whiteLabelBot.shared.description');
+
+  return bot.value?.login
+    ? t('dashboard.settings.whiteLabelBot.handle', { login: bot.value.login })
+    : undefined;
+});
 
 const state = computed<PanelState>(() => {
   if (status.isError.value)
@@ -100,27 +113,21 @@ function confirmDisconnect(): void {
       @retry="status.refetch()"
     >
       <RowGroup>
-        <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2" data-slot="bot-identity">
-          <Avatar class="size-10">
-            <AvatarImage v-if="bot?.profileImageUrl" :src="bot.profileImageUrl" :alt="name" />
-            <AvatarFallback>
-              <ChatBot class="size-5 text-muted-foreground" data-slot="bot-fallback-icon" aria-hidden="true" />
-            </AvatarFallback>
-          </Avatar>
-          <div class="min-w-0 flex-1 basis-56">
-            <template v-if="connected">
-              <span class="block text-sm font-medium">{{ name }}</span>
-              <span v-if="bot?.login" class="block text-sm text-muted-foreground">{{ $t('dashboard.settings.whiteLabelBot.handle', { login: bot.login }) }}</span>
-            </template>
-            <template v-else>
-              <span class="block text-sm font-medium">{{ sharedTitle }}</span>
-              <span class="block text-sm text-muted-foreground">{{ $t('dashboard.settings.whiteLabelBot.shared.description') }}</span>
-            </template>
-          </div>
-          <Badge :variant="connected ? 'default' : 'secondary'">
-            {{ connected ? $t('dashboard.settings.whiteLabelBot.connected') : $t('dashboard.settings.whiteLabelBot.notConnected') }}
-          </Badge>
-        </div>
+        <ConnectionRow
+          :name="rowName"
+          :state="connected ? 'connected' : 'disconnected'"
+          :detail="rowDetail"
+          :label="connected ? $t('dashboard.settings.whiteLabelBot.connected') : $t('dashboard.settings.whiteLabelBot.notConnected')"
+        >
+          <template #leading>
+            <Avatar class="size-10">
+              <AvatarImage v-if="bot?.profileImageUrl" :src="bot.profileImageUrl" :alt="name" />
+              <AvatarFallback>
+                <ChatBot class="size-5 text-muted-foreground" data-slot="bot-fallback-icon" aria-hidden="true" />
+              </AvatarFallback>
+            </Avatar>
+          </template>
+        </ConnectionRow>
         <BotLoginPanel
           v-if="loggingIn && canLogIn"
           @cancel="loggingIn = false"

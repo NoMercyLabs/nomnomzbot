@@ -32,6 +32,7 @@ import {
 } from '@/api/integrations';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import ConnectionRow, { type ConnectionState } from '@/components/layout/ConnectionRow.vue';
+import ProviderMark from '@/components/layout/ProviderMark.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
@@ -288,6 +289,9 @@ function setLeavingOpen(open: boolean): void {
           :account="accountOf(row)"
           :detail="row.description"
         >
+          <template #leading>
+            <ProviderMark :provider="row.id" />
+          </template>
           <template v-if="row.id === 'spotify' && can('integration:write')" #credential>
             <SpotifyCredentialsPanel />
           </template>

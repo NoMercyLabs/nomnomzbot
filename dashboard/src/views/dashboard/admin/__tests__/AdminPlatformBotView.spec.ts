@@ -44,6 +44,7 @@ type Call = {
 };
 
 const calls: Call[] = [];
+let botState = 'ConnectedAndWorking';
 
 // The signed-in admin holds every platform key, so every action button shows.
 vi.mock('@/composables/usePlatformCan', () => ({
@@ -64,7 +65,7 @@ vi.mock('@/api/client', () => ({
         return { data: { data: { affectedChannelCount: 7 } }, response: { status: 200, ok: true } };
 
       return {
-        data: { data: { state: 'ConnectedAndWorking', botUsername: 'nomnomzbot' } },
+        data: { data: { state: botState, botUsername: 'nomnomzbot' } },
         response: { status: 200, ok: true },
       };
     },
@@ -99,6 +100,7 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  botState = 'ConnectedAndWorking';
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -150,7 +152,34 @@ describe('AdminPlatformBotView', () => {
     await open();
 
     expect(text()).toContain('Connected and working');
-    expect(document.body.querySelector('[data-bot-username]')?.textContent).toContain('nomnomzbot');
+    expect(document.body.querySelector('[data-slot="connection-row"]')?.textContent).toContain('nomnomzbot');
+  });
+
+  it('draws the platform bot through the connection row and never uses the streamer attention tone', async () => {
+    await open();
+
+    const row = (): Element => document.body.querySelector('[data-slot="connection-row"]')!;
+    const tone = (): string | null | undefined =>
+      row().querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone');
+
+    expect([row().getAttribute('data-state'), tone()]).toEqual(['connected', 'ok']);
+
+    const words = en.dashboard.admin.platformBot.state;
+    const broken = [
+      ['NeverConnected', words.NeverConnected],
+      ['ConnectedTokenUnusable', words.ConnectedTokenUnusable],
+    ] as const;
+
+    for (const [value, label] of broken) {
+      botState = value;
+      mounted?.unmount();
+      document.body.innerHTML = '';
+      queryClient.clear();
+      await open();
+
+      expect([row().getAttribute('data-state'), tone()]).toEqual(['disconnected', 'off']);
+      expect(row().textContent).toContain(label);
+    }
   });
 
   it('needs a reason before it previews, then shows the counted channels', async () => {

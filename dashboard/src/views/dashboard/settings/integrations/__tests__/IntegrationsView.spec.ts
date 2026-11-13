@@ -273,6 +273,19 @@ describe('Integrations page', () => {
     expect([stateOf('patreon'), toneOf('patreon')]).toEqual(['disconnected', 'off']);
   });
 
+  it('puts a designer icon in the leading slot of a service without a brand logo, and the logo where one exists', async () => {
+    await open();
+
+    const icon = (id: string): Element | null =>
+      row(id).querySelector('[data-slot="connection-logo"] [data-slot="provider-icon"]');
+
+    expect(icon('spotify')).not.toBeNull();
+    expect(icon('patreon')).not.toBeNull();
+    expect(icon('shopify')).not.toBeNull();
+    expect(icon('youtube')).toBeNull();
+    expect(row('youtube').querySelector('[data-slot="connection-logo"] svg')).not.toBeNull();
+  });
+
   it('gives a row one solid button: Reconnect is solid for attention, outline when the service is fine', async () => {
     await open();
 

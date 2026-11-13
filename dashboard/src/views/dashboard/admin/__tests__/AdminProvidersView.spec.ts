@@ -190,6 +190,31 @@ describe('AdminProvidersView', () => {
     expect(one('[data-restricted]').textContent).toContain('earn money with NomNomzBot');
   });
 
+  it('draws each provider through the connection row: connected once the app is set, disconnected otherwise, never attention', async () => {
+    await open();
+
+    const rowOf = (id: string): HTMLElement =>
+      one(`[data-provider="${id}"] [data-slot="connection-row"]`);
+    const tone = (id: string): string | null | undefined =>
+      rowOf(id).querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone');
+    const states = document.body.querySelectorAll('[data-provider] [data-slot="connection-row"]');
+
+    expect(states).toHaveLength(4);
+    expect([rowOf('twitch').dataset.state, tone('twitch')]).toEqual(['connected', 'ok']);
+    expect([rowOf('discord').dataset.state, tone('discord')]).toEqual(['connected', 'ok']);
+    expect([rowOf('youtube').dataset.state, tone('youtube')]).toEqual(['disconnected', 'off']);
+    expect([rowOf('kick').dataset.state, tone('kick')]).toEqual(['disconnected', 'off']);
+    expect(document.body.querySelector('[data-provider] [data-state="attention"]')).toBeNull();
+  });
+
+  it('gives a provider without a brand logo a designer icon in the leading slot, and keeps the logo for one that has it', async () => {
+    await open();
+
+    expect(one('[data-provider="discord"] [data-slot="provider-icon"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-provider="twitch"] [data-slot="provider-icon"]')).toBeNull();
+    expect(one('[data-provider="twitch"] [data-slot="connection-logo"] svg')).not.toBeNull();
+  });
+
   it('opens the form in a dialog on Edit, with the secret empty and write only', async () => {
     await open();
     await click('[data-provider="twitch"] [data-action="edit-credentials"]');

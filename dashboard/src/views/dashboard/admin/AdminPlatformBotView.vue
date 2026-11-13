@@ -24,11 +24,11 @@ import {
   useStartPlatformBotReconnect,
 } from '@/api/adminPlatformBot';
 import { isBotLoginWaiting } from '@/api/whiteLabelBot';
+import ConnectionRow from '@/components/layout/ConnectionRow.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -141,14 +141,14 @@ async function checkApproval(): Promise<void> {
       :error-text="$t('dashboard.admin.platformBot.error')"
       @retry="status.refetch()"
     >
-      <div class="flex items-center gap-3" data-bot-state>
-        <Badge :variant="connection === 'ConnectedAndWorking' ? 'default' : 'outline'">
-          {{ $t(`dashboard.admin.platformBot.state.${connection}`) }}
-        </Badge>
-        <span v-if="status.data.value?.botUsername" class="text-sm font-medium" data-bot-username>
-          {{ status.data.value.botUsername }}
-        </span>
-      </div>
+      <!-- Operator-only: the platform bot is the admin's to fix, so a broken state is disconnected, never the streamer's attention tone. -->
+      <ConnectionRow
+        data-bot-state
+        provider="twitch"
+        :name="status.data.value?.botUsername ?? $t('dashboard.admin.platformBot.state.title')"
+        :state="connection === 'ConnectedAndWorking' ? 'connected' : 'disconnected'"
+        :label="$t(`dashboard.admin.platformBot.state.${connection}`)"
+      />
     </PanelCard>
 
     <PanelCard

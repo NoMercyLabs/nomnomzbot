@@ -23,9 +23,10 @@ import {
   type SaveProviderCredentialRequest,
 } from '@/api/adminProviders';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import ConnectionRow from '@/components/layout/ConnectionRow.vue';
+import ProviderMark from '@/components/layout/ProviderMark.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StoredCredentialRow, { type CredentialField } from '@/components/layout/StoredCredentialRow.vue';
-import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const props = defineProps<{ credential: ProviderCredential }>();
@@ -50,10 +51,14 @@ const name = computed<string>(() => {
 });
 const editable = computed<boolean>(() => props.credential.supported && can('iam:manage'));
 
-const detail = computed<string>(() => {
+// Operator-only: a platform app the admin has not set is disconnected, never the streamer's attention tone.
+const configured = computed<boolean>(() =>
+  props.credential.clientIdSource !== 'unset' && props.credential.secretSource !== 'unset');
+const clientIdText = computed<string>(() => props.credential.clientId ?? copy('clientIdNone'));
+
+const sources = computed<string>(() => {
   const credential = props.credential;
   const parts: string[] = [
-    credential.clientId ?? copy('clientIdNone'),
     copy('clientIdLabel', { source: sourceOf(credential.clientIdSource) }),
     copy('secretLabel', { source: sourceOf(credential.secretSource) }),
   ];
@@ -76,6 +81,7 @@ const detail = computed<string>(() => {
 
   return parts.join(' · ');
 });
+const detail = computed<string>(() => `${clientIdText.value} · ${sources.value}`);
 
 const fields = computed<CredentialField[]>(() => {
   const list: CredentialField[] = [
@@ -167,28 +173,38 @@ function wipe(): void {
 
 <template>
   <div :data-provider="credential.provider">
-    <StoredCredentialRow
-      v-if="editable"
-      v-model:open="editing"
-      partial
-      :title="name"
-      :detail="detail"
-      :edit-label="copy('edit')"
-      :dialog-title="copy('dialogTitle', { provider: name })"
-      :dialog-description="copy('secretHint')"
-      :save-label="copy('save')"
-      :remove-label="copy('clear')"
-      remove-action="clear"
-      :fields="fields"
-      removable
-      :pending="save.isPending.value"
-      :removing="clear.isPending.value"
-      :error="error"
-      @submit="submit"
-      @remove="confirmingClear = true"
-    />
-    <RowGroup v-else>
-      <SummaryRow :title="name" :detail="detail" />
+    <RowGroup>
+      <ConnectionRow
+        :name="name"
+        :state="configured ? 'connected' : 'disconnected'"
+        :detail="editable ? undefined : detail"
+      >
+        <template #leading>
+          <ProviderMark :provider="credential.provider" />
+        </template>
+        <template v-if="editable" #credential>
+          <StoredCredentialRow
+            v-model:open="editing"
+            inline
+            partial
+            :title="clientIdText"
+            :detail="sources"
+            :edit-label="copy('edit')"
+            :dialog-title="copy('dialogTitle', { provider: name })"
+            :dialog-description="copy('secretHint')"
+            :save-label="copy('save')"
+            :remove-label="copy('clear')"
+            remove-action="clear"
+            :fields="fields"
+            removable
+            :pending="save.isPending.value"
+            :removing="clear.isPending.value"
+            :error="error"
+            @submit="submit"
+            @remove="confirmingClear = true"
+          />
+        </template>
+      </ConnectionRow>
     </RowGroup>
     <ConfirmDialog
       v-model:open="confirmingClear"
