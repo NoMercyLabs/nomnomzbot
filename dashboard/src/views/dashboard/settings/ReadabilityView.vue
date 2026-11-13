@@ -29,7 +29,7 @@ import {
   type UseReadability,
 } from '@/composables/useReadability';
 
-import ReadabilityRow from './components/ReadabilityRow.vue';
+import ActionRow from '@/components/layout/ActionRow.vue';
 
 const { t } = useI18n();
 const { settings, activePreset, applyPreset }: UseReadability = useReadability();
@@ -192,7 +192,7 @@ function setSize(next: number[] | undefined): void {
           </p>
         </div>
         <RowGroup>
-          <ReadabilityRow
+          <ActionRow
             :title="$t('dashboard.settings.readability.font.title')"
             :description="help.font"
           >
@@ -201,8 +201,8 @@ function setSize(next: number[] | undefined): void {
               :label="$t('dashboard.settings.readability.font.title')"
               :options="fonts"
             />
-          </ReadabilityRow>
-          <ReadabilityRow
+          </ActionRow>
+          <ActionRow
             :title="$t('dashboard.settings.readability.size.title')"
             :description="help.size"
           >
@@ -218,8 +218,8 @@ function setSize(next: number[] | undefined): void {
             <span class="min-w-11 text-right text-sm tabular-nums">{{
               $t("dashboard.settings.readability.size.value", { size: settings.size })
             }}</span>
-          </ReadabilityRow>
-          <ReadabilityRow
+          </ActionRow>
+          <ActionRow
             :title="$t('dashboard.settings.readability.lineSpacing.title')"
             :description="help.lineSpacing"
           >
@@ -228,8 +228,8 @@ function setSize(next: number[] | undefined): void {
               :label="$t('dashboard.settings.readability.lineSpacing.title')"
               :options="lineSpacings"
             />
-          </ReadabilityRow>
-          <ReadabilityRow
+          </ActionRow>
+          <ActionRow
             :title="$t('dashboard.settings.readability.spacing.title')"
             :description="help.spacing"
           >
@@ -238,7 +238,7 @@ function setSize(next: number[] | undefined): void {
               :label="$t('dashboard.settings.readability.spacing.title')"
               :options="spacings"
             />
-          </ReadabilityRow>
+          </ActionRow>
         </RowGroup>
       </section>
 
@@ -269,7 +269,7 @@ function setSize(next: number[] | undefined): void {
           </h3>
         </div>
         <RowGroup>
-          <ReadabilityRow
+          <ActionRow
             :title="$t('dashboard.settings.readability.density.control')"
             :description="help.density"
           >
@@ -278,7 +278,7 @@ function setSize(next: number[] | undefined): void {
               :label="$t('dashboard.settings.readability.density.title')"
               :options="densities"
             />
-          </ReadabilityRow>
+          </ActionRow>
         </RowGroup>
       </section>
     </div>

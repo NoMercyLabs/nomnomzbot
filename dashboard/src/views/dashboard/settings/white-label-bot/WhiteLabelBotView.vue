@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import ReadabilityRow from '../components/ReadabilityRow.vue';
+import ActionRow from '@/components/layout/ActionRow.vue';
 import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import BotLoginPanel from './components/BotLoginPanel.vue';
 
@@ -133,7 +133,7 @@ function confirmDisconnect(): void {
           @cancel="loggingIn = false"
           @connected="onConnected"
         />
-        <ReadabilityRow
+        <ActionRow
           v-else-if="connected && canLogIn"
           :title="$t('dashboard.settings.whiteLabelBot.replace.title')"
           :description="$t('dashboard.settings.whiteLabelBot.replace.description')"
@@ -141,8 +141,8 @@ function confirmDisconnect(): void {
           <Button variant="outline" size="sm" @click="loggingIn = true">
             {{ $t('dashboard.settings.whiteLabelBot.replace.action') }}
           </Button>
-        </ReadabilityRow>
-        <ReadabilityRow
+        </ActionRow>
+        <ActionRow
           v-else-if="canLogIn"
           :title="$t('dashboard.settings.whiteLabelBot.connect.title')"
           :description="$t('dashboard.settings.whiteLabelBot.connect.description')"
@@ -150,8 +150,8 @@ function confirmDisconnect(): void {
           <Button size="sm" @click="loggingIn = true">
             {{ $t('dashboard.settings.whiteLabelBot.connect.action') }}
           </Button>
-        </ReadabilityRow>
-        <ReadabilityRow
+        </ActionRow>
+        <ActionRow
           v-if="connected && !loggingIn && can('channelbot:disconnect')"
           :title="$t('dashboard.settings.whiteLabelBot.disconnect.title')"
           :description="$t('dashboard.settings.whiteLabelBot.disconnect.description')"
@@ -159,7 +159,7 @@ function confirmDisconnect(): void {
           <Button variant="outline" size="sm" @click="confirming = true">
             {{ $t('dashboard.settings.whiteLabelBot.disconnect.action') }}
           </Button>
-        </ReadabilityRow>
+        </ActionRow>
       </RowGroup>
     </PanelCard>
     <ConfirmDialog

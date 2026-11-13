@@ -37,7 +37,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { locales } from '@/i18n';
 import { keysOf, merge } from '@/lib/array';
 
-import ReadabilityRow from './components/ReadabilityRow.vue';
+import ActionRow from '@/components/layout/ActionRow.vue';
 
 type Draft = {
   prefix: string;
@@ -256,7 +256,7 @@ function discard(): void {
     @retry="basics.refetch()"
   >
     <RowGroup>
-      <ReadabilityRow
+      <ActionRow
         :title="$t('dashboard.settings.basics.prefix.title')"
         :description="$t('dashboard.settings.basics.prefix.description')"
       >
@@ -268,8 +268,8 @@ function discard(): void {
           :disabled="!can('setup:write')"
           :aria-invalid="!prefixValid"
         />
-      </ReadabilityRow>
-      <ReadabilityRow
+      </ActionRow>
+      <ActionRow
         :title="$t('dashboard.settings.basics.botLinePrefix.title')"
         :description="$t('dashboard.settings.basics.botLinePrefix.description')"
       >
@@ -281,8 +281,8 @@ function discard(): void {
           :disabled="!can('setup:write')"
           :aria-invalid="!lineValid"
         />
-      </ReadabilityRow>
-      <ReadabilityRow
+      </ActionRow>
+      <ActionRow
         :title="$t('dashboard.settings.basics.locale.title')"
         :description="$t('dashboard.settings.basics.locale.description')"
       >
@@ -301,8 +301,8 @@ function discard(): void {
             </SelectGroup>
           </SelectContent>
         </Select>
-      </ReadabilityRow>
-      <ReadabilityRow
+      </ActionRow>
+      <ActionRow
         :title="$t('dashboard.settings.basics.timezone.title')"
         :description="$t('dashboard.settings.basics.timezone.description')"
       >
@@ -319,7 +319,7 @@ function discard(): void {
             </SelectGroup>
           </SelectContent>
         </Select>
-      </ReadabilityRow>
+      </ActionRow>
       <SettingRow
         v-model="draft.autoJoin"
         :disabled="!can('setup:write')"
@@ -343,7 +343,7 @@ function discard(): void {
         </p>
       </div>
       <RowGroup>
-        <ReadabilityRow
+        <ActionRow
           v-for="row in stepRows"
           :key="row.key"
           :title="$t(row.title)"
@@ -363,7 +363,7 @@ function discard(): void {
               {{ stepError(row.key, row.before) }}
             </p>
           </div>
-        </ReadabilityRow>
+        </ActionRow>
       </RowGroup>
     </section>
     <template v-if="can('setup:write')" #footer>

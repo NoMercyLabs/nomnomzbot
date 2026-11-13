@@ -26,7 +26,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import type { PanelState } from '@/composables/usePanelState';
 import { lookup } from '@/lib/array';
 import { errorText } from '@/lib/errors';
-import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
+import ActionRow from '@/components/layout/ActionRow.vue';
 
 type Field = keyof AudioMixChange;
 
@@ -175,7 +175,7 @@ const failure = computed(() => {
   >
     <RowGroup v-if="stored">
       <div v-for="row in rows" :key="row.field">
-        <ReadabilityRow
+        <ActionRow
           :title="$t(`dashboard.overlays.audioMix.${row.text}.title`)"
           :description="$t(`dashboard.overlays.audioMix.${row.text}.description`)"
           :hint="hintOf(row.field)"
@@ -205,7 +205,7 @@ const failure = computed(() => {
             @blur="commit(row.field)"
             @keydown.enter="commit(row.field)"
           />
-        </ReadabilityRow>
+        </ActionRow>
         <InlineNotice
           v-if="failure?.field === row.field"
           tone="error"

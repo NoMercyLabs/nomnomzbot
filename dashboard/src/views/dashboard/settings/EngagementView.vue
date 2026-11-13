@@ -32,7 +32,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
-import ReadabilityRow from './components/ReadabilityRow.vue';
+import ActionRow from '@/components/layout/ActionRow.vue';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -251,7 +251,7 @@ async function submit(): Promise<void> {
           </h3>
         </div>
         <RowGroup>
-          <ReadabilityRow
+          <ActionRow
             :title="$t('dashboard.settings.engagement.cooldown.title')"
             :description="cooldownHelp"
           >
@@ -270,7 +270,7 @@ async function submit(): Promise<void> {
             <span class="text-sm text-muted-foreground">{{
               $t("dashboard.settings.engagement.cooldown.unit")
             }}</span>
-          </ReadabilityRow>
+          </ActionRow>
         </RowGroup>
       </section>
 
@@ -284,7 +284,7 @@ async function submit(): Promise<void> {
           </p>
         </div>
         <RowGroup>
-          <ReadabilityRow
+          <ActionRow
             v-for="(milestone, index) in milestones"
             :key="index"
             :title="$t('dashboard.settings.engagement.milestones.item', { number: index + 1 })"
@@ -319,7 +319,7 @@ async function submit(): Promise<void> {
             >
               <Trash class="size-5" />
             </Button>
-          </ReadabilityRow>
+          </ActionRow>
           <p v-if="milestones.length === 0" class="px-3 py-2 text-sm text-muted-foreground">
             {{ $t("dashboard.settings.engagement.milestones.empty") }}
           </p>

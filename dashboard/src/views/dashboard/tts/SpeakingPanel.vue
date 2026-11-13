@@ -29,7 +29,7 @@ import { useNumberField } from '@/composables/useNumberField';
 import type { PanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
 import { useRefusalLines } from '@/composables/useRefusalLines';
-import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
+import ActionRow from '@/components/layout/ActionRow.vue';
 
 import TtsResetFooter from './TtsResetFooter.vue';
 
@@ -189,7 +189,7 @@ const cooldownHint = computed(() =>
         :hint="switchHint(standard?.isEnabled)"
         @update:model-value="change({ isEnabled: $event })"
       />
-      <ReadabilityRow
+      <ActionRow
         :title="$t('dashboard.tts.speaking.mode.title')"
         :description="$t('dashboard.tts.speaking.mode.description')"
         :hint="modeHint"
@@ -201,8 +201,8 @@ const cooldownHint = computed(() =>
           :disabled="!writable"
           @update:model-value="change({ mode: $event })"
         />
-      </ReadabilityRow>
-      <ReadabilityRow
+      </ActionRow>
+      <ActionRow
         :title="$t('dashboard.tts.speaking.provider.title')"
         :description="$t('dashboard.tts.speaking.provider.description')"
         :hint="providerHint"
@@ -214,8 +214,8 @@ const cooldownHint = computed(() =>
           :disabled="!writable"
           @update:model-value="change({ defaultProvider: $event })"
         />
-      </ReadabilityRow>
-      <ReadabilityRow
+      </ActionRow>
+      <ActionRow
         :title="$t('dashboard.tts.speaking.standing.title')"
         :description="$t('dashboard.tts.speaking.standing.description')"
         :hint="standingHint"
@@ -227,8 +227,8 @@ const cooldownHint = computed(() =>
           :disabled="!writable"
           @update:model-value="change({ minPermission: $event })"
         />
-      </ReadabilityRow>
-      <ReadabilityRow
+      </ActionRow>
+      <ActionRow
         :title="$t('dashboard.tts.speaking.maxCharacters.title')"
         :description="$t('dashboard.tts.speaking.maxCharacters.description')"
         :hint="charactersHint"
@@ -247,8 +247,8 @@ const cooldownHint = computed(() =>
         <FieldError v-for="line in linesFor('maxCharacters')" :key="line" data-problem="maxCharacters">
           {{ line }}
         </FieldError>
-      </ReadabilityRow>
-      <ReadabilityRow
+      </ActionRow>
+      <ActionRow
         :title="$t('dashboard.tts.speaking.cooldown.title')"
         :description="$t('dashboard.tts.speaking.cooldown.description')"
         :hint="cooldownHint"
@@ -267,7 +267,7 @@ const cooldownHint = computed(() =>
         <FieldError v-for="line in linesFor('cooldownSeconds')" :key="line" data-problem="cooldownSeconds">
           {{ line }}
         </FieldError>
-      </ReadabilityRow>
+      </ActionRow>
       <SettingRow
         :model-value="stored.skipBotMessages"
         :disabled="!writable"

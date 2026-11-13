@@ -16,7 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
+import ActionRow from '@/components/layout/ActionRow.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Input } from '@/components/ui/input';
@@ -134,7 +134,7 @@ const bits = useNumberField({
         :hint="switchHint(defaults.data.value?.profanityCensorEnabled)"
         @update:model-value="change({ profanityCensorEnabled: $event })"
       />
-      <ReadabilityRow
+      <ActionRow
         :title="$t('dashboard.tts.rules.minBits.title')"
         :description="$t('dashboard.tts.rules.minBits.description')"
         :hint="bitsHint"
@@ -152,7 +152,7 @@ const bits = useNumberField({
         <FieldError v-for="line in linesFor('minBitsToTts')" :key="line" data-problem="minBitsToTts">
           {{ line }}
         </FieldError>
-      </ReadabilityRow>
+      </ActionRow>
     </RowGroup>
 
     <template v-if="can('tts:config:write')" #footer>
