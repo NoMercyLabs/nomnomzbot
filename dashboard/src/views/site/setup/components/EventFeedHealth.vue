@@ -27,6 +27,7 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 
+import PublicWait from '../../components/PublicWait.vue';
 import SetupAddress from './SetupAddress.vue';
 
 const signedIn = useSignedIn();
@@ -56,9 +57,7 @@ const tone = computed(() =>
     <p v-if="!signedIn" class="text-sm text-muted-foreground">
       {{ $t('site.setup.feed.signInFirst') }}
     </p>
-    <p v-else-if="facts.isPending.value" class="text-sm text-muted-foreground" role="status">
-      {{ $t('site.setup.feed.checking') }}
-    </p>
+    <PublicWait v-else-if="facts.isPending.value">{{ $t('site.setup.feed.checking') }}</PublicWait>
     <p v-else-if="facts.isError.value || !verdict" class="text-sm text-muted-foreground" role="status">
       {{ $t('site.setup.feed.unknown') }}
     </p>

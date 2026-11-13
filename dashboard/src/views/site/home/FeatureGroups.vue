@@ -14,16 +14,17 @@ import { useI18n } from 'vue-i18n';
 
 import FeatureGroup from './FeatureGroup.vue';
 import { previewAreas } from './preview/previewAreas';
+import SectionHeading from './SectionHeading.vue';
 
 const { t } = useI18n();
 </script>
 
 <template>
   <section id="features" class="flex scroll-mt-6 flex-col gap-16">
-    <div class="flex flex-col gap-2">
-      <h2 class="text-2xl font-semibold">{{ t('site.home.features.title') }}</h2>
-      <p class="text-base text-muted-foreground">{{ t('site.home.features.sampleNote') }}</p>
-    </div>
+    <SectionHeading
+      :title="t('site.home.features.title')"
+      :description="t('site.home.features.sampleNote')"
+    />
     <FeatureGroup v-for="area in previewAreas" :key="area" :area="area" />
   </section>
 </template>

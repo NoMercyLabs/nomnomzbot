@@ -14,9 +14,12 @@
 import { useI18n } from 'vue-i18n';
 import Check from '~icons/nnz/check';
 
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import { Badge } from '@/components/ui/badge';
 
 import HomeSignIn from './HomeSignIn.vue';
+import SectionHeading from './SectionHeading.vue';
 
 type Option = { id: 'self' | 'hosted'; connect: boolean };
 
@@ -30,10 +33,10 @@ const { t } = useI18n();
 
 <template>
   <section id="deploy" class="flex scroll-mt-6 flex-col gap-6">
-    <div>
-      <h2 class="text-2xl font-semibold">{{ t('site.home.deploy.title') }}</h2>
-      <p class="mt-2 text-base text-muted-foreground">{{ t('site.home.deploy.subtitle') }}</p>
-    </div>
+    <SectionHeading
+      :title="t('site.home.deploy.title')"
+      :description="t('site.home.deploy.subtitle')"
+    />
     <div class="grid gap-4 md:grid-cols-2">
       <PanelCard
         v-for="option in options"
@@ -43,11 +46,7 @@ const { t } = useI18n();
         pad
       >
         <template #actions>
-          <span
-            class="rounded-[8px] border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
-          >
-            {{ t(`site.home.deploy.${option.id}.tag`) }}
-          </span>
+          <Badge variant="secondary">{{ t(`site.home.deploy.${option.id}.tag`) }}</Badge>
         </template>
         <ul class="flex flex-col gap-2">
           <li v-for="point in points" :key="point" class="flex items-start gap-2 text-sm">
@@ -60,8 +59,6 @@ const { t } = useI18n();
         </template>
       </PanelCard>
     </div>
-    <p class="rounded-[12px] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-      {{ t('site.home.deploy.note') }}
-    </p>
+    <InlineNotice tone="info">{{ t('site.home.deploy.note') }}</InlineNotice>
   </section>
 </template>

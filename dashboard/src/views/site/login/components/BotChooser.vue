@@ -26,6 +26,8 @@ import { Label } from '@/components/ui/label';
 import { officialOrigin, servedOrigin, toBotOrigin } from '@/lib/botAddress';
 import { useConnectionsStore } from '@/stores/connections';
 
+import PublicWait from '../../components/PublicWait.vue';
+
 const emit = defineEmits<{ back: [] }>();
 
 const connections = useConnectionsStore();
@@ -139,9 +141,7 @@ async function check(): Promise<void> {
             {{ $t('site.login.bots.check') }}
           </Button>
         </div>
-        <p v-if="checking" class="text-sm text-muted-foreground" role="status">
-          {{ $t('site.login.bots.checking') }}
-        </p>
+        <PublicWait v-if="checking">{{ $t('site.login.bots.checking') }}</PublicWait>
         <InlineNotice v-else-if="checked === 'invalid'" tone="error" compact>
           {{ $t('site.login.bots.invalid') }}
         </InlineNotice>

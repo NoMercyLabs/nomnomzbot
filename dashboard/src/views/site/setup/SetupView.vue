@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 
 import PublicTaskShell from '../components/PublicTaskShell.vue';
 import WizardActions from '../components/WizardActions.vue';
+import PublicWait from '../components/PublicWait.vue';
 import EventFeedHealth from './components/EventFeedHealth.vue';
 import { rendererFor } from './components/setupSteps';
 import StepsFrame from './components/StepsFrame.vue';
@@ -57,9 +58,7 @@ async function finish(): Promise<void> {
   >
     <template v-if="!wizard.isSuccess.value">
       <h1 class="sr-only">{{ $t('site.setup.brand') }}</h1>
-      <p v-if="wizard.isPending.value" class="text-sm text-muted-foreground" role="status">
-        {{ $t('site.setup.loading') }}
-      </p>
+      <PublicWait v-if="wizard.isPending.value">{{ $t('site.setup.loading') }}</PublicWait>
       <div v-else class="flex flex-col items-center gap-3" role="alert">
         <p class="text-sm">{{ $t('site.setup.unreachable') }}</p>
         <Button variant="outline" @click="wizard.refetch()">{{ $t('site.setup.retry') }}</Button>

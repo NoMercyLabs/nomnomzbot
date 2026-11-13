@@ -30,6 +30,7 @@ import BotChooser from './components/BotChooser.vue';
 import DeviceCodePanel from './components/DeviceCodePanel.vue';
 import ConsentNotice from '../components/ConsentNotice.vue';
 import PublicTaskShell from '../components/PublicTaskShell.vue';
+import PublicWait from '../components/PublicWait.vue';
 import TaskActions from '../components/TaskActions.vue';
 
 const route = useRoute();
@@ -192,13 +193,9 @@ function signIn(provider: LoginProvider): void {
             $t('site.login.device.back')
           }}</Button>
         </TaskActions>
-        <p
-          v-else-if="providers.isPending.value"
-          class="text-sm text-muted-foreground"
-          role="status"
-        >
+        <PublicWait v-else-if="providers.isPending.value">
           {{ $t('site.login.loading') }}
-        </p>
+        </PublicWait>
         <div
           v-else-if="providers.isError.value || shown.length === 0"
           class="flex flex-col gap-3"

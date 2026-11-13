@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import PublicWait from '../../components/PublicWait.vue';
+
 const props = defineProps<{ code: string; gift: string }>();
 
 const { t } = useI18n();
@@ -49,9 +51,7 @@ async function redeemNow(): Promise<void> {
 </script>
 
 <template>
-  <p v-if="!isLoaded" role="status" class="text-sm text-muted-foreground">
-    {{ $t('site.invite.channelLoading') }}
-  </p>
+  <PublicWait v-if="!isLoaded">{{ $t('site.invite.channelLoading') }}</PublicWait>
   <div v-else-if="target === null" class="flex flex-col gap-3">
     <p class="text-sm">{{ $t('site.invite.noChannel') }}</p>
     <Button as-child class="w-full">

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 
 import { groupPages } from './preview/previewAreas';
 import type { PreviewArea } from './preview/previewAreas';
+import SectionHeading from './SectionHeading.vue';
 import ShowcaseImage from './ShowcaseImage.vue';
 
 const props = defineProps<{ area: PreviewArea }>();
@@ -30,10 +31,12 @@ const sourceUrl = computed(() => `${t('site.home.githubUrl')}/tree/master/dashbo
 <template>
   <article :data-feature-group="area" class="flex min-w-0 flex-col gap-4">
     <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-      <div class="flex max-w-2xl flex-col gap-1">
-        <h3 class="text-xl font-semibold">{{ t(`site.home.areas.${area}.title`) }}</h3>
-        <p class="text-base text-muted-foreground">{{ t(`site.home.areas.${area}.text`) }}</p>
-      </div>
+      <SectionHeading
+        :level="3"
+        :title="t(`site.home.areas.${area}.title`)"
+        :description="t(`site.home.areas.${area}.text`)"
+        class="max-w-2xl"
+      />
       <Button as-child variant="outline">
         <a :href="sourceUrl" target="_blank" rel="noopener">{{ t('site.home.features.source') }}</a>
       </Button>

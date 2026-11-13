@@ -22,6 +22,8 @@ import {
 } from '@/api/signIn';
 import { Button } from '@/components/ui/button';
 
+import PublicWait from '../../components/PublicWait.vue';
+
 const props = defineProps<{ provider: LoginProvider; returnTo: string }>();
 const emit = defineEmits<{ cancel: [] }>();
 
@@ -64,9 +66,7 @@ onMounted(() => start.mutate());
 <template>
   <div class="flex flex-col gap-3">
     <template v-if="outcome === null || outcome === 'authorized'">
-      <p v-if="!code" class="text-sm text-muted-foreground" role="status">
-        {{ $t('site.login.device.starting') }}
-      </p>
+      <PublicWait v-if="!code">{{ $t('site.login.device.starting') }}</PublicWait>
       <template v-else>
         <p class="text-sm">{{ $t('site.login.device.instruction', { site }) }}</p>
         <p
@@ -83,9 +83,7 @@ onMounted(() => start.mutate());
         >
           {{ $t('site.login.device.open', { site }) }}
         </Button>
-        <p class="text-sm text-muted-foreground" role="status">
-          {{ $t('site.login.device.waiting') }}
-        </p>
+        <PublicWait>{{ $t('site.login.device.waiting') }}</PublicWait>
       </template>
     </template>
     <template v-else>

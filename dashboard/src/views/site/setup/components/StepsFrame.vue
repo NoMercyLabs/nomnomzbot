@@ -75,7 +75,7 @@ const currentTitle = computed(() => entries.value[props.current]?.label ?? '');
 </script>
 
 <template>
-  <nav :aria-label="$t('site.setup.stepsLabel')" class="w-full max-w-3xl">
+  <nav :aria-label="$t('site.setup.stepsLabel')" class="w-full">
     <p data-steps-compact class="flex flex-col items-center gap-0.5 text-center sm:hidden">
       <span class="text-xs text-muted-foreground">
         {{ $t('site.setup.progress', { current: current + 1, total: entries.length }) }}

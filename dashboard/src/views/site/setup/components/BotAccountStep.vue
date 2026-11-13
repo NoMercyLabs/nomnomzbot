@@ -23,6 +23,7 @@ import {
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 
+import PublicWait from '../../components/PublicWait.vue';
 import InstructionLine from './InstructionLine.vue';
 import SetupAddress from './SetupAddress.vue';
 
@@ -65,9 +66,7 @@ watch(connected, (now) => {
     <p v-if="connected" class="text-sm" role="status">
       {{ $t('site.setup.botConnected', { name: status.data.value?.displayName ?? status.data.value?.login ?? '' }) }}
     </p>
-    <p v-else-if="waiting" class="text-sm text-muted-foreground" role="status">
-      {{ $t('site.setup.botWaiting') }}
-    </p>
+    <PublicWait v-else-if="waiting">{{ $t('site.setup.botWaiting') }}</PublicWait>
     <InlineNotice v-if="authorize.isError.value" tone="error" compact>
       {{ $t('site.setup.botFailed') }}
     </InlineNotice>

@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { rememberInviteGift } from '@/composables/useInviteOutcome';
 
 import PublicTaskShell from '../components/PublicTaskShell.vue';
+import PublicWait from '../components/PublicWait.vue';
 import TaskActions from '../components/TaskActions.vue';
 import InviteRedeem from './components/InviteRedeem.vue';
 
@@ -99,9 +100,7 @@ function signIn(): void {
       pad
       class="w-full"
     >
-      <p v-if="pending" role="status" class="text-sm text-muted-foreground">
-        {{ $t('site.invite.loading') }}
-      </p>
+      <PublicWait v-if="pending">{{ $t('site.invite.loading') }}</PublicWait>
       <template v-else-if="usable">
         <InviteRedeem v-if="signedIn" :code="code" :gift="gift" />
         <TaskActions v-else>
