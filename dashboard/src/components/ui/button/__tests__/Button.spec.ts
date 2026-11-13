@@ -83,7 +83,7 @@ describe('button content geometry', () => {
 // Reka clones the direct child to forward the button's attributes and listeners.
 describe('button as-child forwarding', () => {
   it('keeps attributes and click handling on the actual anchor', async () => {
-    const click = vi.fn()
+    const click = vi.fn<() => void>()
     const wrapper = mount(Button, {
       props: { asChild: true, variant: 'outline', size: 'sm', onClick: click },
       attrs: { 'data-action': 'open', class: 'min-w-0' },
