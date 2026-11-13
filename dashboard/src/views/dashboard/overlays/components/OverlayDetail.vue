@@ -31,7 +31,6 @@ import {
   type Widget,
   type WidgetTestResult,
 } from '@/api/widgets';
-import BackLink from '@/components/layout/BackLink.vue';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
@@ -59,7 +58,6 @@ const COPIED_MS = 2000;
 const props = defineProps<{ widget: Widget }>();
 
 const emit = defineEmits<{
-  back: [];
   deleted: [];
   duplicated: [id: string | null];
 }>();
@@ -247,11 +245,6 @@ async function sendTest(eventType: string): Promise<void> {
   <DetailPane data-overlay-detail>
     <template #header>
       <div data-page-inset class="flex flex-wrap items-center gap-3">
-        <BackLink
-          class="md:hidden"
-          :label="$t('dashboard.overlays.back')"
-          @click="$emit('back')"
-        />
         <!-- An icon tile shows only with a real icon, here and in the list. -->
         <span
           v-if="kind.icon"

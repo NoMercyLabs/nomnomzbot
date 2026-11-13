@@ -32,7 +32,7 @@ import {
   type CommunitySort,
 } from '@/api/people';
 import { useYouTubeMembers } from '@/api/youtubeMembers';
-import BackLink from '@/components/layout/BackLink.vue';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
@@ -503,14 +503,28 @@ useEventListener(document, 'keydown', closeOnEscape);
     <template #detail>
       <!-- On a phone the profile grows with its content and the page scrolls once; beside the list it scrolls inside
            its card. -->
-      <div v-if="selectedId" data-person-detail class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <BackLink
-          data-page-inset
-          class="self-start md:hidden"
-          :label="$t('dashboard.people.back')"
-          @click="pane.close()"
-        />
+      <!-- A login in ?u= is "loading" until every list has answered, so it is never called missing too early. -->
+      <PanelCard
+        v-if="selectedId === null && detailState === 'loading'"
+        class="flex-1"
+        :title="$t('dashboard.people.detail.title')"
+        state="loading"
+      />
+      <DetailEditorPane
+        v-else
+        :open="asked !== ''"
+        :missing="selectedId === null"
+        :idle-title="$t('dashboard.people.detail.title')"
+        :idle-text="$t('dashboard.people.detail.pick')"
+        :missing-text="$t('dashboard.people.detail.notFound', { login: asked })"
+        :back-label="$t('dashboard.people.back')"
+        @back="pane.close()"
+      >
+        <!-- On a phone the profile grows with its content and the page scrolls once; beside the list it scrolls
+             inside its card. -->
         <div
+          v-if="selectedId"
+          data-person-detail
           class="relative flex flex-1 flex-col border-y bg-card md:min-h-0 md:overflow-hidden md:rounded-xl md:border"
         >
           <!-- A phone has the Back link above; beside the list the profile closes with its own button. -->
@@ -526,18 +540,7 @@ useEventListener(document, 'keydown', closeOnEscape);
           </Button>
           <ProfileView :user-id="selectedId" :preview="preview" />
         </div>
-      </div>
-      <PanelCard
-        v-else
-        class="flex-1"
-        :title="$t('dashboard.people.detail.title')"
-        :state="detailState"
-        :empty-text="
-          asked === ''
-            ? $t('dashboard.people.detail.pick')
-            : $t('dashboard.people.detail.notFound', { login: asked })
-        "
-      />
+      </DetailEditorPane>
     </template>
   </ListDetail>
 </template>

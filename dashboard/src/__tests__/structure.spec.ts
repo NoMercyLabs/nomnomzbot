@@ -327,7 +327,6 @@ describe('folder layout', () => {
   it('keeps a loose control of a page body one panel padding from the phone edge', () => {
     const frame: string = readFileSync(join(src, 'styles', 'frame.css'), 'utf8');
     const loose = [
-      'views/dashboard/people/PeopleView.vue',
       'views/dashboard/overlays/components/OverlayDetail.vue',
       'views/dashboard/scripts/components/ScriptDetail.vue',
     ];

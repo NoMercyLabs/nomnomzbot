@@ -4,6 +4,7 @@
       "title": "Voice triggers",
       "crumb": "Build",
       "new": "New voice trigger",
+      "back": "Back to the list",
       "list": {
         "title": "Voice triggers",
         "error": "The voice triggers could not load.",

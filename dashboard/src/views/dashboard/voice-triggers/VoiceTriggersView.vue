@@ -21,6 +21,7 @@ import {
   type VoiceTrigger,
 } from '@/api/voiceTriggers';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -128,13 +129,15 @@ function removeTrigger(item: VoiceTrigger): void {
       </PanelCard>
     </template>
     <template v-if="canWrite" #detail>
-      <VoiceTriggerEditor v-if="row" :key="row.id" :row="row" @remove="removeTrigger" />
-      <PanelCard
-        v-else
-        state="empty"
-        :title="$t('dashboard.voiceTriggers.list.pickTitle')"
-        :empty-text="$t('dashboard.voiceTriggers.list.pick')"
-      />
+      <DetailEditorPane
+        :open="row !== undefined"
+        :idle-title="$t('dashboard.voiceTriggers.list.pickTitle')"
+        :idle-text="$t('dashboard.voiceTriggers.list.pick')"
+        :back-label="$t('dashboard.voiceTriggers.back')"
+        @back="pane.close()"
+      >
+        <VoiceTriggerEditor v-if="row" :key="row.id" :row="row" @remove="removeTrigger" />
+      </DetailEditorPane>
     </template>
   </ListDetail>
   <NewVoiceTriggerDialog v-model:open="creating" />

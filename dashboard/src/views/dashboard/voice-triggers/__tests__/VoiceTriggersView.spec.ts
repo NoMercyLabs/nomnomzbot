@@ -275,6 +275,28 @@ describe('Voice triggers tab', () => {
   });
 });
 
+describe('Voice triggers phone editor', () => {
+  it('lets a phone user leave the open editor with a Back link that returns to the list', async () => {
+    setWidth(phoneWidth);
+    await open();
+    await click(rowOf('word a'));
+
+    const back = document.body.querySelector<HTMLElement>('[data-detail-back]');
+
+    expect(back?.textContent).toContain('Back to the list');
+    expect(document.body.querySelector('[data-voice-editor]')).not.toBeNull();
+
+    back!.click();
+    await settle();
+
+    expect(document.body.querySelector('[data-voice-editor]')).toBeNull();
+    expect(document.body.querySelector('[data-detail-back]')).toBeNull();
+    expect(words()).toEqual(['word a', 'word b']);
+
+    setWidth(laptopWidth);
+  });
+});
+
 describe('Voice triggers permission gating', () => {
   it('shows a reader the list only: no New voice trigger, no editor on a picked row', async () => {
     held = ['voicetriggers:read'];

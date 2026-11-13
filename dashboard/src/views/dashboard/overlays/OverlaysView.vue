@@ -18,13 +18,13 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
@@ -182,24 +182,22 @@ function open(id: string | null): void {
         </ListPanel>
       </template>
       <template #detail>
-        <OverlayDetail
-          v-if="selected && can('widget:read')"
-          :widget="selected"
+        <DetailEditorPane
+          :open="asked !== ''"
+          :missing="!selected || !can('widget:read')"
+          :idle-title="$t('dashboard.overlays.detail.title')"
+          :idle-text="$t('dashboard.overlays.detail.pick')"
+          :missing-text="$t('dashboard.overlays.detail.notFound', { id: asked })"
+          :back-label="$t('dashboard.overlays.back')"
           @back="pane.close()"
-          @deleted="pane.close()"
-          @duplicated="open"
-        />
-        <PanelCard
-          v-else
-          class="flex-1"
-          :title="$t('dashboard.overlays.detail.title')"
-          state="empty"
-          :empty-text="
-            asked === ''
-              ? $t('dashboard.overlays.detail.pick')
-              : $t('dashboard.overlays.detail.notFound', { id: asked })
-          "
-        />
+        >
+          <OverlayDetail
+            v-if="selected && can('widget:read')"
+            :widget="selected"
+            @deleted="pane.close()"
+            @duplicated="open"
+          />
+        </DetailEditorPane>
       </template>
     </ListDetail>
     <template v-if="can('sounds:read')" #panel>

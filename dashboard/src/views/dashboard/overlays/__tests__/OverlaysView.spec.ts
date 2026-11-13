@@ -549,6 +549,18 @@ describe('OverlaysView', () => {
     expect(text()).not.toContain(SECRET);
   });
 
+  it('says no overlay has the id in ?id= when it is unknown, with a Back link to the list', async () => {
+    await open('/app/overlays?id=ghost');
+
+    expect(text()).toContain('No overlay has the id "ghost".');
+    expect(document.body.querySelector('[data-overlay-detail]')).toBeNull();
+
+    document.body.querySelector<HTMLElement>('[data-detail-back]')!.click();
+    await settle();
+
+    expect(router.currentRoute.value.query.id).toBeUndefined();
+  });
+
   it('disables the copy button with a reason when the overlay has no address', async () => {
     await open('/app/overlays?id=w4');
 
