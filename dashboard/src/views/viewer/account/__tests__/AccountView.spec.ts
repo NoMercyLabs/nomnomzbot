@@ -214,6 +214,15 @@ afterEach(() => {
 });
 
 describe('the viewer account page', () => {
+  it('draws through the one viewer page, with the standing as its status', async () => {
+    const wrapper = await mountPage();
+    const page = wrapper.find('[data-slot="viewer-page"]');
+
+    expect(page.exists()).toBe(true);
+    expect(page.find('h1').text()).toBe('You in Stoney_Eagle');
+    expect(page.find('[data-slot="viewer-page-status"] [data-viewer-standing]').exists()).toBe(true);
+  });
+
   it('sends the picked pronoun in the PUT body and shows the saved pronoun after', async () => {
     const wrapper = await mountPage();
     const primary = wrapper.get('[data-viewer-pronouns]').findAllComponents(Select)[0]!;

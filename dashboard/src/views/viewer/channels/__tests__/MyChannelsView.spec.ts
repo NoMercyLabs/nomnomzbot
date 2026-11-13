@@ -93,6 +93,20 @@ afterEach(() => {
 });
 
 describe('MyChannelsView', () => {
+  it('draws through the one viewer page, with the title as its h1', async () => {
+    answers = {
+      '/me/watched-channels': [watched('quiet', false)],
+      '/channels': [],
+      '/channels/moderated': [],
+    };
+
+    const wrapper = await mountPage();
+    const page = wrapper.find('[data-slot="viewer-page"]');
+
+    expect(page.exists()).toBe(true);
+    expect(page.find('h1').text()).toBe('My channels');
+  });
+
   it('shows one card per watched channel, one primary Open on the first live one, linking to /me/<login>', async () => {
     answers = {
       '/me/watched-channels': [watched('quiet', false), watched('loud', true)],

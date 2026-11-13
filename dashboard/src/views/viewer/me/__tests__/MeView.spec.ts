@@ -140,6 +140,14 @@ afterEach(() => {
 });
 
 describe('the viewer page', () => {
+  it('draws through the one viewer page, with the title as its h1', async () => {
+    const wrapper = await mountPage();
+    const page = wrapper.find('[data-slot="viewer-page"]');
+
+    expect(page.exists()).toBe(true);
+    expect(page.find('h1').text()).toBe('Your stats in Stoney_Eagle');
+  });
+
   it('resolves the channel name to its id and reads the viewer tiles from that channel', async () => {
     const wrapper = await mountPage();
 

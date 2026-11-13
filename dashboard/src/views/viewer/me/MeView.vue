@@ -35,6 +35,8 @@ import { useTime } from '@/composables/useTime';
 import { useViewerMusicLive } from '@/realtime/useViewerMusicLive';
 import { formatClock } from '@/views/dashboard/music/components/formatClock';
 
+import ViewerPage from '../components/ViewerPage.vue';
+
 const { t } = useI18n();
 const time = useTime();
 const route = useRoute();
@@ -44,6 +46,11 @@ const channel = useViewerChannel(channelName);
 const channelId = computed<string | null>(() => channel.data.value?.broadcasterId ?? null);
 
 useViewerMusicLive(channelId);
+
+const pageState = computed<'error' | 'ready'>(() =>
+  channel.isError.value
+    ? 'error'
+    : 'ready');
 
 const requestsClosed = computed<boolean>(
   () => channel.data.value?.isAcceptingRequests === false,
@@ -93,27 +100,27 @@ function retry(): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-6">
-    <div class="flex items-center justify-between gap-3">
-      <h1 class="text-xl font-semibold">{{ $t('viewer.me.title', { channel: shown }) }}</h1>
-      <Button v-if="channel.data.value"
-              variant="outline"
-              size="sm"
-              as-child
-              data-viewer-chat-link
+  <ViewerPage
+    :title="$t('viewer.me.title', { channel: shown })"
+    :state="pageState"
+    :error-text="$t('viewer.me.notFound')"
+    :retry-label="$t('viewer.me.retry')"
+    @retry="retry"
+  >
+    <template v-if="channel.data.value" #actions>
+      <Button
+        variant="outline"
+        size="sm"
+        as-child
+        data-viewer-chat-link
       >
         <RouterLink :to="{ name: 'viewer-chat', params: { channel: channelName } }">
           {{ $t('viewer.me.chat') }}
         </RouterLink>
       </Button>
-    </div>
+    </template>
 
-    <div v-if="channel.isError.value" class="flex flex-col items-start gap-3" role="alert">
-      <p class="text-sm">{{ $t('viewer.me.notFound') }}</p>
-      <Button variant="outline" size="sm" @click="retry">{{ $t('viewer.me.retry') }}</Button>
-    </div>
-
-    <template v-else>
+    <div class="flex flex-col gap-6">
       <InlineNotice v-if="summary.isError.value" tone="error" compact>
         {{ $t('viewer.me.stats.error') }}
       </InlineNotice>
@@ -177,6 +184,6 @@ function retry(): void {
           </p>
         </template>
       </PanelCard>
-    </template>
-  </div>
+    </div>
+  </ViewerPage>
 </template>

@@ -21,6 +21,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
+import ViewerPage from '../components/ViewerPage.vue';
 import ChannelVoicePanel from './ChannelVoicePanel.vue';
 import LinkedAccountsPanel from './LinkedAccountsPanel.vue';
 import PronounsPanel from './PronounsPanel.vue';
@@ -32,6 +33,11 @@ const channelName = computed<string>(() => String(route.params.channel ?? ''));
 const channel = useViewerChannel(channelName);
 const channelId = computed<string | null>(() => channel.data.value?.broadcasterId ?? null);
 const standing = useMyStanding(channelId);
+
+const pageState = computed<'error' | 'ready'>(() =>
+  channel.isError.value
+    ? 'error'
+    : 'ready');
 
 const shown = computed<string>(() => channel.data.value?.channelName ?? channelName.value);
 
@@ -51,22 +57,20 @@ const standingName = computed<string | null>(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-6">
-    <div class="flex items-center justify-between gap-3">
-      <h1 class="text-xl font-semibold">{{ $t('viewer.account.title', { channel: shown }) }}</h1>
-      <Badge v-if="standingName" variant="secondary" data-viewer-standing>
+  <ViewerPage
+    :title="$t('viewer.account.title', { channel: shown })"
+    :state="pageState"
+    :error-text="$t('viewer.account.notFound')"
+    :retry-label="$t('viewer.account.retry')"
+    @retry="channel.refetch()"
+  >
+    <template v-if="standingName" #status>
+      <Badge variant="secondary" data-viewer-standing>
         {{ $t('viewer.account.standing.label', { standing: standingName }) }}
       </Badge>
-    </div>
+    </template>
 
-    <div v-if="channel.isError.value" class="flex flex-col items-start gap-3" role="alert">
-      <p class="text-sm">{{ $t('viewer.account.notFound') }}</p>
-      <Button variant="outline" size="sm" @click="channel.refetch()">
-        {{ $t('viewer.account.retry') }}
-      </Button>
-    </div>
-
-    <div v-else class="grid items-start gap-6 lg:grid-cols-2">
+    <div class="grid items-start gap-6 lg:grid-cols-2">
       <div class="flex flex-col gap-6">
         <PronounsPanel />
         <LinkedAccountsPanel />
@@ -86,5 +90,5 @@ const standingName = computed<string | null>(() => {
         </PanelCard>
       </div>
     </div>
-  </div>
+  </ViewerPage>
 </template>
