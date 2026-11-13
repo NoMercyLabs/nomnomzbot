@@ -15,6 +15,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { h } from 'vue';
 
+import { fieldErrors, fieldLabels, unlinkedLabels } from '@/__tests__/fieldLinks';
 import {
   BackHost,
   expectStepAdded,
@@ -264,6 +265,22 @@ describe('AdminFeatureFlagsView', () => {
     await type('[data-field="rolloutPercentage"]', '150');
     expect(one<HTMLButtonElement>('[data-review]').disabled).toBe(true);
     expect(one('[data-editor]').textContent).toContain('0 to 100');
+  });
+
+  it('links every label of the flag editor to its control and shows a bad rollout in a FieldError', async () => {
+    await open();
+    await click('[data-new]');
+
+    const editor = one('[data-editor]');
+
+    expect(fieldLabels(editor).length).toBeGreaterThanOrEqual(7);
+    expect(unlinkedLabels(editor)).toEqual([]);
+    expect(fieldErrors(editor)).toEqual([]);
+
+    await type('[data-field="rolloutPercentage"]', '150');
+
+    expect(fieldErrors(editor)).toEqual([expect.stringContaining('0 to 100')]);
+    expect(field('rolloutPercentage').getAttribute('aria-invalid')).toBe('true');
   });
 
   it('saves a new flag without a preview because no channel can be reached yet', async () => {

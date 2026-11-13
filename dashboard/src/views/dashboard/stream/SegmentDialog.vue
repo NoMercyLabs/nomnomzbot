@@ -23,8 +23,8 @@ import {
 import type { Category } from '@/api/stream';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import { Field, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { fromLocalInput, localTimeZone, minutesBetween, toLocalInput } from '@/lib/time';
 
@@ -118,32 +118,33 @@ function submit(): void {
     :pending="pending"
     @submit="submit"
   >
-    <div class="grid gap-1.5">
-      <Label for="segment-start">{{ t('dashboard.stream.schedule.startTime') }}</Label>
+    <Field>
+      <FieldLabel for="segment-start">{{ t('dashboard.stream.schedule.startTime') }}</FieldLabel>
       <Input id="segment-start" v-model="startTime" type="datetime-local" />
-    </div>
-    <div class="grid gap-1.5">
-      <Label for="segment-duration">{{ t('dashboard.stream.schedule.duration') }}</Label>
-      <Input id="segment-duration"
-             v-model="duration"
-             type="number"
-             min="30"
-             max="1440"
+    </Field>
+    <Field>
+      <FieldLabel for="segment-duration">{{ t('dashboard.stream.schedule.duration') }}</FieldLabel>
+      <Input
+        id="segment-duration"
+        v-model="duration"
+        type="number"
+        min="30"
+        max="1440"
       />
-    </div>
-    <div class="grid gap-1.5">
-      <Label for="segment-title">{{ t('dashboard.stream.schedule.segmentTitle') }}</Label>
+    </Field>
+    <Field>
+      <FieldLabel for="segment-title">{{ t('dashboard.stream.schedule.segmentTitle') }}</FieldLabel>
       <Input id="segment-title" v-model="title" maxlength="140" />
-    </div>
-    <div class="grid gap-1.5">
-      <Label>{{ t('dashboard.stream.schedule.categoryId') }}</Label>
+    </Field>
+    <Field>
+      <FieldTitle>{{ t('dashboard.stream.schedule.categoryId') }}</FieldTitle>
       <CategoryPicker
         v-model="gameName"
         :channel-id="channelId"
         :recent="[]"
         @picked="pickCategory"
       />
-    </div>
+    </Field>
     <LabeledSwitch
       v-if="!editing"
       v-model="isRecurring"

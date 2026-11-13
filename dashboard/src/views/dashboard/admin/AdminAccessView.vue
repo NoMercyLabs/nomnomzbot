@@ -43,8 +43,8 @@ import UserName from '@/components/layout/UserName.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -479,8 +479,8 @@ async function submit(): Promise<void> {
         >
           {{ $t("dashboard.admin.access.selfWarning") }}
         </p>
-        <div v-if="step === 'assign'" class="grid gap-1.5">
-          <Label for="access-role">{{ $t("dashboard.admin.access.assign.role") }}</Label>
+        <Field v-if="step === 'assign'">
+          <FieldLabel for="access-role">{{ $t("dashboard.admin.access.assign.role") }}</FieldLabel>
           <Select v-model="roleId">
             <SelectTrigger id="access-role" data-field-role class="w-full">
               <SelectValue :placeholder="$t('dashboard.admin.access.assign.pickRole')" />
@@ -491,18 +491,18 @@ async function submit(): Promise<void> {
               </SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        <div v-if="step === 'assign'" class="grid gap-1.5">
-          <Label for="access-expires">{{ $t("dashboard.admin.access.assign.expires") }}</Label>
+        </Field>
+        <Field v-if="step === 'assign'">
+          <FieldLabel for="access-expires">
+            {{ $t("dashboard.admin.access.assign.expires") }}
+            <FieldInfo>{{ $t("dashboard.admin.access.assign.expiresHelp") }}</FieldInfo>
+          </FieldLabel>
           <Input id="access-expires" v-model="expires" type="datetime-local" data-field-expires />
-          <p class="text-xs text-muted-foreground">
-            {{ $t("dashboard.admin.access.assign.expiresHelp") }}
-          </p>
-        </div>
-        <div class="grid gap-1.5">
-          <Label for="access-reason">{{ $t("dashboard.admin.access.reason") }}</Label>
+        </Field>
+        <Field>
+          <FieldLabel for="access-reason">{{ $t("dashboard.admin.access.reason") }}</FieldLabel>
           <Input id="access-reason" v-model="reason" data-field-reason />
-        </div>
+        </Field>
       </div>
     </FormDialog>
   </PageBody>

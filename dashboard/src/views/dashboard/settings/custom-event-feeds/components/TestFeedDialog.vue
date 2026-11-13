@@ -13,17 +13,19 @@
 // payload, so pipelines can be wired and seen at work. "Fetch now" reads the feed's address once and lists the
 // key paths in the answer, so a field is chosen from the list and not typed blind.
 import Download from '~icons/nnz/download';
-import { ref, watch } from 'vue';
+import { ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useFetchEventFeed, useTestEventFeed, type EventFeed } from '@/api/customEventFeeds';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { errorText } from '@/lib/errors';
 
 const props = defineProps<{ feed: EventFeed | null }>();
 const open = defineModel<boolean>('open', { required: true });
+const payloadId = useId();
 
 const { t } = useI18n();
 const test = useTestEventFeed();
@@ -87,9 +89,11 @@ async function fetchNow(): Promise<void> {
     :error="error"
     @submit="send"
   >
-    <div class="grid gap-1.5">
-      <span class="flex items-center justify-between gap-2 text-sm font-medium">
-        {{ $t('dashboard.settings.customEventFeeds.test.payload') }}
+    <Field>
+      <div class="flex items-center justify-between gap-2">
+        <FieldLabel :for="payloadId">
+          {{ $t('dashboard.settings.customEventFeeds.test.payload') }}
+        </FieldLabel>
         <Button
           v-if="feed?.endpointUrl"
           type="button"
@@ -102,9 +106,14 @@ async function fetchNow(): Promise<void> {
           <Download class="size-4" />
           {{ $t('dashboard.settings.customEventFeeds.test.fetch') }}
         </Button>
-      </span>
-      <Textarea v-model="payload" data-field="payload" rows="6" class="font-mono" />
-    </div>
+      </div>
+      <Textarea :id="payloadId"
+                v-model="payload"
+                data-field="payload"
+                rows="6"
+                class="font-mono"
+      />
+    </Field>
     <div v-if="keyPaths.length > 0" data-key-paths class="grid gap-1.5">
       <span class="text-sm font-medium">{{ $t('dashboard.settings.customEventFeeds.test.paths') }}</span>
       <ul class="flex flex-wrap gap-1.5">

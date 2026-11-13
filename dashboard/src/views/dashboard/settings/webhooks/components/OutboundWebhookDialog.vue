@@ -11,7 +11,7 @@
 <script setup lang="ts">
 // Makes or edits one outbound webhook: the name, the address (fixed once made) and the events it follows.
 // The events come from the bot's catalog, so the streamer ticks them and types nothing blind.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { OutboundWebhook, OutboundWebhookDraft, WebhookEventEntry } from '@/api/webhooks';
@@ -19,6 +19,7 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldError, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { parseHeaderLines } from '@/lib/text';
@@ -35,6 +36,10 @@ const { t } = useI18n();
 const emit = defineEmits<{ submit: [draft: OutboundWebhookDraft] }>();
 const open = defineModel<boolean>('open', { required: true });
 
+const nameId = useId();
+const hostId = useId();
+const pathId = useId();
+const headersId = useId();
 const name = ref('');
 const fqdn = ref('');
 const path = ref('');
@@ -77,18 +82,17 @@ const groups = computed(() => {
 const parsedHeaders = computed(() => parseHeaderLines(headerText.value));
 const invalidHeaders = computed(() => parsedHeaders.value.invalid.length > 0);
 
-const headersNote = computed(() => {
-  if (invalidHeaders.value)
-    return t('dashboard.settings.webhooks.outbound.headersInvalid', {
-      line: parsedHeaders.value.invalid[0],
-    });
+const headersError = computed(() =>
+  t('dashboard.settings.webhooks.outbound.headersInvalid', {
+    line: parsedHeaders.value.invalid[0],
+  }));
 
-  return t(
+const headersHint = computed(() =>
+  t(
     saved.value
       ? 'dashboard.settings.webhooks.outbound.headersKept'
       : 'dashboard.settings.webhooks.outbound.headersHelp',
-  );
-});
+  ));
 
 watch(open, (isOpen) => {
   if (!isOpen) return;
@@ -164,33 +168,39 @@ function submit(): void {
     :disabled="invalidHeaders"
     @submit="submit"
   >
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t("dashboard.settings.webhooks.outbound.name") }}
-      <Input v-model="name" data-field="name" maxlength="100" />
-    </label>
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t("dashboard.settings.webhooks.outbound.host") }}
+    <Field>
+      <FieldLabel :for="nameId">
+        {{ $t("dashboard.settings.webhooks.outbound.name") }}
+      </FieldLabel>
+      <Input :id="nameId" v-model="name" data-field="name" maxlength="100" />
+    </Field>
+    <Field>
+      <FieldLabel :for="hostId">
+        {{ $t("dashboard.settings.webhooks.outbound.host") }}
+        <FieldInfo>{{ $t("dashboard.settings.webhooks.outbound.hostHelp") }}</FieldInfo>
+      </FieldLabel>
       <Input
+        :id="hostId"
         v-model="fqdn"
         data-field="host"
         class="font-mono"
         :disabled="saved"
         placeholder="hooks.example.com"
       />
-      <span class="text-sm font-normal text-muted-foreground">
-        {{ $t("dashboard.settings.webhooks.outbound.hostHelp") }}
-      </span>
-    </label>
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t("dashboard.settings.webhooks.outbound.path") }}
+    </Field>
+    <Field>
+      <FieldLabel :for="pathId">
+        {{ $t("dashboard.settings.webhooks.outbound.path") }}
+      </FieldLabel>
       <Input
+        :id="pathId"
         v-model="path"
         data-field="path"
         class="font-mono"
         :disabled="saved"
         placeholder="/nomnomzbot"
       />
-    </label>
+    </Field>
     <fieldset class="grid gap-2">
       <legend class="text-sm font-medium">
         {{ $t("dashboard.settings.webhooks.outbound.eventsTitle") }}
@@ -234,9 +244,13 @@ function submit(): void {
       :label="$t('dashboard.settings.webhooks.outbound.bodyIsJson')"
       :help="$t('dashboard.settings.webhooks.outbound.bodyIsJsonHelp')"
     />
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t("dashboard.settings.webhooks.outbound.headers") }}
+    <Field :data-invalid="invalidHeaders">
+      <FieldLabel :for="headersId">
+        {{ $t("dashboard.settings.webhooks.outbound.headers") }}
+        <FieldInfo>{{ headersHint }}</FieldInfo>
+      </FieldLabel>
       <Textarea
+        :id="headersId"
         v-model="headerText"
         data-field="headers"
         class="font-mono"
@@ -244,12 +258,9 @@ function submit(): void {
         placeholder="X-Token: value"
         :aria-invalid="invalidHeaders"
       />
-      <span
-        class="text-sm font-normal"
-        :class="invalidHeaders ? 'text-destructive' : 'text-muted-foreground'"
-      >
-        {{ headersNote }}
-      </span>
-    </label>
+      <FieldError v-if="invalidHeaders">
+        {{ headersError }}
+      </FieldError>
+    </Field>
   </FormDialog>
 </template>

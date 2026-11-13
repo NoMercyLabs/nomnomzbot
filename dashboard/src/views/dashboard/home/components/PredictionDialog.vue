@@ -35,8 +35,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Field, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCan } from '@/composables/useCan';
@@ -183,8 +183,8 @@ watchEffect(() => {
       </div>
 
       <div v-if="prediction === null" class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4">
-        <div class="grid gap-1.5">
-          <Label for="prediction-title">{{ t('dashboard.home.quick.predictionQuestion') }}</Label>
+        <Field>
+          <FieldLabel for="prediction-title">{{ t('dashboard.home.quick.predictionQuestion') }}</FieldLabel>
           <Input
             id="prediction-title"
             v-model="title"
@@ -192,10 +192,10 @@ watchEffect(() => {
             maxlength="45"
             :placeholder="t('dashboard.home.quick.predictionQuestionHint')"
           />
-        </div>
+        </Field>
 
-        <div class="grid gap-1.5">
-          <Label>{{ t('dashboard.home.quick.predictionOutcomes') }}</Label>
+        <Field>
+          <FieldTitle>{{ t('dashboard.home.quick.predictionOutcomes') }}</FieldTitle>
           <div v-for="(_text, index) in outcomes" :key="index" class="flex items-center gap-2">
             <Input
               v-model="outcomes[index]"
@@ -223,10 +223,10 @@ watchEffect(() => {
               {{ t('dashboard.home.quick.predictionAddOutcome') }}
             </Button>
           </div>
-        </div>
+        </Field>
 
-        <div class="grid gap-1.5">
-          <Label for="prediction-minutes">{{ t('dashboard.home.quick.predictionMinutes') }}</Label>
+        <Field>
+          <FieldLabel for="prediction-minutes">{{ t('dashboard.home.quick.predictionMinutes') }}</FieldLabel>
           <Input
             id="prediction-minutes"
             v-model="minutes"
@@ -234,9 +234,9 @@ watchEffect(() => {
             type="number"
             min="1"
             :max="MAX_MINUTES"
-            class="w-24"
+            class="w-24!"
           />
-        </div>
+        </Field>
       </div>
 
       <RadioGroup

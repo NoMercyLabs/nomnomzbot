@@ -20,8 +20,8 @@ import { useRaidRules, useSaveRaidRules, type RaidRules } from '@/api/schedule';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -171,15 +171,15 @@ function submit(): void {
           <Plus class="size-5" />{{ t("dashboard.stream.raids.addCategory") }}
         </Button>
         <div class="grid gap-3 sm:grid-cols-2">
-          <div class="grid gap-1.5">
-            <Label for="other-weight">{{ t("dashboard.stream.raids.otherCategoryWeight") }}</Label>
+          <Field>
+            <FieldLabel for="other-weight">{{ t("dashboard.stream.raids.otherCategoryWeight") }}</FieldLabel>
             <Input id="other-weight" v-model.number="draft.otherCategoryWeight" type="number" />
             <RaidProblemLines :problems="problems" field="otherCategory" />
-          </div>
-          <div class="grid gap-1.5">
-            <Label for="other-label">{{ t("dashboard.stream.raids.otherCategoryLabel") }}</Label>
+          </Field>
+          <Field>
+            <FieldLabel for="other-label">{{ t("dashboard.stream.raids.otherCategoryLabel") }}</FieldLabel>
             <Input id="other-label" v-model="draft.otherCategoryLabel" />
-          </div>
+          </Field>
         </div>
       </section>
 
@@ -295,11 +295,11 @@ function submit(): void {
 
       <section class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t("dashboard.stream.raids.recency") }}</span>
-        <div class="grid gap-1.5 sm:w-1/2">
-          <Label for="never-raided">{{ t("dashboard.stream.raids.neverRaidedWeight") }}</Label>
+        <Field class="sm:w-1/2">
+          <FieldLabel for="never-raided">{{ t("dashboard.stream.raids.neverRaidedWeight") }}</FieldLabel>
           <Input id="never-raided" v-model.number="draft.recency.neverRaidedWeight" type="number" />
           <RaidProblemLines :problems="problems" field="neverRaided" />
-        </div>
+        </Field>
         <template v-for="(step, index) in draft.recency.steps" :key="index">
           <div
             class="flex items-center gap-2"
@@ -343,42 +343,42 @@ function submit(): void {
           <Plus class="size-5" />{{ t("dashboard.stream.raids.addStep") }}
         </Button>
         <div class="grid gap-3 sm:grid-cols-2">
-          <div class="grid gap-1.5">
-            <Label for="older-weight">{{ t("dashboard.stream.raids.olderWeight") }}</Label>
+          <Field>
+            <FieldLabel for="older-weight">{{ t("dashboard.stream.raids.olderWeight") }}</FieldLabel>
             <Input id="older-weight" v-model.number="draft.recency.olderWeight" type="number" />
             <RaidProblemLines :problems="problems" field="olderRaids" />
-          </div>
-          <div class="grid gap-1.5">
-            <Label for="older-note">{{ t("dashboard.stream.raids.olderNote") }}</Label>
+          </Field>
+          <Field>
+            <FieldLabel for="older-note">{{ t("dashboard.stream.raids.olderNote") }}</FieldLabel>
             <Input id="older-note" v-model="draft.recency.olderNote" />
-          </div>
+          </Field>
         </div>
       </section>
 
       <section class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t("dashboard.stream.raids.balance") }}</span>
         <div class="grid gap-3 sm:grid-cols-3">
-          <div class="grid gap-1.5">
-            <Label for="owed-base">{{ t("dashboard.stream.raids.owedBaseWeight") }}</Label>
+          <Field>
+            <FieldLabel for="owed-base">{{ t("dashboard.stream.raids.owedBaseWeight") }}</FieldLabel>
             <Input id="owed-base" v-model.number="draft.balance.owedBaseWeight" type="number" />
             <RaidProblemLines :problems="problems" field="owedBase" />
-          </div>
-          <div class="grid gap-1.5">
-            <Label for="owed-extra">{{ t("dashboard.stream.raids.owedExtraWeight") }}</Label>
+          </Field>
+          <Field>
+            <FieldLabel for="owed-extra">{{ t("dashboard.stream.raids.owedExtraWeight") }}</FieldLabel>
             <Input id="owed-extra" v-model.number="draft.balance.owedExtraWeight" type="number" />
             <RaidProblemLines :problems="problems" field="owedExtra" />
-          </div>
-          <div class="grid gap-1.5">
-            <Label for="reciprocal">{{ t("dashboard.stream.raids.reciprocalWeight") }}</Label>
+          </Field>
+          <Field>
+            <FieldLabel for="reciprocal">{{ t("dashboard.stream.raids.reciprocalWeight") }}</FieldLabel>
             <Input id="reciprocal" v-model.number="draft.balance.reciprocalWeight" type="number" />
             <RaidProblemLines :problems="problems" field="reciprocal" />
-          </div>
+          </Field>
         </div>
-        <div class="grid gap-1.5 sm:w-1/3">
-          <Label for="followed">{{ t("dashboard.stream.raids.followedWeight") }}</Label>
+        <Field class="sm:w-1/3">
+          <FieldLabel for="followed">{{ t("dashboard.stream.raids.followedWeight") }}</FieldLabel>
           <Input id="followed" v-model.number="draft.followedWeight" type="number" />
           <RaidProblemLines :problems="problems" field="followed" />
-        </div>
+        </Field>
       </section>
 
       <div v-if="canEdit" class="flex justify-end">

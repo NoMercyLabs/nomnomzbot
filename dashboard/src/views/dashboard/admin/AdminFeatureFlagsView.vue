@@ -35,8 +35,8 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useBackLayer } from '@/composables/useBackCloses';
 import { usePanelState } from '@/composables/usePanelState';
@@ -301,20 +301,20 @@ const whenOf = (entry: FeatureFlagOverride): string =>
       :title="isNew ? $t('dashboard.admin.featureFlags.editorNew') : $t('dashboard.admin.featureFlags.editorEdit', { key: editing })"
     >
       <div class="flex flex-col gap-3 p-4">
-        <div class="flex flex-col gap-1.5">
-          <Label for="flag-key">{{ $t('dashboard.admin.featureFlags.fields.key') }}</Label>
+        <Field>
+          <FieldLabel for="flag-key">{{ $t('dashboard.admin.featureFlags.fields.key') }}</FieldLabel>
           <Input id="flag-key" v-model="draft.key" data-field="key" :disabled="!isNew" />
-        </div>
-        <div class="flex flex-col gap-1.5">
-          <Label for="flag-description">{{ $t('dashboard.admin.featureFlags.fields.description') }}</Label>
+        </Field>
+        <Field>
+          <FieldLabel for="flag-description">{{ $t('dashboard.admin.featureFlags.fields.description') }}</FieldLabel>
           <Input id="flag-description" v-model="draft.description" data-field="description" />
-        </div>
+        </Field>
         <div data-touch-target class="flex min-h-9 items-center justify-between gap-3">
-          <Label for="flag-global">{{ $t('dashboard.admin.featureFlags.fields.isEnabledGlobally') }}</Label>
+          <FieldLabel for="flag-global">{{ $t('dashboard.admin.featureFlags.fields.isEnabledGlobally') }}</FieldLabel>
           <Switch id="flag-global" v-model="draft.isEnabledGlobally" data-field="isEnabledGlobally" />
         </div>
-        <div class="flex flex-col gap-1.5">
-          <Label for="flag-rollout">{{ $t('dashboard.admin.featureFlags.fields.rolloutPercentage') }}</Label>
+        <Field :data-invalid="!rolloutValid">
+          <FieldLabel for="flag-rollout">{{ $t('dashboard.admin.featureFlags.fields.rolloutPercentage') }}</FieldLabel>
           <Input
             id="flag-rollout"
             data-field="rolloutPercentage"
@@ -325,22 +325,22 @@ const whenOf = (entry: FeatureFlagOverride): string =>
             :aria-invalid="!rolloutValid"
             @update:model-value="setRollout"
           />
-          <p v-if="!rolloutValid" role="alert" class="text-sm text-destructive">
+          <FieldError v-if="!rolloutValid">
             {{ $t('dashboard.admin.featureFlags.rolloutRange') }}
-          </p>
-        </div>
-        <div class="flex flex-col gap-1.5">
-          <Label for="flag-tier">{{ $t('dashboard.admin.featureFlags.fields.minTierKey') }}</Label>
+          </FieldError>
+        </Field>
+        <Field>
+          <FieldLabel for="flag-tier">{{ $t('dashboard.admin.featureFlags.fields.minTierKey') }}</FieldLabel>
           <Input id="flag-tier" v-model="draft.minTierKey" data-field="minTierKey" />
-        </div>
-        <div class="flex flex-col gap-1.5">
-          <Label for="flag-consent">{{ $t('dashboard.admin.featureFlags.fields.requiresConsent') }}</Label>
+        </Field>
+        <Field>
+          <FieldLabel for="flag-consent">{{ $t('dashboard.admin.featureFlags.fields.requiresConsent') }}</FieldLabel>
           <Input id="flag-consent" v-model="draft.requiresConsent" data-field="requiresConsent" />
-        </div>
-        <div class="flex flex-col gap-1.5">
-          <Label for="flag-mode">{{ $t('dashboard.admin.featureFlags.fields.deploymentMode') }}</Label>
+        </Field>
+        <Field>
+          <FieldLabel for="flag-mode">{{ $t('dashboard.admin.featureFlags.fields.deploymentMode') }}</FieldLabel>
           <Input id="flag-mode" v-model="draft.deploymentMode" data-field="deploymentMode" />
-        </div>
+        </Field>
         <div v-if="confirming" data-confirm-panel class="flex flex-col gap-2 rounded-md border border-border p-3">
           <span class="text-sm font-medium">{{ $t('dashboard.admin.featureFlags.confirmTitle') }}</span>
           <p v-if="blast.isPending.value" class="text-sm text-muted-foreground">
@@ -383,27 +383,27 @@ const whenOf = (entry: FeatureFlagOverride): string =>
           {{ $t('dashboard.admin.featureFlags.overrideFormHint') }}
         </p>
         <template v-else-if="can('featureflag:write')">
-          <div class="flex flex-col gap-1.5">
-            <Label for="override-channel">{{ $t('dashboard.admin.featureFlags.overrideFields.channel') }}</Label>
+          <Field>
+            <FieldLabel for="override-channel">{{ $t('dashboard.admin.featureFlags.overrideFields.channel') }}</FieldLabel>
             <Input id="override-channel" v-model="overrideChannel" data-field="overrideChannel" />
-          </div>
+          </Field>
           <div data-touch-target class="flex min-h-9 items-center justify-between gap-3">
-            <Label for="override-enabled">{{ $t('dashboard.admin.featureFlags.overrideFields.enabled') }}</Label>
+            <FieldLabel for="override-enabled">{{ $t('dashboard.admin.featureFlags.overrideFields.enabled') }}</FieldLabel>
             <Switch id="override-enabled" v-model="overrideEnabled" data-field="overrideEnabled" />
           </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="override-reason">{{ $t('dashboard.admin.featureFlags.overrideFields.reason') }}</Label>
+          <Field>
+            <FieldLabel for="override-reason">{{ $t('dashboard.admin.featureFlags.overrideFields.reason') }}</FieldLabel>
             <Input id="override-reason" v-model="overrideReason" data-field="overrideReason" />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="override-expires">{{ $t('dashboard.admin.featureFlags.overrideFields.expiresAt') }}</Label>
+          </Field>
+          <Field>
+            <FieldLabel for="override-expires">{{ $t('dashboard.admin.featureFlags.overrideFields.expiresAt') }}</FieldLabel>
             <Input
               id="override-expires"
               v-model="overrideExpiresAt"
               type="datetime-local"
               data-field="overrideExpiresAt"
             />
-          </div>
+          </Field>
           <div class="flex justify-end">
             <Button data-override-save variant="outline" :disabled="!canSaveOverride" @click="submitOverride">
               {{ $t('dashboard.admin.featureFlags.overrideSave') }}

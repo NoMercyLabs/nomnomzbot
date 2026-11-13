@@ -14,8 +14,8 @@
 import { computed } from 'vue';
 
 import OptionSelect, { type Choice } from '@/components/layout/OptionSelect.vue';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
 import { MAX_MONTHS, MIN_MONTHS } from './tierLength';
@@ -34,8 +34,8 @@ const noTier = computed<boolean>(() => tierId.value === '');
 </script>
 
 <template>
-  <div class="grid gap-2">
-    <Label :for="`${props.id}-tier`">{{ $t('dashboard.admin.billing.length.tier') }}</Label>
+  <Field>
+    <FieldLabel :for="`${props.id}-tier`">{{ $t('dashboard.admin.billing.length.tier') }}</FieldLabel>
     <OptionSelect
       :id="`${props.id}-tier`"
       v-model="tierId"
@@ -43,23 +43,24 @@ const noTier = computed<boolean>(() => tierId.value === '');
       :options="choices"
       :placeholder="$t('dashboard.admin.billing.length.pickTier')"
     />
-  </div>
-  <div class="grid gap-2">
-    <Label :for="`${props.id}-months`">{{ $t('dashboard.admin.billing.length.months') }}</Label>
+  </Field>
+  <Field>
+    <FieldLabel :for="`${props.id}-months`">{{ $t('dashboard.admin.billing.length.months') }}</FieldLabel>
     <div class="flex items-center gap-4">
-      <Input :id="`${props.id}-months`"
-             v-model="months"
-             data-length-months
-             type="number"
-             class="w-28"
-             :min="MIN_MONTHS"
-             :max="MAX_MONTHS"
-             :disabled="forever || noTier"
+      <Input
+        :id="`${props.id}-months`"
+        v-model="months"
+        data-length-months
+        type="number"
+        class="w-28"
+        :min="MIN_MONTHS"
+        :max="MAX_MONTHS"
+        :disabled="forever || noTier"
       />
       <div data-touch-target class="flex min-h-9 items-center gap-3">
-        <Label :for="`${props.id}-forever`">{{ $t('dashboard.admin.billing.length.forever') }}</Label>
+        <FieldLabel :for="`${props.id}-forever`">{{ $t('dashboard.admin.billing.length.forever') }}</FieldLabel>
         <Switch :id="`${props.id}-forever`" v-model="forever" data-length-forever :disabled="noTier" />
       </div>
     </div>
-  </div>
+  </Field>
 </template>

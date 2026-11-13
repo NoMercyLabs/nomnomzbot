@@ -11,11 +11,12 @@
 <script setup lang="ts">
 // The New script dialog: one name field. The bot gets the name, an empty description and the starter code.
 // The dialog stays open on a refusal and shows the bot's reason; on success it closes and tells the page the new id.
-import { ref, watch } from 'vue';
+import { ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCreateCodeScript } from '@/api/codeScripts';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -26,6 +27,7 @@ const emit = defineEmits<{ 'update:open': [open: boolean]; created: [id: string 
 
 const { t } = useI18n();
 const create = useCreateCodeScript();
+const nameId = useId();
 const name = ref('');
 const error = ref<string | undefined>(undefined);
 
@@ -73,9 +75,11 @@ async function submit(): Promise<void> {
     @update:open="$emit('update:open', $event)"
     @submit="submit"
   >
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.scripts.new.name') }}
-      <Input v-model="name" :placeholder="$t('dashboard.scripts.new.namePlaceholder')" />
-    </label>
+    <Field>
+      <FieldLabel :for="nameId">
+        {{ $t('dashboard.scripts.new.name') }}
+      </FieldLabel>
+      <Input :id="nameId" v-model="name" :placeholder="$t('dashboard.scripts.new.namePlaceholder')" />
+    </Field>
   </FormDialog>
 </template>

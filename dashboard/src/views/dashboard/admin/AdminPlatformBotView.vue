@@ -31,7 +31,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { useBackLayer } from '@/composables/useBackCloses';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
@@ -157,10 +157,12 @@ async function checkApproval(): Promise<void> {
       :description="$t('dashboard.admin.platformBot.reconnect.description')"
     >
       <div class="grid max-w-xl gap-3">
-        <div class="grid gap-1.5">
-          <Label for="platform-bot-reason">{{ $t('dashboard.admin.platformBot.reconnect.reason') }}</Label>
+        <Field>
+          <FieldLabel for="platform-bot-reason">
+            {{ $t('dashboard.admin.platformBot.reconnect.reason') }}
+          </FieldLabel>
           <Input id="platform-bot-reason" v-model="justification" data-field-reason />
-        </div>
+        </Field>
         <p v-if="previewed !== null" class="text-sm" data-preview>
           {{ $t('dashboard.admin.platformBot.reconnect.preview', { count: previewed }) }}
         </p>

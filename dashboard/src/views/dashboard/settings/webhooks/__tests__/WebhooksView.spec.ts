@@ -714,7 +714,7 @@ describe('Webhooks inbound editor', () => {
     expect(hint).toContain('Event id path');
     expect(hint).not.toContain('Secret');
     expect((q('[data-field="event-kind-path"]') as HTMLInputElement).required).toBe(true);
-    expect(q('[data-field="event-id-path"]').closest('label')?.textContent).toContain('*');
+    expect(q('[data-field="event-id-path"]').closest('[data-slot="field"]')?.textContent).toContain('*');
 
     await typeInto('[data-field="event-kind-path"]', '$.kind');
     await typeInto('[data-field="event-id-path"]', '$.id');

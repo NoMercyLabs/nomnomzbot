@@ -18,7 +18,7 @@ import { useI18n } from 'vue-i18n';
 import { usePersonality, useSetPersonality } from '@/api/personalitySettings';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
-import { Label } from '@/components/ui/label';
+import { FieldLabel } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -76,11 +76,11 @@ function pick(value: AcceptableValue): void {
       @update:model-value="pick"
     >
       <RowGroup>
-        <Label
+        <FieldLabel
           v-for="choice in choices"
           :key="choice.value"
           :data-tone="choice.value"
-          class="flex min-h-11 cursor-pointer items-center gap-3 rounded-[8px] px-3 py-2 font-normal hover:bg-foreground/5"
+          class="min-h-11 w-full cursor-pointer items-center gap-3 rounded-[8px] px-3 py-2 font-normal hover:bg-foreground/5"
         >
           <RadioGroupItem :value="choice.value" />
           <span class="min-w-0 flex-1">
@@ -89,7 +89,7 @@ function pick(value: AcceptableValue): void {
               choice.description
             }}</span>
           </span>
-        </Label>
+        </FieldLabel>
       </RowGroup>
     </RadioGroup>
     <template #footer>

@@ -22,7 +22,7 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TestTrigger } from '@/composables/useEditorBridge';
 import { useCan } from '@/composables/useCan';
@@ -97,8 +97,8 @@ async function run(): Promise<void> {
       >
         <h3 class="font-medium">{{ $t('dashboard.scripts.test.trigger') }}</h3>
         <div class="flex flex-wrap items-end gap-x-3 gap-y-2">
-          <div v-if="ownEvents.length > 0" class="grid min-w-0 flex-1 gap-2">
-            <Label for="script-test-event" class="leading-snug">{{ $t('dashboard.scripts.test.event') }}</Label>
+          <Field v-if="ownEvents.length > 0" class="min-w-0 flex-1">
+            <FieldLabel for="script-test-event">{{ $t('dashboard.scripts.test.event') }}</FieldLabel>
             <Select v-model="picked">
               <SelectTrigger id="script-test-event" class="w-full">
                 <SelectValue />
@@ -110,7 +110,7 @@ async function run(): Promise<void> {
                 </SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <Button
             variant="outline"
             :disabled="tester.running.value || tester.limited.value"

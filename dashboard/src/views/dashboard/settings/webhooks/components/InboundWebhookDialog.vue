@@ -12,13 +12,14 @@
 // Makes or edits one inbound webhook: the name, the provider kind (fixed once made), the secret that proves a call
 // is real, what the call starts (a pipeline or an event) and, for a generic provider, where its signature and
 // event fields sit. The secret is never read back: an empty box on an edit keeps the stored one.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PipelineListItem } from '@/api/pipelines';
 import type { InboundWebhook, InboundWebhookDraft } from '@/api/webhooks';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -40,6 +41,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ submit: [draft: InboundWebhookDraft] }>();
 const open = defineModel<boolean>('open', { required: true });
+const base = useId();
 
 const adapters = [
   'Generic',
@@ -186,63 +188,77 @@ function submit(): void {
     :disabled="!ready"
     @submit="submit"
   >
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t("dashboard.settings.webhooks.inbound.name") }}
-      <Input v-model="name" data-field="inbound-name" maxlength="100" />
-    </label>
-    <div class="grid gap-1.5 text-sm font-medium">
-      {{ $t("dashboard.settings.webhooks.inbound.adapter") }}
+    <Field>
+      <FieldLabel :for="`${base}-name`">
+        {{ $t("dashboard.settings.webhooks.inbound.name") }}
+      </FieldLabel>
+      <Input :id="`${base}-name`" v-model="name" data-field="inbound-name" maxlength="100" />
+    </Field>
+    <Field>
+      <FieldLabel :for="`${base}-adapter`">
+        {{ $t("dashboard.settings.webhooks.inbound.adapter") }}
+      </FieldLabel>
       <Select v-model="adapter" :disabled="saved">
-        <SelectTrigger class="w-full" data-field="inbound-adapter">
+        <SelectTrigger :id="`${base}-adapter`" class="w-full" data-field="inbound-adapter">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem v-for="kind in adapters" :key="kind" :value="kind">{{ kind }}</SelectItem>
         </SelectContent>
       </Select>
-    </div>
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t("dashboard.settings.webhooks.inbound.secret") }}
-      <Input v-model="secret" data-field="inbound-secret" type="password" autocomplete="off" />
-      <span class="text-sm font-normal text-muted-foreground">
-        {{
-          saved
-            ? $t("dashboard.settings.webhooks.inbound.secretKept")
-            : $t("dashboard.settings.webhooks.inbound.secretHelp")
-        }}
-      </span>
-    </label>
+    </Field>
+    <Field>
+      <FieldLabel :for="`${base}-secret`">
+        {{ $t("dashboard.settings.webhooks.inbound.secret") }}
+        <FieldInfo>
+          {{
+            saved
+              ? $t("dashboard.settings.webhooks.inbound.secretKept")
+              : $t("dashboard.settings.webhooks.inbound.secretHelp")
+          }}
+        </FieldInfo>
+      </FieldLabel>
+      <Input
+        :id="`${base}-secret`"
+        v-model="secret"
+        data-field="inbound-secret"
+        type="password"
+        autocomplete="off"
+      />
+    </Field>
     <div v-if="generic" class="grid gap-4 sm:grid-cols-2">
-      <label class="grid gap-1.5 text-sm font-medium">
-        <span>
+      <Field>
+        <FieldLabel :for="`${base}-kind-path`">
           {{ $t("dashboard.settings.webhooks.inbound.kindPath") }}
           <span aria-hidden="true" class="text-destructive">{{
             $t("dashboard.settings.webhooks.inbound.requiredMark")
           }}</span>
-        </span>
+        </FieldLabel>
         <Input
+          :id="`${base}-kind-path`"
           v-model="kindPath"
           data-field="event-kind-path"
           class="font-mono"
           required
           placeholder="$.type"
         />
-      </label>
-      <label class="grid gap-1.5 text-sm font-medium">
-        <span>
+      </Field>
+      <Field>
+        <FieldLabel :for="`${base}-id-path`">
           {{ $t("dashboard.settings.webhooks.inbound.idPath") }}
           <span aria-hidden="true" class="text-destructive">{{
             $t("dashboard.settings.webhooks.inbound.requiredMark")
           }}</span>
-        </span>
+        </FieldLabel>
         <Input
+          :id="`${base}-id-path`"
           v-model="idPath"
           data-field="event-id-path"
           class="font-mono"
           required
           placeholder="$.id"
         />
-      </label>
+      </Field>
     </div>
     <Collapsible v-model:open="advancedOpen" class="rounded-lg border border-border">
       <CollapsibleTrigger
@@ -256,10 +272,12 @@ function submit(): void {
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div class="grid gap-4 border-t border-border p-3">
-          <div class="grid gap-1.5 text-sm font-medium">
-            {{ $t("dashboard.settings.webhooks.inbound.pipeline") }}
+          <Field>
+            <FieldLabel :for="`${base}-pipeline`">
+              {{ $t("dashboard.settings.webhooks.inbound.pipeline") }}
+            </FieldLabel>
             <Select v-model="pipelineId">
-              <SelectTrigger class="w-full" data-field="inbound-pipeline">
+              <SelectTrigger :id="`${base}-pipeline`" class="w-full" data-field="inbound-pipeline">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -271,45 +289,77 @@ function submit(): void {
                 </SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <label class="grid gap-1.5 text-sm font-medium">
-            {{ $t("dashboard.settings.webhooks.inbound.eventType") }}
-            <Input v-model="eventType" data-field="inbound-event-type" class="font-mono" />
-            <span class="text-sm font-normal text-muted-foreground">
-              {{ $t("dashboard.settings.webhooks.inbound.eventTypeHelp") }}
-            </span>
-          </label>
+          </Field>
+          <Field>
+            <FieldLabel :for="`${base}-event-type`">
+              {{ $t("dashboard.settings.webhooks.inbound.eventType") }}
+              <FieldInfo>{{ $t("dashboard.settings.webhooks.inbound.eventTypeHelp") }}</FieldInfo>
+            </FieldLabel>
+            <Input
+              :id="`${base}-event-type`"
+              v-model="eventType"
+              data-field="inbound-event-type"
+              class="font-mono"
+            />
+          </Field>
           <div v-if="generic" class="grid gap-4 sm:grid-cols-2">
-            <label class="grid gap-1.5 text-sm font-medium">
-              {{ $t("dashboard.settings.webhooks.inbound.signatureHeader") }}
+            <Field>
+              <FieldLabel :for="`${base}-signature-header`">
+                {{ $t("dashboard.settings.webhooks.inbound.signatureHeader") }}
+              </FieldLabel>
               <Input
+                :id="`${base}-signature-header`"
                 v-model="signatureHeader"
                 data-field="signature-header"
                 class="font-mono"
                 placeholder="X-Signature"
               />
-            </label>
-            <label class="grid gap-1.5 text-sm font-medium">
-              {{ $t("dashboard.settings.webhooks.inbound.signaturePrefix") }}
+            </Field>
+            <Field>
+              <FieldLabel :for="`${base}-signature-prefix`">
+                {{ $t("dashboard.settings.webhooks.inbound.signaturePrefix") }}
+              </FieldLabel>
               <Input
+                :id="`${base}-signature-prefix`"
                 v-model="signaturePrefix"
                 data-field="signature-prefix"
                 class="font-mono"
                 placeholder="sha256="
               />
-            </label>
-            <label class="grid gap-1.5 text-sm font-medium sm:col-span-2">
-              {{ $t("dashboard.settings.webhooks.inbound.signingString") }}
-              <Input v-model="signingString" data-field="signing-string" class="font-mono" />
-            </label>
-            <label class="grid gap-1.5 text-sm font-medium">
-              {{ $t("dashboard.settings.webhooks.inbound.timestampHeader") }}
-              <Input v-model="timestampHeader" data-field="timestamp-header" class="font-mono" />
-            </label>
-            <label class="grid gap-1.5 text-sm font-medium">
-              {{ $t("dashboard.settings.webhooks.inbound.bodyField") }}
-              <Input v-model="bodyField" data-field="body-secret-field" class="font-mono" />
-            </label>
+            </Field>
+            <Field class="sm:col-span-2">
+              <FieldLabel :for="`${base}-signing-string`">
+                {{ $t("dashboard.settings.webhooks.inbound.signingString") }}
+              </FieldLabel>
+              <Input
+                :id="`${base}-signing-string`"
+                v-model="signingString"
+                data-field="signing-string"
+                class="font-mono"
+              />
+            </Field>
+            <Field>
+              <FieldLabel :for="`${base}-timestamp-header`">
+                {{ $t("dashboard.settings.webhooks.inbound.timestampHeader") }}
+              </FieldLabel>
+              <Input
+                :id="`${base}-timestamp-header`"
+                v-model="timestampHeader"
+                data-field="timestamp-header"
+                class="font-mono"
+              />
+            </Field>
+            <Field>
+              <FieldLabel :for="`${base}-body-field`">
+                {{ $t("dashboard.settings.webhooks.inbound.bodyField") }}
+              </FieldLabel>
+              <Input
+                :id="`${base}-body-field`"
+                v-model="bodyField"
+                data-field="body-secret-field"
+                class="font-mono"
+              />
+            </Field>
           </div>
         </div>
       </CollapsibleContent>

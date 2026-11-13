@@ -26,9 +26,8 @@ import {
 } from '@/api/supporters';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
-import { FieldInfo } from '@/components/ui/field';
+import { Field, FieldError, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -162,15 +161,15 @@ function submit(): void {
     <template #header-action>
       <LabeledSwitch v-model="enabled" :label="t('dashboard.supporters.connections.enabled')" />
     </template>
-    <div v-if="stored?.endpointUrl" class="grid gap-1.5">
-      <Label for="supporter-endpoint">
+    <Field v-if="stored?.endpointUrl">
+      <FieldLabel for="supporter-endpoint">
         {{ t("dashboard.supporters.connections.endpoint") }}
         <FieldInfo>{{ t("dashboard.supporters.connections.endpointHelp") }}</FieldInfo>
-      </Label>
+      </FieldLabel>
       <Input id="supporter-endpoint" data-field="endpointUrl" :model-value="stored.endpointUrl" readonly />
-    </div>
-    <div v-if="definition?.oauth" class="grid gap-1.5">
-      <Label for="supporter-grant">{{ t("dashboard.supporters.connections.grant") }}</Label>
+    </Field>
+    <Field v-if="definition?.oauth">
+      <FieldLabel for="supporter-grant">{{ t("dashboard.supporters.connections.grant") }}</FieldLabel>
       <Select v-model="grantId">
         <SelectTrigger id="supporter-grant" data-field="integrationConnectionId" class="w-full">
           <SelectValue />
@@ -190,15 +189,15 @@ function submit(): void {
           </SelectGroup>
         </SelectContent>
       </Select>
-      <p v-if="grants.length === 0" class="text-sm text-muted-foreground">
+      <FieldError v-if="grants.length === 0">
         {{ t("dashboard.supporters.connections.noAccount", { name }) }}
-      </p>
-    </div>
-    <div v-else class="grid gap-1.5">
-      <Label for="supporter-secret">
+      </FieldError>
+    </Field>
+    <Field v-else>
+      <FieldLabel for="supporter-secret">
         {{ t("dashboard.supporters.connections.secret") }}
         <FieldInfo>{{ t("dashboard.supporters.connections.secretHelp") }}</FieldInfo>
-      </Label>
+      </FieldLabel>
       <Input
         id="supporter-secret"
         v-model="secret"
@@ -207,6 +206,6 @@ function submit(): void {
         autocomplete="off"
         :placeholder="secretPlaceholder"
       />
-    </div>
+    </Field>
   </FormDialog>
 </template>

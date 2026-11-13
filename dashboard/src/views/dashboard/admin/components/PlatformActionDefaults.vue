@@ -27,6 +27,7 @@ import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
@@ -217,15 +218,18 @@ function apply(): void {
     @update:open="(open: boolean) => !open && close()"
     @submit="apply"
   >
-    <label class="grid gap-1 text-xs text-muted-foreground">
-      {{ $t("dashboard.admin.platformDefaults.actions.dialog.role") }}
+    <Field class="gap-1">
+      <FieldLabel for="platform-action-level" class="text-xs font-normal text-muted-foreground">
+        {{ $t("dashboard.admin.platformDefaults.actions.dialog.role") }}
+      </FieldLabel>
       <OptionSelect
+        id="platform-action-level"
         data-level
         :model-value="choice"
         :options="levelChoices"
         @update:model-value="pick"
       />
-    </label>
+    </Field>
     <PlatformDefaultPreview
       v-if="preview.pending.value || preview.failed.value || preview.preview.value"
       v-model:danger-confirmed="preview.dangerConfirmed.value"

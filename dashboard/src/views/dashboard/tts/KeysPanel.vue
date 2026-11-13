@@ -29,6 +29,7 @@ import {
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -145,8 +146,8 @@ function submitSpelling(): void {
       >
         <!-- The key and its own buttons share one row at every width; the Azure region sits under that row. -->
         <div class="flex items-end gap-2" data-key-row>
-          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm font-medium">
-            <span class="flex flex-wrap items-center gap-x-3 gap-y-1" data-key-label>
+          <Field class="min-w-0 flex-1 gap-1">
+            <FieldLabel :for="`tts-key-${provider}`" class="flex-wrap gap-x-3 gap-y-1" data-key-label>
               {{ $t(`dashboard.tts.keys.provider.${provider}`) }}
               <StatusBadge
                 :tone="stored[provider] ? 'ok' : 'off'"
@@ -158,8 +159,9 @@ function submitSpelling(): void {
                   )
                 "
               />
-            </span>
+            </FieldLabel>
             <Input
+              :id="`tts-key-${provider}`"
               v-model="keys[provider]"
               type="password"
               autocomplete="off"
@@ -167,7 +169,7 @@ function submitSpelling(): void {
                 $t(stored[provider] ? 'dashboard.tts.keys.stored' : 'dashboard.tts.keys.none')
               "
             />
-          </label>
+          </Field>
           <div class="flex flex-none gap-2" data-key-actions>
             <Button
               v-if="stored[provider]"
@@ -185,13 +187,19 @@ function submitSpelling(): void {
             </Button>
           </div>
         </div>
-        <label
+        <Field
           v-if="provider === 'azure'"
-          class="flex w-full flex-col gap-1 text-sm font-medium sm:w-44"
+          class="gap-1 sm:w-44"
           data-key-region
         >
-          {{ $t("dashboard.tts.keys.region") }}
+          <FieldLabel for="tts-key-region">
+            {{ $t("dashboard.tts.keys.region") }}
+            <FieldInfo v-if="regionDefault">
+              <span data-region-default>{{ regionDefault }}</span>
+            </FieldInfo>
+          </FieldLabel>
           <Input
+            id="tts-key-region"
             v-model="region"
             autocomplete="off"
             :disabled="!writable"
@@ -200,22 +208,15 @@ function submitSpelling(): void {
             @blur="commitRegion"
             @keydown.enter="commitRegion"
           />
-          <span
-            v-if="regionDefault"
-            class="text-sm font-normal text-muted-foreground"
-            data-region-default
-          >
-            {{ regionDefault }}
-          </span>
-        </label>
+        </Field>
       </form>
       <form
         class="flex flex-col gap-2 border-t border-border pt-4"
         @submit.prevent="submitSpelling"
       >
-        <label for="tts-name-spelling" class="text-sm font-medium">
+        <FieldLabel for="tts-name-spelling">
           {{ $t("dashboard.tts.keys.spelling") }}
-        </label>
+        </FieldLabel>
         <div class="flex items-center gap-2" data-spelling-row>
           <Input
             id="tts-name-spelling"

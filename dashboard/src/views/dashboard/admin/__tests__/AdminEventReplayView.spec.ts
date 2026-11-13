@@ -243,6 +243,8 @@ describe('AdminEventReplayView', () => {
     await openChoice('[data-projection]');
     expect(choiceValues()).toContain('chat-history');
 
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
+    await settle();
     await openChoice('[data-tenant]');
 
     const tenants = [...document.body.querySelectorAll('[data-option]')];

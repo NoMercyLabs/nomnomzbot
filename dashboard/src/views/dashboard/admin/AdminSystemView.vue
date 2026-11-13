@@ -34,6 +34,7 @@ import StatStrip from '@/components/layout/StatStrip.vue';
 import StatTile from '@/components/layout/StatTile.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
@@ -323,26 +324,32 @@ async function submit(): Promise<void> {
       @update:open="close"
       @submit="submit"
     >
-      <label class="grid gap-1 text-xs text-muted-foreground">
-        {{ $t("dashboard.admin.system.rotation.dialog.previous") }}
+      <Field class="gap-1">
+        <FieldLabel for="rotation-previous" class="text-xs font-normal text-muted-foreground">
+          {{ $t("dashboard.admin.system.rotation.dialog.previous") }}
+        </FieldLabel>
         <Input
+          id="rotation-previous"
           v-model="previousKey"
           data-previous-key
           type="password"
           autocomplete="off"
           spellcheck="false"
         />
-      </label>
-      <label class="grid gap-1 text-xs text-muted-foreground">
-        {{ $t("dashboard.admin.system.rotation.dialog.current") }}
+      </Field>
+      <Field class="gap-1">
+        <FieldLabel for="rotation-current" class="text-xs font-normal text-muted-foreground">
+          {{ $t("dashboard.admin.system.rotation.dialog.current") }}
+        </FieldLabel>
         <Input
+          id="rotation-current"
           v-model="currentKey"
           data-current-key
           type="password"
           autocomplete="off"
           spellcheck="false"
         />
-      </label>
+      </Field>
     </FormDialog>
   </PageBody>
 </template>

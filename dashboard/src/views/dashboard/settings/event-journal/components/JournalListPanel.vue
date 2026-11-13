@@ -12,7 +12,7 @@
 // What happened in the channel, newest first: what, who and when. The bot pages the list; a filter always goes
 // back to page 1. The filters are view preferences, so they are remembered on this device.
 import { useLocalStorage } from '@vueuse/core';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ChevronLeft from '~icons/nnz/chevron-left';
 import ChevronRight from '~icons/nnz/chevron-right';
@@ -25,8 +25,8 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
   Table,
@@ -51,6 +51,7 @@ import {
 import { foldRuns } from './journalRuns';
 import { useJournalActors } from './useJournalActors';
 
+const base = useId();
 const PAGE_SIZE = 25;
 const HIDING_PAGE_SIZE = 100;
 const ALL = 'all';
@@ -213,18 +214,34 @@ function clear(): void {
         :label="$t('dashboard.settings.eventJournal.list.source')"
         :options="sourceOptions"
       />
-      <Label class="font-normal">
-        <span class="text-muted-foreground">{{ $t('dashboard.settings.eventJournal.list.from') }}</span>
-        <Input v-model="from" type="date" data-filter-from class="w-40" />
-      </Label>
-      <Label class="font-normal">
-        <span class="text-muted-foreground">{{ $t('dashboard.settings.eventJournal.list.to') }}</span>
-        <Input v-model="to" type="date" data-filter-to class="w-40" />
-      </Label>
-      <div class="flex items-center gap-2">
-        <Switch id="journal-housekeeping" v-model="showHousekeeping" data-show-housekeeping />
-        <Label for="journal-housekeeping" class="font-normal">{{ $t('dashboard.settings.eventJournal.list.housekeeping') }}</Label>
-      </div>
+      <Field orientation="horizontal" class="w-auto">
+        <FieldLabel :for="`${base}-from`" class="font-normal text-muted-foreground">
+          {{ $t('dashboard.settings.eventJournal.list.from') }}
+        </FieldLabel>
+        <Input :id="`${base}-from`"
+               v-model="from"
+               type="date"
+               data-filter-from
+               class="w-40"
+        />
+      </Field>
+      <Field orientation="horizontal" class="w-auto">
+        <FieldLabel :for="`${base}-to`" class="font-normal text-muted-foreground">
+          {{ $t('dashboard.settings.eventJournal.list.to') }}
+        </FieldLabel>
+        <Input :id="`${base}-to`"
+               v-model="to"
+               type="date"
+               data-filter-to
+               class="w-40"
+        />
+      </Field>
+      <Field orientation="horizontal" class="w-auto">
+        <Switch :id="`${base}-housekeeping`" v-model="showHousekeeping" data-show-housekeeping />
+        <FieldLabel :for="`${base}-housekeeping`" class="font-normal">
+          {{ $t('dashboard.settings.eventJournal.list.housekeeping') }}
+        </FieldLabel>
+      </Field>
     </div>
     <Table>
       <TableHeader>

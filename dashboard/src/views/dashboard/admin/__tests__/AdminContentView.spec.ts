@@ -14,6 +14,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { fieldLabels, unlinkedLabels } from '@/__tests__/fieldLinks';
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
 import { adminHandlers } from '@/realtime/admin';
@@ -185,6 +186,20 @@ describe('AdminContentView', () => {
     expect(detail.options?.params?.path?.id).toBe('def1');
     expect(document.body.querySelectorAll('[data-version-row]')).toHaveLength(2);
     expect(text()).toContain('12');
+  });
+
+  it('links every label of the page filter and the create form to its control', async () => {
+    await open();
+
+    expect(fieldLabels(document.body)).toHaveLength(1);
+
+    byText('button', 'New definition')!.click();
+    await settle();
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+
+    expect(fieldLabels(dialog)).toHaveLength(5);
+    expect(unlinkedLabels(document.body)).toEqual([]);
   });
 
   it('creates a definition with the typed fields', async () => {

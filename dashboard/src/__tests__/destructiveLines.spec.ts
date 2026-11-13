@@ -31,8 +31,6 @@ const allowlist = [
   'views/dashboard/settings/escalation/components/PolicyPanel.vue',
   // FeaturesView: the rows lane owns it.
   'views/dashboard/settings/features/FeaturesView.vue',
-  // AdminFeatureFlagsView: rolloutValid is a message under the one rollout input.
-  'views/dashboard/admin/AdminFeatureFlagsView.vue',
   // PlatformDefaultPreview: the failed line shares a flex row with its Retry button.
   'views/dashboard/admin/components/PlatformDefaultPreview.vue',
   // ModToolsPanel: the duration range message sits under one mode input (text-xs).

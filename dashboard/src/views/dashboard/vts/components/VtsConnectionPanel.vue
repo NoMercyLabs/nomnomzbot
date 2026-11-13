@@ -28,6 +28,7 @@ import type { PanelState } from '@/composables/usePanelState';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
@@ -159,10 +160,12 @@ function rotateNow(): void {
           :label="$t('dashboard.vts.connection.mode')"
           :options="modes"
         />
-        <label class="grid gap-1 text-sm text-muted-foreground">
-          {{ $t("dashboard.vts.connection.endpoint") }}
-          <Input v-model="endpoint" data-vts-endpoint />
-        </label>
+        <Field class="gap-1">
+          <FieldLabel for="vts-endpoint" class="font-normal text-muted-foreground">
+            {{ $t("dashboard.vts.connection.endpoint") }}
+          </FieldLabel>
+          <Input id="vts-endpoint" v-model="endpoint" data-vts-endpoint />
+        </Field>
         <div class="grid gap-2 text-sm text-muted-foreground">
           {{ $t("dashboard.vts.connection.mask") }}
           <EventKindMask

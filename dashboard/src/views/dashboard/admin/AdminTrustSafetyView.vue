@@ -44,8 +44,8 @@ import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import type { SupportPerson } from '@/api/adminSupport';
 import { Button } from '@/components/ui/button';
+import { Field, FieldError, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 type Step =
   | { kind: 'confirm' | 'overturn'; item: TrustSafetyReviewItem } |
@@ -239,20 +239,18 @@ function run(current: Step): Promise<void> {
     :crumb="$t('dashboard.admin.crumb')"
   />
   <PageBody data-page-body>
-    <div data-page-inset class="grid gap-1.5">
-      <Label for="ts-justification">{{
-        $t("dashboard.admin.trustSafety.justification.label")
-      }}</Label>
+    <Field data-page-inset>
+      <FieldLabel for="ts-justification">
+        {{ $t("dashboard.admin.trustSafety.justification.label") }}
+        <FieldInfo>{{ $t("dashboard.admin.trustSafety.justification.hint") }}</FieldInfo>
+      </FieldLabel>
       <Input
         id="ts-justification"
         v-model="justification"
         data-justification
         :placeholder="$t('dashboard.admin.trustSafety.justification.placeholder')"
       />
-      <p class="text-xs text-muted-foreground">
-        {{ $t("dashboard.admin.trustSafety.justification.hint") }}
-      </p>
-    </div>
+    </Field>
 
     <div data-trust-grid class="grid min-w-0 gap-3 lg:grid-cols-2">
       <PanelCard
@@ -338,10 +336,10 @@ function run(current: Step): Promise<void> {
             <div class="grid w-full gap-2">
               <p class="text-sm font-medium">{{ $t("dashboard.admin.trustSafety.apply.title") }}</p>
               <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-                <div class="grid gap-1.5">
-                  <Label for="ts-block-target">{{
+                <Field>
+                  <FieldLabel for="ts-block-target">{{
                     $t("dashboard.admin.trustSafety.apply.target")
-                  }}</Label>
+                  }}</FieldLabel>
                   <SupportPersonPicker
                     data-block-target
                     input-id="ts-block-target"
@@ -350,21 +348,21 @@ function run(current: Step): Promise<void> {
                     :wait-hint="$t('dashboard.admin.trustSafety.apply.targetWait')"
                     @pick="targetPerson = $event"
                   />
-                  <p v-if="targetPerson && !targetId" class="text-sm text-muted-foreground">
+                  <FieldError v-if="targetPerson && !targetId">
                     {{ $t("dashboard.admin.trustSafety.apply.noTwitchId") }}
-                  </p>
-                </div>
-                <div class="grid gap-1.5">
-                  <Label for="ts-block-reason">{{
+                  </FieldError>
+                </Field>
+                <Field>
+                  <FieldLabel for="ts-block-reason">{{
                     $t("dashboard.admin.trustSafety.apply.reasonLabel")
-                  }}</Label>
+                  }}</FieldLabel>
                   <Input
                     id="ts-block-reason"
                     v-model="reason"
                     data-block-reason
                     :placeholder="$t('dashboard.admin.trustSafety.apply.reason')"
                   />
-                </div>
+                </Field>
               </div>
               <div class="flex flex-wrap gap-2">
                 <Button

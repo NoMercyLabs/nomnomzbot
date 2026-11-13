@@ -587,8 +587,8 @@ describe('Event journal list', () => {
     window.localStorage.clear();
     await open();
 
-    expect(q('[data-filter-from]').closest('label')!.textContent).toContain('From');
-    expect(q('[data-filter-to]').closest('label')!.textContent).toContain('To');
+    expect(q('[data-filter-from]').closest('[data-slot="field"]')!.textContent).toContain('From');
+    expect(q('[data-filter-to]').closest('[data-slot="field"]')!.textContent).toContain('To');
     expect(q('[data-filter-source]').textContent).toContain('Source');
     expect(q('[data-filter-source]').textContent).not.toContain('From');
   });

@@ -26,8 +26,8 @@ import {
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -106,8 +106,8 @@ function runTransition(): void {
       />
     </template>
     <div v-if="transitions.data.value?.length || studioOn" data-obs-studio-body class="grid gap-4 p-3">
-      <div v-if="transitions.data.value?.length" class="grid gap-1.5">
-        <Label for="obs-transition">{{ $t('dashboard.obs.studio.transition') }}</Label>
+      <Field v-if="transitions.data.value?.length">
+        <FieldLabel for="obs-transition">{{ $t('dashboard.obs.studio.transition') }}</FieldLabel>
         <Select
           :model-value="activeTransition"
           @update:model-value="pickTransition(String($event))"
@@ -127,11 +127,11 @@ function runTransition(): void {
             </SelectGroup>
           </SelectContent>
         </Select>
-      </div>
+      </Field>
 
       <template v-if="studioOn">
-        <div class="grid gap-1.5">
-          <Label for="obs-preview">{{ $t('dashboard.obs.studio.preview') }}</Label>
+        <Field>
+          <FieldLabel for="obs-preview">{{ $t('dashboard.obs.studio.preview') }}</FieldLabel>
           <Select :model-value="previewScene" @update:model-value="pickPreview(String($event))">
             <SelectTrigger id="obs-preview" data-obs-picker="preview" class="w-full">
               <SelectValue :placeholder="$t('dashboard.obs.studio.pickPreview')" />
@@ -144,11 +144,11 @@ function runTransition(): void {
               </SelectGroup>
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
         <div class="flex items-end gap-3">
-          <div class="grid gap-1.5">
-            <Label for="obs-duration">{{ $t('dashboard.obs.studio.duration') }}</Label>
+          <Field class="w-auto">
+            <FieldLabel for="obs-duration">{{ $t('dashboard.obs.studio.duration') }}</FieldLabel>
             <Input
               id="obs-duration"
               v-model="seconds"
@@ -156,9 +156,9 @@ function runTransition(): void {
               type="number"
               min="0"
               step="0.1"
-              class="w-28"
+              class="w-28!"
             />
-          </div>
+          </Field>
           <Button data-obs-transition-button :disabled="cut.isPending.value" @click="runTransition">
             {{ $t('dashboard.obs.studio.cut') }}
           </Button>

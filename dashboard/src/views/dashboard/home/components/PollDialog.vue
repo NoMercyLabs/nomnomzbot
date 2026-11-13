@@ -34,8 +34,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Field, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
@@ -170,8 +170,8 @@ watchEffect(() => {
       </div>
 
       <div v-if="poll === null" class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4">
-        <div class="grid gap-1.5">
-          <Label for="poll-title">{{ t("dashboard.home.quick.pollQuestion") }}</Label>
+        <Field>
+          <FieldLabel for="poll-title">{{ t("dashboard.home.quick.pollQuestion") }}</FieldLabel>
           <Input
             id="poll-title"
             v-model="title"
@@ -180,10 +180,10 @@ watchEffect(() => {
             :disabled="!canWrite"
             :placeholder="t('dashboard.home.quick.pollQuestionHint')"
           />
-        </div>
+        </Field>
 
-        <div class="grid gap-1.5">
-          <Label>{{ t("dashboard.home.quick.pollChoices") }}</Label>
+        <Field>
+          <FieldTitle>{{ t("dashboard.home.quick.pollChoices") }}</FieldTitle>
           <div v-for="(_text, index) in choices" :key="index" class="flex items-center gap-2">
             <Input
               v-model="choices[index]"
@@ -212,10 +212,10 @@ watchEffect(() => {
               {{ t("dashboard.home.quick.pollAddChoice") }}
             </Button>
           </div>
-        </div>
+        </Field>
 
-        <div class="grid gap-1.5">
-          <Label for="poll-minutes">{{ t("dashboard.home.quick.pollMinutes") }}</Label>
+        <Field>
+          <FieldLabel for="poll-minutes">{{ t("dashboard.home.quick.pollMinutes") }}</FieldLabel>
           <Input
             id="poll-minutes"
             v-model="minutes"
@@ -224,16 +224,16 @@ watchEffect(() => {
             min="1"
             :max="MAX_MINUTES"
             :disabled="!canWrite"
-            class="w-24"
+            class="w-24!"
           />
-        </div>
+        </Field>
 
         <div v-if="can('live-ops:polls:write')" class="flex items-center justify-between gap-3">
-          <Label for="poll-points">{{ t("dashboard.home.quick.pollPoints") }}</Label>
+          <FieldLabel for="poll-points">{{ t("dashboard.home.quick.pollPoints") }}</FieldLabel>
           <Switch id="poll-points" v-model="pointsOn" data-poll-field="points" />
         </div>
-        <div v-if="pointsOn" class="grid gap-1.5">
-          <Label for="poll-points-price">{{ t("dashboard.home.quick.pollPointsPrice") }}</Label>
+        <Field v-if="pointsOn">
+          <FieldLabel for="poll-points-price">{{ t("dashboard.home.quick.pollPointsPrice") }}</FieldLabel>
           <Input
             id="poll-points-price"
             v-model="pointsPerVote"
@@ -241,9 +241,9 @@ watchEffect(() => {
             type="number"
             min="1"
             :disabled="!canWrite"
-            class="w-32"
+            class="w-32!"
           />
-        </div>
+        </Field>
       </div>
 
       <div v-else class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4">

@@ -29,6 +29,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -149,9 +150,9 @@ function submit(): void {
     <div class="flex flex-col gap-6 max-md:px-2" :inert="!canEdit">
       <div class="flex flex-col gap-2">
         <div class="flex items-baseline justify-between">
-          <label for="stream-title" class="text-sm font-medium">{{
+          <FieldLabel for="stream-title">{{
             t("dashboard.stream.info.titleLabel")
-          }}</label>
+          }}</FieldLabel>
           <span class="text-sm text-muted-foreground tabular-nums">
             {{ t("dashboard.stream.info.titleCount", { count: form.title.length }) }}
           </span>

@@ -35,8 +35,8 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { merge } from '@/lib/array';
 import { addMonths } from '@/lib/time';
 import { usePanelState } from '@/composables/usePanelState';
@@ -347,10 +347,10 @@ async function confirmAction(): Promise<void> {
       v-model:forever="forever"
       :choices="tierChoices"
     />
-    <div class="grid gap-2">
-      <Label for="gift-reason">{{ t('dashboard.admin.billing.channel.reason') }}</Label>
+    <Field>
+      <FieldLabel for="gift-reason">{{ t('dashboard.admin.billing.channel.reason') }}</FieldLabel>
       <Input id="gift-reason" v-model="reason" data-gift-reason />
-    </div>
+    </Field>
     <p v-if="showSummary" data-gift-summary class="text-sm text-muted-foreground">
       {{ giftSummary }}
     </p>

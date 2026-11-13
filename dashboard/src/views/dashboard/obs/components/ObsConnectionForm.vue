@@ -22,8 +22,8 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
 import { FieldInfo } from '@/components/ui/field';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { toastObsError } from '../obsToast';
@@ -108,23 +108,24 @@ function submit(): void {
       />
     </template>
     <div class="grid grid-cols-[1fr_6rem] gap-2">
-      <div class="grid gap-1.5">
-        <Label for="obs-host">{{ $t('dashboard.obs.connectionForm.host') }}</Label>
+      <Field>
+        <FieldLabel for="obs-host">{{ $t('dashboard.obs.connectionForm.host') }}</FieldLabel>
         <Input id="obs-host" v-model="host" data-obs-host />
-      </div>
-      <div class="grid gap-1.5">
-        <Label for="obs-port">{{ $t('dashboard.obs.connectionForm.port') }}</Label>
-        <Input id="obs-port"
-               v-model="port"
-               data-obs-port
-               type="number"
-               min="1"
-               max="65535"
+      </Field>
+      <Field>
+        <FieldLabel for="obs-port">{{ $t('dashboard.obs.connectionForm.port') }}</FieldLabel>
+        <Input
+          id="obs-port"
+          v-model="port"
+          data-obs-port
+          type="number"
+          min="1"
+          max="65535"
         />
-      </div>
+      </Field>
     </div>
-    <div class="grid gap-1.5">
-      <Label for="obs-password">{{ $t('dashboard.obs.connectionForm.password') }}</Label>
+    <Field>
+      <FieldLabel for="obs-password">{{ $t('dashboard.obs.connectionForm.password') }}</FieldLabel>
       <Input
         id="obs-password"
         v-model="password"
@@ -145,7 +146,7 @@ function submit(): void {
           {{ $t('dashboard.obs.connectionForm.passwordClear') }}
         </Button>
       </p>
-    </div>
+    </Field>
     <fieldset class="grid gap-2">
       <legend class="flex items-center gap-1 text-sm font-medium">
         {{ $t('dashboard.obs.connectionForm.mask') }}

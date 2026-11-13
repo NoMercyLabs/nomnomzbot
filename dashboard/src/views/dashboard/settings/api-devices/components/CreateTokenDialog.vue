@@ -11,13 +11,14 @@
 <script setup lang="ts">
 // Makes one key: a name, what it may do (scopes), optionally which pipelines it may start, and an expiry day.
 // The finished key shows once in the secret dialog; this dialog only hands the request up.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { automationScopes, type NewAutomationToken } from '@/api/automationTokens';
 import { usePipelines } from '@/api/pipelines';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import MultiChoice from '@/components/layout/MultiChoice.vue';
+import { Field, FieldInfo, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -29,6 +30,8 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const pipelines = usePipelines(channelId);
 
+const nameId = useId();
+const expiresId = useId();
 const name = ref('');
 const scopes = ref<string[]>(['invoke', 'read', 'events']);
 const pipelineIds = ref<string[]>([]);
@@ -80,35 +83,38 @@ function submit(): void {
     :error="error"
     @submit="submit"
   >
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.apiDevices.create.name') }}
+    <Field>
+      <FieldLabel :for="nameId">
+        {{ $t('dashboard.settings.apiDevices.create.name') }}
+      </FieldLabel>
       <Input
+        :id="nameId"
         v-model="name"
         data-field="name"
         maxlength="100"
         :placeholder="$t('dashboard.settings.apiDevices.create.namePlaceholder')"
       />
-    </label>
-    <div class="grid gap-1.5">
-      <span class="text-sm font-medium">{{ $t('dashboard.settings.apiDevices.create.scopes') }}</span>
+    </Field>
+    <Field>
+      <FieldTitle>
+        {{ $t('dashboard.settings.apiDevices.create.scopes') }}
+        <FieldInfo>{{ $t('dashboard.settings.apiDevices.create.scopesHelp') }}</FieldInfo>
+      </FieldTitle>
       <MultiChoice v-model="scopes" data-field="scopes" :options="scopeOptions" />
-      <span class="text-sm text-muted-foreground">
-        {{ $t('dashboard.settings.apiDevices.create.scopesHelp') }}
-      </span>
-    </div>
-    <div v-if="canPin && pipelineOptions.length > 0" class="grid gap-1.5">
-      <span class="text-sm font-medium">{{ $t('dashboard.settings.apiDevices.create.pipelines') }}</span>
+    </Field>
+    <Field v-if="canPin && pipelineOptions.length > 0">
+      <FieldTitle>
+        {{ $t('dashboard.settings.apiDevices.create.pipelines') }}
+        <FieldInfo>{{ $t('dashboard.settings.apiDevices.create.pipelinesHelp') }}</FieldInfo>
+      </FieldTitle>
       <MultiChoice v-model="pipelineIds" data-field="pipelines" :options="pipelineOptions" />
-      <span class="text-sm text-muted-foreground">
-        {{ $t('dashboard.settings.apiDevices.create.pipelinesHelp') }}
-      </span>
-    </div>
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.apiDevices.create.expires') }}
-      <Input v-model="expiresOn" data-field="expires" type="date" />
-      <span class="text-sm font-normal text-muted-foreground">
-        {{ $t('dashboard.settings.apiDevices.create.expiresHelp') }}
-      </span>
-    </label>
+    </Field>
+    <Field>
+      <FieldLabel :for="expiresId">
+        {{ $t('dashboard.settings.apiDevices.create.expires') }}
+        <FieldInfo>{{ $t('dashboard.settings.apiDevices.create.expiresHelp') }}</FieldInfo>
+      </FieldLabel>
+      <Input :id="expiresId" v-model="expiresOn" data-field="expires" type="date" />
+    </Field>
   </FormDialog>
 </template>

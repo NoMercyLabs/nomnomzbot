@@ -23,8 +23,8 @@ import { useTenantMembers, type TenantMember } from '@/api/adminTenants';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import { Field, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -153,8 +153,8 @@ async function submit(): Promise<void> {
     @update:open="emit('close')"
     @submit="submit"
   >
-    <div v-if="channel === null" class="grid gap-1.5">
-      <Label for="act-as-channel">{{ t('dashboard.admin.actAs.channel') }}</Label>
+    <Field v-if="channel === null">
+      <FieldLabel for="act-as-channel">{{ t('dashboard.admin.actAs.channel') }}</FieldLabel>
       <Input
         id="act-as-channel"
         v-model="channelSearch"
@@ -178,9 +178,9 @@ async function submit(): Promise<void> {
           </button>
         </li>
       </ul>
-    </div>
-    <div class="grid gap-1.5">
-      <Label for="act-as-reason">{{ t('dashboard.admin.actAs.reason') }}</Label>
+    </Field>
+    <Field>
+      <FieldLabel for="act-as-reason">{{ t('dashboard.admin.actAs.reason') }}</FieldLabel>
       <Input
         id="act-as-reason"
         v-model="reason"
@@ -188,17 +188,17 @@ async function submit(): Promise<void> {
         required
         :placeholder="t('dashboard.admin.actAs.reasonHint')"
       />
-    </div>
-    <div class="grid gap-1.5">
-      <span class="text-sm font-medium">{{ t('dashboard.admin.actAs.length') }}</span>
+    </Field>
+    <Field>
+      <FieldTitle>{{ t('dashboard.admin.actAs.length') }}</FieldTitle>
       <SegmentedControl
         v-model="length"
         :label="t('dashboard.admin.actAs.length')"
         :options="lengthOptions"
       />
-    </div>
-    <div v-if="channelId !== null" class="grid gap-1.5">
-      <Label for="act-as-person">{{ t('dashboard.admin.actAs.person') }}</Label>
+    </Field>
+    <Field v-if="channelId !== null">
+      <FieldLabel for="act-as-person">{{ t('dashboard.admin.actAs.person') }}</FieldLabel>
       <Input
         v-model="personSearch"
         data-act-as-person-search
@@ -222,6 +222,6 @@ async function submit(): Promise<void> {
       <InlineNotice v-if="members.isError.value" tone="error" compact>
         {{ errorText(members.error.value, t) }}
       </InlineNotice>
-    </div>
+    </Field>
   </FormDialog>
 </template>

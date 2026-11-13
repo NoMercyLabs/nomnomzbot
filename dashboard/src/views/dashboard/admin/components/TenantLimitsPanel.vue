@@ -26,8 +26,8 @@ import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import { useTime } from '@/composables/useTime';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 const props = defineProps<{ tenantId: string }>();
 
@@ -139,26 +139,27 @@ function expiry(at: string | null | undefined): string {
     :error="error"
     @submit="submit"
   >
-    <div class="grid gap-2">
-      <Label for="limit-key">{{ t('dashboard.admin.tenants.limits.key') }}</Label>
+    <Field>
+      <FieldLabel for="limit-key">{{ t('dashboard.admin.tenants.limits.key') }}</FieldLabel>
       <Input id="limit-key" v-model="key" data-limit-key />
-    </div>
-    <div class="grid gap-2">
-      <Label for="limit-value">{{ t('dashboard.admin.tenants.limits.value') }}</Label>
-      <Input id="limit-value"
-             v-model="value"
-             data-limit-value
-             type="number"
-             inputmode="numeric"
+    </Field>
+    <Field>
+      <FieldLabel for="limit-value">{{ t('dashboard.admin.tenants.limits.value') }}</FieldLabel>
+      <Input
+        id="limit-value"
+        v-model="value"
+        data-limit-value
+        type="number"
+        inputmode="numeric"
       />
-    </div>
-    <div class="grid gap-2">
-      <Label for="limit-reason">{{ t('dashboard.admin.tenants.limits.reason') }}</Label>
+    </Field>
+    <Field>
+      <FieldLabel for="limit-reason">{{ t('dashboard.admin.tenants.limits.reason') }}</FieldLabel>
       <Input id="limit-reason" v-model="reason" data-limit-reason />
-    </div>
-    <div class="grid gap-2">
-      <Label for="limit-expires">{{ t('dashboard.admin.tenants.limits.expires') }}</Label>
+    </Field>
+    <Field>
+      <FieldLabel for="limit-expires">{{ t('dashboard.admin.tenants.limits.expires') }}</FieldLabel>
       <Input id="limit-expires" v-model="expires" type="datetime-local" />
-    </div>
+    </Field>
   </FormDialog>
 </template>

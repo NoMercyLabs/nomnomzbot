@@ -33,8 +33,8 @@ import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 type Step = 'create' | 'draft' | 'retire';
@@ -196,16 +196,16 @@ async function submit(): Promise<void> {
     </template>
   </PageHeader>
   <PageBody data-page-body>
-    <div data-page-inset class="grid gap-1.5">
-      <Label for="content-kind">{{ $t("dashboard.admin.content.kindFilter") }}</Label>
+    <Field data-page-inset>
+      <FieldLabel for="content-kind">{{ $t("dashboard.admin.content.kindFilter") }}</FieldLabel>
       <Input
         id="content-kind"
         v-model="kindFilter"
-        class="max-w-xs"
+        class="max-w-xs!"
         data-kind-filter
         :placeholder="$t('dashboard.admin.content.kindPlaceholder')"
       />
-    </div>
+    </Field>
 
     <PanelCard
       tier="lead"
@@ -307,34 +307,34 @@ async function submit(): Promise<void> {
       @submit="submit"
     >
       <div v-if="step === 'create'" class="grid gap-3">
-        <div class="grid gap-1.5">
-          <Label for="content-new-kind">{{ $t("dashboard.admin.content.fields.kind") }}</Label>
+        <Field>
+          <FieldLabel for="content-new-kind">{{ $t("dashboard.admin.content.fields.kind") }}</FieldLabel>
           <Input id="content-new-kind" v-model="kind" data-field-kind />
-        </div>
-        <div class="grid gap-1.5">
-          <Label for="content-new-key">{{ $t("dashboard.admin.content.fields.key") }}</Label>
+        </Field>
+        <Field>
+          <FieldLabel for="content-new-key">{{ $t("dashboard.admin.content.fields.key") }}</FieldLabel>
           <Input id="content-new-key" v-model="key" data-field-key />
-        </div>
-        <div class="grid gap-1.5">
-          <Label for="content-new-name">{{ $t("dashboard.admin.content.fields.name") }}</Label>
+        </Field>
+        <Field>
+          <FieldLabel for="content-new-name">{{ $t("dashboard.admin.content.fields.name") }}</FieldLabel>
           <Input id="content-new-name" v-model="displayName" data-field-name />
-        </div>
-        <div class="grid gap-1.5">
-          <Label for="content-new-description">{{
+        </Field>
+        <Field>
+          <FieldLabel for="content-new-description">{{
             $t("dashboard.admin.content.fields.description")
-          }}</Label>
+          }}</FieldLabel>
           <Input id="content-new-description" v-model="description" data-field-description />
-        </div>
+        </Field>
       </div>
-      <div v-if="step === 'create' || step === 'draft'" class="mt-3 grid gap-1.5">
-        <Label for="content-payload">{{ $t("dashboard.admin.content.fields.payload") }}</Label>
+      <Field v-if="step === 'create' || step === 'draft'" class="mt-3">
+        <FieldLabel for="content-payload">{{ $t("dashboard.admin.content.fields.payload") }}</FieldLabel>
         <Textarea
           id="content-payload"
           v-model="payload"
           class="min-h-40 font-mono text-xs"
           data-field-payload
         />
-      </div>
+      </Field>
     </FormDialog>
   </PageBody>
 </template>

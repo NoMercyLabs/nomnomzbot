@@ -24,8 +24,8 @@ import {
 } from '@/api/clips';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -106,17 +106,17 @@ function submit(): void {
     :error="refusal || undefined"
     @submit="submit"
   >
-    <div class="grid gap-1.5">
-      <Label for="clip-upload-title">{{ t(`${page}.upload.videoTitle`) }}</Label>
+    <Field>
+      <FieldLabel for="clip-upload-title">{{ t(`${page}.upload.videoTitle`) }}</FieldLabel>
       <Input id="clip-upload-title" v-model="title" :maxlength="TITLE_MAX" />
-    </div>
-    <div class="grid gap-1.5">
-      <Label for="clip-upload-description">{{ t(`${page}.upload.videoDescription`) }}</Label>
+    </Field>
+    <Field>
+      <FieldLabel for="clip-upload-description">{{ t(`${page}.upload.videoDescription`) }}</FieldLabel>
       <Textarea id="clip-upload-description" v-model="description" :maxlength="DESCRIPTION_MAX" rows="3" />
-    </div>
-    <div class="grid gap-1.5">
-      <Label for="clip-upload-privacy">{{ t(`${page}.upload.privacy`) }}</Label>
+    </Field>
+    <Field>
+      <FieldLabel for="clip-upload-privacy">{{ t(`${page}.upload.privacy`) }}</FieldLabel>
       <OptionSelect id="clip-upload-privacy" v-model="privacy" data-clip-privacy :options="privacyOptions" />
-    </div>
+    </Field>
   </FormDialog>
 </template>

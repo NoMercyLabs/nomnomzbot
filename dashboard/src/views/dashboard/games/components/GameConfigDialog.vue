@@ -29,8 +29,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -167,8 +167,8 @@ function submit(): void {
       </div>
 
       <div class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4 sm:grid-cols-2">
-        <div v-for="field in fields" :key="field" class="grid gap-1.5">
-          <Label :for="`game-${field}`">{{ t(`dashboard.games.configs.fields.${field}`) }}</Label>
+        <Field v-for="field in fields" :key="field">
+          <FieldLabel :for="`game-${field}`">{{ t(`dashboard.games.configs.fields.${field}`) }}</FieldLabel>
           <Input
             :id="`game-${field}`"
             v-model="values[field]"
@@ -178,22 +178,22 @@ function submit(): void {
             min="0"
             step="any"
           />
-        </div>
+        </Field>
 
-        <div class="grid gap-1.5">
-          <Label for="game-cooldownSeconds">
+        <Field>
+          <FieldLabel for="game-cooldownSeconds">
             {{ t("dashboard.games.configs.fields.cooldownSeconds") }}
-          </Label>
+          </FieldLabel>
           <DurationInput
             id="game-cooldownSeconds"
             v-model="cooldown"
             data-game-field="cooldownSeconds"
             :disabled="!canWrite"
           />
-        </div>
+        </Field>
 
-        <div class="grid gap-1.5">
-          <Label for="game-permission">{{ t("dashboard.games.configs.fields.permission") }}</Label>
+        <Field>
+          <FieldLabel for="game-permission">{{ t("dashboard.games.configs.fields.permission") }}</FieldLabel>
           <Select v-model="permission" :disabled="!canWrite">
             <SelectTrigger id="game-permission" data-game-permission class="w-full">
               <SelectValue />
@@ -204,7 +204,7 @@ function submit(): void {
               </SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
         <p class="text-sm text-muted-foreground sm:col-span-2" data-game-category>
           {{ t("dashboard.games.configs.category.line", { category: t(categoryKey) }) }}

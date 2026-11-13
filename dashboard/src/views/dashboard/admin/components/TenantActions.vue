@@ -36,8 +36,8 @@ import {
 import FormDialog from '@/components/layout/FormDialog.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { usePlatformCan } from '@/composables/usePlatformCan';
@@ -233,14 +233,14 @@ const pending = computed(
     @update:open="close"
     @submit="submit"
   >
-    <div v-if="action === 'suspend'" class="grid gap-2">
-      <Label>{{ t('dashboard.admin.tenants.suspend.statusLabel') }}</Label>
+    <Field v-if="action === 'suspend'">
+      <FieldTitle>{{ t('dashboard.admin.tenants.suspend.statusLabel') }}</FieldTitle>
       <SegmentedControl
         v-model="newStatus"
         :label="t('dashboard.admin.tenants.suspend.statusLabel')"
         :options="statusOptions"
       />
-    </div>
+    </Field>
     <div v-if="action === 'erase' && preview.data.value" data-erase-preview class="grid gap-1 text-sm">
       <p>
         {{
@@ -258,24 +258,25 @@ const pending = computed(
         </li>
       </ul>
     </div>
-    <div class="grid gap-2">
-      <Label for="tenant-justification">{{ t('dashboard.admin.tenants.justification') }}</Label>
-      <Textarea id="tenant-justification"
-                v-model="text"
-                data-justification
-                data-suspend-reason
-                rows="3"
+    <Field>
+      <FieldLabel for="tenant-justification">{{ t('dashboard.admin.tenants.justification') }}</FieldLabel>
+      <Textarea
+        id="tenant-justification"
+        v-model="text"
+        data-justification
+        data-suspend-reason
+        rows="3"
       />
-    </div>
+    </Field>
     <div v-if="action === 'access' && can('tenant:access')" class="grid gap-3">
       <div data-touch-target class="flex min-h-9 items-center justify-between gap-3">
-        <Label for="tenant-break-glass">{{ t('dashboard.admin.tenants.access.breakGlass') }}</Label>
+        <FieldLabel for="tenant-break-glass">{{ t('dashboard.admin.tenants.access.breakGlass') }}</FieldLabel>
         <Switch id="tenant-break-glass" v-model="breakGlass" />
       </div>
-      <div class="grid gap-2">
-        <Label for="tenant-expires">{{ t('dashboard.admin.tenants.access.expires') }}</Label>
+      <Field>
+        <FieldLabel for="tenant-expires">{{ t('dashboard.admin.tenants.access.expires') }}</FieldLabel>
         <Input id="tenant-expires" v-model="expires" type="datetime-local" />
-      </div>
+      </Field>
     </div>
   </FormDialog>
 </template>

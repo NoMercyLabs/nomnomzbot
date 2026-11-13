@@ -12,7 +12,7 @@
 // Makes or edits one feed: its name, how the data arrives (the bot polls an address, the bot listens on a socket,
 // or the source pushes to a link the bot gives), the secret, the fields and the on/off switch.
 // A saved secret is never shown. Leaving the secret empty keeps the saved one.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -24,6 +24,7 @@ import {
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import { Field, FieldInfo, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -47,6 +48,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ submit: [draft: EventFeedDraft] }>();
 const open = defineModel<boolean>('open', { required: true });
+const base = useId();
 
 const { t } = useI18n();
 
@@ -159,46 +161,52 @@ function submit(): void {
       />
     </template>
 
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.customEventFeeds.displayName') }}
+    <Field>
+      <FieldLabel :for="`${base}-display-name`">
+        {{ $t('dashboard.settings.customEventFeeds.displayName') }}
+      </FieldLabel>
       <Input
+        :id="`${base}-display-name`"
         v-model="displayName"
         data-field="display-name"
         maxlength="100"
         :placeholder="$t('dashboard.settings.customEventFeeds.displayNamePlaceholder')"
       />
-    </label>
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.customEventFeeds.name') }}
+    </Field>
+    <Field>
+      <FieldLabel :for="`${base}-name`">
+        {{ $t('dashboard.settings.customEventFeeds.name') }}
+        <FieldInfo>{{ $t('dashboard.settings.customEventFeeds.nameHelp', { name: name || '...' }) }}</FieldInfo>
+      </FieldLabel>
       <Input
+        :id="`${base}-name`"
         v-model="name"
         data-field="name"
         class="font-mono"
         maxlength="50"
         :placeholder="$t('dashboard.settings.customEventFeeds.namePlaceholder')"
       />
-      <span class="text-sm font-normal text-muted-foreground">
-        {{ $t('dashboard.settings.customEventFeeds.nameHelp', { name: name || '...' }) }}
-      </span>
-    </label>
+    </Field>
 
-    <div class="grid gap-1.5">
-      <span class="text-sm font-medium">{{ $t('dashboard.settings.customEventFeeds.kind.title') }}</span>
+    <Field>
+      <FieldTitle>
+        {{ $t('dashboard.settings.customEventFeeds.kind.title') }}
+        <FieldInfo>{{ $t(`dashboard.settings.customEventFeeds.kind.${kind}Help`) }}</FieldInfo>
+      </FieldTitle>
       <SegmentedControl
         v-model="kind"
         data-field="kind"
         :label="$t('dashboard.settings.customEventFeeds.kind.title')"
         :options="kindOptions"
       />
-      <span class="text-sm text-muted-foreground">
-        {{ $t(`dashboard.settings.customEventFeeds.kind.${kind}Help`) }}
-      </span>
-    </div>
+    </Field>
 
-    <div v-if="presetOptions.length > 0" class="grid gap-1.5">
-      <span class="text-sm font-medium">{{ $t('dashboard.settings.customEventFeeds.preset.title') }}</span>
+    <Field v-if="presetOptions.length > 0">
+      <FieldLabel :for="`${base}-preset`">
+        {{ $t('dashboard.settings.customEventFeeds.preset.title') }}
+      </FieldLabel>
       <Select :model-value="presetKey" @update:model-value="pickPreset(String($event))">
-        <SelectTrigger data-field="preset" :aria-label="$t('dashboard.settings.customEventFeeds.preset.title')">
+        <SelectTrigger :id="`${base}-preset`" data-field="preset">
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -210,52 +218,58 @@ function submit(): void {
           </SelectGroup>
         </SelectContent>
       </Select>
-    </div>
+    </Field>
 
-    <label v-if="needsAddress" class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.customEventFeeds.address') }}
+    <Field v-if="needsAddress">
+      <FieldLabel :for="`${base}-address`">
+        {{ $t('dashboard.settings.customEventFeeds.address') }}
+      </FieldLabel>
       <Input
+        :id="`${base}-address`"
         v-model="endpointUrl"
         data-field="address"
         class="font-mono"
         maxlength="500"
         :placeholder="$t(`dashboard.settings.customEventFeeds.addressPlaceholder.${kind}`)"
       />
-    </label>
+    </Field>
 
-    <label v-if="kind === 'poll'" class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.customEventFeeds.interval') }}
-      <Input v-model="interval"
-             data-field="interval"
-             type="number"
-             min="1"
-             class="w-32"
-      />
-      <span class="text-sm font-normal text-muted-foreground">
-        {{ $t('dashboard.settings.customEventFeeds.intervalHelp') }}
-      </span>
-    </label>
-
-    <label class="grid gap-1.5 text-sm font-medium">
-      {{ $t('dashboard.settings.customEventFeeds.secret') }}
+    <Field v-if="kind === 'poll'">
+      <FieldLabel :for="`${base}-interval`">
+        {{ $t('dashboard.settings.customEventFeeds.interval') }}
+        <FieldInfo>{{ $t('dashboard.settings.customEventFeeds.intervalHelp') }}</FieldInfo>
+      </FieldLabel>
       <Input
+        :id="`${base}-interval`"
+        v-model="interval"
+        data-field="interval"
+        type="number"
+        min="1"
+        class="w-32!"
+      />
+    </Field>
+
+    <Field>
+      <FieldLabel :for="`${base}-secret`">
+        {{ $t('dashboard.settings.customEventFeeds.secret') }}
+        <FieldInfo>{{ $t(`dashboard.settings.customEventFeeds.secretHelp.${kind}`) }}</FieldInfo>
+      </FieldLabel>
+      <Input
+        :id="`${base}-secret`"
         v-model="authSecret"
         data-field="secret"
         type="password"
         autocomplete="off"
         :placeholder="hasSecret ? $t('dashboard.settings.customEventFeeds.secretKept') : ''"
       />
-      <span class="text-sm font-normal text-muted-foreground">
-        {{ $t(`dashboard.settings.customEventFeeds.secretHelp.${kind}`) }}
-      </span>
-    </label>
+    </Field>
 
-    <div class="grid gap-1.5">
-      <span class="text-sm font-medium">{{ $t('dashboard.settings.customEventFeeds.fields.title') }}</span>
+    <Field>
+      <FieldTitle>
+        {{ $t('dashboard.settings.customEventFeeds.fields.title') }}
+        <FieldInfo>{{ $t('dashboard.settings.customEventFeeds.fields.help') }}</FieldInfo>
+      </FieldTitle>
       <FieldMapEditor v-model="fields" />
-      <span class="text-sm text-muted-foreground">
-        {{ $t('dashboard.settings.customEventFeeds.fields.help') }}
-      </span>
-    </div>
+    </Field>
   </FormDialog>
 </template>

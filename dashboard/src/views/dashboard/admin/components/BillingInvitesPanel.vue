@@ -36,8 +36,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { merge } from '@/lib/array';
 import { inviteLink } from '@/lib/botAddress';
 import { numberOrNull } from '@/lib/number';
@@ -270,25 +270,27 @@ async function confirmRevoke(): Promise<void> {
       v-model:forever="forever"
       :choices="choices"
     />
-    <div class="grid gap-2">
-      <Label for="invite-max">{{ t('dashboard.admin.billing.invites.max') }}</Label>
-      <Input id="invite-max"
-             v-model="maxRedemptions"
-             data-invite-max
-             type="number"
-             class="w-28"
-             min="1"
+    <Field>
+      <FieldLabel for="invite-max">{{ t('dashboard.admin.billing.invites.max') }}</FieldLabel>
+      <Input
+        id="invite-max"
+        v-model="maxRedemptions"
+        data-invite-max
+        type="number"
+        class="w-28!"
+        min="1"
       />
-    </div>
-    <div class="grid gap-2">
-      <Label for="invite-expires">{{ t('dashboard.admin.billing.invites.expiresLabel') }}</Label>
-      <Input id="invite-expires"
-             v-model="expires"
-             data-invite-expires
-             type="datetime-local"
-             class="w-fit"
+    </Field>
+    <Field>
+      <FieldLabel for="invite-expires">{{ t('dashboard.admin.billing.invites.expiresLabel') }}</FieldLabel>
+      <Input
+        id="invite-expires"
+        v-model="expires"
+        data-invite-expires
+        type="datetime-local"
+        class="w-fit!"
       />
-    </div>
+    </Field>
     <LabeledSwitch v-model="foundersBadge" data-invite-founder :label="t('dashboard.admin.billing.invites.founder')" />
     <p v-if="summary" data-invite-summary class="text-sm text-muted-foreground">
       {{ summary }}

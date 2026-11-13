@@ -16,9 +16,8 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateWidget } from '@/api/widgets';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
+import { Field, FieldInfo, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
@@ -91,13 +90,13 @@ async function submit(): Promise<void> {
       />
     </Field>
     <Field>
-      <FieldLabel>{{ $t("dashboard.overlays.create.framework") }}</FieldLabel>
+      <FieldTitle>{{ $t("dashboard.overlays.create.framework") }}</FieldTitle>
       <RadioGroup v-model="framework" class="grid gap-2">
         <div v-for="value in FRAMEWORKS" :key="value" class="flex items-center gap-2">
           <RadioGroupItem :id="`new-overlay-${value}`" :value="value" />
-          <Label :for="`new-overlay-${value}`" class="font-normal">
+          <FieldLabel :for="`new-overlay-${value}`" class="font-normal">
             {{ $t(`dashboard.overlays.create.frameworks.${value}`) }}
-          </Label>
+          </FieldLabel>
         </div>
       </RadioGroup>
       <FieldInfo>{{ $t("dashboard.overlays.create.frameworkHelp") }}</FieldInfo>

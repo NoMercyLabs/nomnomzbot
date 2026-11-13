@@ -37,6 +37,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
@@ -214,56 +215,71 @@ async function submit(): Promise<void> {
       :description="$t('dashboard.admin.eventReplay.scope.description')"
     >
       <div class="grid grid-cols-1 gap-3 md:flex md:flex-wrap md:items-end">
-        <label class="grid gap-1 text-xs text-muted-foreground">
-          {{ $t("dashboard.admin.eventReplay.scope.channel") }}
+        <Field class="gap-1 md:w-auto">
+          <FieldLabel for="replay-tenant" class="text-xs font-normal text-muted-foreground">
+            {{ $t("dashboard.admin.eventReplay.scope.channel") }}
+          </FieldLabel>
           <OptionSelect
+            id="replay-tenant"
             v-model="broadcasterId"
             data-tenant
             searchable
-            class="w-full rounded-md border border-input bg-transparent shadow-xs md:w-56 dark:bg-input/30"
+            class="w-full rounded-md border border-input bg-transparent shadow-xs md:w-56! dark:bg-input/30"
             :options="tenantChoices"
             :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
             :search-placeholder="$t('frame.channel.find')"
             :empty-text="$t('frame.channel.noMatch')"
           />
-        </label>
-        <label class="grid gap-1 text-xs text-muted-foreground">
-          {{ $t("dashboard.admin.eventReplay.scope.projection") }}
+        </Field>
+        <Field class="gap-1 md:w-auto">
+          <FieldLabel for="replay-projection" class="text-xs font-normal text-muted-foreground">
+            {{ $t("dashboard.admin.eventReplay.scope.projection") }}
+          </FieldLabel>
           <OptionSelect
+            id="replay-projection"
             v-model="projectionName"
             data-projection
-            class="w-full md:w-56"
+            class="w-full md:w-56!"
             :options="projectionChoices"
             :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
           />
-        </label>
-        <label class="grid gap-1 text-xs text-muted-foreground">
-          {{ $t("dashboard.admin.eventReplay.scope.eventType") }}
+        </Field>
+        <Field class="gap-1 md:w-auto">
+          <FieldLabel for="replay-event-type" class="text-xs font-normal text-muted-foreground">
+            {{ $t("dashboard.admin.eventReplay.scope.eventType") }}
+          </FieldLabel>
           <OptionSelect
+            id="replay-event-type"
             v-model="eventType"
             data-event-type
-            class="w-full md:w-56"
+            class="w-full md:w-56!"
             :options="eventTypeChoices"
           />
-        </label>
-        <label class="grid gap-1 text-xs text-muted-foreground">
-          {{ $t("dashboard.admin.eventReplay.scope.from") }}
+        </Field>
+        <Field class="gap-1 md:w-auto">
+          <FieldLabel for="replay-from" class="text-xs font-normal text-muted-foreground">
+            {{ $t("dashboard.admin.eventReplay.scope.from") }}
+          </FieldLabel>
           <input
+            id="replay-from"
             v-model="from"
             data-from
             type="datetime-local"
             class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
           />
-        </label>
-        <label class="grid gap-1 text-xs text-muted-foreground">
-          {{ $t("dashboard.admin.eventReplay.scope.to") }}
+        </Field>
+        <Field class="gap-1 md:w-auto">
+          <FieldLabel for="replay-to" class="text-xs font-normal text-muted-foreground">
+            {{ $t("dashboard.admin.eventReplay.scope.to") }}
+          </FieldLabel>
           <input
+            id="replay-to"
             v-model="to"
             data-to
             type="datetime-local"
             class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
           />
-        </label>
+        </Field>
       </div>
 
       <!-- Below the tablet width the preview and the replay move into the frame's sticky action footer. -->

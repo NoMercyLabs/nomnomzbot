@@ -26,6 +26,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { errorText } from '@/lib/errors';
@@ -226,9 +227,9 @@ async function confirm(): Promise<void> {
             class="grid grid-cols-[minmax(0,1fr)_4.5rem_auto] items-center gap-x-3 gap-y-1"
           >
             <div class="min-w-0">
-              <label :for="`mode-${mode}`" class="text-sm font-medium">
+              <FieldLabel :for="`mode-${mode}`">
                 {{ $t(`dashboard.chat.modTools.mode.${mode}`) }}
-              </label>
+              </FieldLabel>
               <p class="text-xs text-muted-foreground">
                 {{ $t(`dashboard.chat.modTools.hint.${mode}`, { value: lengthOf(mode, settings.data.value) }) }}
               </p>

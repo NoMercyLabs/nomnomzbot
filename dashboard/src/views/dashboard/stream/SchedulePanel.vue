@@ -29,8 +29,8 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -156,14 +156,14 @@ function toggleCanceled(segment: ScheduleSegment): void {
           />
         </RowGroup>
         <div v-if="vacationOn" class="grid gap-3 sm:grid-cols-2">
-          <div class="grid gap-1.5">
-            <Label for="vacation-start">{{ t('dashboard.stream.schedule.vacationStartTime') }}</Label>
+          <Field>
+            <FieldLabel for="vacation-start">{{ t('dashboard.stream.schedule.vacationStartTime') }}</FieldLabel>
             <Input id="vacation-start" v-model="vacationStart" type="datetime-local" />
-          </div>
-          <div class="grid gap-1.5">
-            <Label for="vacation-end">{{ t('dashboard.stream.schedule.vacationEndTime') }}</Label>
+          </Field>
+          <Field>
+            <FieldLabel for="vacation-end">{{ t('dashboard.stream.schedule.vacationEndTime') }}</FieldLabel>
             <Input id="vacation-end" v-model="vacationEnd" type="datetime-local" />
-          </div>
+          </Field>
         </div>
         <div v-if="vacationDirty" class="flex items-center justify-end gap-3">
           <span v-if="!vacationValid" class="min-w-0 text-sm text-muted-foreground">
