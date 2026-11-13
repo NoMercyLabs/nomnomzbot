@@ -12,15 +12,14 @@
 // One outbound webhook: its name, the address it posts to, how many events it follows, when it last delivered,
 // and the on/off switch. An endpoint the bot switched off after repeated failures says why and offers to turn back on.
 import History from '~icons/nnz/clock-backward';
-import Edit from '~icons/nnz/edit';
 import Key from '~icons/nnz/key-modern';
 import Send from '~icons/nnz/paper-plane-send';
-import Trash from '~icons/nnz/trash';
 import { computed } from 'vue';
 
 import type { OutboundWebhook } from '@/api/webhooks';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import IconAction from '@/components/layout/IconAction.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -136,20 +135,12 @@ const lastDelivery = computed(() =>
           >
             <Key class="size-5" />
           </IconAction>
-          <IconAction
-            data-outbound-edit
-            :label="$t('dashboard.settings.webhooks.outbound.edit', { name: endpoint.name })"
-            @click="$emit('edit')"
-          >
-            <Edit class="size-5" />
-          </IconAction>
-          <IconAction
-            data-outbound-delete
-            :label="$t('dashboard.settings.webhooks.outbound.delete', { name: endpoint.name })"
-            @click="$emit('remove')"
-          >
-            <Trash class="size-5" />
-          </IconAction>
+          <RowEditDelete
+            :edit-label="$t('dashboard.settings.webhooks.outbound.edit', { name: endpoint.name })"
+            :delete-label="$t('dashboard.settings.webhooks.outbound.delete', { name: endpoint.name })"
+            @edit="$emit('edit')"
+            @delete="$emit('remove')"
+          />
         </template>
         <GatedSwitch
           class="ml-2"

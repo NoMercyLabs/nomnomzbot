@@ -11,14 +11,13 @@
 <script setup lang="ts">
 // One feed: its name and the `custom.<name>` event it makes, how its data arrives, when data last came, the
 // fields that failed on the last datum, and the on/off switch. A push feed also shows the link the source posts to.
-import Edit from '~icons/nnz/edit';
 import Lightning from '~icons/nnz/lightning';
-import Trash from '~icons/nnz/trash';
 import { computed } from 'vue';
 
 import type { EventFeed } from '@/api/customEventFeeds';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -78,24 +77,12 @@ const lastReceived = useFormattedTime(() => props.feed.lastReceivedAt, 'dateTime
       >
         <Lightning class="size-5" />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        data-feed-edit
-        :aria-label="$t('dashboard.settings.customEventFeeds.edit.open', { name: feed.displayName })"
-        @click="$emit('edit')"
-      >
-        <Edit class="size-5" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        data-feed-delete
-        :aria-label="$t('dashboard.settings.customEventFeeds.delete.open', { name: feed.displayName })"
-        @click="$emit('remove')"
-      >
-        <Trash class="size-5" />
-      </Button>
+      <RowEditDelete
+        :edit-label="$t('dashboard.settings.customEventFeeds.edit.open', { name: feed.displayName })"
+        :delete-label="$t('dashboard.settings.customEventFeeds.delete.open', { name: feed.displayName })"
+        @edit="$emit('edit')"
+        @delete="$emit('remove')"
+      />
     </div>
     <GatedSwitch
       action="customdata:write"

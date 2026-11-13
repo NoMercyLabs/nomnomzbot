@@ -540,7 +540,7 @@ describe('Permissions', () => {
     );
 
     await open('capabilities');
-    await click(q('[data-grant="u-obs:obs:control"] [data-grant-revoke]'));
+    await click(q('[data-grant="u-obs:obs:control"] [data-grant-revoke] [data-row-delete]'));
 
     expect(callTo('DELETE', '/permissions/{userId}')?.params).toMatchObject({
       path: { userId: 'u-obs' },
@@ -550,14 +550,14 @@ describe('Permissions', () => {
     expect(document.body.querySelector('[data-grant="u-obs:obs:control"]')).toBeNull();
     expect(q('[data-grant="u-bm:bot:manager:author"]').textContent).toContain('Bot manager');
 
-    await click(q('[data-grant="u-bm:bot:manager:author"] [data-grant-revoke]'));
+    await click(q('[data-grant="u-bm:bot:manager:author"] [data-grant-revoke] [data-row-delete]'));
 
     expect(document.body.querySelector('[data-grant="u-bm:bot:manager:author"]')).toBeNull();
   });
 
   it('takes a capability away with the permission in the query', async () => {
     await open('capabilities');
-    await click(q('[data-grant="u-vip:chat.permit-link"] [data-grant-revoke]'));
+    await click(q('[data-grant="u-vip:chat.permit-link"] [data-grant-revoke] [data-row-delete]'));
 
     const sent = callTo('DELETE', '/permissions/{userId}');
 

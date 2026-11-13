@@ -326,7 +326,7 @@ describe('Webhooks page', () => {
   it('keeps the icon buttons and the switch in one group, apart from the turn-back-on button', async () => {
     await open();
 
-    const group = q('[data-outbound-delete]').closest('[data-outbound-actions]');
+    const group = q('[data-outbound-actions]');
     const reenable = q('[data-outbound-reenable]');
 
     expect(group).not.toBeNull();
@@ -336,8 +336,8 @@ describe('Webhooks page', () => {
       '[data-outbound-deliveries]',
       '[data-outbound-test]',
       '[data-outbound-rotate]',
-      '[data-outbound-edit]',
-      '[data-outbound-delete]',
+      '[data-row-edit]',
+      '[data-row-delete]',
       '[role="switch"]',
     ]) {
       expect(group?.querySelector(selector)).not.toBeNull();
@@ -347,8 +347,8 @@ describe('Webhooks page', () => {
   it('gives the inbound actions their own full-width line and the outbound icon spacing', async () => {
     await open();
 
-    const group = q('[data-inbound-delete]').closest('[data-inbound-actions]');
-    const outbound = q('[data-outbound-delete]').closest('[data-outbound-actions]');
+    const group = q('[data-inbound-actions]');
+    const outbound = q('[data-outbound-actions]');
 
     expect(group).not.toBeNull();
     expect(group?.parentElement?.classList.contains('w-full')).toBe(true);
@@ -357,9 +357,9 @@ describe('Webhooks page', () => {
 
     for (const selector of [
       '[data-copy-link]',
-      '[data-inbound-edit]',
+      '[data-row-edit]',
       '[data-inbound-rotate]',
-      '[data-inbound-delete]',
+      '[data-row-delete]',
       '[role="switch"]',
     ]) {
       expect(group?.querySelector(selector)).not.toBeNull();
@@ -370,7 +370,7 @@ describe('Webhooks page', () => {
     await open();
 
     const buttons = {
-      '[data-outbound-delete]': 'Delete Home server',
+      '[data-outbound-actions] [data-row-delete]': 'Delete Home server',
       '[data-outbound-deliveries]': 'Deliveries of Home server',
       '[data-inbound-rotate]': 'Make a new link for Ko-fi',
     } as const satisfies Record<string, string>;
@@ -408,7 +408,7 @@ describe('Webhooks page', () => {
 
   it('counts what an inbound webhook reaches before the confirm, and deletes only after it', async () => {
     await open();
-    await click(q('[data-inbound-delete]'));
+    await click(q('[data-inbound-actions] [data-row-delete]'));
 
     expect(callTo('GET', '/blast-radius')).toBeDefined();
     expect(callTo('DELETE', '/inbound/{endpointId}')).toBeUndefined();
@@ -423,7 +423,7 @@ describe('Webhooks page', () => {
 
   it('counts what an outbound webhook reaches before the confirm, and deletes only after it', async () => {
     await open();
-    await click(q('[data-outbound-delete]'));
+    await click(q('[data-outbound-actions] [data-row-delete]'));
 
     expect(callTo('GET', '/outbound/{endpointId}/blast-radius')?.params).toMatchObject({
       path: { channelId: 'c1', endpointId: 'o1' },
@@ -667,7 +667,7 @@ describe('Webhooks page', () => {
 
   it('edits the template and the flag with the PUT, and keeps stored headers when left empty', async () => {
     await open();
-    await click(q('[data-outbound-edit]'));
+    await click(q('[data-outbound-actions] [data-row-edit]'));
     await typeInto('[data-field="body-template"]', 'b=2');
     await click(q('[data-form-action]'));
 
@@ -755,7 +755,7 @@ describe('Webhooks inbound editor', () => {
 
   it('keeps the stored secret, target and enabled flag when an edit changes only the name', async () => {
     await open();
-    await click(q('[data-inbound-edit]'));
+    await click(q('[data-inbound-actions] [data-row-edit]'));
     await typeInto('[data-field="inbound-name"]', 'Shop 2');
     await click(q('[data-form-action]'));
 
@@ -852,9 +852,9 @@ describe('Webhooks permissions', () => {
       '[data-outbound-test]',
       '[data-outbound-rotate]',
       '[data-new-inbound]',
-      '[data-inbound-edit]',
+      '[data-inbound-actions] [data-row-edit]',
       '[data-inbound-rotate]',
-      '[data-inbound-delete]',
+      '[data-inbound-actions] [data-row-delete]',
       'button[role="switch"]',
     ];
 

@@ -246,7 +246,7 @@ describe('Custom event feeds', () => {
 
   it('counts what the feed reaches before it asks, and deletes only after the confirm', async () => {
     await open();
-    await click(row('heartrate').querySelector<HTMLElement>('[data-feed-delete]') as HTMLElement);
+    await click(row('heartrate').querySelector<HTMLElement>('[data-row-delete]') as HTMLElement);
 
     expect(callTo('GET', '/blast-radius')).toBeDefined();
     expect(callTo('DELETE', '/custom-data-sources/{id}')).toBeUndefined();

@@ -240,7 +240,7 @@ describe('API and devices', () => {
 
   it('asks before it revokes, then deletes that key and reads the list again', async () => {
     await open();
-    await click(q('[data-revoke]'));
+    await click(q('[data-revoke] [data-row-delete]'));
 
     expect(callTo('DELETE', '/tokens/{tokenId}')).toBeUndefined();
 

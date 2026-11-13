@@ -1183,12 +1183,7 @@ const rawSearchInputAllowlist = [
 const handDeleteButton = /~icons\/nnz\/(?:trash|delete)/;
 const handDeleteButtonAllowlist = [
   // List pages not moved yet (phase 2 lane): row-end or card delete icons written by hand.
-  'views/dashboard/settings/api-devices/components/TokensTable.vue',
-  'views/dashboard/settings/custom-event-feeds/components/EventFeedRow.vue',
   'views/dashboard/settings/escalation/components/LadderPanel.vue',
-  'views/dashboard/settings/permissions/components/PersonGrantsPanel.vue',
-  'views/dashboard/settings/webhooks/components/InboundWebhookRow.vue',
-  'views/dashboard/settings/webhooks/components/OutboundWebhookRow.vue',
   'views/dashboard/tts/LexiconPanel.vue',
   'views/dashboard/voice-triggers/components/VoiceTriggerEditor.vue',
   // Other surfaces with a delete icon that are not a list page's entity delete (phase 2 decides each).

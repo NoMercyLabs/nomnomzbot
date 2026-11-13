@@ -12,7 +12,6 @@
 // Dangerous capabilities are given to one person, never to a whole role. Only the actions the bot allows
 // as a personal grant are offered.
 import Add from '~icons/nnz/add';
-import Trash from '~icons/nnz/trash';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -26,6 +25,7 @@ import {
 } from '@/api/permissions';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -155,22 +155,20 @@ async function add(): Promise<void> {
         :detail="row.resourceId == null ? undefined : nameOf(row.resourceId)"
       >
         <template #end>
-          <Button
+          <RowEditDelete
             v-if="canManage"
-            variant="ghost"
-            size="icon"
             data-grant-revoke
-            :aria-label="
+            :editable="false"
+            edit-label=""
+            :delete-label="
               $t('dashboard.settings.permissions.grants.revoke', {
                 name: row.subjectName ?? row.subjectId,
               })
             "
-            @click="
+            @delete="
               run(revoke.mutateAsync({ userId: row.subjectId, permission: row.resourceId ?? '' }))
             "
-          >
-            <Trash class="size-5" />
-          </Button>
+          />
         </template>
       </SummaryRow>
     </RowGroup>

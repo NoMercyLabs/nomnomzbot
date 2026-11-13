@@ -11,14 +11,13 @@
 <script setup lang="ts">
 // One inbound webhook: its name, the provider kind, the link the provider posts to (copy), how many calls arrived
 // and when the last one did, and the on/off switch.
-import Edit from '~icons/nnz/edit';
 import Rotate from '~icons/nnz/rotate';
-import Trash from '~icons/nnz/trash';
 
 import type { InboundWebhook } from '@/api/webhooks';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import IconAction from '@/components/layout/IconAction.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import { Badge } from '@/components/ui/badge';
 import { useCan } from '@/composables/useCan';
 import { useFormattedTime } from '@/composables/useTime';
@@ -67,30 +66,21 @@ const lastReceived = useFormattedTime(() => props.endpoint.lastReceivedAt, 'date
           :url="endpoint.ingestUrl"
           :label="$t('dashboard.settings.webhooks.inbound.copyLink')"
         />
-        <IconAction
-          v-if="can('webhooks:inbound:write')"
-          data-inbound-edit
-          :label="$t('dashboard.settings.webhooks.inbound.edit', { name: endpoint.name })"
-          @click="$emit('edit')"
-        >
-          <Edit class="size-5" />
-        </IconAction>
-        <IconAction
-          v-if="can('webhooks:inbound:write')"
-          data-inbound-rotate
-          :label="$t('dashboard.settings.webhooks.inbound.rotate', { name: endpoint.name })"
-          @click="$emit('rotate')"
-        >
-          <Rotate class="size-5" />
-        </IconAction>
-        <IconAction
-          v-if="can('webhooks:inbound:write')"
-          data-inbound-delete
-          :label="$t('dashboard.settings.webhooks.inbound.delete', { name: endpoint.name })"
-          @click="$emit('remove')"
-        >
-          <Trash class="size-5" />
-        </IconAction>
+        <template v-if="can('webhooks:inbound:write')">
+          <IconAction
+            data-inbound-rotate
+            :label="$t('dashboard.settings.webhooks.inbound.rotate', { name: endpoint.name })"
+            @click="$emit('rotate')"
+          >
+            <Rotate class="size-5" />
+          </IconAction>
+          <RowEditDelete
+            :edit-label="$t('dashboard.settings.webhooks.inbound.edit', { name: endpoint.name })"
+            :delete-label="$t('dashboard.settings.webhooks.inbound.delete', { name: endpoint.name })"
+            @edit="$emit('edit')"
+            @delete="$emit('remove')"
+          />
+        </template>
         <GatedSwitch
           class="ml-2"
           action="webhooks:inbound:write"

@@ -12,9 +12,9 @@
 // The keys of this channel, one row each: name, the start of the secret, what it may do, when it was last
 // used and when it ends. A revoked key stays listed (the audit trail) and has no actions.
 import Rotate from '~icons/nnz/rotate';
-import Trash from '~icons/nnz/trash';
 
 import type { AutomationToken } from '@/api/automationTokens';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -114,15 +114,13 @@ function stateOf(token: AutomationToken): string {
             >
               <Rotate class="size-5" />
             </Button>
-            <Button
+            <RowEditDelete
               data-revoke
-              variant="ghost"
-              size="icon"
-              :aria-label="$t('dashboard.settings.apiDevices.revoke.aria', { name: token.name })"
-              @click="$emit('revoke', token)"
-            >
-              <Trash class="size-5" />
-            </Button>
+              :editable="false"
+              edit-label=""
+              :delete-label="$t('dashboard.settings.apiDevices.revoke.aria', { name: token.name })"
+              @delete="$emit('revoke', token)"
+            />
           </div>
         </TableCell>
       </TableRow>
