@@ -157,16 +157,24 @@ const panels = computed(() => allPanels.value.filter((panel) => can(panelKeys[pa
     </template>
     <!-- The header's second row holds the stream line, as the mockup's head-bar does. -->
     <template v-if="hasStreamLine" #bar>
-      <ul v-if="live" data-slot="stream-line" class="flex items-center gap-6 text-muted-foreground">
+      <ul
+        v-if="live"
+        data-slot="stream-line"
+        class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-1 text-muted-foreground"
+      >
         <li v-for="stat in liveStats" :key="stat.key" class="flex items-center gap-1.5">
           <component :is="stat.icon" class="size-4" aria-hidden="true" />
           <b class="font-semibold tabular-nums text-foreground">{{ stat.value }}</b>
           <span>{{ t(`dashboard.home.liveStats.${stat.key}`) }}</span>
         </li>
-        <li v-if="category" class="min-w-0">
-          <Badge variant="outline" :title="t('dashboard.home.liveStats.category')" class="gap-1.5 truncate">
+        <li v-if="category" class="flex min-w-0 max-w-full">
+          <Badge
+            variant="outline"
+            :title="t('dashboard.home.liveStats.category')"
+            class="min-w-0 max-w-full shrink gap-1.5"
+          >
             <IconController class="size-3.5" aria-hidden="true" />
-            {{ category }}
+            <span data-category-name class="truncate">{{ category }}</span>
           </Badge>
         </li>
       </ul>

@@ -392,6 +392,21 @@ describe('HomeView', () => {
     expect(line?.textContent).not.toContain('Software');
   });
 
+  // Stoney 2026-11-13: on a phone the whole page scrolled sideways, because the uptime, viewers,
+  // followers and category did not fit one 400 px line. The line wraps, and a long category
+  // truncates inside the line width instead of widening the page.
+  it('wraps the live line and keeps a long category inside the line on a phone', async () => {
+    await open();
+
+    const line = document.body.querySelector('[data-slot="stream-line"]');
+    const category = line?.querySelector('[title]');
+
+    expect(line?.classList).toContain('flex-wrap');
+    expect(line?.classList).toContain('min-w-0');
+    expect(category?.classList).toContain('max-w-full');
+    expect(category?.querySelector('[data-category-name]')?.classList).toContain('truncate');
+  });
+
   it('shows when the last stream ended and how long it ran while offline', async () => {
     answers['/stats'] = () =>
       ok({
