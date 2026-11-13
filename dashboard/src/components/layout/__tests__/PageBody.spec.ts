@@ -34,4 +34,16 @@ describe('the page body', () => {
     expect(classes).toContain('[scrollbar-gutter:stable]');
     expect(classes).toContain('pr-[calc(1.5rem-var(--scrollbar-width))]');
   });
+
+  // A list page's lead panel fills the height and scrolls inside itself, so the dense body has no scroll of its own.
+  it('keeps a dense body at gap-3 with no scroll and no shrink guard', () => {
+    const body = mount(PageBody, { props: { dense: true } });
+    const classes = body.classes();
+
+    expect(body.attributes('data-slot')).toBe('page-body');
+    expect(classes).toContain('gap-3');
+    expect(classes).toContain('flex-1');
+    expect(classes).not.toContain('overflow-y-auto');
+    expect(classes).not.toContain('*:shrink-0');
+  });
 });

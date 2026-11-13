@@ -16,20 +16,15 @@ import { useI18n } from 'vue-i18n';
 import type { AdminPageParams } from '@/api/adminActivity';
 import { useAdminTenantUsage, type AdminTenantUsage } from '@/api/adminUsage';
 import { ApiError } from '@/api/errors';
-import PageActionFooter from '@/components/layout/PageActionFooter.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
-import AdminPager from './components/AdminPager.vue';
+import AdminCollectionPage from './components/AdminCollectionPage.vue';
 import TenantUsageTable from './components/TenantUsageTable.vue';
 
 const PAGE_SIZE: number = 25;
 
 const { t } = useI18n();
 
-const tablet = useScreenFrom('tablet');
 const page = ref(1);
 
 const params = computed(() =>
@@ -48,36 +43,30 @@ const listError = computed<string>(() =>
     ? t('dashboard.admin.tenantUsage.list.forbidden')
     : t('dashboard.admin.tenantUsage.list.error'),
 );
+const count = computed<string | undefined>(() =>
+  usage.data.value
+    ? t('dashboard.admin.tenantUsage.count', { count: total.value })
+    : undefined);
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.admin.tenantUsage.title')" :crumb="$t('dashboard.admin.crumb')">
-    <template #status>
-      <span v-if="usage.data.value" class="text-sm text-muted-foreground tabular-nums">
-        {{ $t("dashboard.admin.tenantUsage.count", { count: total }) }}
-      </span>
+  <AdminCollectionPage
+    :title="$t('dashboard.admin.tenantUsage.title')"
+    :count="count"
+    :page="page"
+    :pages="pages"
+    :state="panelState"
+    :list-title="$t('dashboard.admin.tenantUsage.list.title')"
+    :description="$t('dashboard.admin.tenantUsage.list.latestPeriod')"
+    :empty-text="$t('dashboard.admin.tenantUsage.list.empty')"
+    :error-text="listError"
+    @previous="page -= 1"
+    @next="page += 1"
+    @retry="usage.refetch()"
+  >
+    <template #notice>
+      <p data-page-inset class="text-sm text-muted-foreground">{{ $t("dashboard.admin.tenantUsage.restricted") }}</p>
     </template>
-  </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <p class="text-sm text-muted-foreground">{{ $t("dashboard.admin.tenantUsage.restricted") }}</p>
-    <PanelCard
-      tier="lead"
-      class="min-h-80 min-w-0 flex-1"
-      :title="$t('dashboard.admin.tenantUsage.list.title')"
-      :description="$t('dashboard.admin.tenantUsage.list.latestPeriod')"
-      :state="panelState"
-      :empty-text="$t('dashboard.admin.tenantUsage.list.empty')"
-      :error-text="listError"
-      @retry="usage.refetch()"
-    >
-      <TenantUsageTable :rows="rows" />
-      <template v-if="tablet" #footer>
-        <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-      </template>
-    </PanelCard>
-    <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
-    <PageActionFooter v-if="!tablet">
-      <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-    </PageActionFooter>
-  </div>
+    <TenantUsageTable :rows="rows" />
+  </AdminCollectionPage>
 </template>

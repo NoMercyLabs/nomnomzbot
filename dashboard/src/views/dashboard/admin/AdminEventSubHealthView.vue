@@ -20,20 +20,15 @@ import {
   type AdminPageParams,
 } from '@/api/adminActivity';
 import { ApiError } from '@/api/errors';
-import PageActionFooter from '@/components/layout/PageActionFooter.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
-import AdminPager from './components/AdminPager.vue';
+import AdminCollectionPage from './components/AdminCollectionPage.vue';
 import EventSubHealthTable from './components/EventSubHealthTable.vue';
 
 const PAGE_SIZE: number = 25;
 
 const { t } = useI18n();
 
-const tablet = useScreenFrom('tablet');
 const page = ref(1);
 
 const params = computed(() =>
@@ -52,35 +47,27 @@ const listError = computed<string>(() =>
     ? t('dashboard.admin.eventsubHealth.list.forbidden')
     : t('dashboard.admin.eventsubHealth.list.error'),
 );
+const count = computed<string | undefined>(() =>
+  health.data.value
+    ? t('dashboard.admin.eventsubHealth.count', { count: total.value })
+    : undefined);
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.admin.eventsubHealth.title')" :crumb="$t('dashboard.admin.crumb')">
-    <template #status>
-      <span v-if="health.data.value" class="text-sm text-muted-foreground tabular-nums">
-        {{ $t('dashboard.admin.eventsubHealth.count', { count: total }) }}
-      </span>
-    </template>
-  </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <PanelCard
-      tier="lead"
-      class="min-h-80 min-w-0 flex-1"
-      :title="$t('dashboard.admin.eventsubHealth.list.title')"
-      :description="$t('dashboard.admin.eventsubHealth.list.description')"
-      :state="panelState"
-      :empty-text="$t('dashboard.admin.eventsubHealth.list.empty')"
-      :error-text="listError"
-      @retry="health.refetch()"
-    >
-      <EventSubHealthTable :rows="rows" />
-      <template v-if="tablet" #footer>
-        <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-      </template>
-    </PanelCard>
-    <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
-    <PageActionFooter v-if="!tablet">
-      <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-    </PageActionFooter>
-  </div>
+  <AdminCollectionPage
+    :title="$t('dashboard.admin.eventsubHealth.title')"
+    :count="count"
+    :page="page"
+    :pages="pages"
+    :state="panelState"
+    :list-title="$t('dashboard.admin.eventsubHealth.list.title')"
+    :description="$t('dashboard.admin.eventsubHealth.list.description')"
+    :empty-text="$t('dashboard.admin.eventsubHealth.list.empty')"
+    :error-text="listError"
+    @previous="page -= 1"
+    @next="page += 1"
+    @retry="health.refetch()"
+  >
+    <EventSubHealthTable :rows="rows" />
+  </AdminCollectionPage>
 </template>

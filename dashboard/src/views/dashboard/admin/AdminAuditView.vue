@@ -15,21 +15,15 @@ import { useI18n } from 'vue-i18n';
 
 import { useAdminAudit, type AdminAuditEntry, type AdminAuditParams } from '@/api/adminAudit';
 import { ApiError } from '@/api/errors';
-import PageActionFooter from '@/components/layout/PageActionFooter.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
-import AdminPager from './components/AdminPager.vue';
+import AdminCollectionPage from './components/AdminCollectionPage.vue';
 import AuditFilters, { type AuditFilterValues } from './components/AuditFilters.vue';
 import AuditTable from './components/AuditTable.vue';
 
 const PAGE_SIZE: number = 25;
 
 const { t } = useI18n();
-const tablet = useScreenFrom('tablet');
-
 const page = ref(1);
 const filters = ref<AuditFilterValues>({
   permission: '',
@@ -64,36 +58,30 @@ const listError = computed<string>(() =>
     ? t('dashboard.admin.audit.list.forbidden')
     : t('dashboard.admin.audit.list.error'),
 );
+const count = computed<string | undefined>(() =>
+  log.data.value
+    ? t('dashboard.admin.audit.count', { count: total.value })
+    : undefined);
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.admin.audit.title')" :crumb="$t('dashboard.admin.crumb')">
-    <template #status>
-      <span v-if="log.data.value" class="text-sm text-muted-foreground tabular-nums">
-        {{ $t("dashboard.admin.audit.count", { count: total }) }}
-      </span>
+  <AdminCollectionPage
+    :title="$t('dashboard.admin.audit.title')"
+    :count="count"
+    :page="page"
+    :pages="pages"
+    :state="panelState"
+    :list-title="$t('dashboard.admin.audit.list.title')"
+    :description="$t('dashboard.admin.audit.list.newestFirst')"
+    :empty-text="$t('dashboard.admin.audit.list.empty')"
+    :error-text="listError"
+    @previous="page -= 1"
+    @next="page += 1"
+    @retry="log.refetch()"
+  >
+    <template #filters>
+      <AuditFilters v-model="filters" />
     </template>
-  </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <AuditFilters v-model="filters" />
-    <PanelCard
-      tier="lead"
-      class="min-h-80 min-w-0 flex-1"
-      :title="$t('dashboard.admin.audit.list.title')"
-      :description="$t('dashboard.admin.audit.list.newestFirst')"
-      :state="panelState"
-      :empty-text="$t('dashboard.admin.audit.list.empty')"
-      :error-text="listError"
-      @retry="log.refetch()"
-    >
-      <AuditTable :rows="rows" />
-      <template v-if="tablet" #footer>
-        <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-      </template>
-    </PanelCard>
-    <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
-    <PageActionFooter v-if="!tablet">
-      <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-    </PageActionFooter>
-  </div>
+    <AuditTable :rows="rows" />
+  </AdminCollectionPage>
 </template>
