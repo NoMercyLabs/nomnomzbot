@@ -269,6 +269,33 @@ describe('the target picker', () => {
     expect(alert.textContent).toContain('That command does not exist in this channel.');
   });
 
+  it('is one Field block whose error carries the FieldError slot', () => {
+    const wrapper: VueWrapper = mountPicker({
+      target: { kind: 'command', id: 'c-1' },
+      error: 'That command does not exist in this channel.',
+    });
+
+    const root: Element = wrapper.element;
+    const error: Element = root.querySelector('[data-slot="field-error"]')!;
+
+    expect(root.getAttribute('data-slot')).toBe('field');
+    expect(root.hasAttribute('data-target-picker')).toBe(true);
+    expect(error.getAttribute('role')).toBe('alert');
+    expect(error.textContent).toContain('That command does not exist in this channel.');
+  });
+
+  it('names the trigger by its label and marks it invalid on an error', () => {
+    const wrapper: VueWrapper = mountPicker({
+      label: 'Run this',
+      error: 'Pick something.',
+    });
+
+    const trigger: Element = wrapper.find('[role="combobox"]').element;
+
+    expect(trigger.getAttribute('aria-label')).toBe('Run this');
+    expect(trigger.getAttribute('aria-invalid')).toBe('true');
+  });
+
   it('warns when the bound command is not in this channel', () => {
     const wrapper: VueWrapper = mountPicker({ target: { kind: 'command', id: 'other-tenant' } });
 

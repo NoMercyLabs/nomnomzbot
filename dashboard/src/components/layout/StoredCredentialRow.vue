@@ -15,12 +15,13 @@
 // (v-model:open) on success or sets error, so the typed values survive a failure. Save stays off until every
 // field holds text. The remove button (when removable) sits in the dialog and emits remove.
 // The owner passes every word, so Admin > Providers and the integrations page share this one row.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 
 import FormDialog from '@/components/layout/FormDialog.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
 export type CredentialField = {
@@ -72,6 +73,7 @@ const emit = defineEmits<{ submit: [values: Record<string, string>]; remove: [] 
 
 const open = defineModel<boolean>('open', { default: false });
 const draft = ref<Record<string, string>>({});
+const formId = useId();
 
 const filled = (name: string): boolean => (draft.value[name] ?? '').trim() !== '';
 const complete = computed<boolean>(() =>
@@ -138,16 +140,19 @@ function submit(): void {
     :error="error"
     @submit="submit"
   >
-    <label v-for="field in fields" :key="field.name" class="grid gap-1.5 text-sm font-medium">
-      {{ field.label }}
+    <Field v-for="field in fields" :key="field.name">
+      <FieldLabel :for="`${formId}-${field.name}`">
+        {{ field.label }}
+      </FieldLabel>
       <Input
+        :id="`${formId}-${field.name}`"
         v-model="draft[field.name]"
         :name="field.name"
         :type="field.secret ? 'password' : 'text'"
         :autocomplete="field.secret ? 'new-password' : 'off'"
         :placeholder="field.placeholder"
       />
-    </label>
+    </Field>
     <div v-if="removable" class="flex justify-start">
       <Button
         type="button"

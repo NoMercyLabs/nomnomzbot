@@ -30,7 +30,7 @@ import {
   type Pipeline,
 } from '@/api/pipelines';
 import { Button } from '@/components/ui/button';
-import { FieldError } from '@/components/ui/field';
+import { Field, FieldError } from '@/components/ui/field';
 import {
   Command,
   CommandEmpty,
@@ -255,7 +255,7 @@ async function createPipeline(): Promise<void> {
 </script>
 
 <template>
-  <div data-target-picker class="grid gap-1.5">
+  <Field data-target-picker class="gap-1.5">
     <div class="flex items-center gap-2">
       <Popover v-model:open="open">
         <PopoverTrigger as-child>
@@ -378,5 +378,5 @@ async function createPipeline(): Promise<void> {
       class="mt-2"
     />
     <FieldError v-if="message !== ''">{{ message }}</FieldError>
-  </div>
+  </Field>
 </template>
