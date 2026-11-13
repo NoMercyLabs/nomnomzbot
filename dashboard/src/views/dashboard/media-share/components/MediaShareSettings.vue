@@ -18,6 +18,7 @@ import { useSaveMediaShareConfig, type MediaShareConfig } from '@/api/mediaShare
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
@@ -126,18 +127,21 @@ function submit(): void {
         <label
           v-for="key in numbers"
           :key="key"
-          class="flex min-h-11 items-center gap-3 px-3 py-2 text-sm font-medium"
+          class="contents"
         >
-          <span class="min-w-0 flex-1">{{ $t(`dashboard.mediaShare.config.${key}`) }}</span>
-          <Input
-            type="number"
-            min="0"
-            class="w-28"
-            :disabled="!can('media:write')"
-            :model-value="draft[key] ?? 0"
-            :data-field="key"
-            @update:model-value="setNumber(key, $event)"
-          />
+          <SummaryRow :title="$t(`dashboard.mediaShare.config.${key}`)">
+            <template #end>
+              <Input
+                type="number"
+                min="0"
+                class="w-28"
+                :disabled="!can('media:write')"
+                :model-value="draft[key] ?? 0"
+                :data-field="key"
+                @update:model-value="setNumber(key, $event)"
+              />
+            </template>
+          </SummaryRow>
         </label>
       </RowGroup>
       <div v-if="can('media:write')" class="flex justify-end gap-2">

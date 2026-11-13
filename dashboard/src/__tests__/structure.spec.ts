@@ -1288,3 +1288,23 @@ describe('list layout', () => {
     expect(listLayoutStale(handDeleteButton, handDeleteButtonAllowlist)).toEqual([]);
   });
 });
+
+// P2 "complete the row vocabulary": a row with a title and a control is a SettingRow or a SummaryRow inside a
+// RowGroup. A view never writes the row class string by hand; components/layout owns it.
+const handRow = /min-h-11 items-center gap-3/;
+const handRowAllowlist: readonly string[] = [];
+
+describe('row vocabulary', () => {
+  it('spots a hand-built row', () => {
+    expect(handRow.test('<label class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2">')).toBe(true);
+    expect(handRow.test('<SummaryRow :title="name" />')).toBe(false);
+  });
+
+  it('writes no row by hand in a view, except the rows that stay', () => {
+    expect(listLayoutOffenders(handRow, handRowAllowlist)).toEqual([]);
+  });
+
+  it('keeps no clean file on the hand row list', () => {
+    expect(listLayoutStale(handRow, handRowAllowlist)).toEqual([]);
+  });
+});

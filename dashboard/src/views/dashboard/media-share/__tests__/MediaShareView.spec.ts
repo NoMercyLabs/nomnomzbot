@@ -460,6 +460,26 @@ describe('Media share page', () => {
     expect(document.body.querySelector('[data-media-share-settings]')).not.toBeNull();
   });
 
+  it('reaches a number field from a press on its row text, and names the field by that text', async () => {
+    await open();
+    await openSettings();
+
+    const field = document.body.querySelector<HTMLInputElement>('[data-field="maxQueueLength"]');
+    const reached = vi.fn<() => void>();
+
+    field!.addEventListener('click', reached);
+
+    const title = [...document.body.querySelectorAll<HTMLElement>('[data-slot="summary-row-title"]')]
+      .find((node) => node.textContent?.trim() === en.dashboard.mediaShare.config.maxQueueLength);
+
+    title!.click();
+
+    expect(reached).toHaveBeenCalledTimes(1);
+    const labelText = field!.labels?.[0]?.textContent;
+
+    expect(labelText).toContain(en.dashboard.mediaShare.config.maxQueueLength);
+  });
+
   it('saves the whole config with the changed value', async () => {
     await open();
     await openSettings();

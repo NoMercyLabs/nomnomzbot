@@ -25,7 +25,7 @@ import {
 import OptionSelect, { type Choice } from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
-import RowText from '@/components/layout/RowText.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -112,25 +112,23 @@ function submit(): void {
     @retry="settings.refetch()"
   >
     <RowGroup v-if="levels">
-      <div
+      <SummaryRow
         v-for="category in TWITCH_AUTOMOD_CATEGORIES"
         :key="category"
         :data-category="category"
-        class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+        :title="$t(`dashboard.settings.automod.twitch.categories.${category}`)"
       >
-        <RowText
-          class="min-w-0 flex-1"
-          :title="$t(`dashboard.settings.automod.twitch.categories.${category}`)"
-        />
-        <OptionSelect
-          class="w-40"
-          :model-value="String(levels[category])"
-          :options="choices"
-          :disabled="!canManage"
-          :aria-label="$t(`dashboard.settings.automod.twitch.categories.${category}`)"
-          @update:model-value="(value: string) => setLevel(category, value)"
-        />
-      </div>
+        <template #end>
+          <OptionSelect
+            class="w-40"
+            :model-value="String(levels[category])"
+            :options="choices"
+            :disabled="!canManage"
+            :aria-label="$t(`dashboard.settings.automod.twitch.categories.${category}`)"
+            @update:model-value="(value: string) => setLevel(category, value)"
+          />
+        </template>
+      </SummaryRow>
     </RowGroup>
     <div v-if="canManage" class="pt-3">
       <Button

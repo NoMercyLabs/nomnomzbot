@@ -10,27 +10,22 @@
 -->
 <script setup lang="ts">
 // One rule inside a RowGroup: its title and help on the left, its control (the slot) on the right.
-// The whole row is a label, so a press on the words reaches the control. Radius 8 fits a RowGroup (12 - 4).
-import { useId } from 'vue';
-
-import RowText from '@/components/layout/RowText.vue';
+// The row is a SummaryRow. The label around it (display: contents, no box of its own) keeps what a label gave:
+// a press on the words reaches the control, and the control is named by the words.
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 
 defineProps<{
   title: string;
   description?: string;
 }>();
-
-const titleId = useId();
 </script>
 
 <template>
-  <label
-    data-slot="rule-row"
-    class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2 hover:bg-foreground/5"
-  >
-    <span class="min-w-0 flex-1">
-      <RowText :title="title" :title-id="titleId" :description="description" />
-    </span>
-    <slot />
+  <label data-slot="rule-row" class="contents">
+    <SummaryRow :title="title" :detail="description">
+      <template #end>
+        <slot />
+      </template>
+    </SummaryRow>
   </label>
 </template>

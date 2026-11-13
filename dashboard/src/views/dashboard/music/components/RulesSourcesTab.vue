@@ -21,6 +21,7 @@ import { rungOf, rungs, useActionMatrix, useSetActionLevel, type RungName } from
 import { musicProviders } from '@/api/vocabulary';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
@@ -142,10 +143,13 @@ function setSourceRung(actionKey: string, rung: string, source: string): void {
             <label
               v-for="provider in musicProviders"
               :key="provider"
-              class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2 text-sm font-medium hover:bg-foreground/5"
+              class="contents"
             >
-              <RadioGroupItem :value="provider" />
-              {{ $t(`dashboard.music.rules.providers.${provider}`) }}
+              <SummaryRow :title="$t(`dashboard.music.rules.providers.${provider}`)">
+                <template #leading>
+                  <RadioGroupItem :value="provider" />
+                </template>
+              </SummaryRow>
             </label>
           </RowGroup>
         </RadioGroup>

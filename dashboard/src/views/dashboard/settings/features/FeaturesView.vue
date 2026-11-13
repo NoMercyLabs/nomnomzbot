@@ -21,6 +21,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import { Badge } from '@/components/ui/badge';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -98,36 +99,40 @@ async function flip(feature: ChannelFeature): Promise<void> {
         <section v-for="area in areas" :key="area.id" :data-area="area.id" class="flex flex-col gap-2">
           <h3 class="px-1 text-sm font-medium">{{ $t(`dashboard.settings.features.areas.${area.id}`) }}</h3>
           <RowGroup>
-            <div
+            <SummaryRow
               v-for="feature in area.features"
               :key="feature.featureKey"
               :data-feature="feature.featureKey"
-              class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+              :title="feature.label"
+              :detail="feature.description"
             >
-              <div class="min-w-0 flex-1">
+              <template #title>
                 <span class="flex flex-wrap items-center gap-2">
-                  <span :id="`feature-${feature.featureKey}`" class="text-sm font-medium wrap-break-word">{{ feature.label }}</span>
+                  <span :id="`feature-${feature.featureKey}`">{{ feature.label }}</span>
                   <Badge v-if="!feature.entitled" variant="outline">
                     {{ feature.requiredTier ?? $t('dashboard.settings.features.upgrade') }}
                   </Badge>
                 </span>
-                <span class="block text-sm text-muted-foreground">{{ feature.description }}</span>
-                <span v-if="!feature.entitled && feature.entitlementReason" class="block text-sm text-muted-foreground">
+              </template>
+              <template #meta>
+                <span v-if="!feature.entitled && feature.entitlementReason" class="block text-sm">
                   {{ feature.entitlementReason }}
                 </span>
-                <span v-if="feature.requiredScopes.length > 0" class="block text-sm text-muted-foreground">
+                <span v-if="feature.requiredScopes.length > 0" class="block text-sm">
                   {{ scopeLine(feature) }}
                 </span>
-                <span v-if="since(feature)" class="block text-sm text-muted-foreground">{{ since(feature) }}</span>
-              </div>
-              <GatedSwitch
-                action="feature:write"
-                :model-value="feature.isEnabled"
-                :disabled="!feature.entitled || busyKey !== undefined"
-                :aria-labelledby="`feature-${feature.featureKey}`"
-                @update:model-value="flip(feature)"
-              />
-            </div>
+                <span v-if="since(feature)" class="block text-sm">{{ since(feature) }}</span>
+              </template>
+              <template #end>
+                <GatedSwitch
+                  action="feature:write"
+                  :model-value="feature.isEnabled"
+                  :disabled="!feature.entitled || busyKey !== undefined"
+                  :aria-labelledby="`feature-${feature.featureKey}`"
+                  @update:model-value="flip(feature)"
+                />
+              </template>
+            </SummaryRow>
           </RowGroup>
         </section>
       </div>
