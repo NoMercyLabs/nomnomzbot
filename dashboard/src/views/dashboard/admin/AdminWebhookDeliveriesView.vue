@@ -21,11 +21,9 @@ import {
   type AdminWebhookDelivery,
 } from '@/api/adminActivity';
 import { ApiError } from '@/api/errors';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
 
-import AdminPager from './components/AdminPager.vue';
+import AdminCollectionPage from './components/AdminCollectionPage.vue';
 import WebhookDeliveriesTable from './components/WebhookDeliveriesTable.vue';
 
 const PAGE_SIZE: number = 25;
@@ -52,6 +50,11 @@ const listError = computed<string>(() =>
     : t('dashboard.admin.webhookDeliveries.list.error'),
 );
 
+const count = computed<string | undefined>(() =>
+  log.data.value
+    ? t('dashboard.admin.webhookDeliveries.count', { count: total.value })
+    : undefined);
+
 function replayOne(id: number): void {
   replay.mutate(id, {
     onSuccess: () => toast.success(t('dashboard.admin.webhookDeliveries.replayed')),
@@ -62,32 +65,24 @@ function replayOne(id: number): void {
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.admin.webhookDeliveries.title')" :crumb="$t('dashboard.admin.crumb')">
-    <template #status>
-      <span v-if="log.data.value" class="text-sm text-muted-foreground tabular-nums">
-        {{ $t('dashboard.admin.webhookDeliveries.count', { count: total }) }}
-      </span>
-    </template>
-  </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <PanelCard
-      tier="lead"
-      class="min-h-80 min-w-0 flex-1"
-      :title="$t('dashboard.admin.webhookDeliveries.list.title')"
-      :description="$t('dashboard.admin.webhookDeliveries.list.newestFirst')"
-      :state="panelState"
-      :empty-text="$t('dashboard.admin.webhookDeliveries.list.empty')"
-      :error-text="listError"
-      @retry="log.refetch()"
-    >
-      <WebhookDeliveriesTable
-        :rows="rows"
-        :replaying="replay.isPending.value"
-        @replay="replayOne"
-      />
-      <template #footer>
-        <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-      </template>
-    </PanelCard>
-  </div>
+  <AdminCollectionPage
+    :title="$t('dashboard.admin.webhookDeliveries.title')"
+    :count="count"
+    :page="page"
+    :pages="pages"
+    :state="panelState"
+    :list-title="$t('dashboard.admin.webhookDeliveries.list.title')"
+    :description="$t('dashboard.admin.webhookDeliveries.list.newestFirst')"
+    :empty-text="$t('dashboard.admin.webhookDeliveries.list.empty')"
+    :error-text="listError"
+    @previous="page -= 1"
+    @next="page += 1"
+    @retry="log.refetch()"
+  >
+    <WebhookDeliveriesTable
+      :rows="rows"
+      :replaying="replay.isPending.value"
+      @replay="replayOne"
+    />
+  </AdminCollectionPage>
 </template>

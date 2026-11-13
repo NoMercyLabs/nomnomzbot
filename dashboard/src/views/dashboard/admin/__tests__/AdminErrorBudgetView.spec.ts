@@ -14,6 +14,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { laptopWidth, phoneWidth, setWidth } from '@/__tests__/viewport';
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
 import { adminHandlers } from '@/realtime/admin';
@@ -117,7 +118,11 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(): Promise<void> {
+async function open(width: number = laptopWidth): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its pager.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+  setWidth(width);
+
   mounted = mount(AdminErrorBudgetView, {
     attachTo: document.body,
     global: { plugins: [i18n, pinia, [VueQueryPlugin, { queryClient: queries }]] },
@@ -132,6 +137,28 @@ const rows = (): HTMLElement[] => [
 ];
 
 describe('AdminErrorBudgetView', () => {
+  it('puts the pager in the sticky page footer on a phone and in the panel footer from the tablet width up', async () => {
+    tenants = Array.from({ length: 30 }, (_, index) => ({
+      ...tenants[0],
+      broadcasterId: `b${index + 10}`,
+      channelDisplayName: `Channel_${index + 10}`,
+    }));
+
+    await open(phoneWidth);
+
+    const frameFooter = document.querySelector('[data-slot=frame-action-footer]')!;
+
+    expect(frameFooter.querySelector('[data-slot=page-action-footer]')!.textContent).toContain('Page 1 of 2');
+    expect(document.querySelector('[data-slot=panel-card] footer')).toBeNull();
+
+    mounted?.unmount();
+    document.body.innerHTML = '';
+    await open(laptopWidth);
+
+    expect(document.querySelector('[data-slot=panel-card] footer')!.textContent).toContain('Page 1 of 2');
+    expect(document.querySelector('[data-slot=frame-action-footer]')!.textContent).toBe('');
+  });
+
   it('renders one row per tenant with attempts, errors and the error rate', async () => {
     await open();
 

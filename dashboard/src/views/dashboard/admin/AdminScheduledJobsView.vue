@@ -21,11 +21,9 @@ import {
   type AdminScheduledJob,
 } from '@/api/adminActivity';
 import { ApiError } from '@/api/errors';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
 
-import AdminPager from './components/AdminPager.vue';
+import AdminCollectionPage from './components/AdminCollectionPage.vue';
 import ScheduledJobsTable from './components/ScheduledJobsTable.vue';
 
 const PAGE_SIZE: number = 25;
@@ -52,6 +50,11 @@ const listError = computed<string>(() =>
     : t('dashboard.admin.scheduledJobs.list.error'),
 );
 
+const count = computed<string | undefined>(() =>
+  queue.data.value
+    ? t('dashboard.admin.scheduledJobs.count', { count: total.value })
+    : undefined);
+
 function retryOne(id: string): void {
   retry.mutate(id, {
     onSuccess: () => toast.success(t('dashboard.admin.scheduledJobs.retried')),
@@ -62,31 +65,20 @@ function retryOne(id: string): void {
 </script>
 
 <template>
-  <PageHeader
+  <AdminCollectionPage
     :title="$t('dashboard.admin.scheduledJobs.title')"
-    :crumb="$t('dashboard.admin.crumb')"
+    :count="count"
+    :page="page"
+    :pages="pages"
+    :state="panelState"
+    :list-title="$t('dashboard.admin.scheduledJobs.list.title')"
+    :description="$t('dashboard.admin.scheduledJobs.list.newestFirst')"
+    :empty-text="$t('dashboard.admin.scheduledJobs.list.empty')"
+    :error-text="listError"
+    @previous="page -= 1"
+    @next="page += 1"
+    @retry="queue.refetch()"
   >
-    <template #status>
-      <span v-if="queue.data.value" class="text-sm text-muted-foreground tabular-nums">
-        {{ $t("dashboard.admin.scheduledJobs.count", { count: total }) }}
-      </span>
-    </template>
-  </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <PanelCard
-      tier="lead"
-      class="min-h-80 min-w-0 flex-1"
-      :title="$t('dashboard.admin.scheduledJobs.list.title')"
-      :description="$t('dashboard.admin.scheduledJobs.list.newestFirst')"
-      :state="panelState"
-      :empty-text="$t('dashboard.admin.scheduledJobs.list.empty')"
-      :error-text="listError"
-      @retry="queue.refetch()"
-    >
-      <ScheduledJobsTable :rows="rows" :retrying="retry.isPending.value" @retry="retryOne" />
-      <template #footer>
-        <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-      </template>
-    </PanelCard>
-  </div>
+    <ScheduledJobsTable :rows="rows" :retrying="retry.isPending.value" @retry="retryOne" />
+  </AdminCollectionPage>
 </template>
