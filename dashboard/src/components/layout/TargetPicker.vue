@@ -60,6 +60,8 @@ const props = withDefaults(
     disabled?: boolean;
     error?: string;
     label?: string;
+    // The id an outside FieldLabel points at with for=, so a press on that label opens this picker.
+    triggerId?: string;
   }>(),
   {
     kinds: () => ['command', 'pipeline'],
@@ -68,6 +70,7 @@ const props = withDefaults(
     disabled: false,
     error: '',
     label: '',
+    triggerId: undefined,
   },
 );
 
@@ -262,6 +265,7 @@ async function createPipeline(): Promise<void> {
           <Button
             type="button"
             variant="outline"
+            :id="triggerId"
             role="combobox"
             :aria-expanded="open"
             :aria-label="label || $t('common.targetPicker.label')"

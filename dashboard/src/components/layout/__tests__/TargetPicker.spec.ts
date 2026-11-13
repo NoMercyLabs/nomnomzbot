@@ -386,6 +386,14 @@ describe('the target picker', () => {
     expect(wrapper.element.querySelector('[role="alert"]')).toBeNull();
   });
 
+  it('lets a label outside the picker name its button through the trigger id', () => {
+    document.body.insertAdjacentHTML('beforeend', '<label for="prize-target">Prize</label>');
+    const wrapper: VueWrapper = mountPicker({ triggerId: 'prize-target' });
+    const outside: HTMLLabelElement = document.querySelector('label[for="prize-target"]')!;
+
+    expect(outside.control).toBe(wrapper.find('[role="combobox"]').element);
+  });
+
   it('links the open button to the pipeline editor for a pipeline target', () => {
     const wrapper: VueWrapper = mountPicker({ target: { kind: 'pipeline', id: 'p-1' } });
 
