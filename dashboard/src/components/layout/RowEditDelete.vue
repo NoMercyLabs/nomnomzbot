@@ -37,8 +37,15 @@ defineEmits<{ edit: []; delete: [] }>();
     <IconAction v-if="editable" data-row-edit :label="editLabel" @click.stop="$emit('edit')">
       <Edit class="size-5" aria-hidden="true" />
     </IconAction>
-    <IconAction v-if="deletable" data-row-delete :label="deleteLabel" @click.stop="$emit('delete')">
-      <Trash2 class="size-5 text-destructive" aria-hidden="true" />
+    <!-- Neutral at rest, so a list of rows shows no red; hover and keyboard focus say what the button does. -->
+    <IconAction
+      v-if="deletable"
+      data-row-delete
+      class="hover:text-destructive focus-visible:text-destructive"
+      :label="deleteLabel"
+      @click.stop="$emit('delete')"
+    >
+      <Trash2 class="size-5" aria-hidden="true" />
     </IconAction>
   </span>
 </template>

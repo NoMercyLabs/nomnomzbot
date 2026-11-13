@@ -50,6 +50,20 @@ describe('the row edit and delete actions', () => {
     expect(buttons.map((button) => button.attributes('data-size'))).toEqual(['icon', 'icon']);
   });
 
+  it('keeps the delete icon neutral at rest and turns it destructive on hover and focus', () => {
+    mounted = mount(RowEditDelete, {
+      props: { editLabel: 'Edit', deleteLabel: 'Delete' },
+    });
+
+    const button = mounted.get('[data-row-delete]');
+    const icon = button.get('svg');
+
+    expect(icon.classes()).not.toContain('text-destructive');
+    expect(button.classes()).not.toContain('text-destructive');
+    expect(button.classes()).toContain('hover:text-destructive');
+    expect(button.classes()).toContain('focus-visible:text-destructive');
+  });
+
   it('emits edit or delete, and the click never reaches the row that holds them', async () => {
     const rowClicks = vi.fn<() => void>();
     const Row = defineComponent({
