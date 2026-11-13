@@ -16,8 +16,6 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
 import Add from '~icons/nnz/add';
-import Edit from '~icons/nnz/edit';
-import Trash from '~icons/nnz/trash';
 
 import { useTtsConfig } from '@/api/tts';
 import {
@@ -28,6 +26,7 @@ import {
 } from '@/api/ttsRules';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -136,24 +135,13 @@ function remove(entry: TtsLexiconEntry): void {
         </span>
         <div class="flex items-center justify-end gap-2">
           <PlaySampleButton v-if="heardVoice" compact :voice-id="heardVoice" :text="entry.phrase" />
-          <Button
+          <RowEditDelete
             v-if="can('tts:config:write')"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.tts.lexicon.edit', { phrase: entry.phrase })"
-            @click="openDialog(entry)"
-          >
-            <Edit class="size-5" />
-          </Button>
-          <Button
-            v-if="can('tts:config:write')"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.tts.lexicon.remove', { phrase: entry.phrase })"
-            @click="pendingRemoval = entry"
-          >
-            <Trash class="size-5" />
-          </Button>
+            :edit-label="$t('dashboard.tts.lexicon.edit', { phrase: entry.phrase })"
+            :delete-label="$t('dashboard.tts.lexicon.remove', { phrase: entry.phrase })"
+            @edit="openDialog(entry)"
+            @delete="pendingRemoval = entry"
+          />
         </div>
       </li>
     </ul>

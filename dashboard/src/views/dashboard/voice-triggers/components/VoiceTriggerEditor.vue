@@ -11,16 +11,14 @@
 <script setup lang="ts">
 // The editor of one voice trigger. The Enabled switch saves at once; every other field is a draft that
 // Save sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
-import Trash2 from '~icons/nnz/trash';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useUpdateVoiceTrigger, type VoiceTrigger } from '@/api/voiceTriggers';
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -149,29 +147,24 @@ function remove(): void {
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
-      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
-        <Trash2 aria-hidden="true" />
-        {{ $t('dashboard.voiceTriggers.editor.delete') }}
-      </Button>
-      <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button type="button" variant="outline" size="sm" @click="discard">{{
-        $t('dashboard.voiceTriggers.editor.discard')
-      }}</Button>
-      <Button
-        type="button"
-        size="sm"
-        :disabled="dirtyCount === 0 || update.isPending.value"
-        @click="save"
-      >
-        {{ $t('dashboard.voiceTriggers.editor.save') }}
-      </Button>
+      <EditorFooter
+        v-model:confirm-open="confirmOpen"
+        :delete-label="$t('dashboard.voiceTriggers.editor.delete')"
+        :discard-label="$t('dashboard.voiceTriggers.editor.discard')"
+        :save-label="$t('dashboard.voiceTriggers.editor.save')"
+        :unsaved="unsaved"
+        :can-save="dirtyCount > 0"
+        :saving="update.isPending.value"
+        :confirm-title="$t('dashboard.voiceTriggers.editor.confirmTitle', { name: row.word })"
+        :confirm-description="
+          $t('dashboard.voiceTriggers.editor.confirmBody', { count: row.currentCount })
+        "
+        :confirm-action="$t('dashboard.voiceTriggers.editor.confirmAction')"
+        @ask-delete="confirmOpen = true"
+        @confirm-delete="remove"
+        @discard="discard"
+        @save="save"
+      />
     </template>
-    <ConfirmDialog
-      v-model:open="confirmOpen"
-      :title="$t('dashboard.voiceTriggers.editor.confirmTitle', { name: row.word })"
-      :description="$t('dashboard.voiceTriggers.editor.confirmBody', { count: row.currentCount })"
-      :action="$t('dashboard.voiceTriggers.editor.confirmAction')"
-      @confirm="remove"
-    />
   </PanelCard>
 </template>

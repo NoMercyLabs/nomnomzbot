@@ -1182,11 +1182,10 @@ const rawSearchInputAllowlist = [
 
 const handDeleteButton = /~icons\/nnz\/(?:trash|delete)/;
 const handDeleteButtonAllowlist = [
-  // List pages not moved yet (phase 2 lane): row-end or card delete icons written by hand.
+  // Non-entity actions that stay by hand: each one removes or ends something that is not a list page's
+  // entity (a ladder step, a feature flag, a tenant, a queue item, a peer, a role), so RowEditDelete and
+  // EditorFooter do not fit.
   'views/dashboard/settings/escalation/components/LadderPanel.vue',
-  'views/dashboard/tts/LexiconPanel.vue',
-  'views/dashboard/voice-triggers/components/VoiceTriggerEditor.vue',
-  // Other surfaces with a delete icon that are not a list page's entity delete (phase 2 decides each).
   'views/dashboard/admin/AdminFeatureFlagsView.vue',
   'views/dashboard/admin/components/TenantActions.vue',
   'views/dashboard/media-share/components/MediaShareQueueRow.vue',
