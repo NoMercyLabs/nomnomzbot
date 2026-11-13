@@ -12,7 +12,7 @@
 // A web address inside a sentence. An address to open is a plain link; an address to paste somewhere else is
 // text with a small copy button beside it; "both" is a link with the copy button, for a link the person may
 // open here or take to another browser profile.
-import CopyAddressButton from './CopyAddressButton.vue';
+import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 
 defineProps<{
   url: string;
@@ -30,6 +30,11 @@ defineProps<{
       class="break-all text-foreground underline underline-offset-4"
     >{{ url }}</a>
     <code v-else class="font-mono text-xs break-all text-foreground">{{ url }}</code>
-    <CopyAddressButton v-if="use !== 'open'" :url="url" />
+    <CopyLinkButton
+      v-if="use !== 'open'"
+      :url="url"
+      :label="$t('site.setup.copyLink')"
+      icon-only
+    />
   </span>
 </template>

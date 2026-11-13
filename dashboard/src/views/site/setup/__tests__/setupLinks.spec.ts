@@ -127,8 +127,11 @@ describe('a link in an instruction line', () => {
 
     const copy = wrapper.get('[data-copy-link]');
 
+    // The modules are reset for each mount, so the shared button is found by its name, not by its import.
+    expect(wrapper.findComponent({ name: 'CopyLinkButton' }).exists()).toBe(true);
     expect(copy.attributes('aria-label')).toBe('Copy link');
     expect(copy.text()).toBe('');
+    expect(copy.attributes('data-size')).toBe('icon');
 
     await copy.trigger('click');
 

@@ -50,6 +50,35 @@ describe('CopyLinkButton', () => {
     expect(mounted.text()).toBe('Copy dock link');
   });
 
+  it('is an icon-only ghost button named by its label beside an address, and still copies it', async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
+
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    mounted = mount(CopyLinkButton, {
+      props: {
+        url: 'https://bot.example/callback',
+        label: 'Copy link',
+        iconOnly: true,
+      },
+      global: { plugins: [i18n] },
+    });
+
+    const button = mounted.get('[data-copy-link]');
+
+    expect(button.attributes('data-size')).toBe('icon');
+    expect(button.attributes('data-variant')).toBe('ghost');
+    expect(button.attributes('aria-label')).toBe('Copy link');
+    expect(button.text()).toBe('');
+    expect(button.get('svg').classes()).toContain('size-5');
+
+    await button.trigger('click');
+    await flushPromises();
+
+    expect(writeText).toHaveBeenCalledWith('https://bot.example/callback');
+    expect(button.attributes('aria-label')).toBe('Copied');
+  });
+
   it('is a 36px button with a 20px icon, like the icon actions beside it', () => {
     mounted = mount(CopyLinkButton, {
       props: { url: 'https://bot.example/x', label: 'Copy link' },
