@@ -84,7 +84,12 @@ public sealed class TimerServiceTests
         return services;
     }
 
-    private static Harness Build(IRunOnceGuard? guard = null, ILogger<TimerService>? logger = null)
+    private static Harness Build(
+        IRunOnceGuard? guard = null,
+        ILogger<TimerService>? logger = null,
+        bool isLive = true,
+        DateTimeOffset? wentLiveAt = null
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
 
@@ -128,9 +133,12 @@ public sealed class TimerServiceTests
             BroadcasterId = Channel,
             TwitchChannelId = "tw-42",
             ChannelName = "qtkitte",
+            IsLive = isLive,
+            WentLiveAt = isLive ? wentLiveAt ?? Now.AddHours(-2) : null,
         };
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.GetAll().Returns([ctx]);
+        registry.GetLiveChannels().Returns(isLive ? [ctx] : []);
         registry.Get(Channel).Returns(ctx);
 
         ITemplateResolver templates = Substitute.For<ITemplateResolver>();
@@ -359,6 +367,45 @@ public sealed class TimerServiceTests
     }
 
     [Fact]
+    public async Task A_due_timer_on_a_channel_that_is_not_live_sends_nothing_and_keeps_its_state()
+    {
+        // Stoney 2026-11-13: a timer posted in an offline chat nine minutes before go-live. The bot stays
+        // connected to every channel all day, so a timer must wait for the stream, not for the connection.
+        Harness h = Build(isLive: false);
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["join the discord!"]);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        Timer after = h.Db.Timers.Single(t => t.Id == timer.Id);
+        after.LastFiredAt.Should().BeNull();
+        after.NextMessageIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_timer_waits_one_full_interval_after_go_live_before_its_first_line()
+    {
+        // S-TIMER-AUDIENCE: at go-live nobody is in chat yet, so the first line waits one interval.
+        Harness early = Build(wentLiveAt: Now.AddMinutes(-5));
+        Timer waiting = SeedTimer(early.Db, pipelineId: null, ["hello chat!"]);
+
+        await early.Service.TickAsync(CancellationToken.None);
+
+        await early.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        early.Db.Timers.Single(t => t.Id == waiting.Id).LastFiredAt.Should().BeNull();
+
+        Harness later = Build(wentLiveAt: Now.AddMinutes(-16));
+        Timer due = SeedTimer(later.Db, pipelineId: null, ["hello chat!"]);
+
+        await later.Service.TickAsync(CancellationToken.None);
+
+        await later
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
+        later.Db.Timers.Single(t => t.Id == due.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
     public async Task An_overlay_timer_puts_its_line_on_the_overlay_and_sends_nothing_to_chat()
     {
         Harness h = Build();
@@ -504,9 +551,12 @@ public sealed class TimerServiceTests
             BroadcasterId = Channel,
             TwitchChannelId = "tw-42",
             ChannelName = "qtkitte",
+            IsLive = true,
+            WentLiveAt = Now.AddHours(-2),
         };
         IChannelRegistry secondRegistry = Substitute.For<IChannelRegistry>();
         secondRegistry.GetAll().Returns([ctx]);
+        secondRegistry.GetLiveChannels().Returns([ctx]);
         secondRegistry.Get(Channel).Returns(ctx);
         ITemplateResolver secondTemplates = Substitute.For<ITemplateResolver>();
         secondTemplates

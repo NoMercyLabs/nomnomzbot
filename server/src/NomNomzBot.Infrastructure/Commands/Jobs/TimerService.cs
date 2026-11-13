@@ -107,8 +107,9 @@ public sealed class TimerService : BackgroundService
     // InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly this seam.
     internal async Task TickAsync(CancellationToken ct)
     {
-        // Only process channels the bot is actively connected to
-        IReadOnlyCollection<ChannelContext> liveChannels = _registry.GetAll();
+        // Only live streams: the bot stays connected to every channel all day, and a timer in an offline
+        // chat is noise for the streamer and wasted work for the box (Stoney, 2026-11-13).
+        IReadOnlyCollection<ChannelContext> liveChannels = _registry.GetLiveChannels();
         if (liveChannels.Count == 0)
             return;
 
@@ -158,15 +159,11 @@ public sealed class TimerService : BackgroundService
         CancellationToken ct
     )
     {
-        // Check interval
-        DateTime nextFire = (timer.LastFiredAt ?? DateTime.MinValue).AddMinutes(
-            timer.IntervalMinutes
-        );
-        if (now < nextFire)
+        ChannelContext? channelCtx = _registry.Get(timer.BroadcasterId);
+        if (channelCtx is not { IsLive: true })
             return;
 
-        ChannelContext? channelCtx = _registry.Get(timer.BroadcasterId);
-        if (channelCtx is null)
+        if (now < NextFireAt(timer, channelCtx))
             return;
 
         // Check minimum chat activity since last fire
@@ -213,6 +210,18 @@ public sealed class TimerService : BackgroundService
 
         // Record message count snapshot for next activity check
         _messageCountAtLastFire[timer.Id] = channelCtx.MessageCount;
+    }
+
+    /// <summary>
+    /// One interval after the later of the last fire and the go-live moment, so a fresh stream gets a
+    /// warm-up before the first line and nothing carries over from the previous stream.
+    /// </summary>
+    private static DateTime NextFireAt(Timer timer, ChannelContext channel)
+    {
+        DateTime lastFired = timer.LastFiredAt ?? DateTime.MinValue;
+        DateTime wentLive = channel.WentLiveAt?.UtcDateTime ?? DateTime.MinValue;
+        DateTime from = lastFired > wentLive ? lastFired : wentLive;
+        return from.AddMinutes(timer.IntervalMinutes);
     }
 
     /// <summary>

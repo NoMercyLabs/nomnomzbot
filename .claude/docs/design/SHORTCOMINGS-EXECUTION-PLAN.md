@@ -501,7 +501,9 @@ Stoney, verbatim: "could you make the pannel data loading more deterministic so 
 
 ### S-TIMER-AUDIENCE: a timer starts only once chat has people in it (not priority)
 
-Done when: after go-live, no timer posts until a set warm-up has passed AND chat has had lines from viewers other than the bot; a test proves a fresh stream with an empty chat sends nothing. Also seen on 2026-10-14: a timer's Discord link preview rendered "A network error occured" twice in chat; the preview must fail quietly.
+Stoney, 2026-11-13, verbatim: "Why are chat message timers running while the stream is not live? That's a waste of cpu cycles and memory"
+
+Landed 2026-11-13: timers run only on live channels, and the first line waits one interval after go-live (TimerService.NextFireAt, TimerServiceTests). Still open: no timer posts until chat has had lines from viewers other than the bot (ChannelContext.MessageCount and SessionChatters count the bot's own lines today); a test proves a fresh stream with an empty chat sends nothing. Also seen on 2026-10-14: a timer's Discord link preview rendered "A network error occured" twice in chat; the preview must fail quietly.
 
 ### S-MOD-PER-PLATFORM: the profile knows a person's role on each platform
 
