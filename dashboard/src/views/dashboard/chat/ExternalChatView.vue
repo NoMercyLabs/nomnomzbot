@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/api/auth';
 import { chatMessageMaxLength, type ChatLine as ChatLineData } from '@/api/chat';
 import { useStartScopeRegrant } from '@/api/chatIdentity';
 import { deviceApprovalQuery, signInUrl } from '@/api/signIn';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
@@ -79,9 +80,9 @@ const approved = computed(() => approval.data.value?.status === 'authorized');
 <template>
   <PageHeader :title="login" :crumb="$t('dashboard.chat.external.crumb')" />
   <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:py-0">
-    <p v-if="chat.failure.value && !chat.missingScope.value" role="alert" class="text-sm text-destructive">
+    <InlineNotice v-if="chat.failure.value && !chat.missingScope.value" tone="error" compact>
       {{ $t('dashboard.chat.external.failed') }}
-    </p>
+    </InlineNotice>
     <PanelCard
       class="min-h-96 flex-1"
       tier="lead"

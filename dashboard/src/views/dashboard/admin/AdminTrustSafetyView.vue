@@ -36,6 +36,7 @@ import TrustBlockRow from './components/TrustBlockRow.vue';
 import TrustReviewRow from './components/TrustReviewRow.vue';
 import TrustSignalRow from './components/TrustSignalRow.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -377,14 +378,9 @@ function run(current: Step): Promise<void> {
                   {{ $t("dashboard.admin.trustSafety.apply.action") }}
                 </Button>
               </div>
-              <p
-                v-if="previewFailed"
-                data-preview-error
-                role="alert"
-                class="text-xs text-destructive"
-              >
+              <InlineNotice v-if="previewFailed" tone="error" compact data-preview-error>
                 {{ $t("dashboard.admin.trustSafety.apply.previewFailed") }}
-              </p>
+              </InlineNotice>
               <p v-if="shownPreview" class="text-xs text-muted-foreground">
                 {{
                   $t("dashboard.admin.trustSafety.apply.previewResult", {

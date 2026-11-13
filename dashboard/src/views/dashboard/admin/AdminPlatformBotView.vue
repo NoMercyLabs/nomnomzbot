@@ -24,6 +24,7 @@ import {
   useStartPlatformBotReconnect,
 } from '@/api/adminPlatformBot';
 import { isBotLoginWaiting } from '@/api/whiteLabelBot';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -186,9 +187,9 @@ async function checkApproval(): Promise<void> {
             {{ $t('dashboard.admin.platformBot.reconnect.waiting') }}
           </p>
         </template>
-        <p v-if="failed" class="text-sm text-destructive" role="alert" data-failure>
+        <InlineNotice v-if="failed" tone="error" compact data-failure>
           {{ $t(outcome !== null ? 'dashboard.admin.platformBot.denied' : failureKey) }}
-        </p>
+        </InlineNotice>
       </div>
       <template #footer>
         <div class="flex w-full justify-end gap-2">

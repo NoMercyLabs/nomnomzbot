@@ -21,6 +21,7 @@ import { useI18n } from 'vue-i18n';
 import { useAdminTenants, type AdminTenant, type AdminTenantsParams } from '@/api/admin';
 import { useTenantMembers, type TenantMember } from '@/api/adminTenants';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -218,9 +219,9 @@ async function submit(): Promise<void> {
           </SelectItem>
         </SelectContent>
       </Select>
-      <p v-if="members.isError.value" role="alert" class="text-sm text-destructive">
+      <InlineNotice v-if="members.isError.value" tone="error" compact>
         {{ errorText(members.error.value, t) }}
-      </p>
+      </InlineNotice>
     </div>
   </FormDialog>
 </template>

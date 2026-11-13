@@ -22,6 +22,7 @@ import {
   useSetChatColor,
   useStartScopeRegrant,
 } from '@/api/chatIdentity';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
@@ -88,9 +89,9 @@ function badgeImage(urls: Record<string, string>): string | undefined {
     <p v-else-if="identityQuery.isPending.value" class="text-sm text-muted-foreground">
       {{ $t('dashboard.chat.identity.loading') }}
     </p>
-    <p v-else-if="identityQuery.isError.value || !identity" class="text-sm text-destructive">
+    <InlineNotice v-else-if="identityQuery.isError.value || !identity" tone="error" compact>
       {{ $t('dashboard.chat.identity.loadFailed') }}
-    </p>
+    </InlineNotice>
     <div v-else class="flex flex-col gap-6">
       <section class="flex flex-col gap-2" data-test="preview">
         <h3 class="text-sm font-medium">{{ $t('dashboard.chat.identity.preview') }}</h3>
@@ -127,9 +128,9 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             >{{ regrantCode.verificationUri }}</a>
           </p>
           <p v-if="approved" class="text-sm">{{ $t('dashboard.chat.identity.approved') }}</p>
-          <p v-if="regrant.isError.value" class="text-sm text-destructive">
+          <InlineNotice v-if="regrant.isError.value" tone="error" compact>
             {{ regrant.error.value?.detail ?? $t('dashboard.chat.identity.regrantFailed') }}
-          </p>
+          </InlineNotice>
           <Button
             v-if="!regrantCode && canRegrant"
             class="self-start"
@@ -180,7 +181,7 @@ function badgeImage(urls: Record<string, string>): string | undefined {
           </Button>
         </form>
         <p class="text-xs text-muted-foreground">{{ $t('dashboard.chat.identity.hexNote') }}</p>
-        <p v-if="refusal" class="text-sm text-destructive" role="alert" data-test="refusal">{{ refusal }}</p>
+        <InlineNotice v-if="refusal" tone="error" compact data-test="refusal">{{ refusal }}</InlineNotice>
       </section>
 
       <section class="flex flex-col gap-2">

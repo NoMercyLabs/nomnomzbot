@@ -25,6 +25,7 @@ import {
   type TtsVoiceDefault,
 } from '@/api/adminPlatformDefaults';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -180,9 +181,9 @@ function apply(): void {
     <p v-if="candidates.isPending.value" class="text-sm text-muted-foreground">
       {{ $t("dashboard.admin.platformDefaults.voice.dialog.loading") }}
     </p>
-    <p v-else-if="candidates.isError.value" role="alert" class="text-sm text-destructive">
+    <InlineNotice v-else-if="candidates.isError.value" tone="error" compact>
       {{ $t("dashboard.admin.platformDefaults.voice.dialog.loadError") }}
-    </p>
+    </InlineNotice>
     <div
       v-else
       role="radiogroup"

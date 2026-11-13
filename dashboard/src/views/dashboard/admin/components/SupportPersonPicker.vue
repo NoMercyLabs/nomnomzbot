@@ -15,6 +15,7 @@ import Cross from '~icons/nnz/cross';
 import { computed, ref } from 'vue';
 
 import { useSupportPeople, type SupportPerson } from '@/api/adminSupport';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -67,9 +68,9 @@ function choose(person: SupportPerson): void {
         :placeholder="$t('dashboard.admin.person.placeholder')"
       />
       <p v-if="waiting" class="mt-1.5 text-sm text-muted-foreground">{{ waitHint }}</p>
-      <p v-else-if="found.isError.value" role="alert" class="mt-1.5 text-sm text-destructive">
+      <InlineNotice v-else-if="found.isError.value" tone="error" compact class="mt-1.5">
         {{ $t('dashboard.admin.person.failed') }}
-      </p>
+      </InlineNotice>
       <ul
         v-else-if="asking && options.length > 0"
         class="mt-1.5 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-popover-foreground"

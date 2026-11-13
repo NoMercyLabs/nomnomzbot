@@ -27,6 +27,7 @@ import {
   type DiscordTrigger,
 } from '@/api/discord';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -249,9 +250,9 @@ function ruleSummary(rule: DiscordRule | null): string {
             </SummaryRow>
           </li>
         </ul>
-        <p v-if="removeError" role="alert" class="px-4 pb-3 text-sm text-destructive">
+        <InlineNotice v-if="removeError" tone="error" compact class="px-4 pb-3">
           {{ removeError }}
-        </p>
+        </InlineNotice>
       </PanelCard>
 
       <PanelCard

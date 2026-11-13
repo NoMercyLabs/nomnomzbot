@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ApiError } from '@/api/errors';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { errorText } from '@/lib/errors';
 
 const props = defineProps<{ error: Error | null }>();
@@ -38,12 +39,12 @@ const setupReason = computed(() => {
 </script>
 
 <template>
-  <p v-if="error" role="alert" data-picker-error class="text-sm text-destructive">
+  <InlineNotice v-if="error" tone="error" compact data-picker-error>
     <template v-if="setupReason">
       {{ t(setupReason) }}
     </template>
     <template v-else>
       {{ t('dashboard.discord.editor.pickerError') }} {{ errorText(error, t) }}
     </template>
-  </p>
+  </InlineNotice>
 </template>

@@ -34,6 +34,7 @@ import {
 import { useCurrentUser } from '@/api/auth';
 import DateTime from '@/components/layout/DateTime.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -369,14 +370,15 @@ async function submit(): Promise<void> {
           </div>
         </li>
       </ul>
-      <p
+      <InlineNotice
         v-if="reactivate.isError.value"
+        tone="error"
+        compact
         data-reactivate-failure
-        class="mt-3 text-sm text-destructive"
-        role="alert"
+        class="mt-3"
       >
         {{ $t("dashboard.admin.access.failed") }}
-      </p>
+      </InlineNotice>
     </PanelCard>
 
     <PanelCard

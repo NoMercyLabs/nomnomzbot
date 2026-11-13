@@ -25,6 +25,7 @@ import {
   type DiscordRole,
   type NotifyRole,
 } from '@/api/discord';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -199,9 +200,9 @@ async function postRoleButton(): Promise<void> {
       <PickerError :error="pickerError" />
     </Field>
 
-    <p v-if="failure" role="alert" data-role-error class="text-sm text-destructive">
+    <InlineNotice v-if="failure" tone="error" compact data-role-error>
       {{ errorText(failure, t) }}
-    </p>
+    </InlineNotice>
 
     <div v-if="role !== null && confirmingRemove" class="flex flex-col gap-2" data-remove-confirm>
       <p class="text-sm text-muted-foreground">

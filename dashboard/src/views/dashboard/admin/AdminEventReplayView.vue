@@ -28,6 +28,7 @@ import {
   type ReplayScope,
 } from '@/api/adminEventReplay';
 import DateTime from '@/components/layout/DateTime.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
@@ -282,9 +283,9 @@ async function submit(): Promise<void> {
         <span v-if="confirmedCount !== null" data-count class="text-sm">{{
           $t("dashboard.admin.eventReplay.preview.count", { count: confirmedCount })
         }}</span>
-        <span v-if="failure !== null && !confirming" class="text-sm text-destructive">{{
-          failure
-        }}</span>
+        <InlineNotice v-if="failure !== null && !confirming" tone="error" compact>
+          {{ failure }}
+        </InlineNotice>
         <span v-if="outcome !== null" data-outcome class="text-sm">{{ outcome }}</span>
       </PageActionFooter>
     </PanelCard>

@@ -24,6 +24,7 @@ import { useBanUser, useTimeoutUser, useUnbanUser, type ChatLine } from '@/api/c
 import { useCommunityMember } from '@/api/community';
 import { useCurrencyConfig } from '@/api/economy';
 import { useViewerProfile } from '@/api/people';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { useBackLayer } from '@/composables/useBackCloses';
 import type { PanelState } from '@/composables/usePanelState';
@@ -277,9 +278,9 @@ async function undo(): Promise<void> {
     </div>
     <template v-if="userId !== null" #footer>
       <div class="flex min-h-9 items-center gap-2">
-        <p v-if="failed" role="alert" class="min-w-0 flex-1 text-sm text-destructive">
+        <InlineNotice v-if="failed" tone="error" compact class="min-w-0 flex-1">
           {{ $t('dashboard.chat.viewer.failed') }}
-        </p>
+        </InlineNotice>
         <template v-else-if="step === 'done' && done">
           <span class="flex min-w-0 flex-1 items-center gap-2 text-sm" role="status">
             <Check class="size-4 flex-none" aria-hidden="true" />

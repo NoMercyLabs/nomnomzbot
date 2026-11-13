@@ -12,6 +12,7 @@
 import Cross from '~icons/nnz/cross';
 
 import type { ChatLine } from '@/api/chat';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { useTime } from '@/composables/useTime';
 
@@ -50,7 +51,7 @@ const display = useChatDisplay();
       </Button>
     </div>
     <p v-if="pending" class="px-2 py-2 text-sm text-muted-foreground">{{ $t('dashboard.chat.reply.threadLoading') }}</p>
-    <p v-else-if="failed" class="px-2 py-2 text-sm text-destructive">{{ $t('dashboard.chat.reply.threadError') }}</p>
+    <InlineNotice v-else-if="failed" tone="error" compact class="px-2 py-2">{{ $t('dashboard.chat.reply.threadError') }}</InlineNotice>
     <p v-else-if="lines.length === 0" class="px-2 py-2 text-sm text-muted-foreground">{{ $t('dashboard.chat.reply.threadEmpty') }}</p>
     <ol v-else class="space-y-0.5">
       <li

@@ -27,6 +27,7 @@ import {
   type DiscordRole,
   type DiscordRule,
 } from '@/api/discord';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
@@ -479,9 +480,9 @@ function removeField(index: number): void {
       <EmbedPreview v-if="shown.renderedEmbed" :embed="shown.renderedEmbed" />
     </section>
 
-    <p v-if="failure" role="alert" data-rule-error class="text-sm text-destructive">
+    <InlineNotice v-if="failure" tone="error" compact data-rule-error>
       {{ errorText(failure, t) }}
-    </p>
+    </InlineNotice>
 
     <div class="flex items-center justify-end gap-2">
       <Button type="button"

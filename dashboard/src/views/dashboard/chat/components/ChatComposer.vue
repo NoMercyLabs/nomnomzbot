@@ -36,6 +36,7 @@ import {
   useViewerChatEmotes,
   type ChatLine,
 } from '@/api/chat';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Spinner } from '@/components/ui/spinner';
@@ -475,6 +476,6 @@ async function submit(): Promise<void> {
         {{ $t('dashboard.chat.composer.send') }}
       </Button>
     </div>
-    <p v-if="problem" role="alert" class="text-sm text-destructive">{{ problem }}</p>
+    <InlineNotice v-if="problem" tone="error" compact>{{ problem }}</InlineNotice>
   </form>
 </template>

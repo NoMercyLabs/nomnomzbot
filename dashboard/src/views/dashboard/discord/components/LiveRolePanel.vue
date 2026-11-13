@@ -23,6 +23,7 @@ import {
   type DiscordConnection,
   type DiscordRole,
 } from '@/api/discord';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -131,9 +132,9 @@ function removeRule(): void {
       />
     </div>
 
-    <p v-if="failure" role="alert" data-live-error class="text-sm text-destructive">
+    <InlineNotice v-if="failure" tone="error" compact data-live-error>
       {{ errorText(failure, t) }}
-    </p>
+    </InlineNotice>
 
     <div v-if="writable" class="flex items-center justify-end gap-2">
       <Button

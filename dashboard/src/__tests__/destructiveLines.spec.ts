@@ -21,6 +21,9 @@ import { oneOf } from '../lib/array';
 const src = join(__dirname, '..');
 const scopedFolders = [
   'views/dashboard/settings',
+  'views/dashboard/admin',
+  'views/dashboard/chat',
+  'views/dashboard/discord',
 ] as const satisfies readonly string[];
 
 // A clean file must leave this list.
@@ -33,6 +36,12 @@ const allowlist = [
   'views/dashboard/settings/escalation/components/PolicyPanel.vue',
   // FeaturesView: the rows lane owns it.
   'views/dashboard/settings/features/FeaturesView.vue',
+  // AdminFeatureFlagsView: rolloutValid is a message under the one rollout input.
+  'views/dashboard/admin/AdminFeatureFlagsView.vue',
+  // PlatformDefaultPreview: the failed line shares a flex row with its Retry button.
+  'views/dashboard/admin/components/PlatformDefaultPreview.vue',
+  // ModToolsPanel: the duration range message sits under one mode input (text-xs).
+  'views/dashboard/chat/components/ModToolsPanel.vue',
 ] as const satisfies readonly string[];
 
 const openingTag = /<([a-z][\w-]*)\b[^>]*?\brole="alert"[^>]*>/gis;

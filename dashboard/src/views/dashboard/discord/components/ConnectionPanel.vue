@@ -22,6 +22,7 @@ import {
   type DiscordConnection,
 } from '@/api/discord';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -179,9 +180,9 @@ const label = computed<string>(() => {
         {{ t('dashboard.discord.connection.disconnect') }}
       </Button>
     </div>
-    <p v-if="actionError" role="alert" class="text-sm text-destructive">
+    <InlineNotice v-if="actionError" tone="error" compact>
       {{ actionError }}
-    </p>
+    </InlineNotice>
     <ConfirmDialog
       v-model:open="disconnectOpen"
       :title="t('dashboard.discord.connection.disconnectTitle', { name: connection.guildName ?? connection.guildId })"

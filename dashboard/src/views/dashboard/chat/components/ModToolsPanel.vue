@@ -23,6 +23,7 @@ import {
   type ChatSettings,
 } from '@/api/modTools';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -207,15 +208,15 @@ async function confirm(): Promise<void> {
       <span class="text-sm text-muted-foreground">{{ $t('dashboard.chat.modTools.for', { name: channelName }) }}</span>
     </template>
     <div class="grid gap-6">
-      <p v-if="failed" role="alert" class="text-sm text-destructive">{{ $t('dashboard.chat.modTools.failed') }}</p>
+      <InlineNotice v-if="failed" tone="error" compact>{{ $t('dashboard.chat.modTools.failed') }}</InlineNotice>
       <section v-if="canRead" class="grid gap-3">
         <h3 class="text-sm font-semibold">{{ $t('dashboard.chat.modTools.modes') }}</h3>
         <p v-if="settings.isPending.value" class="text-sm text-muted-foreground">
           {{ $t('dashboard.chat.modTools.loading') }}
         </p>
-        <p v-else-if="settings.isError.value" role="alert" class="text-sm text-destructive">
+        <InlineNotice v-else-if="settings.isError.value" tone="error" compact>
           {{ $t('dashboard.chat.modTools.loadFailed') }}
-        </p>
+        </InlineNotice>
         <template v-else-if="settings.data.value">
           <!-- One row per mode: name and hint at the left; the number and the switch in fixed columns at the right,
                so every switch lines up (owner 2026-10-14: "sort these so they are visually better aligned"). -->
@@ -269,9 +270,9 @@ async function confirm(): Promise<void> {
         <p v-if="raids.isPending.value" class="text-sm text-muted-foreground">
           {{ $t('dashboard.chat.modTools.loadingRaids') }}
         </p>
-        <p v-else-if="raids.isError.value" role="alert" class="text-sm text-destructive">
+        <InlineNotice v-else-if="raids.isError.value" tone="error" compact>
           {{ $t('dashboard.chat.modTools.raidsFailed') }}
-        </p>
+        </InlineNotice>
         <p v-else class="text-sm text-muted-foreground">
           {{ $t('dashboard.chat.modTools.raidCount', { count: targets.length }) }}
         </p>

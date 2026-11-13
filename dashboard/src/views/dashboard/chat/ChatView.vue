@@ -43,6 +43,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { useBackLayer } from '@/composables/useBackCloses';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -494,9 +495,9 @@ async function confirmBan(): Promise<void> {
     class="flex min-h-0 flex-1 flex-col"
     :class="docked ? 'gap-0 p-0' : 'gap-3 p-6 max-md:py-0'"
   >
-    <p v-if="banFailed" role="alert" class="text-sm text-destructive max-md:px-4 max-md:pt-3">
+    <InlineNotice v-if="banFailed" tone="error" compact class="max-md:px-4 max-md:pt-3">
       {{ $t('dashboard.chat.ban.failed') }}
-    </p>
+    </InlineNotice>
     <div class="flex min-h-0 flex-1 gap-3">
       <PanelCard
         :class="docked ? 'min-h-0 flex-1' : 'min-h-96 flex-1'"

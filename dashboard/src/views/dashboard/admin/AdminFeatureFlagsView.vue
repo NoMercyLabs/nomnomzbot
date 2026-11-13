@@ -29,6 +29,7 @@ import {
   type SetFeatureFlagRequest,
 } from '@/api/adminFeatureFlags';
 import { ApiError } from '@/api/errors';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -345,9 +346,9 @@ const whenOf = (entry: FeatureFlagOverride): string =>
           <p v-if="blast.isPending.value" class="text-sm text-muted-foreground">
             {{ $t('dashboard.admin.featureFlags.blastLoading') }}
           </p>
-          <p v-else-if="blast.isError.value" role="alert" class="text-sm text-destructive">
+          <InlineNotice v-else-if="blast.isError.value" tone="error" compact>
             {{ $t('dashboard.admin.featureFlags.blastError', { reason: blast.error.value?.message }) }}
-          </p>
+          </InlineNotice>
           <div v-else-if="blast.data.value" data-blast class="flex flex-col gap-1 text-sm">
             <p>{{ $t('dashboard.admin.featureFlags.blastCount', { count: Number(blast.data.value.tenantsAffected) }) }}</p>
             <p v-if="blastNames" class="text-muted-foreground">
@@ -410,13 +411,9 @@ const whenOf = (entry: FeatureFlagOverride): string =>
           </div>
         </template>
       </div>
-      <p
-        v-if="overridesState === 'error'"
-        role="alert"
-        class="px-4 pb-3 text-sm text-destructive"
-      >
+      <InlineNotice v-if="overridesState === 'error'" tone="error" compact class="px-4 pb-3">
         {{ $t('dashboard.admin.featureFlags.overridesError') }}
-      </p>
+      </InlineNotice>
       <p
         v-else-if="overrides.data.value?.length === 0"
         class="px-4 pb-3 text-sm text-muted-foreground"
