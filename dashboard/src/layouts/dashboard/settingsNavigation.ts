@@ -14,12 +14,18 @@ import BookOpen from '~icons/nnz/book-open';
 import CellTower from '~icons/nnz/cell-tower';
 import ChatBot from '~icons/nnz/chat-bot';
 import ChatBubble from '~icons/nnz/chat-bubble';
+import ChatDisabled from '~icons/nnz/chat-disabled';
 import ChatLove from '~icons/nnz/chat-love';
 import CreditCard from '~icons/nnz/credit-card-front';
+import Flag from '~icons/nnz/flag';
+import Hammer from '~icons/nnz/hammer';
 import Handshake from '~icons/nnz/handshake';
 import KeyOld from '~icons/nnz/key-old';
 import Link from '~icons/nnz/link';
 import Locked from '~icons/nnz/locked';
+import Megaphone from '~icons/nnz/megaphone';
+import MessageCheck from '~icons/nnz/message-bubble-check';
+import MessageRemove from '~icons/nnz/message-bubble-remove';
 import MultiPoint from '~icons/nnz/multi-point-connection';
 import PaperScroll from '~icons/nnz/paper-scroll';
 import Plugged from '~icons/nnz/plugged';
@@ -51,7 +57,7 @@ export const settingsNav: readonly NavGroup[] = [
       { ...navEntry('dashboard-settings-bot-basics', 'settingsPages.botBasics', SettingsFader), bottom: true },
       navEntry('dashboard-settings-bot-personality', 'settingsPages.botPersonality', ChatLove),
       navEntry('dashboard-settings-engagement-triggers', 'settingsPages.engagementTriggers', Sparkles),
-      navEntry('dashboard-settings-shoutouts', 'settingsPages.shoutouts', ChatLove),
+      navEntry('dashboard-settings-shoutouts', 'settingsPages.shoutouts', Megaphone),
       navEntry('dashboard-settings-white-label-bot', 'settingsPages.whiteLabelBot', ChatBot),
       navEntry('dashboard-settings-features', 'settingsPages.features', ToggleOn),
     ],
@@ -80,11 +86,11 @@ export const settingsNav: readonly NavGroup[] = [
       navEntry('dashboard-settings-trust-policy', 'settingsPages.trustPolicy', Scale),
       navEntry('dashboard-settings-escalation', 'settingsPages.escalation', StairsUp),
       navEntry('dashboard-settings-spam-defense', 'settingsPages.spamDefense', ShieldAlert),
-      navEntry('dashboard-settings-automod', 'settingsPages.automod', ShieldAlert),
-      navEntry('dashboard-settings-chat-filters', 'settingsPages.chatFilters', ShieldAlert),
-      navEntry('dashboard-settings-blocked-terms', 'settingsPages.blockedTerms', ShieldAlert),
-      navEntry('dashboard-settings-banned', 'settingsPages.banned', Locked),
-      navEntry('dashboard-settings-reports', 'settingsPages.reports', AlertTriangle),
+      navEntry('dashboard-settings-automod', 'settingsPages.automod', MessageCheck),
+      navEntry('dashboard-settings-chat-filters', 'settingsPages.chatFilters', MessageRemove),
+      navEntry('dashboard-settings-blocked-terms', 'settingsPages.blockedTerms', ChatDisabled),
+      navEntry('dashboard-settings-banned', 'settingsPages.banned', Hammer),
+      navEntry('dashboard-settings-reports', 'settingsPages.reports', Flag),
       navEntry('dashboard-settings-event-journal', 'settingsPages.eventJournal', PaperScroll),
     ],
   },
