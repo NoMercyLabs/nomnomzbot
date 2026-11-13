@@ -678,6 +678,7 @@
         "list": {
           "title": "Webhook-levering per kanaal",
           "window": "Laatste 24 uur. Doel voor succespercentage: {target}.",
+          "windowOnly": "Laatste 24 uur.",
           "empty": "In de laatste 24 uur is geen webhook-levering afgerond.",
           "error": "De foutbudgetten konden niet laden.",
           "forbidden": "Je mag de foutbudgetten niet zien."

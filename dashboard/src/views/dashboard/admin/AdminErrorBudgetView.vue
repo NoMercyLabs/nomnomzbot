@@ -48,6 +48,11 @@ const target = computed<string>(() => {
   return format.format(Number(first.targetSuccessRate));
 });
 
+const windowText = computed<string>(() =>
+  target.value === ''
+    ? t('dashboard.admin.errorBudget.list.windowOnly')
+    : t('dashboard.admin.errorBudget.list.window', { target: target.value }));
+
 const count = computed<string | undefined>(() =>
   budgets.data.value
     ? t('dashboard.admin.errorBudget.count', { count: total.value })
@@ -70,7 +75,7 @@ const listError = computed<string>(() =>
     :pages="pages"
     :state="panelState"
     :list-title="$t('dashboard.admin.errorBudget.list.title')"
-    :description="$t('dashboard.admin.errorBudget.list.window', { target })"
+    :description="windowText"
     :empty-text="$t('dashboard.admin.errorBudget.list.empty')"
     :error-text="listError"
     @previous="page -= 1"

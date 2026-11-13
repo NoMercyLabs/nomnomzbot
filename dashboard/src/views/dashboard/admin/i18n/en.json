@@ -678,6 +678,7 @@
         "list": {
           "title": "Webhook delivery per channel",
           "window": "Last 24 hours. Target success rate {target}.",
+          "windowOnly": "Last 24 hours.",
           "empty": "No webhook delivery has finished in the last 24 hours.",
           "error": "The error budgets could not load.",
           "forbidden": "You may not see the error budgets."

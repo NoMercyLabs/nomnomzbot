@@ -191,6 +191,14 @@ describe('AdminErrorBudgetView', () => {
     expect(text()).toContain('99%');
   });
 
+  it('names only the window when no channel has a row, so no target is invented', async () => {
+    tenants = [];
+    await open();
+
+    expect(text()).toContain('Last 24 hours.');
+    expect(text()).not.toContain('Target success rate');
+  });
+
   it('shows the forbidden message when the bot refuses', async () => {
     refused = true;
     await open();
