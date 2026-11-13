@@ -14,6 +14,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useRedeemInviteCode } from '@/api/billing';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
@@ -74,6 +75,6 @@ async function redeemNow(): Promise<void> {
     >
       {{ $t('site.invite.redeem', { channel: target.displayName }) }}
     </Button>
-    <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
   </div>
 </template>

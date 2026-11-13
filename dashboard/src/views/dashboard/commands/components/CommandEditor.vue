@@ -30,6 +30,7 @@ import {
 } from '@/api/commands';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import DetailClose from './DetailClose.vue';
@@ -421,7 +422,7 @@ function remove(): void {
         </CollapsibleContent>
       </Collapsible>
 
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
     </div>
     <template #footer>
       <EditorFooter

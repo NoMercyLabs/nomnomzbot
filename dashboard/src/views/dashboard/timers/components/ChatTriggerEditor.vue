@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useUpdateChatTrigger, type ChatTrigger } from '@/api/chatTriggers';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
@@ -179,7 +180,7 @@ function remove(): void {
         </Field>
       </div>
 
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
     </div>
     <template #footer>
       <EditorFooter

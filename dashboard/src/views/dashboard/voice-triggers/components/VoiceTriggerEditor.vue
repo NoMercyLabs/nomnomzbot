@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useUpdateVoiceTrigger, type VoiceTrigger } from '@/api/voiceTriggers';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -144,7 +145,7 @@ function remove(): void {
 
       <StickerSelect v-model="draft.stickerAssetId" />
 
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
     </div>
     <template #footer>
       <EditorFooter

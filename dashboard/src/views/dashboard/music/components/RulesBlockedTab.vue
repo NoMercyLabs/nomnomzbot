@@ -21,6 +21,7 @@ import {
   type BlockedTrack,
   type BlockTrack,
 } from '@/api/music';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -80,9 +81,9 @@ function undoAllow(): void {
 
 <template>
   <RuleSection :title="$t('dashboard.music.rules.blocked')">
-    <p v-if="blockedQuery.isError.value" role="alert" class="text-sm text-destructive">
+    <InlineNotice v-if="blockedQuery.isError.value" tone="error" compact>
       {{ $t("dashboard.music.rules.blockedError") }}
-    </p>
+    </InlineNotice>
     <p
       v-else-if="!blockedQuery.isPending.value && blocked.length === 0"
       class="text-sm text-muted-foreground"

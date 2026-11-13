@@ -11,6 +11,7 @@
 <script setup lang="ts">
 // The sticker choice of a voice trigger: one of the channel's uploaded images, or none.
 import { useStickerAssets } from '@/api/voiceTriggers';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import {
   Select,
@@ -46,8 +47,8 @@ const stickers = useStickerAssets(channelId);
         </SelectItem>
       </SelectContent>
     </Select>
-    <p v-if="stickers.isError.value" role="alert" class="text-sm text-destructive">
+    <InlineNotice v-if="stickers.isError.value" tone="error" compact>
       {{ $t('dashboard.voiceTriggers.editor.stickersError') }}
-    </p>
+    </InlineNotice>
   </Field>
 </template>

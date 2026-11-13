@@ -18,6 +18,7 @@ import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
 import ArrowUp from '~icons/nnz/arrow-up';
 
 import { RECAP_PAGE_SIZE, useStreamRecaps, withChannel, type StreamRecap, type StreamRecapPage } from '@/api/streamRecaps';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -239,7 +240,7 @@ async function save(): Promise<void> {
           </DialogDescription>
         </DialogHeader>
         <RecapPreview v-if="opened" ref="preview" :recap="opened" :size="resolution" />
-        <p v-if="failed" class="text-sm text-destructive" role="alert">{{ t(`${page}.failed`) }}</p>
+        <InlineNotice v-if="failed" tone="error" compact>{{ t(`${page}.failed`) }}</InlineNotice>
         <DialogFooter>
           <Button :disabled="saving" data-recap-save @click="save">{{ t(`${page}.save`) }}</Button>
         </DialogFooter>

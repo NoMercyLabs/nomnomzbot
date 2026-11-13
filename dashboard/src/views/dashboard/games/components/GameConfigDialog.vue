@@ -20,6 +20,7 @@ import { ApiError } from '@/api/errors';
 import { useSaveGameConfig, type GameConfig } from '@/api/games';
 import { gameStandings, type GameStanding } from '@/api/vocabulary';
 import DurationInput from '@/components/layout/DurationInput.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -217,9 +218,9 @@ function submit(): void {
           {{ t("dashboard.games.configs.floorStays", { seconds: floorSeconds }) }}
         </p>
 
-        <p v-if="failure !== null" class="text-sm text-destructive sm:col-span-2" role="alert">
+        <InlineNotice v-if="failure !== null" tone="error" compact class="sm:col-span-2">
           {{ failure }}
-        </p>
+        </InlineNotice>
       </div>
 
       <DialogFooter v-if="canWrite" class="flex-none border-t border-border px-6 py-4">

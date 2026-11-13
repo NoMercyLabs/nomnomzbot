@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import { audioMixRefusals, useAudioMix, useSaveAudioMix, type AudioMixChange } from '@/api/audioMix';
 import { ApiError } from '@/api/errors';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Input } from '@/components/ui/input';
@@ -205,23 +206,25 @@ const failure = computed(() => {
             @keydown.enter="commit(row.field)"
           />
         </ReadabilityRow>
-        <p
+        <InlineNotice
           v-if="failure?.field === row.field"
-          role="alert"
-          class="px-3 pb-2 text-sm text-destructive"
+          tone="error"
+          compact
+          class="px-3 pb-2"
           :data-audio-mix-error="row.field"
         >
           {{ failure?.text }}
-        </p>
+        </InlineNotice>
       </div>
-      <p
+      <InlineNotice
         v-if="failure?.field === 'general'"
-        role="alert"
-        class="px-3 py-2 text-sm text-destructive"
+        tone="error"
+        compact
+        class="px-3 py-2"
         data-audio-mix-error="general"
       >
         {{ failure?.text }}
-      </p>
+      </InlineNotice>
     </RowGroup>
   </PanelCard>
 </template>

@@ -17,6 +17,7 @@ import { useRouter } from 'vue-router';
 
 import { hasCredentialForm, setupWizardQuery, useCompleteSetup, type SetupStep } from '@/api/setup';
 import AppMark from '@/components/layout/AppMark.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -103,9 +104,9 @@ async function finish(): Promise<void> {
             </li>
           </ul>
           <EventFeedHealth />
-          <p v-if="complete.isError.value" class="text-sm text-destructive" role="alert">
+          <InlineNotice v-if="complete.isError.value" tone="error" compact>
             {{ $t('site.setup.finish.failed') }}
-          </p>
+          </InlineNotice>
         </template>
       </div>
 

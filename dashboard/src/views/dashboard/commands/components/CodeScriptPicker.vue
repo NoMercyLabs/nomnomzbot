@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { errorText } from '@/lib/errors';
@@ -41,11 +42,11 @@ const empty = computed<boolean>(() => scripts.isSuccess.value && choices.value.l
 <template>
   <Field data-code-script class="content-start">
     <FieldLabel>{{ $t('dashboard.commands.editor.script') }}</FieldLabel>
-    <p v-if="scripts.isError.value" role="alert" class="text-sm text-destructive">
+    <InlineNotice v-if="scripts.isError.value" tone="error" compact>
       {{
         $t('dashboard.commands.editor.scriptError', { message: errorText(scripts.error.value, $t) })
       }}
-    </p>
+    </InlineNotice>
     <p v-else-if="empty" data-code-script-empty class="text-sm text-muted-foreground">
       {{ $t('dashboard.commands.editor.scriptNone') }}
       <RouterLink :to="{ name: 'dashboard-scripts' }" class="underline underline-offset-2 hover:text-foreground">

@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n';
 import { useToggleTimer, type Timer as TimerRow } from '@/api/liveOps';
 import { useCreateTimer, useTimer, useUpdateTimer, type Timer } from '@/api/timers';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
@@ -283,10 +284,10 @@ function remove(): void {
         />
       </div>
 
-      <p v-if="problemText" role="alert" data-timer-problem class="text-sm text-destructive">
+      <InlineNotice v-if="problemText" data-timer-problem tone="error" compact>
         {{ problemText }}
-      </p>
-      <p v-else-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      </InlineNotice>
+      <InlineNotice v-else-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
     </div>
     <template #footer>
       <EditorFooter

@@ -20,6 +20,7 @@ import {
   setupWizardKey,
   type SetupStep,
 } from '@/api/setup';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 
 import InstructionLine from './InstructionLine.vue';
@@ -67,9 +68,9 @@ watch(connected, (now) => {
     <p v-else-if="waiting" class="text-sm text-muted-foreground" role="status">
       {{ $t('site.setup.botWaiting') }}
     </p>
-    <p v-if="authorize.isError.value" class="text-sm text-destructive" role="alert">
+    <InlineNotice v-if="authorize.isError.value" tone="error" compact>
       {{ $t('site.setup.botFailed') }}
-    </p>
+    </InlineNotice>
 
     <div>
       <Button

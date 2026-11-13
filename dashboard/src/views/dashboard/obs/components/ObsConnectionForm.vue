@@ -17,6 +17,7 @@ import type { ObsConnection } from '@/api/obs';
 import { useObsSaveConnection } from '@/api/obsControl';
 import DateTime from '@/components/layout/DateTime.vue';
 import EventKindMask from '@/components/layout/EventKindMask.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
@@ -157,9 +158,9 @@ function submit(): void {
         prefix="dashboard.obs.kinds"
       />
     </fieldset>
-    <p v-if="connection.lastError" data-obs-last-error class="text-sm text-destructive">
+    <InlineNotice v-if="connection.lastError" data-obs-last-error tone="error" compact>
       {{ $t('dashboard.obs.connectionForm.lastError', { error: connection.lastError }) }}
-    </p>
+    </InlineNotice>
     <p v-if="connection.lastConnectedAt" data-obs-last-connected class="text-sm text-muted-foreground">
       {{ $t('dashboard.obs.connectionForm.lastConnected') }}
       <DateTime :value="connection.lastConnectedAt" variant="relative" />

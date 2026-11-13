@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { ApiFieldProblem } from '@/api/errors';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 
 const props = defineProps<{
   problems: ApiFieldProblem[];
@@ -38,13 +39,12 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <p
-    v-for="line in lines"
-    :key="line"
-    role="alert"
-    :data-raid-problem="field"
-    class="text-sm text-destructive"
+  <InlineNotice v-for="line in lines"
+                :key="line"
+                tone="error"
+                compact
+                :data-raid-problem="field"
   >
     {{ line }}
-  </p>
+  </InlineNotice>
 </template>

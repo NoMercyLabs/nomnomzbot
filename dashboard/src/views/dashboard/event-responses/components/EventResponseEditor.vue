@@ -24,6 +24,7 @@ import {
 } from '@/api/eventResponses';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
@@ -241,7 +242,7 @@ async function useDefault(): Promise<void> {
         />
       </ReplyModeField>
 
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
     </div>
     <template #footer>
       <!-- A fixed-set item cannot be deleted: Reset takes the place of Delete at the left. -->

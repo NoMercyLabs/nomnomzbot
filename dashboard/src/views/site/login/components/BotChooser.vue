@@ -16,6 +16,7 @@ import Cross from '~icons/nnz/cross';
 import { activeBot } from '@/api/activeBot';
 import { switchBot } from '@/api/auth';
 import { probeBot, type BotProbe } from '@/api/system';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -140,9 +141,9 @@ async function check(): Promise<void> {
         <p v-if="checking" class="text-sm text-muted-foreground" role="status">
           {{ $t('site.login.bots.checking') }}
         </p>
-        <p v-else-if="checked === 'invalid'" class="text-sm text-destructive" role="alert">
+        <InlineNotice v-else-if="checked === 'invalid'" tone="error" compact>
           {{ $t('site.login.bots.invalid') }}
-        </p>
+        </InlineNotice>
         <p v-else-if="checked" class="flex items-baseline gap-2 text-sm" role="status">
           <span
             class="dot"

@@ -16,6 +16,7 @@ import { computed } from 'vue';
 
 import { useModeratedChannels, useMyChannels } from '@/api/channels';
 import { useWatchedChannels, type WatchedChannel } from '@/api/viewer';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,12 +56,12 @@ function lastSeen(channel: WatchedChannel): string {
   <div class="flex flex-col gap-6 px-6">
     <h1 class="text-xl font-semibold">{{ $t('viewer.channels.title') }}</h1>
 
-    <p v-if="watched.isError.value" class="text-sm text-destructive" role="alert">
+    <InlineNotice v-if="watched.isError.value" tone="error" compact>
       {{ $t('viewer.channels.error') }}
       <Button variant="outline" size="sm" @click="watched.refetch()">
         {{ $t('viewer.channels.retry') }}
       </Button>
-    </p>
+    </InlineNotice>
 
     <ul v-else-if="watched.isPending.value" class="grid gap-3 sm:grid-cols-2" aria-busy="true">
       <li v-for="slot in 2" :key="slot">

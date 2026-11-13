@@ -23,6 +23,7 @@ import {
   useStartRegrant,
   type EventFeedVerdict,
 } from '@/api/twitchHealth';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 
@@ -84,9 +85,9 @@ const tone = computed(() =>
         <Button variant="outline" :disabled="reconcile.isPending.value" @click="reconcile.mutate()">
           {{ $t('site.setup.feed.reconcile') }}
         </Button>
-        <p v-if="reconcile.isError.value" class="mt-2 text-sm text-destructive" role="alert">
+        <InlineNotice v-if="reconcile.isError.value" tone="error" compact class="mt-2">
           {{ $t('site.setup.feed.reconcileFailed') }}
-        </p>
+        </InlineNotice>
       </div>
     </template>
   </section>

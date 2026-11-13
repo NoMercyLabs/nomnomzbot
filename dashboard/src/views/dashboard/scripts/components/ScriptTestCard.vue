@@ -18,6 +18,7 @@ import { computed, ref } from 'vue';
 import Play from '~icons/nnz/play';
 
 import { fetchTestTriggers } from '@/api/codeScripts';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -160,9 +161,9 @@ async function run(): Promise<void> {
           {{ line }}
         </p>
       </div>
-      <p v-if="tester.failure.value" role="alert" class="text-destructive">
+      <InlineNotice v-if="tester.failure.value" tone="error" compact>
         {{ tester.failure.value }}
-      </p>
+      </InlineNotice>
     </div>
   </PanelCard>
 </template>

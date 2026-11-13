@@ -15,6 +15,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCurrencyConfig, useSaveCurrencyConfig, type CurrencyConfig } from '@/api/economy';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -186,7 +187,7 @@ async function submit(): Promise<void> {
           />
         </Field>
       </div>
-      <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
+      <InlineNotice v-if="error" tone="error" compact>{{ error }}</InlineNotice>
       <Button
         v-if="can('economy:config:write')"
         type="submit"

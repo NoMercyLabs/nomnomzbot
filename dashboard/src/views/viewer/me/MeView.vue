@@ -114,9 +114,9 @@ function retry(): void {
     </div>
 
     <template v-else>
-      <p v-if="summary.isError.value" class="text-sm text-destructive" role="alert">
+      <InlineNotice v-if="summary.isError.value" tone="error" compact>
         {{ $t('viewer.me.stats.error') }}
-      </p>
+      </InlineNotice>
       <StatStrip v-else-if="summary.data.value" data-viewer-stats>
         <StatTile
           :label="$t('viewer.me.stats.messages')"

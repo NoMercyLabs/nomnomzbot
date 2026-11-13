@@ -27,6 +27,7 @@ import {
   type BuiltinCommand,
   type BuiltinReply,
 } from '@/api/commands';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import DetailClose from './DetailClose.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -487,7 +488,7 @@ const unsaved = computed<string>(() =>
         </div>
       </Field>
     </div>
-    <p v-if="failure" role="alert" class="px-6 pb-2 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-6 pb-2">{{ failure }}</InlineNotice>
     <ConfirmDialog
       v-model:open="resetOpen"
       :title="$t('dashboard.commands.builtin.resetTitle', { name: triggerWord(builtin) })"

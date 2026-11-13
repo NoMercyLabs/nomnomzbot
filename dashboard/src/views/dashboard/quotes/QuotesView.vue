@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n';
 
 import { fetchRandomQuote, useDeleteQuote, useQuotes, type Quote } from '@/api/quotes';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
@@ -134,7 +135,7 @@ function loadMore(): void {
     </template>
   </PageHeader>
   <PageBody>
-    <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
+    <InlineNotice v-if="actionError" tone="error" compact>{{ actionError }}</InlineNotice>
     <RowGroup v-if="random">
       <QuoteRow :quote="random" data-random-quote />
     </RowGroup>

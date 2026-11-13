@@ -19,12 +19,7 @@ import { oneOf } from '../lib/array';
 // <p role="alert" class="... text-destructive">. The scoped folders are swept lane by lane: a later lane adds
 // its folder to the list. A field-level or per-row message has no role="alert" and is not matched.
 const src = join(__dirname, '..');
-const scopedFolders = [
-  'views/dashboard/settings',
-  'views/dashboard/admin',
-  'views/dashboard/chat',
-  'views/dashboard/discord',
-] as const satisfies readonly string[];
+const scopedFolders = ['views'] as const satisfies readonly string[];
 
 // A clean file must leave this list.
 const allowlist = [
@@ -42,6 +37,12 @@ const allowlist = [
   'views/dashboard/admin/components/PlatformDefaultPreview.vue',
   // ModToolsPanel: the duration range message sits under one mode input (text-xs).
   'views/dashboard/chat/components/ModToolsPanel.vue',
+  // OverlayDetail: the failure and delete-error spans share a button row, where a block would break the row.
+  'views/dashboard/overlays/components/OverlayDetail.vue',
+  // CatalogView: the script error span shares a button row with the editor button.
+  'views/dashboard/catalog/CatalogView.vue',
+  // ObsSetupAction: the stranded flag is a span with a status badge that sits beside the connect button.
+  'views/dashboard/overlays/components/ObsSetupAction.vue',
 ] as const satisfies readonly string[];
 
 const openingTag = /<([a-z][\w-]*)\b[^>]*?\brole="alert"[^>]*>/gis;

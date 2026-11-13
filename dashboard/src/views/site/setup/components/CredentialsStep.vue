@@ -13,6 +13,7 @@
 import { reactive } from 'vue';
 
 import { useSaveCredentials, useUseSharedTwitchApp, type SetupStep } from '@/api/setup';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -67,9 +68,9 @@ const canSave = () =>
           {{ $t('site.setup.useShared') }}
         </Button>
       </div>
-      <p v-if="save.isError.value || useShared.isError.value" class="text-sm text-destructive" role="alert">
+      <InlineNotice v-if="save.isError.value || useShared.isError.value" tone="error" compact>
         {{ $t('site.setup.saveFailed') }}
-      </p>
+      </InlineNotice>
     </form>
   </div>
 </template>

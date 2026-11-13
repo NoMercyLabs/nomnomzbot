@@ -33,6 +33,7 @@ import {
 } from '@/api/people';
 import { useYouTubeMembers } from '@/api/youtubeMembers';
 import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
@@ -494,9 +495,9 @@ useEventListener(document, 'keydown', closeOnEscape);
           <p v-if="lookupMissing !== ''" role="alert" class="text-sm text-muted-foreground">
             {{ $t("dashboard.people.lookup.notFound", { login: lookupMissing }) }}
           </p>
-          <p v-else-if="lookup.isError.value" role="alert" class="text-sm text-destructive">
+          <InlineNotice v-else-if="lookup.isError.value" tone="error" compact>
             {{ $t("dashboard.people.lookup.error") }}
-          </p>
+          </InlineNotice>
         </template>
       </ListPanel>
     </template>

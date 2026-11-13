@@ -18,6 +18,7 @@ import { toast } from 'vue-sonner';
 import { TwitchUserNotFoundError, useTwitchLookup, type TwitchViewer } from '@/api/community';
 import { useCancelRaid, useStartRaid } from '@/api/raids';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,9 +108,14 @@ function stop(): void {
         {{ t("dashboard.stream.raidNow.cancel") }}
       </Button>
     </form>
-    <p v-if="missing" data-raid-missing role="alert" class="pt-3 text-sm text-destructive">
+    <InlineNotice v-if="missing"
+                  data-raid-missing
+                  tone="error"
+                  compact
+                  class="pt-3"
+    >
       {{ t("dashboard.stream.raidNow.notFound", { login: missing }) }}
-    </p>
+    </InlineNotice>
     <ConfirmDialog
       v-model:open="confirmOpen"
       :title="t('dashboard.stream.raidNow.confirmTitle', { name: target?.displayName ?? '' })"

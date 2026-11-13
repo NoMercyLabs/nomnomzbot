@@ -34,6 +34,7 @@ import {
   type GiveawayWinner,
 } from '@/api/giveaways';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -235,7 +236,7 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
     </template>
   </PageHeader>
   <PageBody>
-    <p v-if="deleteError" role="alert" class="text-sm text-destructive">{{ deleteError }}</p>
+    <InlineNotice v-if="deleteError" tone="error" compact>{{ deleteError }}</InlineNotice>
     <PanelCard
       v-if="can('giveaways:read')"
       tier="lead"

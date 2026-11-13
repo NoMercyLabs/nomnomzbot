@@ -23,6 +23,7 @@ import {
   type SoundClip,
 } from '@/api/soundClips';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -134,7 +135,7 @@ function loadMore(): void {
     </template>
   </PageHeader>
   <PageBody>
-    <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
+    <InlineNotice v-if="actionError" tone="error" compact>{{ actionError }}</InlineNotice>
     <PanelCard
       tier="lead"
       :title="t('dashboard.sounds.listTitle')"

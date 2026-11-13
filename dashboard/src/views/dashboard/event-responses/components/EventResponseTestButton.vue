@@ -15,6 +15,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useTestEventResponse } from '@/api/eventResponses';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -80,9 +81,9 @@ function run(): void {
             <Spinner />
             {{ $t('dashboard.eventResponses.test.running') }}
           </p>
-          <p v-else-if="test.isError.value" role="alert" class="text-sm text-destructive">
+          <InlineNotice v-else-if="test.isError.value" tone="error" compact>
             {{ $t('dashboard.eventResponses.test.error') }} {{ errorText(test.error.value, t) }}
-          </p>
+          </InlineNotice>
           <EventResponseTestResult v-else-if="test.data.value" :result="test.data.value" />
         </div>
         <DialogFooter class="flex-none border-t border-border px-6 py-4">

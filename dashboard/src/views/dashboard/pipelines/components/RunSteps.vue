@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { usePipelineRun, type PipelineRunStep } from '@/api/pipelineRuns';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { durationText } from '@/lib/time';
@@ -44,9 +45,9 @@ const steps = computed<PipelineRunStep[]>(() => {
   <div data-run-steps class="grid gap-2">
     <h4 class="text-xs font-medium text-muted-foreground">{{ $t(`${page}.runs.steps`) }}</h4>
     <Skeleton v-if="run.isPending.value" class="h-12 rounded-md" />
-    <p v-else-if="run.isError.value" role="alert" class="text-sm text-destructive">
+    <InlineNotice v-else-if="run.isError.value" tone="error" compact>
       {{ $t(`${page}.runs.stepsError`) }}
-    </p>
+    </InlineNotice>
     <p v-else-if="steps.length === 0" class="text-sm text-muted-foreground">{{ $t(`${page}.runs.noSteps`) }}</p>
     <ol v-else class="grid gap-1.5">
       <li

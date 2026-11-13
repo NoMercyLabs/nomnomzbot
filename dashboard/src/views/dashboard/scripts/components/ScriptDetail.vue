@@ -31,6 +31,7 @@ import {
 } from '@/api/codeScripts';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
@@ -253,9 +254,9 @@ function confirmDelete(): void {
         <ul v-if="problems.length > 0" data-slot="script-problems" class="grid gap-1 text-destructive">
           <li v-for="problem in problems" :key="problem">{{ problem }}</li>
         </ul>
-        <p v-if="editor.missing.value" role="alert" class="text-destructive">
+        <InlineNotice v-if="editor.missing.value" tone="error" compact>
           {{ $t('dashboard.scripts.detail.notFound') }}
-        </p>
+        </InlineNotice>
 
         <section class="grid gap-2" data-slot="script-used-by">
           <h3 class="font-semibold">{{ $t('dashboard.scripts.detail.usedBy.title') }}</h3>
@@ -286,7 +287,7 @@ function confirmDelete(): void {
 
         <KeyValueList :items="facts" />
 
-        <p v-if="deleteError" role="alert" class="text-destructive">{{ deleteError }}</p>
+        <InlineNotice v-if="deleteError" tone="error" compact>{{ deleteError }}</InlineNotice>
       </div>
     </PanelCard>
 
