@@ -66,6 +66,22 @@ describe('the site root', () => {
     expect(wrapper.findAll('a').some((link) => link.attributes('href') === '/app')).toBe(false);
   });
 
+  it('points every in-page header link at a section that exists on the page', async () => {
+    const { wrapper } = await openRoot();
+
+    const targets: string[] = wrapper
+      .findAll('header nav a')
+      .map((link) => link.attributes('href') ?? '')
+      .filter((href) => href.startsWith('#'));
+
+    expect(targets).toEqual(['#features', '#deploy', '#integrations']);
+
+    const missing = targets.filter((target) =>
+      !wrapper.find(target).exists());
+
+    expect(missing).toEqual([]);
+  });
+
   // Stoney 2026-10-13, on a phone (translated from Dutch): "it is not really user-friendly on mobile, is it."
   it('puts the links, the language and connect behind one menu button on a small screen', async () => {
     const { wrapper } = await openRoot();

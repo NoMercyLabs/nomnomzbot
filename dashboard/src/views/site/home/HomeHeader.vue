@@ -37,7 +37,7 @@ type Link = {
 
 const { t } = useI18n();
 const links: Link[] = [
-  { key: 'site.home.nav.features', href: '#outcomes' },
+  { key: 'site.home.nav.features', href: '#features' },
   { key: 'site.home.nav.deploy', href: '#deploy' },
   { key: 'site.home.nav.integrations', href: '#integrations' },
   {

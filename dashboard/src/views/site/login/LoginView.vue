@@ -28,6 +28,7 @@ import { returnPath } from '@/router/guard';
 
 import BotChooser from './components/BotChooser.vue';
 import DeviceCodePanel from './components/DeviceCodePanel.vue';
+import ConsentNotice from '../components/ConsentNotice.vue';
 import PublicTaskShell from '../components/PublicTaskShell.vue';
 import TaskActions from '../components/TaskActions.vue';
 
@@ -256,9 +257,7 @@ function signIn(provider: LoginProvider): void {
       </template>
     </PanelCard>
     <template #below>
-      <p class="text-center text-xs text-balance text-muted-foreground">
-        {{ $t('site.login.terms') }}
-      </p>
+      <ConsentNotice />
     </template>
   </PublicTaskShell>
 </template>
