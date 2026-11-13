@@ -15,8 +15,6 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
 import { useBans, useLiftBanned, type BannedUser } from '@/api/bans';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -25,6 +23,8 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 const { t } = useI18n();
 const { can } = useCan();
@@ -55,11 +55,7 @@ function unban(ban: BannedUser): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.banned')"
-    :crumb="$t('dashboard.settings.banned.crumb')"
-  />
-  <PageBody>
+  <SettingsPageFrame :crumb="$t('dashboard.settings.banned.crumb')">
     <p class="text-sm text-muted-foreground">{{ $t("dashboard.settings.banned.explain") }}</p>
     <PanelCard
       tier="lead"
@@ -91,5 +87,5 @@ function unban(ban: BannedUser): void {
         </SummaryRow>
       </RowGroup>
     </PanelCard>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

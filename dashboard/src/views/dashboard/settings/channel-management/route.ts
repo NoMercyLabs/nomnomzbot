@@ -19,6 +19,7 @@ export const settingsChannelManagementRoute = {
   meta: {
     navMode: 'settings',
     action: 'setup:write',
+    titleKey: 'frame.nav.settingsPages.channelManagement',
   },
   component: () =>
     loadPage(

@@ -12,8 +12,7 @@
 // The channel's plan and what goes with it: the plans on offer, an invite code and the invoices. The limits
 // and usage of the plan are on Resource limits. Each panel reads its own data and refreshes on the
 // `billing` config change of the hub.
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import InvitePanel from './components/InvitePanel.vue';
 import InvoicesPanel from './components/InvoicesPanel.vue';
@@ -22,17 +21,12 @@ import TiersPanel from './components/TiersPanel.vue';
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.billing')"
-    :crumb="$t('dashboard.settings.billing.crumb')"
-  />
-
-  <PageBody>
+  <SettingsPageFrame :crumb="$t('dashboard.settings.billing.crumb')">
     <div data-view="billing" class="grid gap-4">
       <PlanPanel />
       <TiersPanel />
       <InvitePanel />
       <InvoicesPanel />
     </div>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

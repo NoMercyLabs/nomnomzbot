@@ -28,8 +28,6 @@ import {
 } from '@/api/customEventFeeds';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
@@ -37,6 +35,8 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText, fieldErrorLines } from '@/lib/errors';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import EventFeedDialog from './components/EventFeedDialog.vue';
 import EventFeedRow from './components/EventFeedRow.vue';
@@ -171,9 +171,7 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.customEventFeeds')" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <PanelCard
       data-view="custom-event-feeds"
       tier="lead"
@@ -204,7 +202,7 @@ async function confirmDelete(): Promise<void> {
       </RowGroup>
     </PanelCard>
     <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
-  </PageBody>
+  </SettingsPageFrame>
 
   <EventFeedDialog
     v-if="can('customdata:write')"

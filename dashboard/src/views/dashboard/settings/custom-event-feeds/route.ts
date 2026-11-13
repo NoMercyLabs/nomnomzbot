@@ -19,6 +19,7 @@ export const settingsCustomEventFeedsRoute = {
   meta: {
     navMode: 'settings',
     action: 'customdata:read',
+    titleKey: 'frame.nav.settingsPages.customEventFeeds',
   },
   component: () =>
     loadPage(

@@ -19,6 +19,7 @@ export const settingsFeaturesRoute = {
   meta: {
     navMode: 'settings',
     action: 'feature:read',
+    titleKey: 'frame.nav.settingsPages.features',
   },
   component: () =>
     loadPage(

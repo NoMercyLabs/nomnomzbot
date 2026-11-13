@@ -658,7 +658,12 @@ describe('Event journal route', () => {
     );
     const loaded = await (record!.component as () => Promise<{ default: unknown }>)();
 
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'eventstore:export' });
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'eventstore:export',
+      titleKey: 'frame.nav.settingsPages.eventJournal',
+    });
+
     expect(loaded.default).toBe(EventJournalView);
   });
 });

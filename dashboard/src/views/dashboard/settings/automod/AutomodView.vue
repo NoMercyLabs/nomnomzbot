@@ -17,8 +17,6 @@ import { useI18n } from 'vue-i18n';
 
 import { useAutomod, useSaveAutomod } from '@/api/automod';
 import NumberRow from '@/components/layout/NumberRow.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -29,6 +27,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import TwitchAutomodPanel from './TwitchAutomodPanel.vue';
 import {
@@ -90,10 +90,7 @@ function submit(): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.automod')"
-    :crumb="$t('dashboard.settings.automod.crumb')"
-  >
+  <SettingsPageFrame :crumb="$t('dashboard.settings.automod.crumb')">
     <template v-if="canManage" #actions>
       <Button
         size="sm"
@@ -104,8 +101,6 @@ function submit(): void {
         {{ $t("dashboard.settings.automod.save") }}
       </Button>
     </template>
-  </PageHeader>
-  <PageBody>
     <p class="text-sm text-muted-foreground">{{ $t("dashboard.settings.automod.explain") }}</p>
     <PanelCard
       v-if="state !== 'ready' || draft === null"
@@ -218,5 +213,5 @@ function submit(): void {
       </div>
     </ReadOnlyScope>
     <TwitchAutomodPanel v-if="can('moderation:automod:twitch:read')" />
-  </PageBody>
+  </SettingsPageFrame>
 </template>

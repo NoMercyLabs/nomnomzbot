@@ -271,7 +271,13 @@ describe('Features route', () => {
 
     expect(entry).toBeDefined();
     expect(record?.path).toBe('settings/features');
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'feature:read' });
+
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'feature:read',
+      titleKey: 'frame.nav.settingsPages.features',
+    });
+
     expect(record?.component).toBeTypeOf('function');
   });
 });

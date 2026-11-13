@@ -30,8 +30,6 @@ import {
 } from '@/api/channelManagement';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
@@ -40,6 +38,8 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { merge } from '@/lib/array';
 import { errorText } from '@/lib/errors';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import BotPresenceRow from './components/BotPresenceRow.vue';
 import DeletedChannelNotice from './components/DeletedChannelNotice.vue';
@@ -196,9 +196,7 @@ async function restoreChannel(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.channelManagement')" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <PanelCard
       data-view="channel-presence"
       tier="lead"
@@ -276,7 +274,7 @@ async function restoreChannel(): Promise<void> {
       </RowGroup>
     </PanelCard>
     <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
-  </PageBody>
+  </SettingsPageFrame>
 
   <ConfirmDialog
     v-model:open="leaveOpen"

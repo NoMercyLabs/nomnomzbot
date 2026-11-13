@@ -17,8 +17,6 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
 import { useAddBlockedTerm, useBlockedTerms, useRemoveBlockedTerm } from '@/api/blockedTerms';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -27,6 +25,8 @@ import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 const { t } = useI18n();
 const { can } = useCan();
@@ -63,11 +63,7 @@ function drop(term: string): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.blockedTerms')"
-    :crumb="$t('dashboard.settings.blockedTerms.crumb')"
-  />
-  <PageBody data-page-body>
+  <SettingsPageFrame :crumb="$t('dashboard.settings.blockedTerms.crumb')" data-page-body>
     <p class="text-sm text-muted-foreground">{{ $t("dashboard.settings.blockedTerms.explain") }}</p>
     <PanelCard
       v-if="canEdit"
@@ -109,5 +105,5 @@ function drop(term: string): void {
         </SummaryRow>
       </RowGroup>
     </PanelCard>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

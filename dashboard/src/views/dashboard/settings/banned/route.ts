@@ -19,6 +19,7 @@ export const settingsBannedRoute = {
   meta: {
     navMode: 'settings',
     action: 'moderation:read',
+    titleKey: 'frame.nav.settingsPages.banned',
   },
   component: () =>
     loadPage(

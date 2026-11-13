@@ -288,7 +288,13 @@ describe('API and devices route', () => {
 
     expect(entry).toBeDefined();
     expect(router.resolve({ name: 'dashboard-settings-api-devices' }).path).toBe('/app/settings/api-devices');
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'automation:tokens:read' });
+
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'automation:tokens:read',
+      titleKey: 'frame.nav.settingsPages.apiDevices',
+    });
+
     expect(loaded.default).toBe(ApiDevicesView);
   });
 });

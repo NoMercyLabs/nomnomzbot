@@ -13,23 +13,14 @@
 // with no menu inside it.
 import { computed, defineAsyncComponent } from 'vue';
 
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-
+import SettingsPageFrame from './components/SettingsPageFrame.vue';
 import ReadabilityView from './ReadabilityView.vue';
 
 type SettingsPageKey = 'readability' | 'basics' | 'personality' | 'engagement';
 
 const props = defineProps<{ view: SettingsPageKey }>();
 
-// The page title is the sidebar entry's own word.
-const titleKeys = {
-  readability: 'frame.nav.settingsPages.readability',
-  basics: 'frame.nav.settingsPages.botBasics',
-  personality: 'frame.nav.settingsPages.botPersonality',
-  engagement: 'frame.nav.settingsPages.engagementTriggers',
-} as const satisfies Record<SettingsPageKey, string>;
-
+// The page title is the sidebar entry's own word; each route names it in its meta.titleKey.
 const pages = {
   readability: ReadabilityView,
   basics: defineAsyncComponent(() => import('./BasicsView.vue')),
@@ -41,9 +32,7 @@ const page = computed(() => pages[props.view]);
 </script>
 
 <template>
-  <PageHeader :title="$t(titleKeys[view])" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <component :is="page" />
-  </PageBody>
+  </SettingsPageFrame>
 </template>

@@ -19,6 +19,7 @@ export const settingsChatFiltersRoute = {
   meta: {
     navMode: 'settings',
     action: 'moderation:filter:read',
+    titleKey: 'frame.nav.settingsPages.chatFilters',
   },
   component: () =>
     loadPage(

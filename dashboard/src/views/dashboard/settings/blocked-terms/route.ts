@@ -19,6 +19,7 @@ export const settingsBlockedTermsRoute = {
   meta: {
     navMode: 'settings',
     action: 'moderation:filter:read',
+    titleKey: 'frame.nav.settingsPages.blockedTerms',
   },
   component: () =>
     loadPage(

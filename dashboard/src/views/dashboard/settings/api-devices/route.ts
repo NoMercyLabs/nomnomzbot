@@ -19,6 +19,7 @@ export const settingsApiDevicesRoute = {
   meta: {
     navMode: 'settings',
     action: 'automation:tokens:read',
+    titleKey: 'frame.nav.settingsPages.apiDevices',
   },
   component: () =>
     loadPage(

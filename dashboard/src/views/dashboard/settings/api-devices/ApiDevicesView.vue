@@ -26,14 +26,14 @@ import {
 } from '@/api/automationTokens';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import CreateTokenDialog from './components/CreateTokenDialog.vue';
 import PairingPanel from './components/PairingPanel.vue';
@@ -126,9 +126,7 @@ async function confirmRevoke(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.apiDevices')" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <div data-view="api-devices" class="grid gap-4">
       <PanelCard
         data-panel="tokens"
@@ -152,7 +150,7 @@ async function confirmRevoke(): Promise<void> {
 
       <PairingPanel v-if="can('automation:tokens:write')" />
     </div>
-  </PageBody>
+  </SettingsPageFrame>
 
   <CreateTokenDialog
     v-model:open="creating"

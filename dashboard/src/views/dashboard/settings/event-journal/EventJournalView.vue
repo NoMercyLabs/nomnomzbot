@@ -14,11 +14,11 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import { usePageView } from '@/composables/usePageView';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import JournalFilePanel from './components/JournalFilePanel.vue';
 import JournalListPanel from './components/JournalListPanel.vue';
@@ -38,18 +38,16 @@ const tabs = computed<PageTab<JournalView>[]>(() => [
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.eventJournal')" :crumb="$t('dashboard.settings.crumb')">
+  <SettingsPageFrame>
     <template #bar>
       <PageTabs :tabs="tabs" />
     </template>
-  </PageHeader>
 
-  <PageBody>
     <JournalListPanel v-if="view === 'events'" />
     <template v-else>
       <JournalFilePanel />
       <ReadModelsPanel />
       <LegacyHistoryPanel />
     </template>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

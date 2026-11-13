@@ -19,6 +19,7 @@ export const settingsBillingRoute = {
   meta: {
     navMode: 'settings',
     action: 'billing:read',
+    titleKey: 'frame.nav.settingsPages.billing',
   },
   component: () =>
     loadPage(

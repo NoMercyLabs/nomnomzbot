@@ -19,6 +19,7 @@ export const settingsEscalationRoute = {
   meta: {
     navMode: 'settings',
     action: 'moderation:escalation:read',
+    titleKey: 'frame.nav.settingsPages.escalation',
   },
   component: () =>
     loadPage(

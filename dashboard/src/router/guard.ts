@@ -37,6 +37,8 @@ declare module 'vue-router' {
     action?: string;
     // The page is open to every signed-in person on purpose (the You settings, a coming-soon page): the explicit opt-out from naming an action.
     open?: true;
+    // The words key of the page title, for a page whose frame reads its title from the route.
+    titleKey?: string;
   }
 }
 

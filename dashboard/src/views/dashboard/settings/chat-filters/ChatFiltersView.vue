@@ -23,8 +23,6 @@ import {
   type ChatFilter,
 } from '@/api/chatFilters';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -35,6 +33,8 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTargetOpen } from '@/composables/useTargetOpen';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import ChatFilterEditor from './ChatFilterEditor.vue';
 
@@ -86,17 +86,12 @@ function confirmRemove(): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.chatFilters')"
-    :crumb="$t('dashboard.settings.chatFilters.crumb')"
-  >
+  <SettingsPageFrame :crumb="$t('dashboard.settings.chatFilters.crumb')">
     <template v-if="canWrite && editing === null" #actions>
       <Button size="sm" data-action="new" @click="editing = 'new'">
         {{ $t("dashboard.settings.chatFilters.new") }}
       </Button>
     </template>
-  </PageHeader>
-  <PageBody>
     <ChatFilterEditor
       v-if="canWrite && editing !== null"
       :key="editing === 'new' ? 'new' : editing.id"
@@ -156,5 +151,5 @@ function confirmRemove(): void {
       :pending="remove.isPending.value"
       @confirm="confirmRemove"
     />
-  </PageBody>
+  </SettingsPageFrame>
 </template>

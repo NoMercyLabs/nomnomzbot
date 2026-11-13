@@ -52,6 +52,7 @@ export const dashboardSettingsRoute = {
     userLevel: true,
     // Readability is a person-level preference, not a channel setting.
     open: true,
+    titleKey: 'frame.nav.settingsPages.readability',
   },
   props: { view: 'readability' },
   component: settingsPage,
@@ -63,6 +64,7 @@ const botBasicsRoute = {
   meta: {
     navMode: 'settings',
     action: 'dashboard:read',
+    titleKey: 'frame.nav.settingsPages.botBasics',
   },
   props: { view: 'basics' },
   component: settingsPage,
@@ -74,6 +76,7 @@ const botPersonalityRoute = {
   meta: {
     navMode: 'settings',
     action: 'dashboard:read',
+    titleKey: 'frame.nav.settingsPages.botPersonality',
   },
   props: { view: 'personality' },
   component: settingsPage,
@@ -85,6 +88,7 @@ const engagementTriggersRoute = {
   meta: {
     navMode: 'settings',
     action: 'engagement:read',
+    titleKey: 'frame.nav.settingsPages.engagementTriggers',
   },
   props: { view: 'engagement' },
   component: settingsPage,

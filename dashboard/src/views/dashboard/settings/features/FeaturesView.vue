@@ -16,8 +16,6 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useChannelFeatures, useToggleFeature, type ChannelFeature } from '@/api/features';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -27,6 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 import { groupByArea } from './featureAreas';
 
@@ -82,9 +82,7 @@ async function flip(feature: ChannelFeature): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.features')" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <PanelCard
       data-view="features"
       pad
@@ -138,5 +136,5 @@ async function flip(feature: ChannelFeature): Promise<void> {
       </div>
       <p v-if="error" role="alert" class="px-3 pt-3 text-sm text-destructive">{{ error }}</p>
     </PanelCard>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

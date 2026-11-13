@@ -19,6 +19,7 @@ export const settingsAutomodRoute = {
   meta: {
     navMode: 'settings',
     action: 'moderation:automod:read',
+    titleKey: 'frame.nav.settingsPages.automod',
   },
   component: () =>
     loadPage(

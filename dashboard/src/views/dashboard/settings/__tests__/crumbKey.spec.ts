@@ -48,8 +48,9 @@ describe('the shared settings crumb', () => {
     .filter(([, source]) => source.includes(`'${CRUMB_KEY}'`))
     .map(([path]) => path);
 
-  it('is used by the settings pages', () => {
-    expect(users.length).toBeGreaterThanOrEqual(11);
+  // SettingsPageFrame is the one place that reads it for every page that sits in the Settings group.
+  it('is used by the settings page frame', () => {
+    expect(users.length).toBeGreaterThanOrEqual(1);
   });
 
   it('is in the always-loaded words for every language', () => {

@@ -19,6 +19,7 @@ export const settingsEventJournalRoute = {
   meta: {
     navMode: 'settings',
     action: 'eventstore:export',
+    titleKey: 'frame.nav.settingsPages.eventJournal',
   },
   component: () =>
     loadPage(

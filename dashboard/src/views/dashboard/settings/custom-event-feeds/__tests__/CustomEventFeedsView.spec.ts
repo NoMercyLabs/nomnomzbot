@@ -293,7 +293,12 @@ describe('Custom event feeds route', () => {
       '/app/settings/custom-event-feeds',
     );
 
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'customdata:read' });
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'customdata:read',
+      titleKey: 'frame.nav.settingsPages.customEventFeeds',
+    });
+
     expect(loaded.default).toBe(CustomEventFeedsView);
   });
 });
