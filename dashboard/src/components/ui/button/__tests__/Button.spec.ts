@@ -11,9 +11,10 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import { Fragment, h } from 'vue'
+import { createMemoryHistory, createRouter, RouterLink } from 'vue-router'
 import Button from '../Button.vue'
 import { buttonVariants } from '..'
 
@@ -76,5 +77,48 @@ describe('button content geometry', () => {
     const wrapper = mount(Button, { props: { size: 'icon', 'aria-label': 'Search' }, slots: { default: () => h('svg') } })
     expect(wrapper.element.children).toHaveLength(1)
     expect(wrapper.attributes('aria-label')).toBe('Search')
+  })
+})
+
+// Reka clones the direct child to forward the button's attributes and listeners.
+describe('button as-child forwarding', () => {
+  it('keeps attributes and click handling on the actual anchor', async () => {
+    const click = vi.fn()
+    const wrapper = mount(Button, {
+      props: { asChild: true, variant: 'outline', size: 'sm', onClick: click },
+      attrs: { 'data-action': 'open', class: 'min-w-0' },
+      slots: { default: () => h('a', { href: '/people' }, 'Open') },
+    })
+    expect(wrapper.element.tagName).toBe('A')
+    expect(wrapper.attributes('href')).toBe('/people')
+    expect(wrapper.attributes('data-action')).toBe('open')
+    expect(wrapper.attributes('data-variant')).toBe('outline')
+    expect(wrapper.attributes('data-size')).toBe('sm')
+    expect(wrapper.classes()).toContain('group/button')
+    expect(wrapper.classes()).toContain('min-w-0')
+    await wrapper.trigger('click')
+    expect(click).toHaveBeenCalledOnce()
+  })
+
+  it('forwards styling and identity through a RouterLink and still navigates', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+    })
+    await router.push('/')
+    const wrapper = mount(Button, {
+      props: { asChild: true, variant: 'outline' },
+      attrs: { 'data-open-page': '', class: 'min-w-0' },
+      slots: { default: () => h(RouterLink, { to: '/people' }, () => 'Open people') },
+      global: { plugins: [router] },
+    })
+    expect(wrapper.element.tagName).toBe('A')
+    expect(wrapper.attributes('href')).toBe('/people')
+    expect(wrapper.attributes('data-open-page')).toBe('')
+    expect(wrapper.attributes('data-variant')).toBe('outline')
+    expect(wrapper.classes()).toContain('min-w-0')
+    await wrapper.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/people')
   })
 })
