@@ -10,9 +10,11 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { afterEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import { defineComponent, h, ref } from 'vue';
 
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import { i18n } from '@/i18n';
 import {
   Dialog,
   DialogContent,
@@ -134,15 +136,91 @@ describe('focus when an overlay opens', () => {
   });
 });
 
+// The shared confirm, opened by a real button the way Economy "Earning rules" opens it.
+const ConfirmHarness = defineComponent({
+  setup() {
+    const open = ref(false);
+
+    return () => [
+      h('button', { 'data-opener': '', onClick: () => (open.value = true) }, 'Delete rule'),
+      h(ConfirmDialog, {
+        open: open.value,
+        'onUpdate:open': (value: boolean) => (open.value = value),
+        title: 'Delete rule?',
+        action: 'Delete rule',
+      }),
+    ];
+  },
+});
+
+type QuietOptions = FocusOptions & { focusVisible?: boolean };
+
+function focusCallsOn(spy: MockInstance, element: Element): QuietOptions[] {
+  return spy.mock.contexts
+    .map((context, index) => ({ context, options: spy.mock.calls[index]?.[0] as QuietOptions }))
+    .filter((call) => call.context === element)
+    .map((call) => call.options);
+}
+
+describe('focus after the confirm closes with Escape', () => {
+  it('returns to the button without a focus ring when a mouse opened it', async () => {
+    mounted = mount(ConfirmHarness, { attachTo: document.body, global: { plugins: [i18n] } });
+    await settle();
+    opener().focus();
+    pointerPress(opener());
+    await settle();
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus');
+
+    press('Escape');
+    await settle();
+    const calls = focusCallsOn(spy, opener());
+
+    spy.mockRestore();
+
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(document.activeElement).toBe(opener());
+    expect(calls.at(-1)).toMatchObject({ focusVisible: false });
+  });
+
+  it('returns to the button with its ring when the keyboard opened it', async () => {
+    mounted = mount(ConfirmHarness, { attachTo: document.body, global: { plugins: [i18n] } });
+    await settle();
+    opener().focus();
+    press('Enter');
+    opener().click();
+    await settle();
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus');
+
+    press('Escape');
+    await settle();
+    const calls = focusCallsOn(spy, opener());
+
+    spy.mockRestore();
+
+    expect(document.activeElement).toBe(opener());
+    expect(calls.every((options) => options?.focusVisible !== false)).toBe(true);
+  });
+});
+
 describe('focus after an overlay closes', () => {
-  it('stays off the button that opened it after a mouse close, so no focus ring is left there', async () => {
+  it('goes back to the button after a mouse close, without a focus ring', async () => {
     await openWith('pointer');
+
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus');
 
     pointerPress(document.body.querySelector('[data-slot="dialog-close"]')!);
     await settle();
+    const calls = focusCallsOn(spy, opener());
+
+    spy.mockRestore();
 
     expect(document.body.querySelector('[data-slot="dialog-content"]')).toBeNull();
-    expect(document.activeElement).not.toBe(opener());
+    expect(document.activeElement).toBe(opener());
+    expect(calls.at(-1)).toMatchObject({ focusVisible: false });
   });
 
   it('goes back to the button that opened it after a keyboard close', async () => {

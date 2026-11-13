@@ -22,14 +22,54 @@ if (typeof window !== 'undefined') {
   }, { capture: true, passive: true });
 }
 
+// `focusVisible` is in the HTML standard but not yet in the TypeScript DOM types.
+interface QuietFocusOptions extends FocusOptions {
+  focusVisible: boolean;
+}
+
+interface Opener {
+  element: HTMLElement;
+  input: 'keyboard' | 'pointer';
+}
+
+// The button that opened each overlay and the input that pressed it, found by the overlay's focus scope.
+const openers = new WeakMap<EventTarget, Opener>();
+
+// Runs when an overlay opens, before its focus moves: the focused element is the opener.
+export function rememberOpener(event: Event): void {
+  const element = document.activeElement;
+
+  if (event.target && element instanceof HTMLElement && element !== document.body) {
+    openers.set(event.target, { element, input: lastInput });
+  }
+}
+
 // A closing dialog, sheet, menu, popover or select hands the focus back to the button that opened it, and the
 // browser draws its focus ring there: the "double border" Stoney sent on 2026-10-14 and again on 2026-10-19.
-// After a mouse or touch close nobody needs that focus, so it stays off the button. After a keyboard close it goes
-// back, ring and all, so a keyboard user keeps their place. Every overlay wrapper in components/ui binds this.
+// When a mouse or touch opened the overlay, the focus still goes back (a person keeps their place) but quietly,
+// with no ring, whichever input closed it. When the keyboard opened it, the focus goes back with its ring, so a
+// keyboard user keeps their place. Every overlay wrapper in components/ui binds this to close-auto-focus.
 export function returnFocusOnlyForKeyboard(event: Event): void {
-  if (lastInput === 'pointer') {
-    event.preventDefault();
+  const opener = event.target
+    ? openers.get(event.target)
+    : undefined;
+
+  if (!opener) {
+    if (lastInput === 'pointer') {
+      event.preventDefault();
+    }
+
+    return;
   }
+
+  openers.delete(event.target!);
+
+  if (opener.input === 'keyboard' || !opener.element.isConnected) return;
+
+  event.preventDefault();
+  const quiet: QuietFocusOptions = { preventScroll: true, focusVisible: false };
+
+  opener.element.focus(quiet);
 }
 
 // What the browser tabs to first inside a panel, and what counts as a text field among those.
@@ -43,6 +83,8 @@ const textField = 'input, textarea, select, [contenteditable]:not([contenteditab
 // takes the focus, so a person can type at once. After a keyboard open the first control keeps it. Every focus-scope
 // wrapper in components/ui binds this to open-auto-focus; menus and selects already focus their own content.
 export function focusPanelOnPointerOpen(event: Event): void {
+  rememberOpener(event);
+
   const scope = event.target;
 
   if (lastInput !== 'pointer' || !(scope instanceof HTMLElement)) return;
