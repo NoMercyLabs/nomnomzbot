@@ -11,16 +11,13 @@
 <script setup lang="ts">
 // The Economy page: the channel's currency, how viewers earn it, and the savings jars.
 import Plus from '~icons/nnz/add';
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import { Button } from '@/components/ui/button';
-import { useCan } from '@/composables/useCan';
-import { usePageView } from '@/composables/usePageView';
-import { keysOf } from '@/lib/array';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import BalancesPanel from './components/BalancesPanel.vue';
 import CatalogPanel from './components/CatalogPanel.vue';
@@ -31,94 +28,93 @@ import SavingsJars from './components/SavingsJars.vue';
 
 const { t } = useI18n();
 
-const { can } = useCan();
-
-// Each tab needs the read key of its own endpoint; its New button needs the key that creates.
-const tabKeys = {
-  currency: { read: 'economy:config:read', create: null },
-  balances: { read: 'economy:accounts:read', create: null },
-  rules: { read: 'economy:earning-rules:read', create: 'economy:earning-rules:write' },
-  jars: { read: 'economy:jars:read', create: 'economy:jars:create' },
-  catalog: { read: 'economy:catalog:read', create: 'economy:catalog:create' },
-  leaderboards: {
-    read: 'economy:leaderboards:config:read',
-    create: 'economy:leaderboards:config:write',
-  },
-} as const satisfies Record<string, { read: string; create: string | null }>;
-const VIEWS = keysOf(tabKeys);
-
-type EconomyView = (typeof VIEWS)[number];
-const allTabs = computed<PageTab<EconomyView>[]>(() => [
-  { value: 'currency', label: t('dashboard.economy.tabs.currency') },
-  { value: 'balances', label: t('dashboard.economy.tabs.balances') },
-  { value: 'rules', label: t('dashboard.economy.tabs.rules') },
-  { value: 'jars', label: t('dashboard.economy.tabs.jars') },
-  { value: 'catalog', label: t('dashboard.economy.tabs.catalog') },
-  { value: 'leaderboards', label: t('dashboard.economy.tabs.leaderboards') },
-]);
-
-function canRead(tab: PageTab<EconomyView>): boolean {
-  return can(tabKeys[tab.value].read);
-}
-
-function canCreate(tab: EconomyView): boolean {
-  const key = tabKeys[tab].create;
-
-  return key !== null && can(key);
-}
-
-const tabs = computed(() => allTabs.value.filter(canRead));
-const view = usePageView(VIEWS, 'view', () =>
-  tabs.value.map((tab) => tab.value));
-
 const addingRule = ref(false);
 const addingJar = ref(false);
 const addingItem = ref(false);
 const addingBoard = ref(false);
+
+const VIEWS = ['currency', 'balances', 'rules', 'jars', 'catalog', 'leaderboards'] as const;
+
+type EconomyView = (typeof VIEWS)[number];
+
+// Each tab needs the read key of its own endpoint; its New button needs the key that creates.
+const specs = (): readonly TabSpec<EconomyView>[] => [
+  {
+    value: 'currency',
+    label: t('dashboard.economy.tabs.currency'),
+    read: 'economy:config:read',
+  },
+  {
+    value: 'balances',
+    label: t('dashboard.economy.tabs.balances'),
+    read: 'economy:accounts:read',
+  },
+  {
+    value: 'rules',
+    label: t('dashboard.economy.tabs.rules'),
+    read: 'economy:earning-rules:read',
+    action: {
+      label: t('dashboard.economy.rules.new'),
+      write: 'economy:earning-rules:write',
+      run: (): void => {
+        addingRule.value = true;
+      },
+    },
+  },
+  {
+    value: 'jars',
+    label: t('dashboard.economy.tabs.jars'),
+    read: 'economy:jars:read',
+    action: {
+      label: t('dashboard.economy.jars.new'),
+      write: 'economy:jars:create',
+      run: (): void => {
+        addingJar.value = true;
+      },
+    },
+  },
+  {
+    value: 'catalog',
+    label: t('dashboard.economy.tabs.catalog'),
+    read: 'economy:catalog:read',
+    action: {
+      label: t('dashboard.economy.catalog.new'),
+      write: 'economy:catalog:create',
+      run: (): void => {
+        addingItem.value = true;
+      },
+    },
+  },
+  {
+    value: 'leaderboards',
+    label: t('dashboard.economy.tabs.leaderboards'),
+    read: 'economy:leaderboards:config:read',
+    action: {
+      label: t('dashboard.economy.leaderboards.new'),
+      write: 'economy:leaderboards:config:write',
+      run: (): void => {
+        addingBoard.value = true;
+      },
+    },
+  },
+];
+
+const { tabs, view, action, canAct } = useTabbedPage(VIEWS, specs);
 </script>
 
 <template>
   <PageHeader :title="$t('dashboard.economy.title')" :crumb="$t('dashboard.economy.crumb')">
     <template #actions>
       <Button
-        v-if="view === 'rules' && canCreate('rules')"
+        v-if="canAct"
+        :key="view"
         type="button"
         variant="outline"
         size="sm"
-        @click="addingRule = true"
+        @click="action?.run()"
       >
         <Plus aria-hidden="true" />
-        {{ $t('dashboard.economy.rules.new') }}
-      </Button>
-      <Button
-        v-if="view === 'jars' && canCreate('jars')"
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="addingJar = true"
-      >
-        <Plus aria-hidden="true" />
-        {{ $t('dashboard.economy.jars.new') }}
-      </Button>
-      <Button
-        v-if="view === 'catalog' && canCreate('catalog')"
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="addingItem = true"
-      >
-        <Plus aria-hidden="true" />
-        {{ $t('dashboard.economy.catalog.new') }}
-      </Button>
-      <Button
-        v-if="view === 'leaderboards' && canCreate('leaderboards')"
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="addingBoard = true"
-      >
-        <Plus aria-hidden="true" />
-        {{ $t('dashboard.economy.leaderboards.new') }}
+        {{ action?.label }}
       </Button>
     </template>
     <template #bar>

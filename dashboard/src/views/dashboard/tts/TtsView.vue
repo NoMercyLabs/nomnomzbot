@@ -17,17 +17,15 @@ import { useTtsConfig, useTtsVoices, type TtsConfig } from '@/api/tts';
 import type { BoardPanel } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { usePageView } from '@/composables/usePageView';
-import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import HistoryPanel from './HistoryPanel.vue';
 import KeysPanel from './KeysPanel.vue';
@@ -47,32 +45,40 @@ const config = useTtsConfig(channelId);
 // The same first page the Voices tab loads, so the voice reads by its name here too.
 const catalog = useTtsVoices(channelId, () => ({ q: '' }));
 
-// Each tab needs the read key of the endpoint it shows.
-const tabKeys = {
-  overview: 'tts:config:read',
-  voices: 'tts:voice:read',
-  rules: 'tts:config:read',
-  pronunciation: 'tts:config:read',
-  keys: 'tts:config:write',
-} as const satisfies Record<string, string>;
-const VIEWS = keysOf(tabKeys);
+const VIEWS = ['overview', 'voices', 'rules', 'pronunciation', 'keys'] as const;
 
 type TtsTab = (typeof VIEWS)[number];
-const allTabs = computed<PageTab<TtsTab>[]>(() => [
-  { value: 'overview', label: t('dashboard.tts.tabs.overview') },
-  { value: 'voices', label: t('dashboard.tts.tabs.voices') },
-  { value: 'rules', label: t('dashboard.tts.tabs.rules') },
-  { value: 'pronunciation', label: t('dashboard.tts.tabs.pronunciation') },
-  { value: 'keys', label: t('dashboard.tts.tabs.keys') },
-]);
 
-function canRead(tab: PageTab<TtsTab>): boolean {
-  return can(tabKeys[tab.value]);
-}
+// Each tab needs the read key of the endpoint it shows.
+const specs = (): readonly TabSpec<TtsTab>[] => [
+  {
+    value: 'overview',
+    label: t('dashboard.tts.tabs.overview'),
+    read: 'tts:config:read',
+  },
+  {
+    value: 'voices',
+    label: t('dashboard.tts.tabs.voices'),
+    read: 'tts:voice:read',
+  },
+  {
+    value: 'rules',
+    label: t('dashboard.tts.tabs.rules'),
+    read: 'tts:config:read',
+  },
+  {
+    value: 'pronunciation',
+    label: t('dashboard.tts.tabs.pronunciation'),
+    read: 'tts:config:read',
+  },
+  {
+    value: 'keys',
+    label: t('dashboard.tts.tabs.keys'),
+    read: 'tts:config:write',
+  },
+];
 
-const tabs = computed(() => allTabs.value.filter(canRead));
-const view = usePageView(VIEWS, 'view', () =>
-  tabs.value.map((tab) => tab.value));
+const { tabs, view } = useTabbedPage(VIEWS, specs);
 
 const settings = computed<TtsConfig | null>(() => config.data.value ?? null);
 

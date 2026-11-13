@@ -20,12 +20,10 @@ import ListDetail from '@/components/layout/ListDetail.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { usePageView } from '@/composables/usePageView';
 import { useQueryPane } from '@/composables/useQueryPane';
-import { keysOf } from '@/lib/array';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 
 import ChatTriggersPanel from './components/ChatTriggersPanel.vue';
 import NewTimerDialog from './components/NewTimerDialog.vue';
@@ -53,41 +51,45 @@ function removeTimer(item: Timer): void {
 const creating = ref(false);
 const creatingTrigger = ref(false);
 
-// Each tab needs the read key of its own endpoint; the New button needs the write key of the open tab.
-const tabKeys = {
-  timers: { read: 'timers:read', write: 'timers:write' },
-  triggers: { read: 'chattriggers:read', write: 'chattriggers:write' },
-} as const;
-const VIEWS = keysOf(tabKeys);
+const VIEWS = ['timers', 'triggers'] as const;
 
 type TimersTab = (typeof VIEWS)[number];
-const allTabs = computed<PageTab<TimersTab>[]>(() => [
-  { value: 'timers', label: t('dashboard.timers.tabs.timers') },
-  { value: 'triggers', label: t('dashboard.timers.tabs.triggers') },
-]);
 
-function canRead(tab: PageTab<TimersTab>): boolean {
-  const keys = tabKeys[tab.value];
+// Each tab needs the read key of its own endpoint; the New button needs the write key of the open tab.
+const specs = (): readonly TabSpec<TimersTab>[] => [
+  {
+    value: 'timers',
+    label: t('dashboard.timers.tabs.timers'),
+    read: 'timers:read',
+    action: {
+      label: t('dashboard.timers.new'),
+      write: 'timers:write',
+      run: (): void => {
+        creating.value = true;
+      },
+    },
+  },
+  {
+    value: 'triggers',
+    label: t('dashboard.timers.tabs.triggers'),
+    read: 'chattriggers:read',
+    action: {
+      label: t('dashboard.timers.triggers.new'),
+      write: 'chattriggers:write',
+      run: (): void => {
+        creatingTrigger.value = true;
+      },
+    },
+  },
+];
 
-  return can(keys.read);
-}
+const { tabs, view, current, action, canAct } = useTabbedPage(VIEWS, specs);
 
-const tabs = computed(() => allTabs.value.filter(canRead));
-const view = usePageView(VIEWS, 'view', () =>
-  tabs.value.map((tab) => tab.value));
-const canCreate = computed<boolean>(() =>
-  can(tabKeys[view.value === 'triggers'
-    ? 'triggers'
-    : 'timers'].write));
+// The New button stays in the header for a person who cannot create, locked with the reason.
+const createLabel = computed<string>(() => current.value?.action?.label ?? '');
 
 function create(): void {
-  if (view.value === 'triggers') {
-    creatingTrigger.value = true;
-
-    return;
-  }
-
-  creating.value = true;
+  action.value?.run();
 }
 </script>
 
@@ -95,8 +97,8 @@ function create(): void {
   <PageHeader :title="$t('dashboard.timers.title')" :crumb="$t('dashboard.timers.crumb')">
     <template #actions>
       <PageCreateButton
-        :label="view === 'triggers' ? $t('dashboard.timers.triggers.new') : $t('dashboard.timers.new')"
-        :disabled-reason="canCreate ? undefined : $t('common.readOnly')"
+        :label="createLabel"
+        :disabled-reason="canAct ? undefined : $t('common.readOnly')"
         @create="create"
       />
     </template>

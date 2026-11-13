@@ -32,12 +32,11 @@ import { boardColumns } from '@/components/layout/board';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
-import type { PageTab } from '@/components/layout/pageTab';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useWidth } from '@/composables/useLayout';
-import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 import { keysOf } from '@/lib/array';
 import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
 
@@ -64,23 +63,36 @@ const canControl = computed<boolean>(() => access.can('obs:control'));
 const canSeeConnection = computed<boolean>(() => access.can('obs:config:read'));
 const canSeeSources = computed<boolean>(() => access.can('widget:read'));
 
-// Each tab opens with the read key of the panels on it; the most panels side by side it ever needs.
-const tabKeys = {
-  live: { read: 'obs:scene:read', columns: 3 },
-  tools: { read: 'obs:scene:read', columns: 3 },
-  overlays: { read: 'widget:read', columns: 2 },
+// The most panels side by side each tab ever needs.
+const tabColumns = {
+  live: 3,
+  tools: 3,
+  overlays: 2,
 } as const;
-const VIEWS = keysOf(tabKeys);
+const VIEWS = keysOf(tabColumns);
 
 type ObsTab = (typeof VIEWS)[number];
-const allTabs = computed<PageTab<ObsTab>[]>(() => [
-  { value: 'live', label: t('dashboard.obs.tabs.live') },
-  { value: 'tools', label: t('dashboard.obs.tabs.tools') },
-  { value: 'overlays', label: t('dashboard.obs.tabs.overlays') },
-]);
-const tabs = computed(() => allTabs.value.filter((tab) => access.can(tabKeys[tab.value].read)));
-const view = usePageView(VIEWS, 'view', () =>
-  tabs.value.map((tab) => tab.value));
+
+// Each tab opens with the read key of the panels on it.
+const specs = (): readonly TabSpec<ObsTab>[] => [
+  {
+    value: 'live',
+    label: t('dashboard.obs.tabs.live'),
+    read: 'obs:scene:read',
+  },
+  {
+    value: 'tools',
+    label: t('dashboard.obs.tabs.tools'),
+    read: 'obs:scene:read',
+  },
+  {
+    value: 'overlays',
+    label: t('dashboard.obs.tabs.overlays'),
+    read: 'widget:read',
+  },
+];
+
+const { tabs, view } = useTabbedPage(VIEWS, specs);
 
 // A link to #required-overlays opens the Overlays tab and scrolls the setup panel into view once it is drawn.
 const route = useRoute();
@@ -121,7 +133,7 @@ const panelMinimum = 384;
 const page = useTemplateRef('page');
 const width = useWidth(page);
 const columns = computed<number>(() =>
-  boardColumns(width.value, panelMinimum, tabKeys[view.value].columns));
+  boardColumns(width.value, panelMinimum, tabColumns[view.value]));
 const boardStyle = computed(() => ({ gridTemplateColumns: `repeat(${columns.value}, minmax(0, 1fr))` }));
 
 // The stats poll runs only while this tab is on screen.
