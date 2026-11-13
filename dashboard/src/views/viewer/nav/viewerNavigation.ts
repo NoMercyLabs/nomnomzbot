@@ -25,6 +25,8 @@ export type ViewerNavEntry = {
   // The one-word label of the phone bar, where seven pages share 390 px and a label may not be cut.
   shortLabel: string;
   icon: Component;
+  // One of the four pages the phone bar keeps in reach; the rest open in its More sheet.
+  bottom: boolean;
 };
 
 // The one viewer navigation: seven pages, each under /me/<channel>.
@@ -34,41 +36,48 @@ export const viewerNavEntries = [
     label: 'viewer.myChannel',
     shortLabel: 'home',
     icon: Home,
+    bottom: true,
   },
   {
     route: 'viewer-chat',
     label: 'viewer.chat',
     shortLabel: 'viewer.chat',
     icon: ChatMessages,
+    bottom: true,
   },
   {
     route: 'viewer-now-playing',
     label: 'viewer.nowPlaying',
     shortLabel: 'music',
     icon: NoteEighthPair,
+    bottom: true,
   },
   {
     route: 'viewer-leaderboards',
     label: 'viewer.leaderboards',
     shortLabel: 'viewer.ranks',
     icon: Trophy,
+    bottom: false,
   },
   {
     route: 'viewer-points-store',
     label: 'viewer.pointsStore',
     shortLabel: 'viewer.store',
     icon: Gem,
+    bottom: false,
   },
   {
     route: 'viewer-games',
     label: 'viewer.games',
     shortLabel: 'viewer.games',
     icon: Dices,
+    bottom: false,
   },
   {
     route: 'viewer-account',
     label: 'viewer.me',
     shortLabel: 'viewer.me',
     icon: User,
+    bottom: true,
   },
 ] as const satisfies readonly ViewerNavEntry[];

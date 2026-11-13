@@ -18,6 +18,7 @@ import { useRoute } from 'vue-router';
 
 import { Button } from '@/components/ui/button';
 
+import ViewerNavMore from './ViewerNavMore.vue';
 import { viewerNavEntries } from './viewerNavigation';
 
 const { t } = useI18n();
@@ -26,6 +27,17 @@ const route = useRoute();
 // The phone bar shows the one-word labels; the row from the tablet width up has room for the full ones.
 const phone = useMediaQuery('(max-width: 767px)');
 const channel = computed(() => String(route.params.channel ?? ''));
+
+// The phone bar holds four pages and More (ui-expectations 1.15); the row from the tablet width up holds all seven.
+const shown = computed(() =>
+  phone.value
+    ? viewerNavEntries.filter((entry) => entry.bottom)
+    : viewerNavEntries);
+const more = computed(() =>
+  phone.value
+    ? viewerNavEntries.filter((entry) => !entry.bottom)
+    : []);
+const current = computed<string>(() => String(route.name ?? ''));
 </script>
 
 <template>
@@ -36,7 +48,7 @@ const channel = computed(() => String(route.params.channel ?? ''));
     class="fixed inset-x-0 bottom-0 z-10 flex items-stretch justify-around gap-1 border-t border-border bg-background p-1 md:static md:justify-start md:border-0 md:bg-transparent md:p-0"
   >
     <Button
-      v-for="entry in viewerNavEntries"
+      v-for="entry in shown"
       :key="entry.route"
       :variant="route.name === entry.route ? 'secondary' : 'ghost'"
       class="flex-1 h-auto! min-h-11 min-w-0 flex-col gap-1! px-1! py-1.5 text-xs md:h-9! md:min-h-0 md:flex-none md:flex-row md:gap-2! md:px-3! md:py-0 md:text-sm"
@@ -51,5 +63,6 @@ const channel = computed(() => String(route.params.channel ?? ''));
         <span class="min-w-0 max-w-full text-center leading-tight">{{ t(`frame.nav.${phone ? entry.shortLabel : entry.label}`) }}</span>
       </RouterLink>
     </Button>
+    <ViewerNavMore v-if="more.length > 0" :entries="more" :channel="channel" :current="current" />
   </nav>
 </template>

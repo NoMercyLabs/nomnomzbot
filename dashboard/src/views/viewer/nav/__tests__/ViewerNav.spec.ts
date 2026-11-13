@@ -8,7 +8,7 @@
 //
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
@@ -83,7 +83,8 @@ describe('ViewerNav', () => {
       vi.unstubAllGlobals();
     });
 
-    it('keeps a short label under every icon, each one fitting a seventh of the bar', async () => {
+    // Ui-expectations 1.15: a narrow screen shows a bottom bar with four entries and More (fault 29: it showed 7).
+    it('keeps four pages and More in the bar, each with a short label fitting a fifth of the bar', async () => {
       vi.stubGlobal('matchMedia', (query: string) => ({
         matches: query.includes('max-width'),
         media: query,
@@ -96,11 +97,42 @@ describe('ViewerNav', () => {
       const wrapper = await mountAt('/me/stoney_eagle/chat');
       const labels = wrapper.findAll('a').map((link) => link.text());
 
-      expect(labels).toEqual(['Home', 'Chat', 'Music', 'Ranks', 'Store', 'Games', 'Me']);
+      expect(labels).toEqual(['Home', 'Chat', 'Music', 'Me']);
+
+      const more = wrapper.findAll('button').filter((button) => button.text() === 'More');
+
+      expect(more).toHaveLength(1);
 
       const hidden = wrapper.findAll('a span').filter((span) => span.classes().includes('max-md:sr-only'));
 
       expect(hidden).toEqual([]);
+    });
+
+    it('puts the other three pages in the More sheet, each a link to its channel page', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('max-width'),
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+      }));
+
+      const wrapper = await mountAt('/me/stoney_eagle/chat');
+
+      await wrapper.findAll('button').find((button) => button.text() === 'More')!.trigger('click');
+      await flushPromises();
+
+      const sheet = document.querySelector('[data-slot="more-drawer"]');
+      const rows = [...sheet!.querySelectorAll('a')];
+
+      expect(rows.map((row) => row.textContent!.trim())).toEqual(['Leaderboards', 'Points and store', 'Games']);
+
+      expect(rows.map((row) => row.getAttribute('href'))).toEqual([
+        '/me/stoney_eagle/leaderboards',
+        '/me/stoney_eagle/points-store',
+        '/me/stoney_eagle/games',
+      ]);
     });
   });
 });
