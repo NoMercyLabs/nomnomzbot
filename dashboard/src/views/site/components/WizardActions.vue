@@ -1,0 +1,21 @@
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot. You may use, change and share it for free,
+  for any noncommercial purpose, under the PolyForm Noncommercial License
+  1.0.0. You may not earn money with it. Distributed WITHOUT ANY WARRANTY.
+  See LICENSE for details, and TRADEMARKS.md for the name and logo.
+
+  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+-->
+<script setup lang="ts">
+// The action row of a wizard card: Back on the left, Next on the right. The caller makes the right action the
+// one primary button and keeps Back (and Skip) outline or ghost.
+</script>
+
+<template>
+  <div data-slot="wizard-actions" class="flex w-full items-center justify-between gap-2">
+    <div><slot name="back" /></div>
+    <div><slot name="next" /></div>
+  </div>
+</template>

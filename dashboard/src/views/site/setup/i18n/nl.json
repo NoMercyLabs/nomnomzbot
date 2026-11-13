@@ -22,6 +22,11 @@
         "youtube": "YouTube"
       },
       "notSet": "Niet ingesteld",
+      "unknownStep": {
+        "title": "Deze stap wordt hier niet getoond.",
+        "required": "De bot heeft dit nodig voordat je verdergaat. Stel het in op de bot en laad deze pagina opnieuw.",
+        "optional": "Je kunt zonder verdergaan."
+      },
       "saveCredentials": "Opslaan",
       "useShared": "De gedeelde NomNomzBot-app gebruiken",
       "saveFailed": "De bot kon dit niet opslaan. Controleer de waarden en probeer het opnieuw.",

@@ -22,6 +22,11 @@
         "youtube": "YouTube"
       },
       "notSet": "Not set",
+      "unknownStep": {
+        "title": "This step is not shown here.",
+        "required": "The bot needs it before you continue. Set it up on the bot, then reload this page.",
+        "optional": "You can continue without it."
+      },
       "saveCredentials": "Save",
       "useShared": "Use the shared NomNomzBot app",
       "saveFailed": "The bot could not save this. Check the values and try again.",

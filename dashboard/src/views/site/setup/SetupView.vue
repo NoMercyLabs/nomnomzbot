@@ -15,18 +15,16 @@ import { useQuery } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { hasCredentialForm, setupWizardQuery, useCompleteSetup, type SetupStep } from '@/api/setup';
-import AppMark from '@/components/layout/AppMark.vue';
+import { setupWizardQuery, useCompleteSetup, type SetupStep } from '@/api/setup';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
-import BotAccountStep from './components/BotAccountStep.vue';
-import CredentialsStep from './components/CredentialsStep.vue';
+import PublicTaskShell from '../components/PublicTaskShell.vue';
+import WizardActions from '../components/WizardActions.vue';
 import EventFeedHealth from './components/EventFeedHealth.vue';
+import { rendererFor } from './components/setupSteps';
 import StepsFrame from './components/StepsFrame.vue';
 
 const router = useRouter();
@@ -52,25 +50,21 @@ async function finish(): Promise<void> {
 </script>
 
 <template>
-  <main
-    :class="cn(
-      'relative flex min-h-svh flex-col items-center gap-6 p-6 pt-16',
-      wizard.isSuccess.value ? 'justify-start' : 'justify-center',
-    )"
+  <PublicTaskShell
+    :brand="$t('site.setup.brand')"
+    width="wizard"
+    :align="wizard.isSuccess.value ? 'start' : 'center'"
   >
-    <div class="absolute top-4 right-4"><LanguagePicker /></div>
-    <h1 class="flex items-center gap-2 text-base font-semibold">
-      <AppMark />
-      {{ $t('site.setup.brand') }}
-    </h1>
-
-    <p v-if="wizard.isPending.value" class="text-sm text-muted-foreground" role="status">
-      {{ $t('site.setup.loading') }}
-    </p>
-    <div v-else-if="wizard.isError.value" class="flex flex-col items-center gap-3" role="alert">
-      <p class="text-sm">{{ $t('site.setup.unreachable') }}</p>
-      <Button variant="outline" @click="wizard.refetch()">{{ $t('site.setup.retry') }}</Button>
-    </div>
+    <template v-if="!wizard.isSuccess.value">
+      <h1 class="sr-only">{{ $t('site.setup.brand') }}</h1>
+      <p v-if="wizard.isPending.value" class="text-sm text-muted-foreground" role="status">
+        {{ $t('site.setup.loading') }}
+      </p>
+      <div v-else class="flex flex-col items-center gap-3" role="alert">
+        <p class="text-sm">{{ $t('site.setup.unreachable') }}</p>
+        <Button variant="outline" @click="wizard.refetch()">{{ $t('site.setup.retry') }}</Button>
+      </div>
+    </template>
 
     <StepsFrame
       v-if="wizard.isSuccess.value"
@@ -83,14 +77,14 @@ async function finish(): Promise<void> {
       v-if="wizard.isSuccess.value"
       :title="onFinish ? $t('site.setup.finish.title') : (step?.title ?? '')"
       :description="onFinish ? $t('site.setup.finish.description') : step?.description"
+      heading="h1"
       tier="lead"
       pad
-      class="w-full max-w-xl"
+      class="w-full"
     >
       <div class="flex flex-col gap-4">
         <template v-if="step && !onFinish">
-          <CredentialsStep v-if="hasCredentialForm(step.key)" :key="step.key" :step="step" />
-          <BotAccountStep v-else :key="step.key" :step="step" />
+          <component :is="rendererFor(step.key)" :key="step.key" :step="step" />
         </template>
 
         <template v-else>
@@ -111,23 +105,27 @@ async function finish(): Promise<void> {
       </div>
 
       <template #footer>
-        <div class="flex w-full items-center justify-between gap-2">
-          <Button variant="ghost" :disabled="index === 0" @click="index -= 1">
-            {{ $t('site.setup.back') }}
-          </Button>
-          <Button v-if="onFinish" :disabled="complete.isPending.value" @click="finish">
-            {{ $t('site.setup.finish.action') }}
-          </Button>
-          <Button
-            v-else
-            :variant="step?.complete ? 'default' : 'outline'"
-            :disabled="!canAdvance"
-            @click="index += 1"
-          >
-            {{ skips ? $t('site.setup.skip') : $t('site.setup.next') }}
-          </Button>
-        </div>
+        <WizardActions>
+          <template #back>
+            <Button variant="ghost" :disabled="index === 0" @click="index -= 1">
+              {{ $t('site.setup.back') }}
+            </Button>
+          </template>
+          <template #next>
+            <Button v-if="onFinish" :disabled="complete.isPending.value" @click="finish">
+              {{ $t('site.setup.finish.action') }}
+            </Button>
+            <Button
+              v-else
+              :variant="step?.complete ? 'default' : 'outline'"
+              :disabled="!canAdvance"
+              @click="index += 1"
+            >
+              {{ skips ? $t('site.setup.skip') : $t('site.setup.next') }}
+            </Button>
+          </template>
+        </WizardActions>
       </template>
     </PanelCard>
-  </main>
+  </PublicTaskShell>
 </template>

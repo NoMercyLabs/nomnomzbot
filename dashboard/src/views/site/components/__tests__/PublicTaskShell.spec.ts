@@ -18,7 +18,10 @@ import { i18n } from '@/i18n';
 import PublicTaskShell from '../PublicTaskShell.vue';
 import TaskActions from '../TaskActions.vue';
 
-async function mountShell(slots: Record<string, string>): Promise<VueWrapper> {
+async function mountShell(
+  slots: Record<string, string>,
+  props: { width?: 'compact' | 'wizard'; align?: 'center' | 'start' } = {},
+): Promise<VueWrapper> {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -30,7 +33,7 @@ async function mountShell(slots: Record<string, string>): Promise<VueWrapper> {
   await router.push('/login');
 
   return mount(PublicTaskShell, {
-    props: { brand: 'NomNomzBot' },
+    props: { brand: 'NomNomzBot', ...props },
     slots,
     global: { plugins: [i18n, router] },
   });
@@ -62,6 +65,23 @@ describe('the public task shell', () => {
     const order = column.findAll('#card, #terms').map((node) => node.attributes('id'));
 
     expect(order).toEqual(['card', 'terms']);
+  });
+
+  it('widens the column to max-w-xl for a wizard and keeps the compact width otherwise', async () => {
+    const wizard = await mountShell({ default: '<section>Card</section>' }, { width: 'wizard' });
+    const column = wizard.get('[data-slot="task-column"]');
+
+    expect(column.classes()).toContain('max-w-xl');
+    expect(column.classes()).not.toContain('max-w-100');
+  });
+
+  it('centers the column by default and pins it to the top when asked', async () => {
+    const centered = await mountShell({ default: '<section>Card</section>' });
+    const pinned = await mountShell({ default: '<section>Card</section>' }, { align: 'start' });
+
+    expect(centered.get('main').classes()).toContain('justify-center');
+    expect(pinned.get('main').classes()).toContain('justify-start');
+    expect(pinned.get('main').classes()).not.toContain('justify-center');
   });
 
   it('renders no below wrapper when the page gives no small print', async () => {

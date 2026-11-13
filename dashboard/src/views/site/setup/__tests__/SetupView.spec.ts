@@ -10,7 +10,7 @@
 // -----------------------------------------------------------------------------
 
 import { VueQueryPlugin } from '@tanstack/vue-query';
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, RouterLinkStub, type VueWrapper } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -104,7 +104,10 @@ async function mountWizard(): Promise<VueWrapper> {
   const { queryClient } = await import('@/api/queryClient');
   const SetupView = (await import('../SetupView.vue')).default;
   const wrapper: VueWrapper = mount(SetupView, {
-    global: { plugins: [createPinia(), [VueQueryPlugin, { queryClient }], i18n] },
+    global: {
+      plugins: [createPinia(), [VueQueryPlugin, { queryClient }], i18n],
+      stubs: { RouterLink: RouterLinkStub },
+    },
   });
 
   await flushPromises();
@@ -211,6 +214,80 @@ describe('the setup wizard', () => {
 
     expect(calls).toContain('POST /api/v1/system/setup/complete');
     expect(replace).toHaveBeenCalledWith('/app');
+  });
+
+  it('has one h1, the current step title, and the brand is a link home', async () => {
+    stubBot([
+      step('twitch_app', { required: true, fields: [idField] }),
+      step('platform_bot', {}),
+    ]);
+
+    const wrapper = await mountWizard();
+    const headings = wrapper.findAll('h1');
+
+    expect(headings).toHaveLength(1);
+    expect(headings[0]!.text()).toBe('twitch_app title');
+    expect(wrapper.find('[data-slot="task-brand"]').text()).toBe('NomNomzBot setup');
+  });
+
+  it('makes the finish title the h1 on the finish step', async () => {
+    stubBot([step('twitch_app', {
+      required: true,
+      complete: true,
+      fields: [idField],
+    })]);
+
+    const wrapper = await mountWizard();
+
+    await button(wrapper, 'Next')!.trigger('click');
+
+    expect(wrapper.findAll('h1')).toHaveLength(1);
+    expect(wrapper.get('h1').text()).toBe('Finish setup');
+  });
+
+  it('puts Back left of Next in one row at the wizard width', async () => {
+    stubBot([step('twitch_app', { required: true, fields: [idField] })]);
+
+    const wrapper = await mountWizard();
+    const row = wrapper.get('[data-slot="wizard-actions"]');
+    const labels = row.findAll('button').map((b) => b.text());
+
+    expect(labels).toEqual(['Back', 'Next']);
+    expect(wrapper.get('[data-slot="task-column"]').classes()).toContain('max-w-xl');
+  });
+
+  it('shows the unknown step, not a form, for a step key the page does not know', async () => {
+    stubBot([step('mystery_step', { required: true })]);
+
+    const wrapper = await mountWizard();
+
+    expect(wrapper.find('[data-slot="unknown-step"]').exists()).toBe(true);
+    expect(wrapper.find('form, input').exists()).toBe(false);
+    expect(wrapper.text()).toContain(words.site.setup.unknownStep.title);
+  });
+
+  it('keeps Next working for an optional unknown step and blocks it for a required one', async () => {
+    stubBot([
+      step('mystery_step', { required: false }),
+      step('twitch_app', { required: true, fields: [idField] }),
+    ]);
+
+    const wrapper = await mountWizard();
+    const skip = button(wrapper, 'Skip');
+
+    expect(skip!.attributes('disabled')).toBeUndefined();
+
+    await skip!.trigger('click');
+
+    expect(wrapper.get('h1').text()).toBe('twitch_app title');
+  });
+
+  it('blocks Next on a required unknown step', async () => {
+    stubBot([step('mystery_step', { required: true })]);
+
+    const wrapper = await mountWizard();
+
+    expect(button(wrapper, 'Next')!.attributes('disabled')).toBeDefined();
   });
 
   it('does not call setup/complete before the finish step', async () => {
