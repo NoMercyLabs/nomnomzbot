@@ -114,7 +114,8 @@ const phone = usePhone();
 const docked = computed(() => poppedOut.value || phone.value);
 
 // The channel's live stream beside the chat, like the Twitch app (Stoney 2026-11-13: "Player should be a toggle").
-// Off until asked for, remembered per browser; the docked chat has no room for it. The player bundle loads on demand.
+// Off until asked for, remembered per browser. A phone shows it above the chat like the Twitch app; the popout and
+// the OBS dock have no room for it. The player bundle loads on demand.
 const StreamPlayer = defineAsyncComponent(() =>
   import('./components/StreamPlayer.vue'));
 const playerOn = useLocalStorage<boolean>('nnz.chat.player', false);
@@ -123,7 +124,7 @@ const playerLogin = computed<string>(() =>
     ? channelName.value
     : current.value?.login ?? '');
 const playerShown = computed(() =>
-  playerOn.value && !docked.value && playerLogin.value !== '');
+  playerOn.value && !poppedOut.value && playerLogin.value !== '');
 const playerLabel = computed(() =>
   playerOn.value
     ? t('dashboard.chat.player.hide')
@@ -508,7 +509,9 @@ async function confirmBan(): Promise<void> {
     :count-label="feedPanel.description"
     :clear-focus-label="focusedUserId === null ? null : $t('dashboard.chat.viewer.clearFocus', { name: focusedName })"
     :show-frame-actions="!poppedOut"
+    :player-open="poppedOut ? undefined : playerOn"
     :viewer="viewerMode"
+    @update:player-open="playerOn = $event === true"
     @clear-focus="focusedUserId = null"
   />
   <!-- Docked: the search field opens under the header, so the feed keeps the rest of the height. -->

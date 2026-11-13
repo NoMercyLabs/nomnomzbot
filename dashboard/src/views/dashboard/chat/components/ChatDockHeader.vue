@@ -14,6 +14,7 @@
 // From 416 px of header width the three panel toggles show as icons; narrower, they fold into one menu.
 import { inject, type Component } from 'vue';
 import Cross from '~icons/nnz/cross';
+import MediaPlayer from '~icons/nnz/media-player';
 import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
 import Settings from '~icons/nnz/settings';
 import SettingsFader from '~icons/nnz/settings-fader';
@@ -45,6 +46,8 @@ const searchOpen = defineModel<boolean>('searchOpen', { required: true });
 const modToolsOpen = defineModel<boolean>('modToolsOpen', { required: true });
 const identityOpen = defineModel<boolean>('identityOpen', { required: true });
 const displayOpen = defineModel<boolean>('displayOpen', { required: true });
+// The stream above the chat on a phone, like the Twitch app. The popout and the OBS dock pass no state, so no toggle.
+const playerOpen = defineModel<boolean | undefined>('playerOpen', { default: undefined });
 
 defineEmits<{ clearFocus: [] }>();
 
@@ -72,6 +75,17 @@ const frameActions: Component | null = inject(frameActionsKey, null);
         <Cross class="size-5" aria-hidden="true" />
       </Button>
       <component :is="frameActions" v-if="frameActions && showFrameActions" />
+      <Button
+        v-if="playerOpen !== undefined"
+        data-dock-player-toggle
+        variant="ghost"
+        size="icon"
+        :aria-pressed="playerOpen"
+        :aria-label="playerOpen ? $t('dashboard.chat.player.hide') : $t('dashboard.chat.player.show')"
+        @click="playerOpen = !playerOpen"
+      >
+        <MediaPlayer class="size-5" aria-hidden="true" />
+      </Button>
       <Button
         data-dock-search-toggle
         variant="ghost"

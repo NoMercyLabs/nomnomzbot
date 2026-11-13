@@ -255,6 +255,52 @@ describe('ChatView stream player', () => {
     expect(players[0]!.disposed).toBe(true);
   });
 
+  // Stoney 2026-11-13: "make it look and feel like the twitch app". A phone gets the toggle in its slim header and the
+  // stream above the chat, as in the Twitch app.
+  it('on a phone, the header toggle shows the stream above the chat', async () => {
+    const realMatchMedia = window.matchMedia;
+
+    window.matchMedia = ((query: string): MediaQueryList => ({
+      matches: !query.includes('min-width'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      onchange: null,
+    }) as MediaQueryList) as typeof window.matchMedia;
+
+    try {
+      await open();
+
+      const dockToggle = document.body.querySelector<HTMLButtonElement>('[data-dock-player-toggle]');
+
+      expect(dockToggle).not.toBeNull();
+      expect(dockToggle!.getAttribute('aria-pressed')).toBe('false');
+
+      dockToggle!.click();
+      await settle();
+      await playerBuilt();
+
+      expect(players[0]!.setup).toMatchObject({
+        muted: true,
+        playlist: [expect.objectContaining({ url: 'https://www.twitch.tv/stoney_eagle' })],
+      });
+
+      const stream = document.body.querySelector('[data-stream-player]');
+      const feed = document.body.querySelector('[data-page-body] [data-slot="panel-card"]');
+
+      expect(stream).not.toBeNull();
+      expect(feed).not.toBeNull();
+      const order = stream!.compareDocumentPosition(feed!);
+
+      expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    } finally {
+      window.matchMedia = realMatchMedia;
+    }
+  });
+
   it('gives the docked chat no toggle and no player, even when the choice is on', async () => {
     localStorage.setItem('nnz.chat.player', 'true');
 

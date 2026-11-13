@@ -56,3 +56,55 @@ describe('ChatDockHeader more menu', () => {
     }
   });
 });
+
+describe('ChatDockHeader stream toggle', () => {
+  const base = {
+    title: 'Chat',
+    live: true,
+    statusLabel: 'Live',
+    countLabel: '1',
+    clearFocusLabel: null,
+    showFrameActions: true,
+    searchOpen: false,
+    modToolsOpen: false,
+    identityOpen: false,
+    displayOpen: false,
+  };
+
+  it('on a phone, shows the stream toggle in the header and turns the player on', async () => {
+    const wrapper = mount(ChatDockHeader, {
+      props: { ...base, playerOpen: false },
+      global: { plugins: [i18n] },
+    });
+
+    const toggle = wrapper.get('[data-dock-player-toggle]');
+
+    expect(toggle.attributes('aria-pressed')).toBe('false');
+    expect(toggle.attributes('aria-label')).toBe('Show the stream');
+
+    await toggle.trigger('click');
+
+    expect(wrapper.emitted('update:playerOpen')).toEqual([[true]]);
+  });
+
+  it('names the toggle by what it does next while the stream shows', () => {
+    const wrapper = mount(ChatDockHeader, {
+      props: { ...base, playerOpen: true },
+      global: { plugins: [i18n] },
+    });
+
+    const toggle = wrapper.get('[data-dock-player-toggle]');
+
+    expect(toggle.attributes('aria-pressed')).toBe('true');
+    expect(toggle.attributes('aria-label')).toBe('Hide the stream');
+  });
+
+  it('has no stream toggle where the page passes no player state (the popout and the OBS dock)', () => {
+    const wrapper = mount(ChatDockHeader, {
+      props: base,
+      global: { plugins: [i18n] },
+    });
+
+    expect(wrapper.find('[data-dock-player-toggle]').exists()).toBe(false);
+  });
+});
