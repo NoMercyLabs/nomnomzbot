@@ -12,8 +12,7 @@
 // The areas of the bot's actions (moderation, economy, music, ...). A row opens the actions of that area;
 // the search finds an action by its key or description in every area at once.
 import { useActionMatrix } from '@/api/permissions';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import SearchField from '@/components/layout/SearchField.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -32,23 +31,17 @@ const state = usePanelState(matrix, (rows) =>
 </script>
 
 <template>
-  <PanelCard
+  <ListPanel
+    v-model="search"
     data-panel="action-areas"
+    data-area-search
     :title="$t('dashboard.settings.permissions.areas.title')"
+    :placeholder="$t('dashboard.settings.permissions.areas.search')"
     :state="state"
     :empty-text="$t('dashboard.settings.permissions.matrix.empty')"
     :error-text="$t('dashboard.settings.permissions.matrix.loadFailed')"
     @retry="matrix.refetch()"
   >
-    <template #actions>
-      <!-- Concentric with the panel corner, as in the command list: a 12px radius. -->
-      <SearchField
-        v-model="search"
-        data-area-search
-        class="-mr-2 w-52 rounded-[12px]"
-        :placeholder="$t('dashboard.settings.permissions.areas.search')"
-      />
-    </template>
     <p v-if="areas.length === 0" class="p-4 text-center text-sm text-muted-foreground">
       {{ $t('dashboard.settings.permissions.areas.noMatch') }}
     </p>
@@ -65,5 +58,5 @@ const state = usePanelState(matrix, (rows) =>
       :meta="group.changed > 0 ? $t('dashboard.settings.permissions.areas.changed', group.changed) : undefined"
       @click="emit('pick', group.area)"
     />
-  </PanelCard>
+  </ListPanel>
 </template>

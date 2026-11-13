@@ -26,8 +26,7 @@ import type { FilterOption } from '@/components/layout/filterOption';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import SearchField from '@/components/layout/SearchField.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
@@ -176,29 +175,23 @@ function open({ userId, channel }: AdminTenant): void {
   </PageHeader>
   <PanelBeside>
     <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-      <PanelCard
+      <ListPanel
+        v-model="search"
         tier="lead"
         class="min-h-80 min-w-0 flex-1"
         :title="$t('dashboard.admin.tenants.list.title')"
+        :placeholder="$t('dashboard.admin.tenants.search')"
         :description="$t('dashboard.admin.tenants.list.newestFirst')"
         :state="panelState"
         :empty-text="$t('dashboard.admin.tenants.list.empty')"
         :error-text="listError"
         @retry="tenants.refetch()"
       >
-        <template #actions>
-          <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-          <SearchField
-            v-model="search"
-            class="-mr-2 w-52 rounded-[12px]"
-            :placeholder="$t('dashboard.admin.tenants.search')"
-          />
-        </template>
         <TenantsTable :rows="rows" :selected-id="selectedId" @open="open" />
         <template v-if="tablet" #footer>
           <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
         </template>
-      </PanelCard>
+      </ListPanel>
       <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
       <PageActionFooter v-if="!tablet">
         <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />

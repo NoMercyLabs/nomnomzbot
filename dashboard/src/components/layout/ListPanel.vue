@@ -36,7 +36,11 @@ withDefaults(
   },
 );
 
-defineEmits<{ retry: [] }>();
+// enter: Enter pressed in the search (a page may open the first hit).
+defineEmits<{
+  retry: [];
+  enter: [];
+}>();
 
 const search = defineModel<string>({ default: '' });
 </script>
@@ -58,6 +62,7 @@ const search = defineModel<string>({ default: '' });
         v-model="search"
         class="-mr-2 w-52 rounded-[12px]"
         :placeholder="placeholder"
+        @keydown.enter="$emit('enter')"
       />
     </template>
     <slot />

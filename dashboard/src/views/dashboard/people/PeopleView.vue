@@ -41,7 +41,7 @@ import type { ProfilePreview } from '@/components/layout/profile/ProfileHeader.v
 import ProfileView from '@/components/layout/profile/ProfileView.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import SearchField from '@/components/layout/SearchField.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
@@ -441,31 +441,25 @@ useEventListener(document, 'keydown', closeOnEscape);
   </template>
   <ListDetail v-else :show-detail="asked !== ''">
     <template #list>
-      <PanelCard
+      <ListPanel
+        v-model="search"
         class="min-h-80 flex-1"
         :title="$t('dashboard.people.list.title')"
+        :placeholder="$t('dashboard.people.search')"
         :description="count === undefined ? hint : `${count} · ${hint}`"
         :state="listState"
         :empty-text="emptyText"
         :error-text="$t('dashboard.people.list.error')"
         @retry="searching ? found.refetch() : activeQuery.refetch()"
+        @enter="openFirstHit"
       >
         <template #actions>
-          <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-          <div class="-mr-2 flex min-w-0 items-center gap-2">
-            <SegmentedControl
-              v-if="!searching"
-              v-model="sort"
-              :label="$t('dashboard.people.sort.label')"
-              :options="sortOptions"
-            />
-            <SearchField
-              v-model="search"
-              class="w-52 min-w-0 shrink rounded-[12px]"
-              :placeholder="$t('dashboard.people.search')"
-              @keydown.enter="openFirstHit"
-            />
-          </div>
+          <SegmentedControl
+            v-if="!searching"
+            v-model="sort"
+            :label="$t('dashboard.people.sort.label')"
+            :options="sortOptions"
+          />
         </template>
         <div v-if="searching" class="grid gap-0.5">
           <SearchResultRow
@@ -504,7 +498,7 @@ useEventListener(document, 'keydown', closeOnEscape);
             {{ $t("dashboard.people.lookup.error") }}
           </p>
         </template>
-      </PanelCard>
+      </ListPanel>
     </template>
     <template #detail>
       <!-- On a phone the profile grows with its content and the page scrolls once; beside the list it scrolls inside

@@ -22,9 +22,9 @@ import BackLink from '@/components/layout/BackLink.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import SearchField from '@/components/layout/SearchField.vue';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
 import { useQueryPane } from '@/composables/useQueryPane';
@@ -82,21 +82,16 @@ function pick(row: SupportPerson): void {
           :aria-label="t('dashboard.admin.support.reason')"
           :placeholder="t('dashboard.admin.support.reason')"
         />
-        <PanelCard
+        <ListPanel
+          v-model="search"
           tier="lead"
           :title="t('dashboard.admin.support.list.title')"
+          :placeholder="t('dashboard.admin.support.search')"
           :state="listState"
           :empty-text="emptyText"
           :error-text="listError"
           @retry="people.refetch()"
         >
-          <template #actions>
-            <SearchField
-              v-model="search"
-              class="-mr-2 w-40 rounded-[12px]"
-              :placeholder="t('dashboard.admin.support.search')"
-            />
-          </template>
           <ul class="grid divide-y divide-border text-sm">
             <li v-for="row in rows" :key="row.userId" data-person-row>
               <button
@@ -117,7 +112,7 @@ function pick(row: SupportPerson): void {
               </button>
             </li>
           </ul>
-        </PanelCard>
+        </ListPanel>
       </div>
     </template>
     <template #detail>

@@ -1167,19 +1167,10 @@ describe('calls to the bot', () => {
 // must leave it (the "keeps no clean file" tests).
 const handSearchInHead = /<template\s+#actions[^>]*>(?:(?!<\/template>)[\s\S])*?<SearchField\b/;
 const handSearchInHeadAllowlist = [
-  // Admin and people lists, and the permissions area list: head searches built by hand (phase 2).
-  'views/dashboard/admin/AdminSupportView.vue',
-  'views/dashboard/admin/AdminTenantsView.vue',
-  'views/dashboard/admin/components/TenantMembersPanel.vue',
-  'views/dashboard/people/PeopleView.vue',
-  'views/dashboard/settings/permissions/components/ActionAreaList.vue',
 ] as const satisfies readonly string[];
 
 const rawSearchInput = /<Input\b[^>]*(?:search|query)[^>]*>/i;
 const rawSearchInputAllowlist = [
-  // List pages with a bare search Input above the card (phase 2): picklists, quotes.
-  'views/dashboard/picklists/PickListsView.vue',
-  'views/dashboard/quotes/QuotesView.vue',
   // Pickers inside a popover or dialog: a search that narrows a choice, not a list page head.
   'views/dashboard/admin/components/ActAsDialog.vue',
   'views/dashboard/admin/components/AuditFilterPicker.vue',

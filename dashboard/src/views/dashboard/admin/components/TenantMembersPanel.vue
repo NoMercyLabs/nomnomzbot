@@ -15,8 +15,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useTenantMembers } from '@/api/adminTenants';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import SearchField from '@/components/layout/SearchField.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import { usePanelState } from '@/composables/usePanelState';
 
 const props = defineProps<{ tenantId: string }>();
@@ -32,20 +31,15 @@ const state = usePanelState(members, (page) =>
 </script>
 
 <template>
-  <PanelCard
+  <ListPanel
+    v-model="search"
     :title="t('dashboard.admin.tenants.members.title')"
+    :placeholder="t('dashboard.admin.tenants.members.search')"
     :state="state"
     :empty-text="t('dashboard.admin.tenants.members.empty')"
     :error-text="t('dashboard.admin.tenants.members.error')"
     @retry="members.refetch()"
   >
-    <template #actions>
-      <SearchField
-        v-model="search"
-        class="-mr-2 w-48 rounded-[12px]"
-        :placeholder="t('dashboard.admin.tenants.members.search')"
-      />
-    </template>
     <ul class="grid divide-y divide-border text-sm">
       <li v-for="row in rows" :key="row.userId" data-member-row class="flex items-center gap-3 px-2 py-2">
         <span class="min-w-0 flex-1 font-medium">{{ row.displayName }}</span>
@@ -54,5 +48,5 @@ const state = usePanelState(members, (page) =>
         </span>
       </li>
     </ul>
-  </PanelCard>
+  </ListPanel>
 </template>

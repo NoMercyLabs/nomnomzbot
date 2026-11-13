@@ -20,10 +20,9 @@ import { fetchRandomQuote, useDeleteQuote, useQuotes, type Quote } from '@/api/q
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -139,16 +138,12 @@ function loadMore(): void {
     <RowGroup v-if="random">
       <QuoteRow :quote="random" data-random-quote />
     </RowGroup>
-    <Input
+    <ListPanel
       v-model="search"
-      type="search"
-      data-quote-search
-      :placeholder="t('dashboard.quotes.search')"
-      :aria-label="t('dashboard.quotes.search')"
-    />
-    <PanelCard
       tier="lead"
+      data-quote-search
       :title="t('dashboard.quotes.listTitle')"
+      :placeholder="t('dashboard.quotes.search')"
       :state="listState"
       :empty-text="typed === '' ? t('dashboard.quotes.empty') : t('dashboard.quotes.noMatch')"
       :error-text="t('dashboard.quotes.error')"
@@ -173,7 +168,7 @@ function loadMore(): void {
           {{ t("dashboard.quotes.more") }}
         </Button>
       </div>
-    </PanelCard>
+    </ListPanel>
   </PageBody>
   <QuoteDialog v-model:open="dialogOpen" :quote="editing" />
   <ConfirmDialog

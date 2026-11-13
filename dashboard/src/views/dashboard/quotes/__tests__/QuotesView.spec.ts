@@ -187,7 +187,7 @@ describe('QuotesView', () => {
     quotes = [quote(2, 'Never again', 'Kitte'), quote(1, 'Hello chat', null)];
     await open();
 
-    await fill('[data-quote-search] , input[type="search"]', 'hello');
+    await fill('[data-quote-search] input[type="search"]', 'hello');
     await settle();
 
     expect(searches).toContain('hello');

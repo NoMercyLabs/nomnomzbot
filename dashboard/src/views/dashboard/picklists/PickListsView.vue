@@ -25,9 +25,8 @@ import {
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -121,16 +120,12 @@ function loadMore(): void {
   </PageHeader>
   <PageBody>
     <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
-    <Input
+    <ListPanel
       v-model="search"
-      type="search"
-      data-picklist-search
-      :placeholder="t('dashboard.picklists.search')"
-      :aria-label="t('dashboard.picklists.search')"
-    />
-    <PanelCard
       tier="lead"
+      data-picklist-search
       :title="t('dashboard.picklists.listTitle')"
+      :placeholder="t('dashboard.picklists.search')"
       :state="listState"
       :empty-text="typed === '' ? t('dashboard.picklists.empty') : t('dashboard.picklists.noMatch')"
       :error-text="t('dashboard.picklists.error')"
@@ -154,7 +149,7 @@ function loadMore(): void {
           {{ t("dashboard.picklists.more") }}
         </Button>
       </div>
-    </PanelCard>
+    </ListPanel>
   </PageBody>
   <PickListDialog v-model:open="dialogOpen" :list="editing" />
   <ConfirmDialog
