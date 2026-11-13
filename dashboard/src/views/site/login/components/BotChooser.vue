@@ -90,6 +90,7 @@ async function check(): Promise<void> {
   <PanelCard
     :title="$t('site.login.bots.title')"
     :description="$t('site.login.bots.description')"
+    heading="h1"
     tier="lead"
     pad
   >

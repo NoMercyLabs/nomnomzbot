@@ -89,7 +89,7 @@ describe('the public site router', () => {
     const { wrapper, router } = await visit('/does-not-exist');
 
     expect(router.currentRoute.value.name).toBe('not-found');
-    expect(wrapper.find('h2').text()).toBe('This page does not exist');
+    expect(wrapper.find('h1').text()).toBe('This page does not exist');
   });
 
   it('puts Coming soon on every sign-in button of the home page and makes no request', async () => {

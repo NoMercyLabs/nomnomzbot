@@ -28,6 +28,8 @@ const props = withDefaults(
   defineProps<{
     title: string;
     description?: string;
+    // The title is an h2; a page whose task is this one card (sign in, an invite) makes it the page's h1.
+    heading?: 'h1' | 'h2';
     tier?: 'lead' | 'default' | 'quiet';
     pad?: boolean;
     // Inside a sheet or dialog the surface already frames it, so the card drops its own border.
@@ -44,6 +46,7 @@ const props = withDefaults(
   }>(),
   {
     description: undefined,
+    heading: 'h2',
     tier: 'default',
     pad: false,
     flush: false,
@@ -134,7 +137,8 @@ watch(
       class="flex flex-none flex-wrap content-center items-center gap-x-2 gap-y-1"
       :class="bare ? '' : 'min-h-13 border-b border-border px-4 py-2'"
     >
-      <h2
+      <component
+        :is="heading"
         class="max-w-full flex-[1_0_auto]"
         :class="[
           bare ? 'text-sm' : 'text-base',
@@ -142,7 +146,7 @@ watch(
         ]"
       >
         {{ title }}
-      </h2>
+      </component>
       <div
         v-if="$slots.actions || drawerClose.shown.value"
         data-slot="panel-actions"

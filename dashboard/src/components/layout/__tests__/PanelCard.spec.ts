@@ -62,6 +62,17 @@ describe('the panel card header', () => {
     expect(description.classes()).toContain('basis-full');
   });
 
+  it('renders its title as an h2 unless the page makes the card its h1', () => {
+    const section = panel('ready');
+    const task = panel('ready', { heading: 'h1' });
+
+    expect(section.find('h2').text()).toBe('Chat');
+    expect(section.find('h1').exists()).toBe(false);
+    expect(task.find('h1').text()).toBe('Chat');
+    expect(task.find('h2').exists()).toBe(false);
+    expect(task.find('h1').classes()).toContain('font-semibold');
+  });
+
   // Mobile ledger MU-01: the Add button and the Playback switch cannot fit one 390 px row, so the actions wrap.
   it('lets several actions wrap onto a second line instead of overflowing', () => {
     const wrapper = mount(PanelCard, {

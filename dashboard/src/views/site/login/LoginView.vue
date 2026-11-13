@@ -17,8 +17,6 @@ import { useRoute } from 'vue-router';
 
 import { activeBot } from '@/api/activeBot';
 import { providersQuery, RateLimitedError, signInUrl, type LoginProvider, type LoginRole } from '@/api/signIn';
-import AppMark from '@/components/layout/AppMark.vue';
-import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -30,6 +28,8 @@ import { returnPath } from '@/router/guard';
 
 import BotChooser from './components/BotChooser.vue';
 import DeviceCodePanel from './components/DeviceCodePanel.vue';
+import PublicTaskShell from '../components/PublicTaskShell.vue';
+import TaskActions from '../components/TaskActions.vue';
 
 const route = useRoute();
 const { t, locale } = useI18n();
@@ -148,20 +148,16 @@ function signIn(provider: LoginProvider): void {
 
 <template>
   <!-- The shadcn sign-in block: the brand, then the card, then the terms under it. -->
-  <main class="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-    <div class="absolute top-4 right-4"><LanguagePicker /></div>
-    <h1 class="flex items-center gap-2 text-base font-semibold">
-      <AppMark />
-      {{ $t('site.login.brand') }}
-    </h1>
-    <BotChooser v-if="mode === 'bots'" class="w-full max-w-100" @back="mode = 'options'" />
+  <PublicTaskShell :brand="$t('site.login.brand')">
+    <BotChooser v-if="mode === 'bots'" class="w-full" @back="mode = 'options'" />
     <PanelCard
       v-else
       :title="$t('site.login.title')"
       :description="$t('site.login.subtitle')"
+      heading="h1"
       tier="lead"
       pad
-      class="w-full max-w-100"
+      class="w-full"
     >
       <div class="flex flex-col gap-4">
         <RowGroup>
@@ -180,22 +176,21 @@ function signIn(provider: LoginProvider): void {
           :return-to="returnTo"
           @cancel="mode = 'options'"
         />
-        <div v-else-if="mode === 'device'" class="flex flex-col gap-2">
+        <TaskActions v-else-if="mode === 'device'">
           <p class="text-sm">{{ $t('site.login.codeChoose') }}</p>
           <Button
             v-for="provider in codeProviders"
             :key="provider.key"
             variant="outline"
-            class="w-full"
             @click="deviceProvider = provider"
           >
             <PlatformLogo :platform="provider.key" />
             {{ $t('site.login.codeWith', { provider: provider.displayName }) }}
           </Button>
-          <Button variant="ghost" class="w-full" @click="mode = 'options'">{{
+          <Button variant="ghost" @click="mode = 'options'">{{
             $t('site.login.device.back')
           }}</Button>
-        </div>
+        </TaskActions>
         <p
           v-else-if="providers.isPending.value"
           class="text-sm text-muted-foreground"
@@ -218,7 +213,7 @@ function signIn(provider: LoginProvider): void {
             $t('site.login.retry')
           }}</Button>
         </div>
-        <div v-else class="flex flex-col gap-2">
+        <TaskActions v-else>
           <p v-if="codeOnly" class="text-sm text-muted-foreground">
             {{
               otherBot
@@ -232,7 +227,6 @@ function signIn(provider: LoginProvider): void {
                 v-for="role in roles"
                 :key="role"
                 :variant="role === 'broadcaster' ? 'default' : 'outline'"
-                class="w-full"
                 @click="signInAs(provider, role)"
               >
                 <PlatformLogo :platform="provider.key" :mono="role === 'broadcaster'" />
@@ -242,7 +236,6 @@ function signIn(provider: LoginProvider): void {
             <Button
               v-else
               :variant="shown.length === 1 ? 'default' : 'outline'"
-              class="w-full"
               @click="signIn(provider)"
             >
               <PlatformLogo :platform="provider.key" :mono="shown.length === 1" />
@@ -252,19 +245,20 @@ function signIn(provider: LoginProvider): void {
           <Button
             v-if="!codeOnly && codeProviders.length > 0"
             variant="ghost"
-            class="w-full"
             @click="useCode"
           >
             {{ $t('site.login.useCode') }}
           </Button>
-        </div>
+        </TaskActions>
       </div>
       <template v-if="mode === 'options' && enabled.length > 0 && switchedOff.length > 0" #footer>
         <p class="text-sm text-muted-foreground">{{ switchedOffLine }}</p>
       </template>
     </PanelCard>
-    <p class="max-w-100 text-center text-xs text-balance text-muted-foreground">
-      {{ $t('site.login.terms') }}
-    </p>
-  </main>
+    <template #below>
+      <p class="text-center text-xs text-balance text-muted-foreground">
+        {{ $t('site.login.terms') }}
+      </p>
+    </template>
+  </PublicTaskShell>
 </template>

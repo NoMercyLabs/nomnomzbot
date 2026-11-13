@@ -11,6 +11,8 @@
 
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { notFoundRoute } from '@/views/site/not-found/route';
+
 import { accessGuard } from './accessGuard';
 import { channelScopeGuard } from './channelScope';
 import { channelPrefixGuard, ownChannelGuard, platformPathGuard } from './channelRoutes';
@@ -23,7 +25,14 @@ import { viewerRoutes } from './viewer';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [siteRoutes, dashboardRoutes, dashboardChannelRoutes, popoutRoutes, viewerRoutes],
+  routes: [
+    siteRoutes,
+    dashboardRoutes,
+    dashboardChannelRoutes,
+    popoutRoutes,
+    viewerRoutes,
+    notFoundRoute,
+  ],
 });
 
 router.beforeEach(platformPathGuard);

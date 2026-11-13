@@ -20,13 +20,13 @@ import { useRoute } from 'vue-router';
 import { restoreSession, useSignedIn } from '@/api/auth';
 import { publicInviteQuery } from '@/api/billing';
 import { signInUrl } from '@/api/signIn';
-import AppMark from '@/components/layout/AppMark.vue';
-import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import { Button } from '@/components/ui/button';
 import { rememberInviteGift } from '@/composables/useInviteOutcome';
 
+import PublicTaskShell from '../components/PublicTaskShell.vue';
+import TaskActions from '../components/TaskActions.vue';
 import InviteRedeem from './components/InviteRedeem.vue';
 
 const route = useRoute();
@@ -90,32 +90,32 @@ function signIn(): void {
 </script>
 
 <template>
-  <main class="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-    <div class="absolute top-4 right-4"><LanguagePicker /></div>
-    <p class="flex items-center gap-2 text-base font-semibold">
-      <AppMark />
-      {{ $t('site.invite.brand') }}
-    </p>
+  <PublicTaskShell :brand="$t('site.invite.brand')">
     <PanelCard
       :title="title"
       :description="description"
+      heading="h1"
       tier="lead"
       pad
-      class="w-full max-w-100"
+      class="w-full"
     >
       <p v-if="pending" role="status" class="text-sm text-muted-foreground">
         {{ $t('site.invite.loading') }}
       </p>
       <template v-else-if="usable">
         <InviteRedeem v-if="signedIn" :code="code" :gift="gift" />
-        <Button v-else data-action="sign-in" class="w-full" @click="signIn">
-          <PlatformLogo platform="twitch" mono />
-          {{ $t('site.invite.signIn') }}
-        </Button>
+        <TaskActions v-else>
+          <Button data-action="sign-in" @click="signIn">
+            <PlatformLogo platform="twitch" mono />
+            {{ $t('site.invite.signIn') }}
+          </Button>
+        </TaskActions>
       </template>
-      <Button v-else as-child variant="outline" class="w-full">
-        <RouterLink to="/" data-action="home">{{ $t('site.invite.home') }}</RouterLink>
-      </Button>
+      <TaskActions v-else>
+        <Button as-child variant="outline">
+          <RouterLink to="/" data-action="home">{{ $t('site.invite.home') }}</RouterLink>
+        </Button>
+      </TaskActions>
     </PanelCard>
-  </main>
+  </PublicTaskShell>
 </template>

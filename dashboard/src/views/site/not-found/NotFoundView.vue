@@ -11,31 +11,30 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 
-import AppMark from '@/components/layout/AppMark.vue';
-import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
+
+import PublicTaskShell from '../components/PublicTaskShell.vue';
+import TaskActions from '../components/TaskActions.vue';
 
 const { t } = useI18n();
 </script>
 
 <template>
-  <main class="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-    <div class="absolute top-4 right-4"><LanguagePicker /></div>
-    <p class="flex items-center gap-2 text-base font-semibold">
-      <AppMark />
-      {{ t('site.notFound.brand') }}
-    </p>
+  <PublicTaskShell :brand="t('site.notFound.brand')">
     <PanelCard
       :title="t('site.notFound.title')"
       :description="t('site.notFound.body')"
+      heading="h1"
       tier="lead"
       pad
-      class="w-full max-w-100"
+      class="w-full"
     >
-      <Button as-child class="w-full">
-        <RouterLink to="/">{{ t('site.notFound.home') }}</RouterLink>
-      </Button>
+      <TaskActions>
+        <Button as-child>
+          <RouterLink to="/">{{ t('site.notFound.home') }}</RouterLink>
+        </Button>
+      </TaskActions>
     </PanelCard>
-  </main>
+  </PublicTaskShell>
 </template>

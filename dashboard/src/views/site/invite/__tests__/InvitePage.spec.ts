@@ -158,6 +158,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('the invite page heading', () => {
+  it('has one h1, the task title, and the brand is a link home', async () => {
+    const wrapper = await open('WELCOME6', false);
+
+    expect(wrapper.findAll('h1')).toHaveLength(1);
+    expect(wrapper.find('h1').text()).toBe(words.site.invite.title);
+    expect(wrapper.find('[data-slot="task-brand"]').attributes('href')).toBe('/');
+  });
+
+  it('keeps one h1 for an invite that cannot be used', async () => {
+    invite = unusable;
+    const wrapper = await open('OLD', false);
+
+    expect(wrapper.findAll('h1')).toHaveLength(1);
+    expect(wrapper.find('h1').text()).toBe(words.site.invite.unusable.title);
+  });
+});
+
 describe('the invite page, signed out', () => {
   it('reads the invite without signing in and shows the tier and the length', async () => {
     const wrapper = await open('WELCOME6', false);

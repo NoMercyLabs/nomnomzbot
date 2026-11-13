@@ -119,6 +119,33 @@ describe('signing in by role', () => {
   });
 });
 
+describe('the page heading', () => {
+  it('has one h1, the task title, while the brand is a link and not a heading', async () => {
+    vi.stubGlobal('isSecureContext', true);
+    stubBot();
+    const wrapper = await mountLogin();
+    const headings = wrapper.findAll('h1');
+
+    expect(headings).toHaveLength(1);
+    expect(headings[0]!.text()).toBe(words.site.login.title);
+    expect(wrapper.find('[data-slot="task-brand"]').text()).toBe(words.site.login.brand);
+    expect(wrapper.find('[data-slot="task-brand"]').find('h1, h2').exists()).toBe(false);
+  });
+
+  it('keeps one h1 when the bot list replaces the options', async () => {
+    vi.stubGlobal('isSecureContext', true);
+    stubBot();
+    const wrapper = await mountLogin();
+    const change = wrapper.findAll('button').find((b) => b.text() === words.site.login.change);
+
+    await change!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.findAll('h1')).toHaveLength(1);
+    expect(wrapper.find('h1').text()).toBe(words.site.login.bots.title);
+  });
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -234,8 +261,8 @@ describe('the sign-in options', () => {
     stubBot();
     const wrapper = await mountLogin();
 
-    expect(wrapper.find('h1').text()).toMatch(/NomNomzBot$/);
-    expect(wrapper.find('h2').text()).toBe('Welcome');
+    expect(wrapper.find('[data-slot="task-brand"]').text()).toMatch(/NomNomzBot$/);
+    expect(wrapper.find('h1').text()).toBe('Welcome');
     const button = wrapper.findAll('button').find((b) => b.text() === 'Continue with Twitch')!;
 
     expect(button.find('svg path').attributes('d')).toBe(siTwitch.path);
