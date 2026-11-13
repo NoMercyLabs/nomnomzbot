@@ -17,23 +17,61 @@
 
 /* Sizes only: the look of each variant (fill, radius, weight) is the NomNomz Figma kit in
    components/ui/button (owner 2026-10-14). Ghost = full-tone text with an underline, so it reads as a link. */
+/* Sleak geometry: one icon box sets the vertical and outer inset; text gets twice that inset.
+   Match by the persistent class so as-child menu/dialog triggers retain the same geometry. */
 .group\/button {
-  height: var(--btn-h);
-  padding-inline: var(--s4);
+  --button-height: var(--btn-h);
+  --button-icon: 16px;
+  --button-inset: max(0px, calc((var(--button-height) - var(--button-icon)) / 2 - 1px));
+  height: var(--button-height);
+  padding-block: var(--button-inset);
+  padding-inline: calc(2 * var(--button-inset));
   gap: var(--s2);
+  line-height: 1;
   cursor: pointer;
 }
 .group\/button[data-size='sm'] {
   height: var(--btn-h-sm);
-  padding-inline: var(--s3);
+  --button-height: var(--btn-h-sm);
+}
+.group\/button[data-size='xs'],
+.group\/button[data-size='icon-xs'] {
+  --button-height: 24px;
+  --button-icon: 12px;
+}
+.group\/button[data-size='lg'],
+.group\/button[data-size='icon-lg'] {
+  --button-height: 40px;
+  --button-icon: 20px;
+}
+/* Optical alignment for the kit button font: lower labels without moving the icon box. */
+.group\/button > span:not([data-icon]) {
+  translate: 0 1px;
+}
+.group\/button > svg {
+  width: var(--button-icon);
+  height: var(--button-icon);
+}
+.group\/button:where(:has(> svg:first-child)),
+.group\/button:where(:has(> [data-icon='inline-start']:first-child)) {
+  padding-inline-start: var(--button-inset);
+}
+.group\/button:where(:has(> svg:last-child)),
+.group\/button:where(:has(> [data-icon='inline-end']:last-child)) {
+  padding-inline-end: var(--button-inset);
 }
 .group\/button[data-size^='icon'] {
-  width: var(--btn-h);
-  padding: 0;
+  width: var(--button-height);
+  padding: var(--button-inset);
 }
 .group\/button[data-size='icon-sm'] {
   width: var(--btn-h-sm);
   height: var(--btn-h-sm);
+  --button-height: var(--btn-h-sm);
+}
+/* A button filling a row centers its content as one group, with symmetric insets. */
+.group\/button:is(.w-full, .flex-1, [data-button-fill]) {
+  padding-inline: calc(2 * var(--button-inset));
 }
 .group\/button[data-variant='ghost'] {
   border-radius: var(--radius-sm);

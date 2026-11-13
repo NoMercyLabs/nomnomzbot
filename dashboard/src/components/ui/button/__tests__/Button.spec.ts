@@ -11,7 +11,11 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { Fragment, h } from 'vue'
+import { createMemoryHistory, createRouter, RouterLink } from 'vue-router'
+import Button from '../Button.vue'
 import { buttonVariants } from '..'
 
 const tokens = readFileSync(resolve(__dirname, '../../../../styles/tokens.css'), 'utf8')
@@ -51,5 +55,70 @@ describe('buttonVariants touch height', () => {
     expect(classes).toContain('size-9')
     expect(classes).toContain('md:size-8')
     expect(classes).not.toContain('size-8')
+  })
+})
+
+// Slot fragments and translated strings must expose the icon's actual leading/trailing position.
+describe('button content geometry', () => {
+  it('wraps a plain label after a leading icon without adding a content container', () => {
+    const wrapper = mount(Button, { slots: { default: () => [h('svg'), 'Save changes'] } })
+    expect(wrapper.element.firstElementChild?.tagName).toBe('svg')
+    expect(wrapper.element.lastElementChild?.tagName).toBe('SPAN')
+    expect(wrapper.text()).toBe('Save changes')
+  })
+
+  it('wraps a label before a trailing icon inside a fragment', () => {
+    const wrapper = mount(Button, { slots: { default: () => h(Fragment, ['Next', h('svg')]) } })
+    expect(wrapper.element.firstElementChild?.tagName).toBe('SPAN')
+    expect(wrapper.element.lastElementChild?.tagName).toBe('svg')
+  })
+
+  it('keeps an icon-only control free of label wrappers', () => {
+    const wrapper = mount(Button, { props: { size: 'icon', 'aria-label': 'Search' }, slots: { default: () => h('svg') } })
+    expect(wrapper.element.children).toHaveLength(1)
+    expect(wrapper.attributes('aria-label')).toBe('Search')
+  })
+})
+
+// Reka clones the direct child to forward the button's attributes and listeners.
+describe('button as-child forwarding', () => {
+  it('keeps attributes and click handling on the actual anchor', async () => {
+    const click = vi.fn<() => void>()
+    const wrapper = mount(Button, {
+      props: { asChild: true, variant: 'outline', size: 'sm', onClick: click },
+      attrs: { 'data-action': 'open', class: 'min-w-0' },
+      slots: { default: () => h('a', { href: '/people' }, 'Open') },
+    })
+    expect(wrapper.element.tagName).toBe('A')
+    expect(wrapper.attributes('href')).toBe('/people')
+    expect(wrapper.attributes('data-action')).toBe('open')
+    expect(wrapper.attributes('data-variant')).toBe('outline')
+    expect(wrapper.attributes('data-size')).toBe('sm')
+    expect(wrapper.classes()).toContain('group/button')
+    expect(wrapper.classes()).toContain('min-w-0')
+    await wrapper.trigger('click')
+    expect(click).toHaveBeenCalledOnce()
+  })
+
+  it('forwards styling and identity through a RouterLink and still navigates', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+    })
+    await router.push('/')
+    const wrapper = mount(Button, {
+      props: { asChild: true, variant: 'outline' },
+      attrs: { 'data-open-page': '', class: 'min-w-0' },
+      slots: { default: () => h(RouterLink, { to: '/people' }, () => 'Open people') },
+      global: { plugins: [router] },
+    })
+    expect(wrapper.element.tagName).toBe('A')
+    expect(wrapper.attributes('href')).toBe('/people')
+    expect(wrapper.attributes('data-open-page')).toBe('')
+    expect(wrapper.attributes('data-variant')).toBe('outline')
+    expect(wrapper.classes()).toContain('min-w-0')
+    await wrapper.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/people')
   })
 })
