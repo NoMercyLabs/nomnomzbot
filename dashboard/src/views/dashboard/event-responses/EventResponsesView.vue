@@ -13,10 +13,9 @@
 import { computed } from 'vue';
 
 import { useEventResponses, type EventResponse } from '@/api/eventResponses';
-import BackLink from '@/components/layout/BackLink.vue';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useQueryPane } from '@/composables/useQueryPane';
@@ -49,22 +48,15 @@ const row = computed<EventResponse | undefined>(() =>
       <EventResponseList :selected="selected" @pick="pane.open" />
     </template>
     <template v-if="can('eventresponses:write')" #detail>
-      <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <BackLink
-          data-detail-back
-          data-page-inset
-          class="self-start md:hidden"
-          :label="$t('dashboard.eventResponses.back')"
-          @click="pane.close"
-        />
-        <EventResponseEditor :key="row.eventType" :row="row" />
-      </div>
-      <PanelCard
-        v-else
-        state="empty"
-        :title="$t('dashboard.eventResponses.list.pickTitle')"
-        :empty-text="$t('dashboard.eventResponses.list.pick')"
-      />
+      <DetailEditorPane
+        :open="row !== undefined"
+        :idle-title="$t('dashboard.eventResponses.list.pickTitle')"
+        :idle-text="$t('dashboard.eventResponses.list.pick')"
+        :back-label="$t('dashboard.eventResponses.back')"
+        @back="pane.close"
+      >
+        <EventResponseEditor v-if="row" :key="row.eventType" :row="row" />
+      </DetailEditorPane>
     </template>
   </ListDetail>
 </template>

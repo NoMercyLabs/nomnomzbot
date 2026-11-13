@@ -21,13 +21,12 @@ import {
   type BuiltinCommand,
   type CommandListItem,
 } from '@/api/commands';
-import BackLink from '@/components/layout/BackLink.vue';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -167,43 +166,29 @@ const creating = ref(false);
       />
     </template>
     <template v-if="canWrite" #detail>
-      <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <BackLink
-          data-detail-back
-          data-page-inset
-          class="self-start md:hidden"
-          :label="$t('dashboard.commands.back')"
-          @click="select(undefined)"
-        />
+      <DetailEditorPane
+        :open="row !== undefined || (builtin !== undefined && view === 'builtin')"
+        :idle-title="$t('dashboard.commands.list.pickTitle')"
+        :idle-text="$t('dashboard.commands.list.pick')"
+        :back-label="$t('dashboard.commands.back')"
+        @back="select(undefined)"
+      >
         <CommandEditor
+          v-if="row"
           :key="row.name"
           :row="row"
           @remove="removeCommand"
           @duplicated="select"
           @close="select(undefined)"
         />
-      </div>
-      <div v-else-if="builtin && view === 'builtin'" class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <BackLink
-          data-detail-back
-          data-page-inset
-          class="self-start md:hidden"
-          :label="$t('dashboard.commands.back')"
-          @click="select(undefined)"
-        />
         <BuiltinEditor
+          v-else-if="builtin"
           :key="builtin.builtinKey"
           data-builtin-detail
           :builtin="builtin"
           @close="select(undefined)"
         />
-      </div>
-      <PanelCard
-        v-else
-        state="empty"
-        :title="$t('dashboard.commands.list.pickTitle')"
-        :empty-text="$t('dashboard.commands.list.pick')"
-      />
+      </DetailEditorPane>
     </template>
   </ListDetail>
   <NewCommandDialog v-model:open="creating" @created="select" />

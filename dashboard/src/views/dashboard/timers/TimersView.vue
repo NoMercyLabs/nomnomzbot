@@ -15,13 +15,12 @@ import { useI18n } from 'vue-i18n';
 
 import { useTimers, type Timer } from '@/api/liveOps';
 import { useDeleteTimer } from '@/api/timers';
-import BackLink from '@/components/layout/BackLink.vue';
+import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
@@ -111,27 +110,21 @@ function create(): void {
       <TimerList :selected="selected" @pick="pane.open" @create="creating = true" />
     </template>
     <template v-if="can('timers:write')" #detail>
-      <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
-        <BackLink
-          data-detail-back
-          data-page-inset
-          class="self-start md:hidden"
-          :label="$t('dashboard.timers.back')"
-          @click="pane.close"
-        />
+      <DetailEditorPane
+        :open="row !== undefined"
+        :idle-title="$t('dashboard.timers.list.pickTitle')"
+        :idle-text="$t('dashboard.timers.list.pick')"
+        :back-label="$t('dashboard.timers.back')"
+        @back="pane.close"
+      >
         <TimerEditor
+          v-if="row"
           :key="row.id"
           :row="row"
           @remove="removeTimer"
           @duplicated="pane.select"
         />
-      </div>
-      <PanelCard
-        v-else
-        state="empty"
-        :title="$t('dashboard.timers.list.pickTitle')"
-        :empty-text="$t('dashboard.timers.list.pick')"
-      />
+      </DetailEditorPane>
     </template>
   </ListDetail>
   <NewTimerDialog v-model:open="creating" />
