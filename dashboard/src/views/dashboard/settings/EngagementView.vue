@@ -21,6 +21,7 @@ import {
   useEngagementDefaults,
   useSaveEngagementConfig,
 } from '@/api/engagement';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -337,7 +338,7 @@ async function submit(): Promise<void> {
         </div>
       </section>
 
-      <p v-if="error" role="alert" class="px-3 text-sm text-destructive">{{ error }}</p>
+      <InlineNotice v-if="error" tone="error" compact class="px-3">{{ error }}</InlineNotice>
     </form>
     <template v-if="can('engagement:write')" #footer>
       <span

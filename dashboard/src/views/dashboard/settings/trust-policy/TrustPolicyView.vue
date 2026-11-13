@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useSaveTrustPolicy, useTrustPolicy, useTrustPolicyDefaults } from '@/api/trustPolicy';
 import PageBody from '@/components/layout/PageBody.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
@@ -150,7 +151,12 @@ function submit(): void {
         @retry="policy.refetch()"
       />
       <ReadOnlyScope v-else-if="draft" :read-only="!canManage">
-        <p v-if="saveError" role="alert" data-save-error class="mb-4 text-sm text-destructive">{{ saveError }}</p>
+        <InlineNotice v-if="saveError"
+                      data-save-error
+                      tone="error"
+                      compact
+                      class="mb-4"
+        >{{ saveError }}</InlineNotice>
         <div class="grid gap-4">
           <TrustGroupPanel
             v-for="group in trustGroups"

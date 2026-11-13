@@ -24,6 +24,7 @@ import {
   useSetMemberRole,
   type TeamRole,
 } from '@/api/permissions';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -137,6 +138,6 @@ async function add(): Promise<void> {
         {{ $t('dashboard.settings.permissions.team.add') }}
       </Button>
     </div>
-    <p v-if="error" role="alert" class="pt-3 text-sm text-destructive">{{ error }}</p>
+    <InlineNotice v-if="error" tone="error" compact class="pt-3">{{ error }}</InlineNotice>
   </PanelCard>
 </template>

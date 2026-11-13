@@ -15,6 +15,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useExportData, type DataExport } from '@/api/yourData';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { downloadText } from '@/lib/download';
@@ -62,6 +63,6 @@ async function run(): Promise<void> {
         })
       }}
     </p>
-    <p v-if="failure" role="alert" class="px-3 py-3 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

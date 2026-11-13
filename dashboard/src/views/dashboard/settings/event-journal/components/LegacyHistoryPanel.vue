@@ -15,6 +15,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useImportLegacyHistory, type LegacyImportResult } from '@/api/eventJournal';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -79,6 +80,6 @@ async function run(): Promise<void> {
         </li>
       </ul>
     </div>
-    <p v-if="failure" role="alert" class="px-3 py-3 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

@@ -22,6 +22,7 @@ import {
   type BillingTier,
 } from '@/api/billing';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
@@ -273,7 +274,7 @@ async function choose(tier: BillingTier): Promise<void> {
           </dl>
         </section>
       </div>
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
     </div>
   </PanelCard>
 </template>

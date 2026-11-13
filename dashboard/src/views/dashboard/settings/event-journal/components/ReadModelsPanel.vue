@@ -22,6 +22,7 @@ import {
   type ProjectionRebuild,
 } from '@/api/eventJournal';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
@@ -112,7 +113,7 @@ async function runRebuild(): Promise<void> {
         }}
       </li>
     </ul>
-    <p v-if="failure" role="alert" class="px-3 py-3 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
   </PanelCard>
   <ConfirmDialog
     v-model:open="confirmOpen"

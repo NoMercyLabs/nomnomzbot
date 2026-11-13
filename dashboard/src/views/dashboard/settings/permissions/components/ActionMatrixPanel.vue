@@ -25,6 +25,7 @@ import {
   type ActionPermission,
   type RungName,
 } from '@/api/permissions';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -163,6 +164,6 @@ const changeLevel = (actionKey: string, rung: RungName): Promise<void> =>
         </SummaryRow>
       </RowGroup>
     </section>
-    <p v-if="error" role="alert" class="pt-3 text-sm text-destructive">{{ error }}</p>
+    <InlineNotice v-if="error" tone="error" compact class="pt-3">{{ error }}</InlineNotice>
   </PanelCard>
 </template>

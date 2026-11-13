@@ -21,6 +21,7 @@ import {
   useRetryOutboundDelivery,
   type OutboundWebhook,
 } from '@/api/webhooks';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Badge } from '@/components/ui/badge';
@@ -112,6 +113,6 @@ async function again(deliveryId: number | string): Promise<void> {
         </Button>
       </div>
     </RowGroup>
-    <p v-if="failure" role="alert" class="px-3 pt-2 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-3 pt-2">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

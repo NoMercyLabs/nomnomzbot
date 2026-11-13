@@ -25,6 +25,7 @@ import {
   type JournalImportSummary,
 } from '@/api/eventJournal';
 import DateTime from '@/components/layout/DateTime.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -139,6 +140,6 @@ async function load(event: Event): Promise<void> {
         })
       }}
     </p>
-    <p v-if="failure" role="alert" class="px-3 py-3 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

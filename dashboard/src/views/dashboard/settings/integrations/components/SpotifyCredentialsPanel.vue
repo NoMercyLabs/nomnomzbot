@@ -25,6 +25,7 @@ import {
   useSaveSpotifyCredentials,
   useSpotifyCredentials,
 } from '@/api/integrations';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import StoredCredentialRow, { type CredentialField } from '@/components/layout/StoredCredentialRow.vue';
 import { Button } from '@/components/ui/button';
 import type { PanelState } from '@/composables/usePanelState';
@@ -151,12 +152,17 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <p v-if="state === 'error'" role="alert" data-view="spotify-credentials" class="mt-1 text-sm text-destructive">
+  <InlineNotice v-if="state === 'error'"
+                data-view="spotify-credentials"
+                tone="error"
+                compact
+                class="mt-1"
+  >
     {{ $t('dashboard.settings.integrations.spotify.loadFailed') }}
     <Button variant="outline" size="sm" type="button" @click="credentials.refetch()">
       {{ $t('dashboard.settings.integrations.spotify.retry') }}
     </Button>
-  </p>
+  </InlineNotice>
 
   <StoredCredentialRow
     v-else-if="state === 'ready'"

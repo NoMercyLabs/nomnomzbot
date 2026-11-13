@@ -29,6 +29,7 @@ import {
   type ChannelResetPreview,
 } from '@/api/channelManagement';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -274,7 +275,7 @@ async function restoreChannel(): Promise<void> {
         </div>
       </RowGroup>
     </PanelCard>
-    <p v-if="pageError" role="alert" class="pt-3 text-sm text-destructive">{{ pageError }}</p>
+    <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
   </PageBody>
 
   <ConfirmDialog

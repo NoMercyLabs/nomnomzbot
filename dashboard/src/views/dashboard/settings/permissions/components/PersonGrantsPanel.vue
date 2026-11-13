@@ -24,6 +24,7 @@ import {
   useRevokeCapability,
 } from '@/api/permissions';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -198,7 +199,7 @@ async function add(): Promise<void> {
     <p v-if="picking && canManage" data-grant-hint class="pt-3 text-sm text-muted-foreground">
       {{ knownText(picking, "detail") }}
     </p>
-    <p v-if="error" role="alert" class="pt-3 text-sm text-destructive">{{ error }}</p>
+    <InlineNotice v-if="error" tone="error" compact class="pt-3">{{ error }}</InlineNotice>
   </PanelCard>
   <ConfirmDialog
     v-model:open="confirming"

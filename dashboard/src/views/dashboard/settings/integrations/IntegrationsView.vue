@@ -31,6 +31,7 @@ import {
   type ChannelIntegration,
 } from '@/api/integrations';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -357,7 +358,7 @@ function setLeavingOpen(open: boolean): void {
           </div>
         </div>
       </RowGroup>
-      <p v-if="error" role="alert" class="px-3 pt-3 text-sm text-destructive">{{ error }}</p>
+      <InlineNotice v-if="error" tone="error" compact class="px-3 pt-3">{{ error }}</InlineNotice>
     </PanelCard>
 
     <ConfirmDialog

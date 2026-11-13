@@ -25,6 +25,7 @@ import {
   type InviteCheck,
   type InviteRedeemed,
 } from '@/api/billing';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -203,7 +204,7 @@ async function redeemCode(): Promise<void> {
       <ul v-if="redeemedLines.length > 0" data-result="redeemed" class="grid gap-1 text-sm">
         <li v-for="line in redeemedLines" :key="line">{{ line }}</li>
       </ul>
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
       <div class="grid gap-1 border-t border-border pt-3 text-sm">
         <h3 class="font-medium">{{ $t('dashboard.settings.billing.badge.title') }}</h3>
         <p data-badge="state">{{ badgeLine }}</p>

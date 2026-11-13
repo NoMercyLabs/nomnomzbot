@@ -16,6 +16,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { usePanelState } from '@/composables/usePanelState';
@@ -74,6 +75,6 @@ async function change(on: boolean): Promise<void> {
         </label>
       </div>
     </RowGroup>
-    <p v-if="failure" role="alert" class="pt-3 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="pt-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

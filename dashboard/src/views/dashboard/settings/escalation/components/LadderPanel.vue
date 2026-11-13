@@ -19,6 +19,7 @@ import Trash from '~icons/nnz/trash';
 
 import type { EscalationPolicy } from '@/api/escalationPolicy';
 import IconAction from '@/components/layout/IconAction.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -91,9 +92,14 @@ function removeStep(index: number): void {
     :title="$t('dashboard.settings.escalation.ladder.title')"
     :description="$t('dashboard.settings.escalation.ladder.description')"
   >
-    <p v-if="errors.ladder" data-row-error role="alert" class="mb-2 text-sm text-destructive">
+    <InlineNotice v-if="errors.ladder"
+                  data-row-error
+                  tone="error"
+                  compact
+                  class="mb-2"
+    >
       {{ errors.ladder }}
-    </p>
+    </InlineNotice>
     <RowGroup>
       <div
         v-for="(step, index) in draft.ladder"

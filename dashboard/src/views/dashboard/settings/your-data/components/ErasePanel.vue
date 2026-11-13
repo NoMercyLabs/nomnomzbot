@@ -22,6 +22,7 @@ import {
   type ErasurePreview,
 } from '@/api/yourData';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
@@ -130,7 +131,7 @@ async function confirmOptOut(): Promise<void> {
       </div>
     </RowGroup>
     <p v-if="notice" data-notice class="px-3 py-3 text-sm text-muted-foreground">{{ notice }}</p>
-    <p v-if="failure" role="alert" class="px-3 py-3 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
   </PanelCard>
 
   <ConfirmDialog

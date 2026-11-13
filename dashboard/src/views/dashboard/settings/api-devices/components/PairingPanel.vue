@@ -19,6 +19,7 @@ import {
   useMintPairingCode,
   type PairingCode,
 } from '@/api/automationTokens';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -114,6 +115,6 @@ async function approveCode(): Promise<void> {
         </p>
       </form>
     </div>
-    <p v-if="error" role="alert" class="mt-4 text-sm text-destructive">{{ error }}</p>
+    <InlineNotice v-if="error" tone="error" compact class="mt-4">{{ error }}</InlineNotice>
   </PanelCard>
 </template>

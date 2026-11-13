@@ -39,6 +39,7 @@ import {
 } from '@/api/webhooks';
 import { usePipelines } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -387,7 +388,7 @@ async function confirmDelete(): Promise<void> {
           )
         }}
       </p>
-      <p v-if="pageError" role="alert" class="pt-3 text-sm text-destructive">{{ pageError }}</p>
+      <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
       <EgressAllowlistCard v-if="can('egress:allowlist:read')" />
     </PageBody>
     <template v-if="can('webhooks:outbound:read')" #panel>

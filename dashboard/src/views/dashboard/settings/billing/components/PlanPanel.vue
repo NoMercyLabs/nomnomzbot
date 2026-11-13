@@ -25,6 +25,7 @@ import {
   useSubscription,
 } from '@/api/billing';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
@@ -202,7 +203,7 @@ async function confirmCancel(): Promise<void> {
       <p v-else-if="plan.cancelAtPeriodEnd" data-plan="pending-cancel" class="text-sm text-muted-foreground">
         {{ $t('dashboard.settings.billing.plan.pendingCancel') }}
       </p>
-      <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
+      <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>
     </div>
     <template #footer>
       <div class="flex w-full flex-wrap items-center justify-between gap-2">

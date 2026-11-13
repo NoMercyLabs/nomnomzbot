@@ -25,6 +25,7 @@ import {
   type FederationOptInType,
 } from '@/api/federation';
 import PageBody from '@/components/layout/PageBody.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -162,6 +163,6 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
 
     <MassBanOptInCard />
 
-    <p v-if="pageError" role="alert" class="pt-3 text-sm text-destructive">{{ pageError }}</p>
+    <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
   </PageBody>
 </template>

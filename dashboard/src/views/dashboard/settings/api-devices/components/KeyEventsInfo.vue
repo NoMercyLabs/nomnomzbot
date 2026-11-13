@@ -14,6 +14,7 @@
 import InfoCircle from '~icons/nnz/info-circle';
 
 import { useAutomationEvents } from '@/api/automationTokens';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -40,9 +41,9 @@ const events = useAutomationEvents(channelId);
     </PopoverTrigger>
     <PopoverContent align="start" class="w-96 max-w-[calc(100vw-2rem)]">
       <p class="text-sm font-medium">{{ $t('dashboard.settings.apiDevices.events.title') }}</p>
-      <p v-if="events.isError.value" role="alert" class="mt-2 text-sm text-destructive">
+      <InlineNotice v-if="events.isError.value" tone="error" compact class="mt-2">
         {{ $t('dashboard.settings.apiDevices.events.error') }}
-      </p>
+      </InlineNotice>
       <p
         v-else-if="!events.isPending.value && (events.data.value ?? []).length === 0"
         class="mt-2 text-sm text-muted-foreground"

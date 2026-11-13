@@ -15,6 +15,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useChangeConsent, useConsents, type ConsentRecord } from '@/api/yourData';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -71,6 +72,6 @@ async function flip(record: ConsentRecord): Promise<void> {
         @update:model-value="flip(record)"
       />
     </RowGroup>
-    <p v-if="failure" role="alert" class="px-3 py-3 text-sm text-destructive">{{ failure }}</p>
+    <InlineNotice v-if="failure" tone="error" compact class="px-3 py-3">{{ failure }}</InlineNotice>
   </PanelCard>
 </template>

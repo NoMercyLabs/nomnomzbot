@@ -25,6 +25,7 @@ import {
   type NewAutomationToken,
 } from '@/api/automationTokens';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -147,7 +148,7 @@ async function confirmRevoke(): Promise<void> {
         </template>
         <TokensTable :tokens="tokens.data.value ?? []" @rotate="askRotate" @revoke="askRevoke" />
       </PanelCard>
-      <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
+      <InlineNotice v-if="actionError" tone="error" compact>{{ actionError }}</InlineNotice>
 
       <PairingPanel v-if="can('automation:tokens:write')" />
     </div>

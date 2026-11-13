@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useEscalationPolicy, useSaveEscalationPolicy } from '@/api/escalationPolicy';
 import PageBody from '@/components/layout/PageBody.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
@@ -153,9 +154,14 @@ function submit(): void {
         @retry="policy.refetch()"
       />
       <ReadOnlyScope v-else-if="draft && shipped && limits" :read-only="!canManage">
-        <p v-if="saveError" role="alert" data-save-error class="mb-4 text-sm text-destructive">
+        <InlineNotice v-if="saveError"
+                      data-save-error
+                      tone="error"
+                      compact
+                      class="mb-4"
+        >
           {{ saveError }}
-        </p>
+        </InlineNotice>
         <div class="grid gap-4">
           <PolicyPanel v-model="draft" :shipped="shipped" :limits="limits" :errors="rowErrors" />
           <LadderPanel v-model="draft" :limits="limits" :errors="rowErrors" />
