@@ -19,6 +19,7 @@ export const settingsFederationRoute = {
   meta: {
     navMode: 'settings',
     action: 'federation:optin:read',
+    titleKey: 'frame.nav.settingsPages.federation',
   },
   component: () =>
     loadPage(

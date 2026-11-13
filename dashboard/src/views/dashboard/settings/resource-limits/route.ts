@@ -19,6 +19,7 @@ export const settingsResourceLimitsRoute = {
   meta: {
     navMode: 'settings',
     action: 'billing:read',
+    titleKey: 'frame.nav.settingsPages.resourceLimits',
   },
   component: () =>
     loadPage(

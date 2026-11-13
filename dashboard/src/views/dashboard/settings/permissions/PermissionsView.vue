@@ -20,14 +20,13 @@ import { useChannelAccess } from '@/api/access';
 import { useActionMatrix, useMembers, usePersonGrants } from '@/api/permissions';
 import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { useQueryPane } from '@/composables/useQueryPane';
 
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import { groupByArea, matchesSearch, useActionName, useAreaLabel } from './actionArea';
 import ActionAreaList from './components/ActionAreaList.vue';
 import ActionMatrixPanel from './components/ActionMatrixPanel.vue';
@@ -80,36 +79,34 @@ const areaOpen = computed<boolean>(() => pane.id.value !== null);
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.permissions')" :crumb="$t('dashboard.settings.crumb')">
+  <SettingsPageFrame :body="view === 'actions' ? 'none' : undefined">
     <template #bar><PageTabs :tabs="tabs" /></template>
-  </PageHeader>
 
-  <ListDetail v-if="view === 'actions'" data-view="permissions" :show-detail="areaOpen">
-    <template #list>
-      <ActionAreaList
-        v-model:search="search"
-        :areas="areas"
-        :selected="area"
-        @pick="pane.open"
-      />
-    </template>
-    <template v-if="area" #detail>
-      <DetailEditorPane
-        :open="Boolean(area)"
-        :idle-title="$t('dashboard.settings.permissions.areas.title')"
-        :idle-text="$t('dashboard.settings.permissions.areas.search')"
-        :back-label="$t('dashboard.settings.permissions.areas.back')"
-        @back="pane.close"
-      >
-        <ActionMatrixPanel :can-manage="access.can('roles:manage')" :area="area" :search="search" />
-      </DetailEditorPane>
-    </template>
-  </ListDetail>
+    <ListDetail v-if="view === 'actions'" data-view="permissions" :show-detail="areaOpen">
+      <template #list>
+        <ActionAreaList
+          v-model:search="search"
+          :areas="areas"
+          :selected="area"
+          @pick="pane.open"
+        />
+      </template>
+      <template v-if="area" #detail>
+        <DetailEditorPane
+          :open="Boolean(area)"
+          :idle-title="$t('dashboard.settings.permissions.areas.title')"
+          :idle-text="$t('dashboard.settings.permissions.areas.search')"
+          :back-label="$t('dashboard.settings.permissions.areas.back')"
+          @back="pane.close"
+        >
+          <ActionMatrixPanel :can-manage="access.can('roles:manage')" :area="area" :search="search" />
+        </DetailEditorPane>
+      </template>
+    </ListDetail>
 
-  <PageBody v-else>
-    <div data-view="permissions" class="flex flex-col gap-4">
+    <div v-else data-view="permissions" class="flex flex-col gap-4">
       <PersonGrantsPanel v-if="view === 'capabilities'" :can-manage="access.can('roles:manage')" />
       <TeamRolesPanel v-else :can-manage="access.can('roles:manage')" />
     </div>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

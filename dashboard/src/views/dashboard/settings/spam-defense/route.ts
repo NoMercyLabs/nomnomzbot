@@ -20,6 +20,7 @@ export const settingsSpamDefenseRoute = {
   meta: {
     navMode: 'settings',
     action: 'spam:policy:read',
+    titleKey: 'frame.nav.settingsPages.spamDefense',
   },
   component: () =>
     loadPage(

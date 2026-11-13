@@ -746,7 +746,12 @@ describe('Permissions route', () => {
       '/app/settings/permissions',
     );
 
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'roles:read' });
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'roles:read',
+      titleKey: 'frame.nav.settingsPages.permissions',
+    });
+
     expect(loaded.default).toBe(PermissionsView);
   });
 });

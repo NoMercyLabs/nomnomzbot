@@ -23,8 +23,6 @@ import {
   type ReportStatus,
   type ViewerReport,
 } from '@/api/reports';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -34,6 +32,8 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 const { t } = useI18n();
 const { can } = useCan();
@@ -72,11 +72,7 @@ function work(report: ViewerReport, action: ReportAction): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.reports')"
-    :crumb="$t('dashboard.settings.reports.crumb')"
-  />
-  <PageBody>
+  <SettingsPageFrame :crumb="$t('dashboard.settings.reports.crumb')">
     <p class="text-sm text-muted-foreground">{{ $t("dashboard.settings.reports.explain") }}</p>
     <PanelCard
       tier="lead"
@@ -124,5 +120,5 @@ function work(report: ViewerReport, action: ReportAction): void {
         </SummaryRow>
       </RowGroup>
     </PanelCard>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

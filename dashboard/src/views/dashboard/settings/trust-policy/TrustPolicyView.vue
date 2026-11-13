@@ -15,9 +15,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useSaveTrustPolicy, useTrustPolicy, useTrustPolicyDefaults } from '@/api/trustPolicy';
-import PageBody from '@/components/layout/PageBody.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
@@ -25,6 +23,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { refusalProblems } from '@/lib/errors';
 
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import TrustGroupPanel from './components/TrustGroupPanel.vue';
 import { sameDraft, toDraft, trustGroups, weightSum, type TrustDraft } from './trustFields';
 
@@ -120,10 +119,7 @@ function submit(): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.trustPolicy')"
-    :crumb="$t('dashboard.settings.trustPolicy.crumb')"
-  >
+  <SettingsPageFrame :crumb="$t('dashboard.settings.trustPolicy.crumb')">
     <template v-if="canManage" #actions>
       <Button variant="ghost"
               size="sm"
@@ -137,9 +133,7 @@ function submit(): void {
         {{ $t('dashboard.settings.trustPolicy.save') }}
       </Button>
     </template>
-  </PageHeader>
 
-  <PageBody>
     <div data-view="trust-policy" class="grid gap-4">
       <PanelCard
         v-if="state !== 'ready'"
@@ -170,5 +164,5 @@ function submit(): void {
         </div>
       </ReadOnlyScope>
     </div>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

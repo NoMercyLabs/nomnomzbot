@@ -19,6 +19,7 @@ export const settingsTrustPolicyRoute = {
   meta: {
     navMode: 'settings',
     action: 'trust:policy:read',
+    titleKey: 'frame.nav.settingsPages.trustPolicy',
   },
   component: () =>
     loadPage(

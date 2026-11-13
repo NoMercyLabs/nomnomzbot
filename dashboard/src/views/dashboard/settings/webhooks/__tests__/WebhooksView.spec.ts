@@ -884,7 +884,12 @@ describe('Webhooks route', () => {
     );
     const loaded = await (record!.component as () => Promise<{ default: unknown }>)();
 
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'webhooks:outbound:read' });
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'webhooks:outbound:read',
+      titleKey: 'frame.nav.settingsPages.webhooks',
+    });
+
     expect(loaded.default).toBe(WebhooksView);
   });
 });

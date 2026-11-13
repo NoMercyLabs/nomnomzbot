@@ -405,7 +405,12 @@ describe('Federation route', () => {
 
     expect(router.resolve({ name: 'dashboard-settings-federation' }).path).toBe('/app/settings/federation');
 
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'federation:optin:read' });
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'federation:optin:read',
+      titleKey: 'frame.nav.settingsPages.federation',
+    });
+
     expect(loaded.default).toBe(FederationView);
   });
 });

@@ -625,7 +625,13 @@ describe('Integrations route', () => {
 
     expect(entry).toBeDefined();
     expect(record?.path).toBe('settings/integrations');
-    expect(record?.meta).toEqual({ navMode: 'settings', action: 'integration:read' });
+
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      action: 'integration:read',
+      titleKey: 'frame.nav.settingsPages.integrations',
+    });
+
     expect(record?.component).toBeTypeOf('function');
   });
 });

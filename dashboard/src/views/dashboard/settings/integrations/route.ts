@@ -19,6 +19,7 @@ export const settingsIntegrationsRoute = {
   meta: {
     navMode: 'settings',
     action: 'integration:read',
+    titleKey: 'frame.nav.settingsPages.integrations',
   },
   component: () =>
     loadPage(

@@ -19,6 +19,7 @@ export const settingsReportsRoute = {
   meta: {
     navMode: 'settings',
     action: 'moderation:report:read',
+    titleKey: 'frame.nav.settingsPages.reports',
   },
   component: () =>
     loadPage(

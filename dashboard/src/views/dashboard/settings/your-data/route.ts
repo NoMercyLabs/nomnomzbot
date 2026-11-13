@@ -20,6 +20,7 @@ export const settingsYourDataRoute = {
     navMode: 'settings',
     // The page is about the signed-in person's own data, not a channel.
     open: true,
+    titleKey: 'frame.nav.settingsPages.yourData',
   },
   component: () =>
     loadPage(

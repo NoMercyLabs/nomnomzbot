@@ -22,8 +22,6 @@ import { ApiError } from '@/api/errors';
 import { useBotStatus } from '@/api/home';
 import { useDisconnectBot } from '@/api/whiteLabelBot';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -34,6 +32,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import ReadabilityRow from '../components/ReadabilityRow.vue';
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import BotLoginPanel from './components/BotLoginPanel.vue';
 
 const { t } = useI18n();
@@ -90,9 +89,7 @@ function confirmDisconnect(): void {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.whiteLabelBot')" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <PanelCard
       data-view="white-label-bot"
       pad
@@ -170,5 +167,5 @@ function confirmDisconnect(): void {
       :pending="disconnect.isPending.value"
       @confirm="confirmDisconnect"
     />
-  </PageBody>
+  </SettingsPageFrame>
 </template>

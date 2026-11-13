@@ -19,6 +19,7 @@ export const settingsWebhooksRoute = {
   meta: {
     navMode: 'settings',
     action: 'webhooks:outbound:read',
+    titleKey: 'frame.nav.settingsPages.webhooks',
   },
   component: () =>
     loadPage(

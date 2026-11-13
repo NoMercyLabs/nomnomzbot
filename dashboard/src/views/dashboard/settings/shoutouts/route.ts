@@ -19,6 +19,7 @@ export const settingsShoutoutsRoute = {
   meta: {
     navMode: 'settings',
     action: 'moderation:read',
+    titleKey: 'frame.nav.settingsPages.shoutouts',
   },
   component: () =>
     loadPage(

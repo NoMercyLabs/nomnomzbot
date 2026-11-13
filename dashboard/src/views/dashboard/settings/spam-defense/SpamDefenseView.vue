@@ -17,14 +17,14 @@ import { toast } from 'vue-sonner';
 import Check from '~icons/nnz/check';
 
 import { useSaveSpamDefensePolicy, useSpamDefensePolicy } from '@/api/spamDefensePolicy';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SpamSettingsForm, { type SpamFormState } from '@/components/spam/SpamSettingsForm.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 const MANAGE = 'spam:policy:manage';
 
@@ -51,10 +51,7 @@ function submit(): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.spamDefense')"
-    :crumb="$t('dashboard.settings.spamDefense.crumb')"
-  >
+  <SettingsPageFrame :crumb="$t('dashboard.settings.spamDefense.crumb')" data-page-body>
     <template #status>
       <span v-if="form?.dirty" class="text-sm text-muted-foreground" role="status">
         {{ $t("dashboard.settings.spamDefense.unsaved") }}
@@ -74,8 +71,7 @@ function submit(): void {
         }}
       </Button>
     </template>
-  </PageHeader>
-  <PageBody data-page-body>
+
     <p class="text-sm text-muted-foreground">{{ $t("dashboard.settings.spamDefense.explain") }}</p>
     <SpamSettingsForm
       v-if="panelState === 'ready' && policy.data.value"
@@ -93,5 +89,5 @@ function submit(): void {
       :error-text="$t('dashboard.settings.spamDefense.loadError')"
       @retry="policy.refetch()"
     />
-  </PageBody>
+  </SettingsPageFrame>
 </template>

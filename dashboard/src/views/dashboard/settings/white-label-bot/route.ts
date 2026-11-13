@@ -19,6 +19,7 @@ export const settingsWhiteLabelBotRoute = {
   meta: {
     navMode: 'settings',
     action: 'channelbot:read',
+    titleKey: 'frame.nav.settingsPages.whiteLabelBot',
   },
   component: () =>
     loadPage(

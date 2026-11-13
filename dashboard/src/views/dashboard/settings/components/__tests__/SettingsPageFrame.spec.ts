@@ -118,22 +118,8 @@ describe('SettingsPageFrame', () => {
   });
 });
 
-// The pages of this lane build no header of their own. The rest of the settings pages follow.
-const framed = [
-  '../../SettingsView.vue',
-  '../../api-devices/ApiDevicesView.vue',
-  '../../automod/AutomodView.vue',
-  '../../banned/BannedView.vue',
-  '../../billing/BillingView.vue',
-  '../../blocked-terms/BlockedTermsView.vue',
-  '../../channel-management/ChannelManagementView.vue',
-  '../../chat-filters/ChatFiltersView.vue',
-  '../../custom-event-feeds/CustomEventFeedsView.vue',
-  '../../escalation/EscalationView.vue',
-  '../../event-journal/EventJournalView.vue',
-  '../../features/FeaturesView.vue',
-] as const;
-
+// Every settings page builds no header of its own. The glob reads each page, so a new page is
+// guarded the moment it exists. The views inside a page's components folder render inside it.
 const sources: Record<string, string> = import.meta.glob(
   [
     '../../SettingsView.vue',
@@ -147,40 +133,39 @@ const sources: Record<string, string> = import.meta.glob(
 );
 
 describe('the settings pages on the frame', () => {
-  it.each(framed)('%s uses SettingsPageFrame and not PageHeader', (path) => {
+  it('reads the settings page itself and its 22 pages', () => {
+    expect(Object.keys(sources)).toHaveLength(23);
+  });
+
+  it.each(Object.keys(sources))('%s uses SettingsPageFrame and not PageHeader', (path) => {
     const source = sources[path] ?? '';
 
     expect(source).toContain('<SettingsPageFrame');
     expect(source).not.toContain('<PageHeader');
-    expect(source).not.toContain('<PageBody');
+    expect(source).not.toMatch(/import\s+PageHeader\b/);
+
+    // A page that sets its own body (a list with a detail, a panel beside) draws it in the frame.
+    const setsOwnBody = /\sbody=|:body=/.test(source);
+    const ownBodyTags = setsOwnBody
+      ? 0
+      : source.split('<PageBody').length - 1;
+
+    expect(ownBodyTags).toBe(0);
   });
 
   it('gives every framed page a route titleKey equal to its sidebar word', () => {
     const entries = settingsNav.flatMap((group) => group.entries);
-    const framedNames = [
-      'dashboard-settings',
-      'dashboard-settings-bot-basics',
-      'dashboard-settings-bot-personality',
-      'dashboard-settings-engagement-triggers',
-      'dashboard-settings-api-devices',
-      'dashboard-settings-automod',
-      'dashboard-settings-banned',
-      'dashboard-settings-billing',
-      'dashboard-settings-blocked-terms',
-      'dashboard-settings-channel-management',
-      'dashboard-settings-chat-filters',
-      'dashboard-settings-custom-event-feeds',
-      'dashboard-settings-escalation',
-      'dashboard-settings-event-journal',
-      'dashboard-settings-features',
-    ];
+    // Supporter Sources reuses the page of another area, which draws its own header.
+    const reused = 'dashboard-settings-supporter-sources';
+    const framed = dashboardSettingsRoutes.filter((route) => route.name !== reused);
 
-    const wrong = framedNames.filter((name) => {
-      const route = dashboardSettingsRoutes.find((item) => item.name === name);
-      const entry = entries.find((item) => item.route === name);
+    const wrong = framed.filter((route) => {
+      const entry = entries.find((item) => item.route === route.name);
 
-      return route?.meta?.titleKey !== `frame.nav.${entry?.label}`;
+      return route.meta?.titleKey !== `frame.nav.${entry?.label}`;
     });
+
+    expect(framed).toHaveLength(26);
 
     expect(wrong).toEqual([]);
   });

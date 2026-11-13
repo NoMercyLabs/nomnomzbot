@@ -21,8 +21,6 @@ import {
   useSaveShoutoutTemplate,
   useShoutoutTemplate,
 } from '@/api/shoutoutSettings';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -32,6 +30,8 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
+
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 
 const TEMPLATE_MAX = 500;
 
@@ -89,11 +89,7 @@ function useDefault(): void {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.shoutouts')"
-    :crumb="$t('dashboard.settings.shoutouts.crumb')"
-  />
-  <PageBody data-page-body>
+  <SettingsPageFrame :crumb="$t('dashboard.settings.shoutouts.crumb')" data-page-body>
     <PanelCard
       :title="$t('dashboard.settings.shoutouts.auto.title')"
       :description="$t('dashboard.settings.shoutouts.auto.description')"
@@ -152,5 +148,5 @@ function useDefault(): void {
         </div>
       </div>
     </PanelCard>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

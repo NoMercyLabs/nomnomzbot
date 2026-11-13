@@ -19,6 +19,7 @@ export const settingsPermissionsRoute = {
   meta: {
     navMode: 'settings',
     action: 'roles:read',
+    titleKey: 'frame.nav.settingsPages.permissions',
   },
   component: () =>
     loadPage(

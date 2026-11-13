@@ -42,7 +42,6 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
 import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
@@ -52,6 +51,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { merge } from '@/lib/array';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import EgressAllowlistCard from './components/EgressAllowlistCard.vue';
 import InboundWebhookDialog from './components/InboundWebhookDialog.vue';
 import InboundWebhookRow from './components/InboundWebhookRow.vue';
@@ -296,105 +296,102 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.webhooks')"
-    :crumb="$t('dashboard.settings.webhooks.crumb')"
-  />
-
-  <PanelBeside>
-    <PageBody>
-      <PanelCard
-        data-view="webhooks-outbound"
-        class="shrink-0"
-        pad
-        tier="lead"
-        :title="$t('dashboard.settings.webhooks.outbound.title')"
-        :description="$t('dashboard.settings.webhooks.outbound.description')"
-        :state="outboundState"
-        :empty-text="$t('dashboard.settings.webhooks.outbound.empty')"
-        :error-text="$t('dashboard.settings.webhooks.outbound.loadFailed')"
-        @retry="outbound.refetch()"
-      >
-        <template v-if="can('webhooks:outbound:write')" #actions>
-          <Button data-new-outbound @click="openEditor(null)">
-            <Add class="size-5" />
-            {{ $t("dashboard.settings.webhooks.outbound.new") }}
-          </Button>
-        </template>
-        <RowGroup>
-          <OutboundWebhookRow
-            v-for="endpoint in outboundRows"
-            :key="endpoint.id"
-            :endpoint="endpoint"
-            :busy="busy"
-            @toggle="flipOutbound(endpoint)"
-            @reenable="run(() => reenable.mutateAsync(endpoint.id))"
-            @edit="openEditor(endpoint)"
-            @test="sendTest(endpoint)"
-            @rotate="askRotateOutbound(endpoint)"
-            @deliveries="openDeliveries(endpoint)"
-            @remove="askDeleteOutbound(endpoint)"
-          />
-        </RowGroup>
-      </PanelCard>
-      <PanelCard
-        data-view="webhooks-inbound"
-        class="shrink-0"
-        pad
-        :title="$t('dashboard.settings.webhooks.inbound.title')"
-        :description="$t('dashboard.settings.webhooks.inbound.description')"
-        :state="inboundState"
-        :empty-text="$t('dashboard.settings.webhooks.inbound.empty')"
-        :error-text="$t('dashboard.settings.webhooks.inbound.loadFailed')"
-        @retry="inbound.refetch()"
-      >
-        <template v-if="can('webhooks:inbound:write')" #actions>
-          <Button variant="outline" data-new-inbound @click="openInboundEditor(null)">
-            <Add class="size-5" />
-            {{ $t("dashboard.settings.webhooks.inbound.new") }}
-          </Button>
-        </template>
-        <RowGroup>
-          <InboundWebhookRow
-            v-for="endpoint in inboundRows"
-            :key="endpoint.id"
-            :endpoint="endpoint"
-            :busy="busy"
-            @toggle="flipInbound(endpoint)"
-            @edit="openInboundEditor(endpoint)"
-            @rotate="askRotateInbound(endpoint)"
-            @remove="askDeleteInbound(endpoint)"
-          />
-        </RowGroup>
-      </PanelCard>
-      <p
-        v-if="testResult"
-        data-test-result
-        role="status"
-        class="pt-3 text-sm"
-        :class="testResult.outcome.delivered ? 'text-muted-foreground' : 'text-destructive'"
-      >
-        {{
-          $t(
-            testResult.outcome.delivered
-              ? "dashboard.settings.webhooks.outbound.testDelivered"
-              : "dashboard.settings.webhooks.outbound.testFailed",
-            {
-              name: testResult.name,
-              code: testResult.outcome.responseCode ?? "-",
-              ms: testResult.outcome.durationMs ?? "-",
-              error: testResult.outcome.error ?? "",
-            },
-          )
-        }}
-      </p>
-      <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
-      <EgressAllowlistCard v-if="can('egress:allowlist:read')" />
-    </PageBody>
-    <template v-if="can('webhooks:outbound:read')" #panel>
-      <OutboundDeliveriesPanel v-model:open="deliveriesOpen" :endpoint="deliveriesFor" />
-    </template>
-  </PanelBeside>
+  <SettingsPageFrame body="none" :crumb="$t('dashboard.settings.webhooks.crumb')">
+    <PanelBeside>
+      <PageBody>
+        <PanelCard
+          data-view="webhooks-outbound"
+          class="shrink-0"
+          pad
+          tier="lead"
+          :title="$t('dashboard.settings.webhooks.outbound.title')"
+          :description="$t('dashboard.settings.webhooks.outbound.description')"
+          :state="outboundState"
+          :empty-text="$t('dashboard.settings.webhooks.outbound.empty')"
+          :error-text="$t('dashboard.settings.webhooks.outbound.loadFailed')"
+          @retry="outbound.refetch()"
+        >
+          <template v-if="can('webhooks:outbound:write')" #actions>
+            <Button data-new-outbound @click="openEditor(null)">
+              <Add class="size-5" />
+              {{ $t("dashboard.settings.webhooks.outbound.new") }}
+            </Button>
+          </template>
+          <RowGroup>
+            <OutboundWebhookRow
+              v-for="endpoint in outboundRows"
+              :key="endpoint.id"
+              :endpoint="endpoint"
+              :busy="busy"
+              @toggle="flipOutbound(endpoint)"
+              @reenable="run(() => reenable.mutateAsync(endpoint.id))"
+              @edit="openEditor(endpoint)"
+              @test="sendTest(endpoint)"
+              @rotate="askRotateOutbound(endpoint)"
+              @deliveries="openDeliveries(endpoint)"
+              @remove="askDeleteOutbound(endpoint)"
+            />
+          </RowGroup>
+        </PanelCard>
+        <PanelCard
+          data-view="webhooks-inbound"
+          class="shrink-0"
+          pad
+          :title="$t('dashboard.settings.webhooks.inbound.title')"
+          :description="$t('dashboard.settings.webhooks.inbound.description')"
+          :state="inboundState"
+          :empty-text="$t('dashboard.settings.webhooks.inbound.empty')"
+          :error-text="$t('dashboard.settings.webhooks.inbound.loadFailed')"
+          @retry="inbound.refetch()"
+        >
+          <template v-if="can('webhooks:inbound:write')" #actions>
+            <Button variant="outline" data-new-inbound @click="openInboundEditor(null)">
+              <Add class="size-5" />
+              {{ $t("dashboard.settings.webhooks.inbound.new") }}
+            </Button>
+          </template>
+          <RowGroup>
+            <InboundWebhookRow
+              v-for="endpoint in inboundRows"
+              :key="endpoint.id"
+              :endpoint="endpoint"
+              :busy="busy"
+              @toggle="flipInbound(endpoint)"
+              @edit="openInboundEditor(endpoint)"
+              @rotate="askRotateInbound(endpoint)"
+              @remove="askDeleteInbound(endpoint)"
+            />
+          </RowGroup>
+        </PanelCard>
+        <p
+          v-if="testResult"
+          data-test-result
+          role="status"
+          class="pt-3 text-sm"
+          :class="testResult.outcome.delivered ? 'text-muted-foreground' : 'text-destructive'"
+        >
+          {{
+            $t(
+              testResult.outcome.delivered
+                ? "dashboard.settings.webhooks.outbound.testDelivered"
+                : "dashboard.settings.webhooks.outbound.testFailed",
+              {
+                name: testResult.name,
+                code: testResult.outcome.responseCode ?? "-",
+                ms: testResult.outcome.durationMs ?? "-",
+                error: testResult.outcome.error ?? "",
+              },
+            )
+          }}
+        </p>
+        <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
+        <EgressAllowlistCard v-if="can('egress:allowlist:read')" />
+      </PageBody>
+      <template v-if="can('webhooks:outbound:read')" #panel>
+        <OutboundDeliveriesPanel v-model:open="deliveriesOpen" :endpoint="deliveriesFor" />
+      </template>
+    </PanelBeside>
+  </SettingsPageFrame>
 
   <OutboundWebhookDialog
     v-if="can('webhooks:outbound:write')"

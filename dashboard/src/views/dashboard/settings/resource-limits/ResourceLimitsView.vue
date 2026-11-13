@@ -17,8 +17,6 @@ import { useRouter } from 'vue-router';
 
 import { tierNameOf, useBillingTiers } from '@/api/billing';
 import { useEntitlement, useResourceLimits, useUsageMetrics, type UsageMetric } from '@/api/resourceLimits';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -26,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import LimitMeter from './components/LimitMeter.vue';
 import LimitSection from './components/LimitSection.vue';
 import { groupLimits, isMetered, metricRowOf, type MetricRow } from './limitRows';
@@ -106,12 +105,7 @@ function yesNo(value: boolean | undefined): string {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('frame.nav.settingsPages.resourceLimits')"
-    :crumb="$t('dashboard.settings.resourceLimits.crumb')"
-  />
-
-  <PageBody>
+  <SettingsPageFrame :crumb="$t('dashboard.settings.resourceLimits.crumb')">
     <div data-view="resource-limits" class="grid gap-4">
       <PanelCard
         tier="quiet"
@@ -218,5 +212,5 @@ function yesNo(value: boolean | undefined): string {
         </RowGroup>
       </PanelCard>
     </div>
-  </PageBody>
+  </SettingsPageFrame>
 </template>

@@ -32,8 +32,6 @@ import {
 } from '@/api/integrations';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import PageBody from '@/components/layout/PageBody.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -47,6 +45,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import SpotifyCredentialsPanel from './components/SpotifyCredentialsPanel.vue';
 
 const primaryAccount = 'twitch';
@@ -258,9 +257,7 @@ function setLeavingOpen(open: boolean): void {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.integrations')" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <PanelCard
       data-view="integrations"
       pad
@@ -371,5 +368,5 @@ function setLeavingOpen(open: boolean): void {
       @update:open="setLeavingOpen"
       @confirm="confirmLeave"
     />
-  </PageBody>
+  </SettingsPageFrame>
 </template>

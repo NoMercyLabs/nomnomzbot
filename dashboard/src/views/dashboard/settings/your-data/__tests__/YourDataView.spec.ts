@@ -309,7 +309,13 @@ describe('Your data route', () => {
 
     expect(entry).toBeDefined();
     expect(router.resolve({ name: 'dashboard-settings-your-data' }).path).toBe('/app/settings/your-data');
-    expect(record?.meta).toEqual({ navMode: 'settings', open: true });
+
+    expect(record?.meta).toEqual({
+      navMode: 'settings',
+      open: true,
+      titleKey: 'frame.nav.settingsPages.yourData',
+    });
+
     expect(loaded.default).toBe(YourDataView);
   });
 });

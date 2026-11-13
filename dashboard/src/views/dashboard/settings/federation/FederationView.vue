@@ -24,9 +24,7 @@ import {
   type FederationOptIn,
   type FederationOptInType,
 } from '@/api/federation';
-import PageBody from '@/components/layout/PageBody.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { useCan } from '@/composables/useCan';
@@ -34,6 +32,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 
+import SettingsPageFrame from '../components/SettingsPageFrame.vue';
 import FederationChoiceRow, { type FederationChoice } from './components/FederationChoiceRow.vue';
 import FederationPeerRow from './components/FederationPeerRow.vue';
 import MassBanOptInCard from './components/MassBanOptInCard.vue';
@@ -117,9 +116,7 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.federation')" :crumb="$t('dashboard.settings.crumb')" />
-
-  <PageBody>
+  <SettingsPageFrame>
     <PanelCard
       data-view="federation"
       tier="lead"
@@ -164,5 +161,5 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
     <MassBanOptInCard />
 
     <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
-  </PageBody>
+  </SettingsPageFrame>
 </template>
