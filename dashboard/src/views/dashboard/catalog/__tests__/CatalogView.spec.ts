@@ -139,6 +139,7 @@ const SECTIONS_BY_VIEW = {
   feedback: ['empty-states', 'notices', 'connections'],
   rows: ['rows', 'editors'],
   pages: ['page-body', 'settings-frame', 'admin-collection', 'task-shell'],
+  guide: ['guide-tiers', 'guide-actions', 'guide-filters'],
 } as const satisfies Record<string, readonly string[]>;
 
 describe('CatalogView sections', () => {

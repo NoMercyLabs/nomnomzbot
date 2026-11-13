@@ -27,6 +27,7 @@ import CatalogEditors from './components/CatalogEditors.vue';
 import CatalogFeedback from './components/CatalogFeedback.vue';
 import CatalogFilters from './components/CatalogFilters.vue';
 import CatalogFlows from './components/CatalogFlows.vue';
+import CatalogGuide from './components/CatalogGuide.vue';
 import CatalogLayouts from './components/CatalogLayouts.vue';
 import CatalogLists from './components/CatalogLists.vue';
 import CatalogPages from './components/CatalogPages.vue';
@@ -37,7 +38,7 @@ import CatalogTemplate from './components/CatalogTemplate.vue';
 
 const { t } = useI18n();
 
-const VIEWS = ['blocks', 'states', 'layouts', 'feedback', 'rows', 'pages', 'locked'] as const;
+const VIEWS = ['blocks', 'states', 'layouts', 'feedback', 'rows', 'pages', 'guide', 'locked'] as const;
 
 type CatalogTab = (typeof VIEWS)[number];
 
@@ -65,6 +66,10 @@ const specs = () => [
   {
     value: 'pages',
     label: t('dashboard.catalog.tabs.pages'),
+  },
+  {
+    value: 'guide',
+    label: t('dashboard.catalog.tabs.guide'),
   },
   {
     value: 'locked',
@@ -113,7 +118,8 @@ const { tabs, view } = useTabbedPage(VIEWS, specs);
           <CatalogRows />
           <CatalogEditors />
         </template>
-        <CatalogPages v-else />
+        <CatalogPages v-else-if="view === 'pages'" />
+        <CatalogGuide v-else />
       </div>
     </div>
   </div>

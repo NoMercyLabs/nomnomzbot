@@ -11,6 +11,7 @@
         "feedback": "Empty and notices",
         "rows": "Rows and editors",
         "pages": "Page recipes",
+        "guide": "Guide",
         "locked": "Locked tab"
       },
       "lockedReason": "A tab with a lock: it cannot open, and this is its reason.",
