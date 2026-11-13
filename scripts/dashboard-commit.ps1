@@ -54,8 +54,10 @@ if ($lintable.Count -gt 0) {
 $gateLock = [System.Threading.Mutex]::new($false, 'Global\nnz-dashboard-gate')
 try { $held = $gateLock.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $held = $true }
 if (-not $held) {
-    'Another dashboard gate is running; waiting for it (at most 30 minutes).'
-    try { $held = $gateLock.WaitOne([TimeSpan]::FromMinutes(30)) } catch [System.Threading.AbandonedMutexException] { $held = $true }
+    # 90 minutes: a gate takes about 10, and parallel lanes queue up to seven (2026-11-13: a 30-minute wait
+    # timed out queued gates, and each lost its place in line).
+    'Another dashboard gate is running; waiting for it (at most 90 minutes).'
+    try { $held = $gateLock.WaitOne([TimeSpan]::FromMinutes(90)) } catch [System.Threading.AbandonedMutexException] { $held = $true }
     if (-not $held) { 'GATE LOCK TIMEOUT'; exit 1 }
 }
 $head = (git -C $repo rev-parse HEAD).Trim()
