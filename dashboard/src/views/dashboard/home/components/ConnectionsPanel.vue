@@ -35,6 +35,7 @@ const dotClass = {
   bad: 'bg-destructive',
   live: 'bg-destructive',
   off: 'bg-muted-foreground',
+  attention: 'bg-warning',
 } as const satisfies Record<StatusTone, string>;
 
 const { t } = useI18n();

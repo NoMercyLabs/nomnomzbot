@@ -51,6 +51,12 @@
       "search": "Search this page"
     },
     "connectFailed": "The connect did not work: {reason}. Try again.",
+    "connection": {
+      "connected": "Connected",
+      "disconnected": "Not connected",
+      "attention": "Needs attention",
+      "as": "as {account}"
+    },
     "provider": {
       "twitch": "Twitch",
       "twitch_bot": "Twitch bot account",

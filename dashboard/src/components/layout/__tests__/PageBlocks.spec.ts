@@ -219,6 +219,14 @@ describe('the status badge', () => {
     expect(bad.find('[aria-hidden="true"]').classes()).toContain('bg-destructive');
     expect(off.find('[aria-hidden="true"]').classes()).toContain('bg-muted-foreground');
   });
+
+  it('paints a state the person can fix with the warning token, not harm red', () => {
+    const attention: VueWrapper = mount(StatusBadge, { props: { tone: 'attention', label: 'Sign in again' } });
+
+    expect(attention.attributes('data-tone')).toBe('attention');
+    expect(attention.find('[aria-hidden="true"]').classes()).toContain('bg-warning');
+    expect(attention.find('[aria-hidden="true"]').classes()).not.toContain('bg-destructive');
+  });
 });
 
 describe('the stat tile', () => {

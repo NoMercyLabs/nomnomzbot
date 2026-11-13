@@ -15,10 +15,9 @@ import { useI18n } from 'vue-i18n';
 
 import { useMyIdentities, useUnlinkIdentity, type LinkedIdentity } from '@/api/viewerAccount';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import ConnectionRow from '@/components/layout/ConnectionRow.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
-import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
@@ -69,24 +68,24 @@ function confirmUnlink(): void {
     @retry="identities.refetch()"
   >
     <RowGroup>
-      <SummaryRow
+      <ConnectionRow
         v-for="row in identities.data.value ?? []"
         :key="row.providerUserId"
-        :title="nameOf(row)"
-        :detail="providerName(row.provider)"
-        :meta="$t('viewer.account.accounts.linked', { date: time.date(row.linkedAt) })"
+        :provider="row.provider"
+        :name="providerName(row.provider)"
+        state="connected"
+        :account="nameOf(row)"
+        :detail="$t('viewer.account.accounts.linked', { date: time.date(row.linkedAt) })"
         data-viewer-account-row
       >
-        <template #leading>
-          <PlatformLogo :platform="row.provider" class="size-5 shrink-0" />
-        </template>
-        <template #end>
-          <Badge v-if="row.isPrimary" variant="secondary" class="mr-3">
+        <template v-if="row.isPrimary" #detail>
+          <Badge variant="secondary">
             {{ $t('viewer.account.accounts.primary') }}
           </Badge>
+        </template>
+        <template v-if="!row.isPrimary && row.id" #actions>
           <!-- The unlink call needs the row id; a row the bot sends without one offers no button it cannot honor. -->
-          <Button v-else-if="row.id"
-                  variant="outline"
+          <Button variant="outline"
                   size="sm"
                   data-unlink
                   @click="target = row"
@@ -94,7 +93,7 @@ function confirmUnlink(): void {
             {{ $t('viewer.account.accounts.unlink') }}
           </Button>
         </template>
-      </SummaryRow>
+      </ConnectionRow>
     </RowGroup>
   </PanelCard>
 

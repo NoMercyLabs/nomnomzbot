@@ -231,7 +231,7 @@ describe('Integrations page', () => {
   it('lists each service with its state, account, permission sets and capabilities', async () => {
     await open();
 
-    const summary = row('spotify').querySelector('[data-slot="summary"]')?.textContent ?? '';
+    const summary = row('spotify').querySelector('[data-slot="summary-row-title"]')?.textContent ?? '';
 
     expect(summary).toContain('Spotify');
     expect(summary).toContain('stoney');
@@ -256,6 +256,30 @@ describe('Integrations page', () => {
     );
 
     expect(row('patreon').textContent).toContain(en.dashboard.settings.integrations.notConnected);
+  });
+
+  it('draws every service through the connection row: attention for a sign-in to redo, connected, disconnected', async () => {
+    await open();
+
+    const rows = Array.from(document.body.querySelectorAll('[data-integration]'));
+    const stateOf = (id: string): string | null => row(id).getAttribute('data-state');
+    const toneOf = (id: string): string | null =>
+      row(id).querySelector('[data-slot="status-badge"]')?.getAttribute('data-tone') ?? null;
+
+    expect(rows).toHaveLength(5);
+    expect(rows.every((item) => item.getAttribute('data-slot') === 'connection-row')).toBe(true);
+    expect([stateOf('spotify'), toneOf('spotify')]).toEqual(['attention', 'attention']);
+    expect([stateOf('youtube'), toneOf('youtube')]).toEqual(['connected', 'ok']);
+    expect([stateOf('patreon'), toneOf('patreon')]).toEqual(['disconnected', 'off']);
+  });
+
+  it('gives a row one solid button: Reconnect is solid for attention, outline when the service is fine', async () => {
+    await open();
+
+    expect(action('spotify', 'connect')?.getAttribute('data-variant')).toBe('default');
+    expect(action('youtube', 'connect')?.getAttribute('data-variant')).toBe('outline');
+    expect(action('patreon', 'connect')?.getAttribute('data-variant')).toBe('default');
+    expect(action('youtube', 'disconnect')?.getAttribute('data-variant')).toBe('ghost');
   });
 
   it('names the premium ability in words and ranks the row buttons: Disconnect is quiet, Edit is visible', async () => {

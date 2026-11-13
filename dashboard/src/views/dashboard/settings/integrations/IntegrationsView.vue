@@ -31,11 +31,11 @@ import {
   type ChannelIntegration,
 } from '@/api/integrations';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import ConnectionRow, { type ConnectionState } from '@/components/layout/ConnectionRow.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
@@ -84,20 +84,24 @@ function statusOf(row: ChannelIntegration): IntegrationStatus | undefined {
   return (statuses.data.value ?? []).find((item) => item.provider === row.id);
 }
 
-function toneOf(row: ChannelIntegration): StatusTone {
+// A service that needs a fresh sign-in draws as attention: the streamer can fix it, so it shows here.
+function stateOf(row: ChannelIntegration): ConnectionState {
   if (!row.connected)
-    return 'off';
+    return 'disconnected';
 
-  return statusOf(row)?.needsReauth
-    ? 'bad'
-    : 'ok';
+  const status = statusOf(row);
+
+  return status?.needsReauth || status?.decryptFailed
+    ? 'attention'
+    : 'connected';
 }
 
-function labelOf(row: ChannelIntegration): string {
+// The exact reason a connected service is not plain "Connected"; the row words the plain states itself.
+function reasonOf(row: ChannelIntegration): string | undefined {
   const status = statusOf(row);
 
   if (!row.connected)
-    return t('dashboard.settings.integrations.notConnected');
+    return undefined;
 
   if (status?.decryptFailed)
     return t('dashboard.settings.integrations.decryptFailed');
@@ -107,7 +111,7 @@ function labelOf(row: ChannelIntegration): string {
 
   return status?.loginOnly
     ? t('dashboard.settings.integrations.loginOnly')
-    : t('dashboard.settings.integrations.connected');
+    : undefined;
 }
 
 function accountOf(row: ChannelIntegration): string | undefined {
@@ -163,6 +167,10 @@ function canConnect(row: ChannelIntegration): boolean {
 
 function canDisconnect(row: ChannelIntegration): boolean {
   return row.connected && row.id !== primaryAccount;
+}
+
+function hasActions(row: ChannelIntegration): boolean {
+  return can('integration:write') && (canConnect(row) || canDisconnect(row));
 }
 
 function connectLabel(row: ChannelIntegration): string {
@@ -269,60 +277,61 @@ function setLeavingOpen(open: boolean): void {
       @retry="integrations.refetch()"
     >
       <RowGroup>
-        <div
+        <ConnectionRow
           v-for="row in rows"
           :key="row.id"
           :data-integration="row.id"
-          class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 rounded-[8px] px-3 py-2"
+          :provider="row.id"
+          :name="row.name"
+          :state="stateOf(row)"
+          :label="reasonOf(row)"
+          :account="accountOf(row)"
+          :detail="row.description"
         >
-          <Collapsible class="min-w-0 flex-1 basis-64">
-            <div data-slot="summary" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span class="text-sm font-medium wrap-break-word">{{ row.name }}</span>
-              <StatusBadge :tone="toneOf(row)" :label="labelOf(row)" />
-              <span v-if="accountOf(row)" class="text-sm text-muted-foreground wrap-break-word">
-                {{ $t('dashboard.settings.integrations.account', { account: accountOf(row) }) }}
-              </span>
-            </div>
-            <p class="text-sm text-muted-foreground">{{ row.description }}</p>
-            <SpotifyCredentialsPanel v-if="row.id === 'spotify' && can('integration:write')" />
-            <CollapsibleTrigger v-if="hasDetails(row)" as-child>
-              <Button variant="ghost" size="sm" class="-ml-2 mt-1 text-muted-foreground" data-action="details">
-                {{ $t('dashboard.settings.integrations.details') }}
-                <ChevronDown class="size-4" aria-hidden="true" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div class="grid gap-1 border-l border-border pl-3 text-sm text-muted-foreground">
-                <p v-if="scopesOf(row)" data-slot="scope-sets">{{ scopesOf(row) }}</p>
-                <p v-if="capabilitiesOf(row).length > 0" data-slot="capabilities">
-                  {{ $t('dashboard.settings.integrations.capabilities', { list: capabilitiesOf(row).join(', ') }) }}
-                </p>
-                <p v-if="row.lastSync">
-                  {{ $t('dashboard.settings.integrations.lastSync', { date: time.dateTime(row.lastSync) }) }}
-                </p>
-                <div
-                  v-if="offersOf(row).length > 0 && can('integration:write')"
-                  data-slot="offers"
-                  class="flex flex-wrap items-center gap-2 pt-1"
-                >
-                  <span>{{ $t('dashboard.settings.integrations.offers') }}</span>
-                  <Button
-                    v-for="set in offersOf(row)"
-                    :key="set"
-                    variant="outline"
-                    size="sm"
-                    data-action="allow"
-                    :data-scope-set="set"
-                    :disabled="connect.isPending.value"
-                    @click="open(row, set)"
+          <template v-if="row.id === 'spotify' && can('integration:write')" #credential>
+            <SpotifyCredentialsPanel />
+          </template>
+          <template v-if="hasDetails(row)" #detail>
+            <Collapsible>
+              <CollapsibleTrigger as-child>
+                <Button variant="ghost" size="sm" class="-ml-2 mt-1 text-muted-foreground" data-action="details">
+                  {{ $t('dashboard.settings.integrations.details') }}
+                  <ChevronDown class="size-4" aria-hidden="true" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div class="grid gap-1 border-l border-border pl-3 text-sm text-muted-foreground">
+                  <p v-if="scopesOf(row)" data-slot="scope-sets">{{ scopesOf(row) }}</p>
+                  <p v-if="capabilitiesOf(row).length > 0" data-slot="capabilities">
+                    {{ $t('dashboard.settings.integrations.capabilities', { list: capabilitiesOf(row).join(', ') }) }}
+                  </p>
+                  <p v-if="row.lastSync">
+                    {{ $t('dashboard.settings.integrations.lastSync', { date: time.dateTime(row.lastSync) }) }}
+                  </p>
+                  <div
+                    v-if="offersOf(row).length > 0 && can('integration:write')"
+                    data-slot="offers"
+                    class="flex flex-wrap items-center gap-2 pt-1"
                   >
-                    {{ plainName('scopeSetNames', set) }}
-                  </Button>
+                    <span>{{ $t('dashboard.settings.integrations.offers') }}</span>
+                    <Button
+                      v-for="set in offersOf(row)"
+                      :key="set"
+                      variant="outline"
+                      size="sm"
+                      data-action="allow"
+                      :data-scope-set="set"
+                      :disabled="connect.isPending.value"
+                      @click="open(row, set)"
+                    >
+                      {{ plainName('scopeSetNames', set) }}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-          <div v-if="can('integration:write')" class="flex flex-wrap items-center justify-end gap-2">
+              </CollapsibleContent>
+            </Collapsible>
+          </template>
+          <template v-if="hasActions(row)" #actions>
             <Input
               v-if="needsShop(row) && !row.connected"
               v-model="shopDomain"
@@ -344,7 +353,7 @@ function setLeavingOpen(open: boolean): void {
             </Button>
             <Button
               v-if="canConnect(row)"
-              :variant="row.connected && !statusOf(row)?.needsReauth ? 'secondary' : 'default'"
+              :variant="stateOf(row) === 'connected' ? 'outline' : 'default'"
               size="sm"
               data-action="connect"
               :disabled="connect.isPending.value || (needsShop(row) && shopDomain.trim() === '' && !row.connected)"
@@ -352,8 +361,8 @@ function setLeavingOpen(open: boolean): void {
             >
               {{ connectLabel(row) }}
             </Button>
-          </div>
-        </div>
+          </template>
+        </ConnectionRow>
       </RowGroup>
       <InlineNotice v-if="error" tone="error" compact class="px-3 pt-3">{{ error }}</InlineNotice>
     </PanelCard>

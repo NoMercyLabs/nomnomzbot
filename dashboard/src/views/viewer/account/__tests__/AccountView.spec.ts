@@ -252,6 +252,19 @@ describe('the viewer account page', () => {
     expect(wrapper.get('[data-viewer-accounts]').text()).not.toContain('kick name');
   });
 
+  it('draws each linked account through the connection row, with the provider, the account and one quiet button', async () => {
+    const wrapper = await mountPage();
+    const rows = wrapper.findAll('[data-viewer-account-row]');
+
+    expect(rows).toHaveLength(2);
+    expect(rows.every((item) => item.attributes('data-slot') === 'connection-row')).toBe(true);
+    expect(rows.every((item) => item.attributes('data-state') === 'connected')).toBe(true);
+    expect(rows[0]!.get('[data-slot="status-badge"]').attributes('data-tone')).toBe('ok');
+    expect(rows[1]!.get('[data-slot="connection-account"]').text()).toContain('kick name');
+    expect(rows[1]!.get('[data-unlink]').attributes('data-variant')).toBe('outline');
+    expect(rows[0]!.find('[data-unlink]').exists()).toBe(false);
+  });
+
   it('offers no unlink on the main sign-in or on a row the bot sends without an id', async () => {
     identities = [identity('i-1', 'twitch', true), identity(undefined, 'kick', false)];
     const wrapper = await mountPage();

@@ -10,8 +10,9 @@
 -->
 <script setup lang="ts">
 // Status is a dot plus words, never a tinted pill (C5). The words carry the meaning;
-// the dot has the three mockup colors only (frame.css:148-150).
-export type StatusTone = 'ok' | 'bad' | 'live' | 'off';
+// the dot has the three mockup colors only (frame.css:148-150), plus the warning token for a state the
+// person can fix (a sign-in to redo, a missing permission).
+export type StatusTone = 'ok' | 'bad' | 'live' | 'off' | 'attention';
 
 defineProps<{ tone: StatusTone; label: string }>();
 
@@ -20,6 +21,7 @@ const dotClass = {
   bad: 'bg-destructive',
   live: 'bg-destructive',
   off: 'bg-muted-foreground',
+  attention: 'bg-warning',
 } as const satisfies Record<StatusTone, string>;
 </script>
 

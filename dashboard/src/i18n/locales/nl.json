@@ -51,6 +51,12 @@
       "search": "Zoek op deze pagina"
     },
     "connectFailed": "Het koppelen is niet gelukt: {reason}. Probeer het opnieuw.",
+    "connection": {
+      "connected": "Gekoppeld",
+      "disconnected": "Niet gekoppeld",
+      "attention": "Aandacht nodig",
+      "as": "als {account}"
+    },
     "provider": {
       "twitch": "Twitch",
       "twitch_bot": "Twitch-botaccount",
