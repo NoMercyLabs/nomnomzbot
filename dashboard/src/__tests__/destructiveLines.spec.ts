@@ -39,8 +39,8 @@ const allowlist = [
   'views/dashboard/chat/components/ModToolsPanel.vue',
   // OverlayDetail: the failure and delete-error spans share a button row, where a block would break the row.
   'views/dashboard/overlays/components/OverlayDetail.vue',
-  // CatalogView: the script error span shares a button row with the editor button.
-  'views/dashboard/catalog/CatalogView.vue',
+  // CatalogCodeEditor: the script error span shares a button row with the editor button.
+  'views/dashboard/catalog/components/CatalogCodeEditor.vue',
   // ObsSetupAction: the stranded flag is a span with a status badge that sits beside the connect button.
   'views/dashboard/overlays/components/ObsSetupAction.vue',
 ] as const satisfies readonly string[];

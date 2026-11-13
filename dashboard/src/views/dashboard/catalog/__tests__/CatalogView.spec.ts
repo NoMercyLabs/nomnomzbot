@@ -18,6 +18,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 import { i18n } from '@/i18n';
 
 import FilterBar from '@/components/layout/FilterBar.vue';
+import PageTabs from '@/components/layout/PageTabs.vue';
 
 import CatalogView from '../CatalogView.vue';
 import en from '../i18n/en.json';
@@ -36,6 +37,11 @@ vi.mock('@/api/codeScripts', () => ({
   fetchScriptProject: async () => null,
   fetchScriptSdkTypes: async () => null,
   saveScriptProject: async () => ({ ok: true }),
+}));
+
+// The catalog holds every key, so a tab with a lock and reason can still be shown by a page that needs one.
+vi.mock('@/composables/useCan', () => ({
+  useCan: () => ({ can: (): boolean => true }),
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
@@ -123,6 +129,43 @@ describe('CatalogView on a phone', () => {
     const fixed = mounted!.findAll('div').filter((box) => box.classes().includes('h-72'));
 
     expect(fixed).toHaveLength(0);
+  });
+});
+
+const SECTIONS_BY_VIEW = {
+  blocks: ['stats', 'filters', 'dialogs', 'code-editor', 'flows', 'charts', 'template', 'lists'],
+  states: ['panel-states'],
+  layouts: ['layouts'],
+} as const satisfies Record<string, readonly string[]>;
+
+describe('CatalogView sections', () => {
+  it.each(Object.entries(SECTIONS_BY_VIEW))(
+    'draws the %s tab as one section per area',
+    async (view, expected) => {
+      await open();
+      await router.push(`/app/catalog?view=${view}`);
+      await flushPromises();
+
+      const drawn = mounted!
+        .findAll('[data-catalog]')
+        .map((section) => section.attributes('data-catalog'));
+
+      expect(drawn).toEqual(expected);
+    },
+  );
+
+  it('offers one tab per view and opens the one in the address', async () => {
+    await open();
+    await router.push('/app/catalog?view=layouts');
+    await flushPromises();
+
+    // The Layouts tab holds its own panel toggles with the tab role, so only the page's tab row is read.
+    const row = mounted!.findComponent(PageTabs);
+    const selected = row.find('[role="tab"][aria-selected="true"]');
+    const labels = row.findAll('[role="tab"]').map((tab) => tab.text());
+
+    expect(labels.sort()).toEqual(Object.values(en.dashboard.catalog.tabs).sort());
+    expect(selected.text()).toContain(en.dashboard.catalog.tabs.layouts);
   });
 });
 
