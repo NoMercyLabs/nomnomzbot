@@ -17,12 +17,9 @@ import { useI18n } from 'vue-i18n';
 
 import type { SoundClip } from '@/api/soundClips';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
-
-import Edit from '~icons/nnz/edit';
-import Trash from '~icons/nnz/trash';
 
 const props = defineProps<{ clip: SoundClip; pending: boolean }>();
 
@@ -59,28 +56,14 @@ const detail = computed<string>(() =>
         :aria-label="t('dashboard.sounds.enabled', { name: clip.displayName })"
         @update:model-value="$emit('toggle', $event)"
       />
-      <Button
-        v-if="can('sounds:write')"
-        variant="ghost"
-        size="icon"
-        data-sound-edit
-        :aria-label="t('dashboard.sounds.edit', { name: clip.displayName })"
-        :title="t('dashboard.sounds.edit', { name: clip.displayName })"
-        @click="$emit('edit')"
-      >
-        <Edit class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        v-if="can('sounds:write')"
-        variant="ghost"
-        size="icon"
-        data-sound-delete
-        :aria-label="t('dashboard.sounds.delete.title', { name: clip.displayName })"
-        :title="t('dashboard.sounds.delete.title', { name: clip.displayName })"
-        @click="$emit('remove')"
-      >
-        <Trash class="size-5" aria-hidden="true" />
-      </Button>
+      <RowEditDelete
+        :edit-label="t('dashboard.sounds.edit', { name: clip.displayName })"
+        :delete-label="t('dashboard.sounds.delete.title', { name: clip.displayName })"
+        :editable="can('sounds:write')"
+        :deletable="can('sounds:write')"
+        @edit="$emit('edit')"
+        @delete="$emit('remove')"
+      />
     </template>
   </SummaryRow>
 </template>

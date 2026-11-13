@@ -135,8 +135,8 @@ describe('GiveawaysView shows only what the person may use', () => {
     expect(view.find('[data-entry-row]').exists()).toBe(true);
     expect(view.find('[data-giveaway-new]').exists()).toBe(false);
     expect(view.find('[data-giveaway-action]').exists()).toBe(false);
-    expect(view.find('[data-giveaway-edit]').exists()).toBe(false);
-    expect(view.find('[data-giveaway-delete]').exists()).toBe(false);
+    expect(view.find('[data-row-edit]').exists()).toBe(false);
+    expect(view.find('[data-row-delete]').exists()).toBe(false);
     expect(view.find('[data-winner-redraw]').exists()).toBe(false);
     expect(view.find('[data-pool-row]').exists()).toBe(false);
   });
@@ -146,8 +146,8 @@ describe('GiveawaysView shows only what the person may use', () => {
 
     expect(view.find('[data-giveaway-new]').exists()).toBe(true);
     expect(view.find('[data-giveaway-action]').exists()).toBe(true);
-    expect(view.find('[data-giveaway-edit]').exists()).toBe(true);
-    expect(view.find('[data-giveaway-delete]').exists()).toBe(true);
+    expect(view.find('[data-row-edit]').exists()).toBe(true);
+    expect(view.find('[data-row-delete]').exists()).toBe(true);
     expect(view.find('[data-winner-redraw]').exists()).toBe(true);
   });
 

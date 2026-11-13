@@ -229,7 +229,7 @@ describe('PickListsView', () => {
     lists = [list('a', 'jokes', ['one'])];
     await open();
 
-    document.querySelector<HTMLElement>('[data-picklist-edit]')?.click();
+    document.querySelector<HTMLElement>('[data-row-edit]')?.click();
     await settle();
 
     expect(document.querySelector<HTMLInputElement>('[data-picklist-name]')?.value).toBe('jokes');
@@ -269,7 +269,7 @@ describe('PickListsView', () => {
     blastCount = 3;
     await open();
 
-    document.querySelector<HTMLElement>('[data-picklist-delete]')?.click();
+    document.querySelector<HTMLElement>('[data-row-delete]')?.click();
     await settle();
 
     expect(calls).toContain('GET /api/v{version}/picklists/{id}/blast-radius');
@@ -287,7 +287,7 @@ describe('PickListsView', () => {
     lists = [list('a', 'jokes', ['one'])];
     await open();
 
-    document.querySelector<HTMLElement>('[data-picklist-delete]')?.click();
+    document.querySelector<HTMLElement>('[data-row-delete]')?.click();
     await settle();
 
     expect(document.querySelector('[data-slot="blast-list"]')?.textContent).toContain(
@@ -302,7 +302,7 @@ describe('PickListsView', () => {
 
     expect(rows()).toHaveLength(1);
     expect(document.querySelector('[data-picklist-new]')).toBeNull();
-    expect(document.querySelector('[data-picklist-edit]')).toBeNull();
-    expect(document.querySelector('[data-picklist-delete]')).toBeNull();
+    expect(document.querySelector('[data-row-edit]')).toBeNull();
+    expect(document.querySelector('[data-row-delete]')).toBeNull();
   });
 });

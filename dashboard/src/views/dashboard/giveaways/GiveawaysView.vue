@@ -37,6 +37,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -46,8 +47,6 @@ import { errorText } from '@/lib/errors';
 
 import Plus from '~icons/nnz/add';
 import Dices from '~icons/nnz/dices';
-import Edit from '~icons/nnz/edit';
-import Trash from '~icons/nnz/trash';
 import Lock from '~icons/nnz/locked';
 import Play from '~icons/nnz/play';
 import Trophy from '~icons/nnz/trophy';
@@ -271,27 +270,13 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
               <component :is="icons[action]" class="size-4" />
               {{ t(`dashboard.giveaways.action.${action}`) }}
             </Button>
-            <Button
-              v-if="canEdit(item)"
-              variant="ghost"
-              size="icon"
-              data-giveaway-edit
-              :aria-label="t('dashboard.giveaways.edit')"
-              :title="t('dashboard.giveaways.edit')"
-              @click="openDialog(item)"
-            >
-              <Edit class="size-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              data-giveaway-delete
-              :aria-label="t('dashboard.giveaways.delete.title', { title: item.title })"
-              :title="t('dashboard.giveaways.delete.title', { title: item.title })"
-              @click="askDelete(item)"
-            >
-              <Trash class="size-5" />
-            </Button>
+            <RowEditDelete
+              :edit-label="t('dashboard.giveaways.edit')"
+              :delete-label="t('dashboard.giveaways.delete.title', { title: item.title })"
+              :editable="canEdit(item)"
+              @edit="openDialog(item)"
+              @delete="askDelete(item)"
+            />
           </div>
         </li>
       </ul>

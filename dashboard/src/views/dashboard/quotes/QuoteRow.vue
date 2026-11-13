@@ -16,13 +16,10 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { Quote } from '@/api/quotes';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { shortDate } from '@/lib/time';
-
-import Edit from '~icons/nnz/edit';
-import Trash from '~icons/nnz/trash';
 
 const props = withDefaults(defineProps<{ quote: Quote; actions?: boolean }>(), { actions: false });
 
@@ -53,28 +50,14 @@ const showActions = computed<boolean>(
       <span class="min-w-10 flex-none text-sm text-muted-foreground tabular-nums">{{ label }}</span>
     </template>
     <template v-if="showActions" #trailing>
-      <Button
-        v-if="can('quotes:write')"
-        variant="ghost"
-        size="icon"
-        data-quote-edit
-        :aria-label="t('dashboard.quotes.edit', { number: Number(quote.number) })"
-        :title="t('dashboard.quotes.edit', { number: Number(quote.number) })"
-        @click="$emit('edit')"
-      >
-        <Edit class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        v-if="can('quotes:delete')"
-        variant="ghost"
-        size="icon"
-        data-quote-delete
-        :aria-label="t('dashboard.quotes.delete.title', { number: Number(quote.number) })"
-        :title="t('dashboard.quotes.delete.title', { number: Number(quote.number) })"
-        @click="$emit('remove')"
-      >
-        <Trash class="size-5" aria-hidden="true" />
-      </Button>
+      <RowEditDelete
+        :edit-label="t('dashboard.quotes.edit', { number: Number(quote.number) })"
+        :delete-label="t('dashboard.quotes.delete.title', { number: Number(quote.number) })"
+        :editable="can('quotes:write')"
+        :deletable="can('quotes:delete')"
+        @edit="$emit('edit')"
+        @delete="$emit('remove')"
+      />
     </template>
   </SummaryRow>
 </template>

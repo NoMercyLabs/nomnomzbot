@@ -16,12 +16,9 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PickList } from '@/api/pickLists';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
-
-import Edit from '~icons/nnz/edit';
-import Trash from '~icons/nnz/trash';
 
 const props = defineProps<{ list: PickList }>();
 
@@ -45,28 +42,14 @@ const showActions = computed<boolean>(() => can('picklists:write') || can('pickl
 <template>
   <SummaryRow :title="list.name" :detail="detail">
     <template v-if="showActions" #trailing>
-      <Button
-        v-if="can('picklists:write')"
-        variant="ghost"
-        size="icon"
-        data-picklist-edit
-        :aria-label="t('dashboard.picklists.edit', { name: list.name })"
-        :title="t('dashboard.picklists.edit', { name: list.name })"
-        @click="$emit('edit')"
-      >
-        <Edit class="size-5" aria-hidden="true" />
-      </Button>
-      <Button
-        v-if="can('picklists:delete')"
-        variant="ghost"
-        size="icon"
-        data-picklist-delete
-        :aria-label="t('dashboard.picklists.delete.title', { name: list.name })"
-        :title="t('dashboard.picklists.delete.title', { name: list.name })"
-        @click="$emit('remove')"
-      >
-        <Trash class="size-5" aria-hidden="true" />
-      </Button>
+      <RowEditDelete
+        :edit-label="t('dashboard.picklists.edit', { name: list.name })"
+        :delete-label="t('dashboard.picklists.delete.title', { name: list.name })"
+        :editable="can('picklists:write')"
+        :deletable="can('picklists:delete')"
+        @edit="$emit('edit')"
+        @delete="$emit('remove')"
+      />
     </template>
   </SummaryRow>
 </template>

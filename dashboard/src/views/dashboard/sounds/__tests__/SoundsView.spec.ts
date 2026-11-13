@@ -266,7 +266,7 @@ describe('SoundsView', () => {
     clips = [clip('boom', 'Boom')];
     await open();
 
-    document.querySelector<HTMLElement>('[data-sound-edit]')?.click();
+    document.querySelector<HTMLElement>('[data-row-edit]')?.click();
     await settle();
     await fill('[data-sound-display-name]', 'Big boom');
     await fill('[data-sound-cooldown]', '0:30');
@@ -311,7 +311,7 @@ describe('SoundsView', () => {
     clips = [clip('boom', 'Boom')];
     await open();
 
-    document.querySelector<HTMLElement>('[data-sound-edit]')?.click();
+    document.querySelector<HTMLElement>('[data-row-edit]')?.click();
     await settle();
     await fill('[data-sound-trigger]', 'two words');
     submitDialog();
@@ -329,7 +329,7 @@ describe('SoundsView', () => {
     blastCount = 2;
     await open();
 
-    document.querySelector<HTMLElement>('[data-sound-delete]')?.click();
+    document.querySelector<HTMLElement>('[data-row-delete]')?.click();
     await settle();
 
     expect(calls).toContain('GET /api/v{version}/sound-clips/{id}/blast-radius');
@@ -350,7 +350,7 @@ describe('SoundsView', () => {
 
     expect(rows()).toHaveLength(1);
     expect(document.querySelector('[data-sound-new]')).toBeNull();
-    expect(document.querySelector('[data-sound-edit]')).toBeNull();
-    expect(document.querySelector('[data-sound-delete]')).toBeNull();
+    expect(document.querySelector('[data-row-edit]')).toBeNull();
+    expect(document.querySelector('[data-row-delete]')).toBeNull();
   });
 });

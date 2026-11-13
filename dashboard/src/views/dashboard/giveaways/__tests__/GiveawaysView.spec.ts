@@ -467,7 +467,7 @@ describe('GiveawaysView', () => {
     giveaways = [giveaway('g2', 'Mug', 'draft', 0)];
     await open();
 
-    document.querySelector<HTMLElement>('[data-giveaway-edit]')?.click();
+    document.querySelector<HTMLElement>('[data-row-edit]')?.click();
     await settle();
     await fill('[data-giveaway-title]', 'Mug v2');
     submitDialog();
@@ -492,7 +492,7 @@ describe('GiveawaysView', () => {
     ];
 
     await open();
-    document.querySelector<HTMLElement>('[data-giveaway-edit]')?.click();
+    document.querySelector<HTMLElement>('[data-row-edit]')?.click();
     await settle();
 
     expect(document.querySelector('[data-target-picker]')!.textContent).toContain('!hello');
@@ -505,7 +505,7 @@ describe('GiveawaysView', () => {
 
     giveaways = [{ ...giveaway('g4', 'Pick prize', 'draft', 0), prizeMode: 'pipeline' }];
     await open();
-    document.querySelector<HTMLElement>('[data-giveaway-edit]')?.click();
+    document.querySelector<HTMLElement>('[data-row-edit]')?.click();
     await settle();
 
     await openTargetPicker();
@@ -521,7 +521,7 @@ describe('GiveawaysView', () => {
     giveaways = [giveaway('g1', 'Summer key', 'drawn', 12)];
     await open();
 
-    document.querySelector<HTMLElement>('[data-giveaway-delete]')?.click();
+    document.querySelector<HTMLElement>('[data-row-delete]')?.click();
     await settle();
 
     expect(document.body.textContent).toContain('12');

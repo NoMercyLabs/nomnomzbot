@@ -221,7 +221,7 @@ describe('QuotesView', () => {
     quotes = [quote(7, 'Old line', 'Kitte')];
     await open();
 
-    document.querySelector<HTMLElement>('[data-quote-edit]')?.click();
+    document.querySelector<HTMLElement>('[data-row-edit]')?.click();
     await settle();
 
     expect(document.querySelector<HTMLTextAreaElement>('[data-quote-text]')?.value).toBe(
@@ -261,7 +261,7 @@ describe('QuotesView', () => {
     quotes = [quote(3, 'Gone soon', 'Kitte')];
     await open();
 
-    document.querySelector<HTMLElement>('[data-quote-delete]')?.click();
+    document.querySelector<HTMLElement>('[data-row-delete]')?.click();
     await settle();
 
     expect(calls).toEqual([]);
@@ -329,8 +329,8 @@ describe('QuotesView', () => {
     const buttons = Array.from(trailing?.querySelectorAll('button') ?? []);
 
     expect(buttons.map((button) => button.getAttribute('data-size'))).toEqual(['icon', 'icon']);
-    expect(buttons.map((button) => button.hasAttribute('data-quote-edit'))).toEqual([true, false]);
-    expect(buttons.map((button) => button.hasAttribute('data-quote-delete'))).toEqual([false, true]);
+    expect(buttons.map((button) => button.hasAttribute('data-row-edit'))).toEqual([true, false]);
+    expect(buttons.map((button) => button.hasAttribute('data-row-delete'))).toEqual([false, true]);
 
     const icons = buttons.map((button) => button.querySelector('svg')?.classList.contains('size-5'));
 
@@ -358,7 +358,7 @@ describe('QuotesView', () => {
     expect(document.querySelectorAll('[data-quote-row]').length).toBeGreaterThan(0);
     expect(document.querySelector('[data-quote-random]')).not.toBeNull();
 
-    const writeControls = ['[data-quote-new]', '[data-quote-edit]', '[data-quote-delete]'];
+    const writeControls = ['[data-quote-new]', '[data-row-edit]', '[data-row-delete]'];
     const shown = writeControls.filter((selector) => document.querySelector(selector) !== null);
 
     expect(shown).toEqual([]);
