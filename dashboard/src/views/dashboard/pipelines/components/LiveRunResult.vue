@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PipelineTestRun } from '@/api/pipelines';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 
 import { actionTitle } from './stepWords';
 
@@ -28,24 +29,23 @@ const ranForReal = computed(() =>
 </script>
 
 <template>
-  <section
-    data-live-result
-    class="grid gap-2 rounded-lg border bg-muted px-4 py-3 text-sm"
-  >
-    <p v-if="ranForReal.length > 0" data-live-real-steps class="m-0">
-      {{ $t('dashboard.pipelines.workbench.live.ran', { steps: ranForReal.join(', ') }) }}
-    </p>
-    <p v-else data-live-real-steps class="m-0">
-      {{ $t('dashboard.pipelines.workbench.live.ranNone') }}
-    </p>
-    <p
-      v-for="warning in run.warnings ?? []"
-      :key="warning"
-      data-live-warning
-      role="status"
-      class="m-0 text-destructive"
-    >
-      {{ warning }}
-    </p>
-  </section>
+  <InlineNotice tone="info" data-live-result>
+    <div class="grid gap-2">
+      <p v-if="ranForReal.length > 0" data-live-real-steps class="m-0">
+        {{ $t('dashboard.pipelines.workbench.live.ran', { steps: ranForReal.join(', ') }) }}
+      </p>
+      <p v-else data-live-real-steps class="m-0">
+        {{ $t('dashboard.pipelines.workbench.live.ranNone') }}
+      </p>
+      <p
+        v-for="warning in run.warnings ?? []"
+        :key="warning"
+        data-live-warning
+        role="status"
+        class="m-0 text-destructive"
+      >
+        {{ warning }}
+      </p>
+    </div>
+  </InlineNotice>
 </template>

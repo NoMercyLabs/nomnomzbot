@@ -23,6 +23,7 @@ import {
   type ViewerQueuedSong,
   type ViewerSummary,
 } from '@/api/viewer';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatStrip from '@/components/layout/StatStrip.vue';
@@ -143,14 +144,9 @@ function retry(): void {
         <StatTile :label="$t('viewer.me.stats.live')" :value="liveLine(summary.data.value)" />
       </StatStrip>
 
-      <p
-        v-if="requestsClosed"
-        class="rounded-lg border bg-muted p-3 text-sm text-muted-foreground"
-        role="status"
-        data-queue-closed
-      >
+      <InlineNotice v-if="requestsClosed" tone="gated" data-queue-closed>
         {{ $t('viewer.me.queue.closed') }}
-      </p>
+      </InlineNotice>
 
       <PanelCard
         v-if="summary.data.value?.songRequestsEnabled !== false"

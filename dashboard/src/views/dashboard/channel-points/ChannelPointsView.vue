@@ -16,6 +16,7 @@ import { useRewardAvailability } from '@/api/rewards';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -42,14 +43,9 @@ const panels = computed((): BoardPanel[] => {
 
 <template>
   <PageHeader :title="$t('dashboard.channelPoints.title')" :crumb="$t('dashboard.channelPoints.crumb')" />
-  <p
-    v-if="unavailable"
-    role="status"
-    class="rounded-lg border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
-    data-channel-points-unavailable
-  >
+  <InlineNotice v-if="unavailable" tone="gated" data-channel-points-unavailable>
     {{ $t('dashboard.channelPoints.unavailable') }}
-  </p>
+  </InlineNotice>
   <BoardGrid :panels="panels" :rows="1">
     <BoardCell v-if="!unavailable" panel="redemptions" :span="6">
       <RedemptionsPanel />

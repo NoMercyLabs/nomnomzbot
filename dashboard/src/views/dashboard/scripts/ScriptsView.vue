@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
 import PageCreateButton from '@/components/layout/PageCreateButton.vue';
@@ -184,14 +185,9 @@ function opened(id: string | null): void {
     </template>
   </PageHeader>
   <NewScriptDialog v-model:open="newOpen" @created="opened" />
-  <p
-    v-if="planGate.blocked.value"
-    role="status"
-    class="rounded-lg border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
-    data-plan-notice
-  >
+  <InlineNotice v-if="planGate.blocked.value" tone="gated" data-plan-notice>
     {{ planGate.reason.value }}
-  </p>
+  </InlineNotice>
   <ListDetail
     v-model:aside-open="runsOpen"
     :show-detail="asked !== ''"

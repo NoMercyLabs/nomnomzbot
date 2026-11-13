@@ -39,6 +39,7 @@ import {
 import type { JsonValue } from '@/lib/json';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DateTime from '@/components/layout/DateTime.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -724,23 +725,16 @@ const leaveOpen = computed<boolean>({
       </template>
       <div data-workbench-canvas class="mx-auto flex w-full max-w-3xl flex-col gap-3 p-4">
         <!-- One primary action (Restore); Discard is outline. The banner is a tinted card, not accent-filled. -->
-        <div
-          v-if="canWrite && stored.stored.value"
-          data-draft-banner
-          role="status"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted px-4 py-3 text-sm"
-        >
-          <p class="min-w-0 flex-1">
-            <i18n-t keypath="dashboard.pipelines.workbench.draft.message" scope="global">
-              <template #time>
-                <DateTime :value="stored.stored.value.savedAt" variant="dateTime" />
-              </template>
-            </i18n-t>
-            <span v-if="stored.stale.value" data-draft-stale class="block text-muted-foreground">
-              {{ $t('dashboard.pipelines.workbench.draft.stale') }}
-            </span>
-          </p>
-          <span class="flex shrink-0 items-center gap-2">
+        <InlineNotice v-if="canWrite && stored.stored.value" tone="info" data-draft-banner>
+          <i18n-t keypath="dashboard.pipelines.workbench.draft.message" scope="global">
+            <template #time>
+              <DateTime :value="stored.stored.value.savedAt" variant="dateTime" />
+            </template>
+          </i18n-t>
+          <span v-if="stored.stale.value" data-draft-stale class="block text-muted-foreground">
+            {{ $t('dashboard.pipelines.workbench.draft.stale') }}
+          </span>
+          <template #action>
             <Button data-draft-discard
                     type="button"
                     variant="outline"
@@ -752,16 +746,11 @@ const leaveOpen = computed<boolean>({
             <Button data-draft-restore type="button" size="sm" @click="restoreDraft">
               {{ $t('dashboard.pipelines.workbench.draft.restore') }}
             </Button>
-          </span>
-        </div>
-        <p
-          v-if="liveError"
-          data-live-error
-          role="alert"
-          class="m-0 rounded-lg border border-destructive/50 px-4 py-3 text-sm text-destructive"
-        >
+          </template>
+        </InlineNotice>
+        <InlineNotice v-if="liveError" tone="error" data-live-error>
           {{ liveError }}
-        </p>
+        </InlineNotice>
         <LiveRunResult v-if="lastRun?.mode === 'live'" :run="lastRun" />
         <PipelineInputsEditor v-model="inputDraft" :read-only="!canWrite" />
         <p
