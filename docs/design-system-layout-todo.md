@@ -88,16 +88,16 @@ triggers, Scripts and Event Responses to the intended list-page system.
 
 ### Search placement
 
-- [ ] Move hand-built panel-header searches to `ListPanel` where appropriate:
+- [x] Move hand-built panel-header searches to `ListPanel` where appropriate:
   - `dashboard/src/views/dashboard/admin/AdminSupportView.vue`
   - `dashboard/src/views/dashboard/admin/AdminTenantsView.vue`
   - `dashboard/src/views/dashboard/admin/components/TenantMembersPanel.vue`
   - `dashboard/src/views/dashboard/people/PeopleView.vue`
   - `dashboard/src/views/dashboard/settings/permissions/components/ActionAreaList.vue`
-- [ ] Replace raw list-page search inputs:
+- [x] Replace raw list-page search inputs:
   - `dashboard/src/views/dashboard/picklists/PickListsView.vue`
   - `dashboard/src/views/dashboard/quotes/QuotesView.vue`
-- [ ] Keep search inputs inside genuine pickers/popovers local; they are not list-page searches.
+- [x] Keep search inputs inside genuine pickers/popovers local; they are not list-page searches.
 
 ### Edit and delete placement
 
@@ -120,7 +120,7 @@ triggers, Scripts and Event Responses to the intended list-page system.
 - [ ] Review the other delete-icon allowlist entries individually. Do not migrate actions that are not entity
       deletion, such as a chat-line action, pipeline step removal or editor-internal string removal.
 - [ ] Remove each file from the Phase 2 allowlist as it is migrated.
-- [ ] Keep the existing “no clean file on the allowlist” tests passing.
+- [x] Keep the existing “no clean file on the allowlist” tests passing.
 
 ### Acceptance criteria
 
@@ -149,12 +149,12 @@ Error Budget, Platform Bot and Webhook Deliveries.
   - `BoardGrid`
   - Full-bleed workspace
   - `PanelBeside` containing one approved body
-- [ ] Add narrowly scoped `PageBody` variants such as `dense`, `compact` or `flush` only where real layouts
+- [x] Add narrowly scoped `PageBody` variants such as `dense`, `compact` or `flush` only where real layouts
       require them.
-- [ ] Migrate repeated admin `data-page-body` containers to the approved recipe.
-- [ ] Review raw bodies in Economy, Pipelines and Stream sub-tabs.
-- [ ] Leave Chat and true board/workbench layouts specialized.
-- [ ] Add or extend a structure test preventing new ad hoc page-body implementations.
+- [x] Migrate repeated admin `data-page-body` containers to the approved recipe.
+- [x] Review raw bodies in Economy, Pipelines and Stream sub-tabs.
+- [x] Leave Chat and true board/workbench layouts specialized.
+- [x] Add or extend a structure test preventing new ad hoc page-body implementations.
 
 ### Acceptance criteria
 
@@ -174,11 +174,11 @@ same composition:
 5. Desktop pager in the panel footer
 6. Mobile pager in `PageActionFooter`
 
-- [ ] Create a narrowly scoped `AdminCollectionPage` or `PaginatedCollectionPage` composition.
-- [ ] Keep data fetching, parameters, filters and table components inside each domain screen.
-- [ ] Provide slots for filters, notices, table content and optional secondary content.
-- [ ] Standardize result count in `PageHeader#status`.
-- [ ] Standardize pager placement across desktop and phone.
+- [x] Create a narrowly scoped `AdminCollectionPage` or `PaginatedCollectionPage` composition.
+- [x] Keep data fetching, parameters, filters and table components inside each domain screen.
+- [x] Provide slots for filters, notices, table content and optional secondary content.
+- [x] Standardize result count in `PageHeader#status`.
+- [x] Standardize pager placement across desktop and phone.
 - [ ] Migrate the six closest admin pages first, then evaluate Tenants and Data Requests separately.
 
 ## P1 — actionable empty states and inline notices
@@ -186,7 +186,7 @@ same composition:
 `PanelCard` has good loading/empty/error behavior, but its empty state only accepts text. Screens therefore
 recreate actionable empty blocks and page-level mutation messages.
 
-- [ ] Add an `EmptyState` component or an `empty` slot to `PanelCard` supporting:
+- [x] Add an `EmptyState` component or an `empty` slot to `PanelCard` supporting:
   - Optional icon
   - Title
   - Description
@@ -196,15 +196,15 @@ recreate actionable empty blocks and page-level mutation messages.
   - Search has no matches
   - Current filter has no items
   - Feature is unavailable due to permission or plan
-- [ ] Add `InlineNotice`/`PageNotice` tones:
+- [x] Add `InlineNotice`/`PageNotice` tones:
   - Information
   - Warning
   - Error
   - Success
   - Plan/read-only gating
 - [ ] Replace repeated `text-sm text-destructive` mutation paragraphs.
-- [ ] Replace matching bordered-muted notices in Scripts, Channel Points and similar pages.
-- [ ] Keep whole-panel failures in `PanelCard.state`; use notices only for page or mutation feedback.
+- [x] Replace matching bordered-muted notices in Scripts, Channel Points and similar pages.
+- [x] Keep whole-panel failures in `PanelCard.state`; use notices only for page or mutation feedback.
 
 ## P1 — consolidate list/detail editor composition
 
@@ -218,20 +218,20 @@ repeat variants of the same detail column:
 - Optional aside/drawer
 - Editor sizing and scroll behavior
 
-- [ ] Add a small `DetailEditorPane` composition or extend the existing `DetailPane`.
-- [ ] Let it own the mobile Back action, idle/not-found presentation and detail-column sizing.
-- [ ] Keep the domain editor itself local.
-- [ ] Migrate Commands, Timers and Event Responses first because their wrappers are closest.
-- [ ] Evaluate People, Voice Triggers, Overlays and Scripts after the base behavior is proven.
+- [x] Add a small `DetailEditorPane` composition or extend the existing `DetailPane`.
+- [x] Let it own the mobile Back action, idle/not-found presentation and detail-column sizing.
+- [x] Keep the domain editor itself local.
+- [x] Migrate Commands, Timers and Event Responses first because their wrappers are closest.
+- [x] Evaluate People, Voice Triggers, Overlays and Scripts after the base behavior is proven.
 
 ### Filtered resource lists
 
 Scripts and Overlays are structural twins: filter tabs, tab counts, search, permission/state handling,
 query-backed selection, list/detail and “no matches vs empty tab vs no entities” states.
 
-- [ ] Extract a typed `useFilteredResourceList` composable.
+- [x] Extract a typed `useFilteredResourceList` composable.
 - [ ] Consider a small filtered-list shell only after the composable removes the behavioral duplication.
-- [ ] Do not put domain-specific item rendering or editors into the shared abstraction.
+- [x] Do not put domain-specific item rendering or editors into the shared abstraction.
 
 ## P2 — typed tabbed-page descriptor
 
@@ -246,17 +246,17 @@ Journal manually repeat combinations of:
 - Tab-specific primary actions
 - Long conditional content chains
 
-- [ ] Design a typed tab descriptor carrying the fields a page actually needs:
+- [x] Design a typed tab descriptor carrying the fields a page actually needs:
   - Value
   - Label
   - Read permission
   - Optional count
   - Optional disabled reason
   - Optional primary action descriptor
-- [ ] Keep tab contents as slots or local components.
-- [ ] Start with the permission-filtered Economy, TTS, OBS and Timers pages.
-- [ ] Preserve URL-backed tab selection and the existing responsive `PageTabs` implementation.
-- [ ] Avoid a mega-component that owns domain state.
+- [x] Keep tab contents as slots or local components.
+- [x] Start with the permission-filtered Economy, TTS, OBS and Timers pages.
+- [x] Preserve URL-backed tab selection and the existing responsive `PageTabs` implementation.
+- [x] Avoid a mega-component that owns domain state.
 
 ## P2 — complete the row vocabulary
 
@@ -270,11 +270,11 @@ This occurs across Integrations, Federation, Webhooks, Channel Management, Event
 admin detail panels.
 
 - [ ] Migrate simple title/detail/meta/leading/trailing rows to `SummaryRow`.
-- [ ] Use `SettingRow` for boolean settings.
+- [x] Use `SettingRow` for boolean settings.
 - [ ] Use `RowGroup` instead of raw `divide-y` lists where the semantics match.
-- [ ] Add one `ActionRow`/`StatusActionRow` only for explanatory copy plus a trailing administrative or
+- [x] Add one `ActionRow`/`StatusActionRow` only for explanatory copy plus a trailing administrative or
       destructive action that `SummaryRow` cannot express cleanly.
-- [ ] Preserve domain components when they own behavior, not merely layout.
+- [x] Preserve domain components when they own behavior, not merely layout.
 - [ ] Normalize status display through `StatusBadge` rather than local badge-variant decisions.
 
 ## P2 — adopt the Field system consistently
@@ -288,9 +288,9 @@ required semantics.
   - `FieldDescription`
   - `FieldError`
   - `FieldGroup`
-- [ ] Use `ChatFilterEditor.vue` and `AuditFilters.vue` as reference implementations.
-- [ ] Prioritize forms with validation errors and helper descriptions.
-- [ ] Add a structure test only after enough legacy forms have migrated to avoid an oversized permanent
+- [x] Use `ChatFilterEditor.vue` and `AuditFilters.vue` as reference implementations.
+- [x] Prioritize forms with validation errors and helper descriptions.
+- [x] Add a structure test only after enough legacy forms have migrated to avoid an oversized permanent
       allowlist.
 
 ## P2 — unify connection and credential presentation
@@ -306,10 +306,10 @@ express versions of the same state machine:
 - Credential present/missing status
 - Destructive disconnect confirmation
 
-- [ ] Define a reusable `ConnectionRow` presentation contract.
-- [ ] Support optional detail and credential slots.
+- [x] Define a reusable `ConnectionRow` presentation contract.
+- [x] Support optional detail and credential slots.
 - [ ] Reuse `StoredCredentialRow` where it already fits.
-- [ ] Keep authentication flows and provider-specific mutations outside the presentation component.
+- [x] Keep authentication flows and provider-specific mutations outside the presentation component.
 - [ ] Standardize disconnected, needs-attention and connected status wording and tones.
 
 ## P2 — normalize settings page ownership
@@ -321,10 +321,10 @@ Settings currently uses three models:
 - Supporter Sources reuses a page from another area
 
 - [ ] Choose and document one authoring contract.
-- [ ] Preferred direction: create a `SettingsPageFrame` providing title, crumb and an approved body.
+- [x] Preferred direction: create a `SettingsPageFrame` providing title, crumb and an approved body.
 - [ ] Allow named slots/configuration for header actions, tabs, list/detail and side panels.
 - [ ] Move title/crumb metadata closer to the route/navigation definition where practical.
-- [ ] Do not prevent complex settings screens from selecting a different approved body recipe.
+- [x] Do not prevent complex settings screens from selecting a different approved body recipe.
 - [ ] Review the settings information architecture separately; 28 destinations is workable only while grouping
       and naming remain strong.
 - [ ] Give the access/safety destinations more distinct navigation icons; several currently share the same
@@ -335,17 +335,17 @@ Settings currently uses three models:
 My Channels, Me and Account manually repeat title, horizontal padding, action/status placement and local
 loading/error handling inside the viewer frame.
 
-- [ ] Add a lightweight `ViewerPageHeader` and `ViewerPageBody`, or a focused `ViewerPage` composition.
-- [ ] Respect the `max-w-4xl` responsibility already owned by `ViewerLayout`.
-- [ ] Support title, status, action and consistent loading/error/empty presentation.
-- [ ] Do not import management-shell assumptions such as channel switching or live-management navigation.
+- [x] Add a lightweight `ViewerPageHeader` and `ViewerPageBody`, or a focused `ViewerPage` composition.
+- [x] Respect the `max-w-4xl` responsibility already owned by `ViewerLayout`.
+- [x] Support title, status, action and consistent loading/error/empty presentation.
+- [x] Do not import management-shell assumptions such as channel switching or live-management navigation.
 
 ## P2 — public task shell and public-flow consistency
 
 Login, Invite and 404 repeat a centered viewport frame with language picker, brand, compact card and optional
 below-card content. Setup is a wider wizard variant.
 
-- [ ] Add a focused `PublicTaskShell`/`SiteTaskFrame` with:
+- [x] Add a focused `PublicTaskShell`/`SiteTaskFrame` with:
   - `compact` variant for Login, Invite and 404
   - `wizard` variant for Setup
   - Language-picker position
@@ -353,35 +353,35 @@ below-card content. Setup is a wider wizard variant.
   - Semantic page title
   - Content width
   - Optional below-card content
-- [ ] Keep the marketing home and legal document pages specialized.
-- [ ] Correct heading hierarchy: the task title should be the page `h1`; the product name should not displace it.
+- [x] Keep the marketing home and legal document pages specialized.
+- [x] Correct heading hierarchy: the task title should be the page `h1`; the product name should not displace it.
 - [ ] Standardize public async/loading/error/empty presentation using `PanelCard.state` or a small shared
       `AsyncState`/`InlineFeedback` primitive.
-- [ ] Add `TaskActions` for compact full-width action stacks.
-- [ ] Add `WizardActions` for Back-left/Next-right flows.
-- [ ] Make brand marks in compact task flows link home unless there is a product reason not to.
-- [ ] Replace Setup's binary step renderer with a typed step renderer registry and an explicit unknown-step
+- [x] Add `TaskActions` for compact full-width action stacks.
+- [x] Add `WizardActions` for Back-left/Next-right flows.
+- [x] Make brand marks in compact task flows link home unless there is a product reason not to.
+- [x] Replace Setup's binary step renderer with a typed step renderer registry and an explicit unknown-step
       fallback.
 
 ### Public-flow cleanup
 
-- [ ] Reuse the global copy-feedback behavior instead of maintaining a separate `CopyAddressButton` timer and
+- [x] Reuse the global copy-feedback behavior instead of maintaining a separate `CopyAddressButton` timer and
       clipboard implementation.
-- [ ] Add shared `LegalLinks`/`ConsentNotice` and make Login's Terms and Privacy references actual links.
+- [x] Add shared `LegalLinks`/`ConsentNotice` and make Login's Terms and Privacy references actual links.
 - [ ] Decide whether Setup's stepper and card should share a width/alignment grid.
-- [ ] Add a reusable marketing section heading/tag vocabulary without abstracting entire marketing sections.
+- [x] Add a reusable marketing section heading/tag vocabulary without abstracting entire marketing sections.
 
 ## P3 — quick consistency fixes
 
-- [ ] Fix the marketing Features link: `HomeHeader.vue` points to `#outcomes`, while `FeatureGroups.vue` uses
+- [x] Fix the marketing Features link: `HomeHeader.vue` points to `#outcomes`, while `FeatureGroups.vue` uses
       `id="features"`.
 - [ ] Consolidate public one-off radii into semantic component variants where the same surface is intended.
 - [ ] Use the existing spinner/skeleton vocabulary for long-running public actions.
-- [ ] Standardize advanced filters as a documented third query-control recipe:
+- [x] Standardize advanced filters as a documented third query-control recipe:
   1. Compact filters in `PageHeader#bar`
   2. Search in the list header
   3. Collapsible advanced filters
-- [ ] Document `PanelCard` tiers:
+- [x] Document `PanelCard` tiers:
   - `lead`: the page's main purpose
   - default: supporting workflow
   - `quiet`: secondary status or danger content
@@ -392,11 +392,11 @@ The dev-only catalog at `/app/catalog` should be the canonical designer/develope
 a second component showcase immediately.
 
 - [ ] Add every accepted page recipe and state component to the catalog.
-- [ ] Show desktop, narrow and phone behavior for the composition primitives.
+- [x] Show desktop, narrow and phone behavior for the composition primitives.
 - [ ] Include loading, empty, no-match, error, read-only, gated and destructive states.
-- [ ] Document stable action placement with examples.
-- [ ] Add structure tests once a migration lane is established.
-- [ ] Use temporary allowlists that shrink as files migrate; fail when a clean file remains allowlisted.
+- [x] Document stable action placement with examples.
+- [x] Add structure tests once a migration lane is established.
+- [x] Use temporary allowlists that shrink as files migrate; fail when a clean file remains allowlisted.
 
 ## Recommended delivery order
 
