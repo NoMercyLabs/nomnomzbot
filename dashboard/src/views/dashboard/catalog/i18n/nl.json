@@ -72,11 +72,6 @@
           "off": "off",
           "attention": "attention"
         },
-        "name": {
-          "connected": "Verbonden",
-          "disconnected": "Niet verbonden",
-          "attention": "Aandacht nodig"
-        },
         "detail": {
           "connected": "De koppeling werkt.",
           "disconnected": "Er is geen account gekoppeld.",

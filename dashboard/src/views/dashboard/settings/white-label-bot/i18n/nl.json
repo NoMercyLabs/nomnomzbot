@@ -6,8 +6,6 @@
         "description": "Praat in de chat als je eigen botaccount in plaats van de gedeelde NomNomzBot. Kijkers zien de naam en foto van je bot.",
         "loadFailed": "Het botaccount kon niet worden geladen.",
         "handle": "{'@'}{login}",
-        "connected": "Verbonden",
-        "notConnected": "Gedeelde bot",
         "connectedToast": "Je botaccount is verbonden.",
         "disconnectedToast": "Je botaccount is losgekoppeld. De gedeelde bot praat weer.",
         "disconnectFailed": "Het botaccount kon niet worden losgekoppeld.",

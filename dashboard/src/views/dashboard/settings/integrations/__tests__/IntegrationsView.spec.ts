@@ -17,6 +17,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { integrationsKey, spotifyCredentialsKey } from '@/api/integrations';
 import { i18n } from '@/i18n';
+import common from '@/i18n/locales/en.json';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 import { configDomainKeys } from '@/realtime/configDomains';
 
@@ -276,7 +277,7 @@ describe('Integrations page', () => {
       en.dashboard.settings.integrations.capabilityNames.library,
     );
 
-    expect(row('patreon').textContent).toContain(en.dashboard.settings.integrations.notConnected);
+    expect(row('patreon').textContent).toContain(common.common.connection.disconnected);
   });
 
   it('draws every service through the connection row: attention for a sign-in to redo, connected, disconnected', async () => {
@@ -585,6 +586,13 @@ describe('Spotify own app', () => {
     expect(panel().querySelector('[data-action="edit-credentials"]')).not.toBeNull();
     expect(document.body.querySelectorAll('[data-action="edit-credentials"]')).toHaveLength(1);
     expect(document.body.querySelector('[data-view="spotify-credentials"]')).toBeNull();
+
+    // The stored credential sits in the credential slot of the Spotify ConnectionRow.
+    const slotted = document.body.querySelector(
+      '[data-integration="spotify"] [data-slot="connection-credential"] [data-slot="stored-credential"]',
+    );
+
+    expect(slotted).not.toBeNull();
   });
 
   it('opens the form in a dialog from Edit, with the stored client id and never the secret', async () => {

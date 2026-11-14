@@ -117,7 +117,6 @@ function confirmDisconnect(): void {
           :name="rowName"
           :state="connected ? 'connected' : 'disconnected'"
           :detail="rowDetail"
-          :label="connected ? $t('dashboard.settings.whiteLabelBot.connected') : $t('dashboard.settings.whiteLabelBot.notConnected')"
         >
           <template #leading>
             <Avatar class="size-10">

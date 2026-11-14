@@ -11,6 +11,9 @@
 <script setup lang="ts">
 // The keys of this channel, one row each: name, the start of the secret, what it may do, when it was last
 // used and when it ends. A revoked key stays listed (the audit trail) and has no actions.
+// A key is not a connection: its state is a lifecycle (active, expired, revoked), so this table keeps its own
+// StatusBadge words and does not use ConnectionRow. The connected, not connected and needs attention words
+// belong to the rows of an account the bot links to (Integrations, White-label bot).
 import Rotate from '~icons/nnz/rotate';
 
 import type { AutomationToken } from '@/api/automationTokens';

@@ -17,6 +17,11 @@ import { usePanelState } from '@/composables/usePanelState';
 import { useQueryPane } from '@/composables/useQueryPane';
 import { keysOf } from '@/lib/array';
 
+// Decision (2026-11-14, design-system TODO "a small filtered-list shell"): this composable stays and no shell
+// component joins it. Two pages use it (Overlays and Scripts), and each already passes its own tab and empty
+// words into the composable, so the behavior is shared and the words are not. A shell would only repeat the
+// markup of two pages. A third page with the same markup is the signal to extract one.
+
 // Why a list shows nothing, for the EmptyState of its panel: none = nothing made yet, noMatch = the search found
 // nothing, filtered = the open tab hides every item. The page maps the kind to its own words.
 export type ListEmptyKind = 'none' | 'noMatch' | 'filtered';

@@ -6,8 +6,6 @@
         "description": "Chat as your own bot account instead of the shared NomNomzBot. Viewers see your bot's name and picture.",
         "loadFailed": "The bot account could not be loaded.",
         "handle": "{'@'}{login}",
-        "connected": "Connected",
-        "notConnected": "Shared bot",
         "connectedToast": "Your bot account is connected.",
         "disconnectedToast": "Your bot account is disconnected. The shared bot speaks again.",
         "disconnectFailed": "The bot account could not be disconnected.",

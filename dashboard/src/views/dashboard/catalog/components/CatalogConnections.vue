@@ -45,7 +45,7 @@ const CONNECTIONS = [
           v-for="row in CONNECTIONS"
           :key="row.state"
           :provider="row.provider"
-          :name="t(`dashboard.catalog.connections.name.${row.state}`)"
+          :name="t(`common.provider.${row.provider}`)"
           :state="row.state"
           :account="row.state === 'connected' ? t('dashboard.catalog.connections.account') : undefined"
           :detail="t(`dashboard.catalog.connections.detail.${row.state}`)"

@@ -6,8 +6,6 @@
         "description": "De externe diensten die je kanaal gebruikt. Koppel een dienst via zijn eigen inlogpagina. Bij ontkoppelen zie je eerst wat stopt met werken.",
         "loadFailed": "De diensten konden niet worden geladen.",
         "empty": "Er zijn geen diensten beschikbaar voor dit kanaal.",
-        "connected": "Gekoppeld",
-        "notConnected": "Niet gekoppeld",
         "needsReauth": "Log opnieuw in",
         "decryptFailed": "Log opnieuw in (de opgeslagen login is onleesbaar)",
         "loginOnly": "Alleen ingelogd",

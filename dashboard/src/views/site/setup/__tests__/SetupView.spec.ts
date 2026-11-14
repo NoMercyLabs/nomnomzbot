@@ -245,6 +245,20 @@ describe('the setup wizard', () => {
     expect(wrapper.get('h1').text()).toBe('Finish setup');
   });
 
+  it('draws the stepper and the card on one width grid: both fill the one wizard column', async () => {
+    stubBot([step('twitch_app', { required: true, fields: [idField] })]);
+
+    const wrapper = await mountWizard();
+    const column = wrapper.get('[data-slot="task-column"]');
+    const stepper = column.get(':scope > nav');
+    const card = column.get(':scope > [data-slot="panel-card"]');
+
+    // The column sets the width once; each child takes all of it, so the two edges line up.
+    expect(column.classes()).toContain('max-w-xl');
+    expect(stepper.classes()).toContain('w-full');
+    expect(card.classes()).toContain('w-full');
+  });
+
   it('puts Back left of Next in one row at the wizard width', async () => {
     stubBot([step('twitch_app', { required: true, fields: [idField] })]);
 

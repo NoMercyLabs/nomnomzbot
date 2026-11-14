@@ -72,11 +72,6 @@
           "off": "off",
           "attention": "attention"
         },
-        "name": {
-          "connected": "Connected",
-          "disconnected": "Disconnected",
-          "attention": "Needs attention"
-        },
         "detail": {
           "connected": "The link works.",
           "disconnected": "No account is linked.",

@@ -6,8 +6,6 @@
         "description": "The outside services your channel uses. Connect one through its own sign-in page. Disconnect shows first what stops working.",
         "loadFailed": "The services could not be loaded.",
         "empty": "No services are available for this channel.",
-        "connected": "Connected",
-        "notConnected": "Not connected",
         "needsReauth": "Sign in again",
         "decryptFailed": "Sign in again (the saved login is unreadable)",
         "loginOnly": "Signed in only",
