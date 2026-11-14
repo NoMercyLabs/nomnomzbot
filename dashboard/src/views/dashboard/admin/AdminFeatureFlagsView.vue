@@ -253,11 +253,10 @@ const whenOf = (entry: FeatureFlagOverride): string =>
     </template>
   </PageHeader>
   <PageBody data-page-body>
-    <p class="text-sm text-muted-foreground">{{ $t('dashboard.admin.featureFlags.explain') }}</p>
-    <p data-restricted class="text-sm text-muted-foreground">{{ $t('dashboard.admin.featureFlags.restricted') }}</p>
     <PanelCard
       tier="lead"
       :title="$t('dashboard.admin.featureFlags.flagsTitle')"
+      :description="$t('dashboard.admin.featureFlags.explain')"
       :state="flags.data.value?.length === 0 ? 'empty' : flagsState"
       :empty-text="$t('dashboard.admin.featureFlags.empty')"
       :error-text="flagsError"
@@ -294,6 +293,9 @@ const whenOf = (entry: FeatureFlagOverride): string =>
           </Button>
         </li>
       </ul>
+      <template #footer>
+        <p data-restricted class="text-sm text-muted-foreground">{{ $t('dashboard.admin.featureFlags.restricted') }}</p>
+      </template>
     </PanelCard>
     <PanelCard
       v-if="editorOpen && can('featureflag:write')"

@@ -23,5 +23,7 @@ export const dashboardCatalogRoute = {
     loadPage(
       () => import('./CatalogView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
+      // The page recipes tab draws a real AdminCollectionPage, which prints the admin pager and crumb words.
+      (locale) => import(`../admin/i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;

@@ -206,6 +206,17 @@ describe('AdminFeatureFlagsView', () => {
     expect(one('[data-restricted]').textContent).toContain('earn money with NomNomzBot');
   });
 
+  it('keeps the two intro lines inside the flags panel, not loose in the page body', async () => {
+    await open();
+
+    const body = one('[data-page-body]');
+    const panel = one('[data-slot="panel-card"]');
+
+    expect(Array.from(body.children).some((child) => child.tagName === 'P')).toBe(false);
+    expect(panel.textContent).toContain('earn money with NomNomzBot');
+    expect(panel.contains(one('[data-restricted]'))).toBe(true);
+  });
+
   it('shows the flags without new, edit or override actions when the admin lacks featureflag:write', async () => {
     keys.held = false;
     await open();

@@ -137,6 +137,13 @@ describe('the legal pages', () => {
     },
   );
 
+  it('let the header wrap on a phone, so the language picker never runs past the screen edge', async () => {
+    const privacy = await open('privacy');
+    const header = privacy.get('header');
+
+    expect(header.classes()).toContain('flex-wrap');
+  });
+
   it('link to each other', async () => {
     const privacy = await open('privacy');
 
