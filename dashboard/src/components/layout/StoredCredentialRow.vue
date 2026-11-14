@@ -105,7 +105,7 @@ function submit(): void {
   <div v-if="inline" data-slot="stored-credential" class="mt-1 grid justify-items-start gap-1">
     <span class="block text-sm text-muted-foreground">{{ title }}</span>
     <span v-if="detail" class="block text-sm text-muted-foreground">{{ detail }}</span>
-    <Button variant="secondary"
+    <Button variant="outline"
             size="sm"
             data-action="edit-credentials"
             type="button"
@@ -118,7 +118,7 @@ function submit(): void {
   <RowGroup v-else>
     <SummaryRow :title="title" :detail="detail" data-slot="stored-credential">
       <template #trailing>
-        <Button variant="secondary"
+        <Button variant="outline"
                 size="sm"
                 data-action="edit-credentials"
                 type="button"

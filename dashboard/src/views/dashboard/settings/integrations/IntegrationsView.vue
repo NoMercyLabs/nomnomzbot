@@ -37,6 +37,8 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import { RouterLink } from 'vue-router';
+
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
@@ -170,8 +172,17 @@ function canDisconnect(row: ChannelIntegration): boolean {
   return row.connected && row.id !== primaryAccount;
 }
 
-function hasActions(row: ChannelIntegration): boolean {
+// OBS connects from its own page, so its one action opens the setup there.
+function hasSetup(row: ChannelIntegration): boolean {
+  return row.id === 'obs';
+}
+
+function mayManage(row: ChannelIntegration): boolean {
   return can('integration:write') && (canConnect(row) || canDisconnect(row));
+}
+
+function hasActions(row: ChannelIntegration): boolean {
+  return hasSetup(row) || mayManage(row);
 }
 
 function connectLabel(row: ChannelIntegration): string {
@@ -337,18 +348,31 @@ function setLeavingOpen(open: boolean): void {
           </template>
           <template v-if="hasActions(row)" #actions>
             <Input
-              v-if="needsShop(row) && !row.connected"
+              v-if="needsShop(row) && !row.connected && mayManage(row)"
               v-model="shopDomain"
               class="h-9 w-48 md:h-8"
               name="shopDomain"
               :placeholder="$t('dashboard.settings.integrations.shopDomain')"
               :aria-label="$t('dashboard.settings.integrations.shopDomain')"
             />
+            <!-- Every row action is one outline button, so the accent stays scarce; Disconnect shows its
+                 danger only on hover and keyboard focus. -->
             <Button
-              v-if="canDisconnect(row)"
-              variant="ghost"
+              v-if="hasSetup(row)"
+              as-child
+              variant="outline"
               size="sm"
-              class="text-destructive hover:text-destructive"
+              data-action="setup"
+            >
+              <RouterLink :to="{ name: 'dashboard-obs' }">
+                {{ $t('dashboard.settings.integrations.setUp') }}
+              </RouterLink>
+            </Button>
+            <Button
+              v-if="mayManage(row) && canDisconnect(row)"
+              variant="outline"
+              size="sm"
+              class="hover:text-destructive focus-visible:text-destructive"
               data-action="disconnect"
               :disabled="impact.isPending.value"
               @click="askToLeave(row)"
@@ -356,8 +380,8 @@ function setLeavingOpen(open: boolean): void {
               {{ $t('dashboard.settings.integrations.disconnect') }}
             </Button>
             <Button
-              v-if="canConnect(row)"
-              :variant="stateOf(row) === 'connected' ? 'outline' : 'default'"
+              v-if="mayManage(row) && canConnect(row)"
+              variant="outline"
               size="sm"
               data-action="connect"
               :disabled="connect.isPending.value || (needsShop(row) && shopDomain.trim() === '' && !row.connected)"

@@ -39,6 +39,7 @@
         },
         "connect": "Connect",
         "reconnect": "Reconnect",
+        "setUp": "Set up",
         "disconnect": "Disconnect",
         "shopDomain": "Shop name",
         "atLeast": "at least {count}",

@@ -13,6 +13,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed } from 'vue';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { integrationsKey, spotifyCredentialsKey } from '@/api/integrations';
 import { i18n } from '@/i18n';
@@ -53,6 +54,7 @@ let mounted: VueWrapper | null = null;
 let held: string[] = [];
 const ownClientId = 'spotify-client-9f2a';
 let spotifyConnected = true;
+let withObs = false;
 let youtubeGranted = ['youtube.manage'];
 let spotifyStored = {
   clientId: ownClientId as string | null,
@@ -62,6 +64,7 @@ let spotifyStored = {
 
 beforeEach(() => {
   spotifyConnected = true;
+  withObs = false;
   youtubeGranted = ['youtube.manage'];
 
   for (const verb of [http.GET, http.POST, http.PUT, http.DELETE]) {
@@ -165,6 +168,15 @@ beforeEach(() => {
           description: 'Orders.',
           connected: false,
         },
+        ...(withObs
+          ? [{
+              id: 'obs',
+              name: 'OBS',
+              category: 'streaming',
+              description: 'Scenes.',
+              connected: false,
+            }]
+          : []),
       ],
     });
   });
@@ -207,9 +219,18 @@ async function settle(): Promise<void> {
 async function open(): Promise<QueryClient> {
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{
+      path: '/app/obs',
+      name: 'dashboard-obs',
+      component: { template: '<div />' },
+    }],
+  });
+
   mounted = mount(IntegrationsView, {
     attachTo: document.body,
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: queries }]] },
+    global: { plugins: [i18n, router, [VueQueryPlugin, { queryClient: queries }]] },
   });
 
   await settle();
@@ -286,13 +307,33 @@ describe('Integrations page', () => {
     expect(row('youtube').querySelector('[data-slot="connection-logo"] svg')).not.toBeNull();
   });
 
-  it('gives a row one solid button: Reconnect is solid for attention, outline when the service is fine', async () => {
+  it('gives every row one action style: Connect and Reconnect are outline, so the accent stays scarce', async () => {
     await open();
 
-    expect(action('spotify', 'connect')?.getAttribute('data-variant')).toBe('default');
+    expect(action('spotify', 'connect')?.getAttribute('data-variant')).toBe('outline');
     expect(action('youtube', 'connect')?.getAttribute('data-variant')).toBe('outline');
-    expect(action('patreon', 'connect')?.getAttribute('data-variant')).toBe('default');
-    expect(action('youtube', 'disconnect')?.getAttribute('data-variant')).toBe('ghost');
+    expect(action('patreon', 'connect')?.getAttribute('data-variant')).toBe('outline');
+    expect(action('youtube', 'disconnect')?.getAttribute('data-variant')).toBe('outline');
+  });
+
+  it('keeps Disconnect neutral at rest and destructive only on hover and focus', async () => {
+    await open();
+
+    const disconnect = action('youtube', 'disconnect')!;
+
+    expect(disconnect.classList.contains('text-destructive')).toBe(false);
+    expect(disconnect.classList.contains('hover:text-destructive')).toBe(true);
+    expect(disconnect.classList.contains('focus-visible:text-destructive')).toBe(true);
+  });
+
+  it('gives OBS a Set up action that opens its setup page, where it had none', async () => {
+    withObs = true;
+    await open();
+
+    const setup = action('obs', 'setup');
+
+    expect(setup?.getAttribute('data-variant')).toBe('outline');
+    expect(setup?.getAttribute('href')).toBe('/app/obs');
   });
 
   it('names the premium ability in words and ranks the row buttons: Disconnect is quiet, Edit is visible', async () => {
@@ -303,8 +344,8 @@ describe('Integrations page', () => {
 
     expect(text).toContain(en.dashboard.settings.integrations.capabilityNames.premium);
     expect(text).not.toContain('premium');
-    expect(action('spotify', 'disconnect')?.getAttribute('data-variant')).toBe('ghost');
-    expect(action('spotify', 'edit-credentials')?.getAttribute('data-variant')).toBe('secondary');
+    expect(action('spotify', 'disconnect')?.getAttribute('data-variant')).toBe('outline');
+    expect(action('spotify', 'edit-credentials')?.getAttribute('data-variant')).toBe('outline');
   });
 
   it('connects a service with its scope set and the page to come back to', async () => {

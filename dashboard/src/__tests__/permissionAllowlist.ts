@@ -66,7 +66,7 @@ export const permissionAllowlist = [
       'settings/event-journal/components/JournalListPanel.vue': 4,
       'settings/api-devices/components/KeyEventsInfo.vue': 1,
       'settings/api-devices/components/SecretDialog.vue': 2,
-      'settings/integrations/IntegrationsView.vue': 1,
+      'settings/integrations/IntegrationsView.vue': 2,
       'settings/webhooks/components/SigningSecretDialog.vue': 2,
       'settings/custom-event-feeds/components/EventFeedRow.vue': 1,
       'settings/webhooks/components/InboundWebhookRow.vue': 1,
