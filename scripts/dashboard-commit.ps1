@@ -120,7 +120,8 @@ try {
     }
     if (-not $failed) {
         '== tests =='
-        $tests = npx vitest run --testTimeout 30000 2>&1
+        # 8 workers, not one per core: 31 forks on this 32-thread box ran out of memory (2026-11-14, 9 workers died).
+        $tests = npx vitest run --testTimeout 30000 --maxWorkers 8 2>&1
         if ($LASTEXITCODE -ne 0) { $failed = 'TESTS' }
         # The tail alone cuts off which tests failed; their FAIL lines are printed first.
         $tests | Select-String -Pattern '^\s*FAIL\s' | Sort-Object -Unique
