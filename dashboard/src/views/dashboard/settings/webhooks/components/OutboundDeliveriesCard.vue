@@ -24,13 +24,14 @@ import {
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
 import { useWordsFor } from '@/composables/useWordsFor';
+import { lookup } from '@/lib/array';
 import { errorText } from '@/lib/errors';
 
 const props = defineProps<{ endpoint: OutboundWebhook | null }>();
@@ -40,6 +41,13 @@ const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const time = useTime();
 const statusWords = useWordsFor('dashboard.settings.webhooks.deliveries.status');
+// Waiting is quiet, a delivered call is fine, a failed or abandoned one needs a look.
+const deliveryTone = {
+  pending: 'off',
+  delivered: 'ok',
+  failed: 'bad',
+  deadletter: 'bad',
+} as const satisfies Record<string, StatusTone>;
 const deliveries = useOutboundDeliveries(channelId, () =>
   props.endpoint?.id ?? null);
 const retry = useRetryOutboundDelivery(channelId);
@@ -84,7 +92,7 @@ async function again(deliveryId: number | string): Promise<void> {
         <div class="min-w-0 flex-1">
           <span class="flex flex-wrap items-center gap-2">
             <span class="text-sm font-medium wrap-break-word">{{ delivery.eventType }}</span>
-            <Badge variant="outline">{{ statusWords(delivery.status) }}</Badge>
+            <StatusBadge :tone="lookup(deliveryTone, delivery.status) ?? 'off'" :label="statusWords(delivery.status)" />
           </span>
           <span class="block text-sm text-muted-foreground">
             {{

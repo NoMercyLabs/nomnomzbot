@@ -14,7 +14,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { AdminTenantErrorBudget } from '@/api/adminErrorBudget';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Progress } from '@/components/ui/progress';
 import {
   Table,
@@ -100,9 +100,12 @@ function remainingPercent(row: AdminTenantErrorBudget): number {
         <TableCell :label="$t('dashboard.admin.errorBudget.columns.budget')">
           <div v-if="remaining(row) !== null" class="flex items-center gap-3">
             <Progress :model-value="remainingPercent(row)" class="w-24" />
-            <Badge v-if="isExhausted(row)" variant="destructive" data-exhausted>
-              {{ $t("dashboard.admin.errorBudget.exhausted") }}
-            </Badge>
+            <StatusBadge
+              v-if="isExhausted(row)"
+              data-exhausted
+              tone="bad"
+              :label="$t('dashboard.admin.errorBudget.exhausted')"
+            />
             <span v-else class="text-sm tabular-nums">
               {{ $t("dashboard.admin.errorBudget.left", { share: remainingText(row) }) }}
             </span>

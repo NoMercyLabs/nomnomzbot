@@ -289,7 +289,7 @@ describe('BillingChannelPanel gifts', () => {
   it('ends one gift now by its own id, and only after the confirm', async () => {
     await open();
 
-    hook('[data-grant-row="g-dated"] [data-grant-end]').click();
+    hook('[data-grant-end="g-dated"]').click();
     await settle();
 
     expect(text()).toContain('End the Pro gift now?');

@@ -25,7 +25,7 @@ import { useRouter } from 'vue-router';
 import type { MediaPlaybackCommand, MediaSharePlayerState, MediaShareRequest } from '@/api/mediaShare';
 import IconAction from '@/components/layout/IconAction.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { clockLength } from '@/lib/time';
@@ -135,13 +135,12 @@ function commitVolume(value: number[]): void {
             }}
           </p>
         </div>
-        <Badge v-if="current" data-player-state variant="secondary">
-          {{
-            paused
-              ? $t("dashboard.mediaShare.player.paused")
-              : $t("dashboard.mediaShare.player.playing")
-          }}
-        </Badge>
+        <StatusBadge
+          v-if="current"
+          data-player-state
+          :tone="paused ? 'off' : 'ok'"
+          :label="paused ? $t('dashboard.mediaShare.player.paused') : $t('dashboard.mediaShare.player.playing')"
+        />
       </div>
 
       <div v-if="showsTime" class="flex items-center gap-3">

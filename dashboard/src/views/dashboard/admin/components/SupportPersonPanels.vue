@@ -17,6 +17,8 @@ import { useSupportPerson } from '@/api/adminSupport';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
 import { merge } from '@/lib/array';
@@ -95,18 +97,15 @@ const standings = computed<Standing[]>(() => {
   >
     <div v-if="person" class="grid gap-4">
       <KeyValueList :items="facts" />
-      <ul class="grid divide-y divide-border text-sm">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in standings"
           :key="row.key"
           data-standing-row
-          class="flex items-center gap-3 py-2"
-        >
-          <span class="min-w-0 flex-1 font-medium">{{ row.channel }}</span>
-          <span class="text-muted-foreground">{{ row.kind }}</span>
-          <span>{{ row.value }}</span>
-        </li>
-      </ul>
+          :title="row.channel"
+          :detail="`${row.kind} ${row.value}`"
+        />
+      </RowGroup>
     </div>
   </PanelCard>
 </template>

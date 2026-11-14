@@ -15,7 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useSavePipeline, type Pipeline } from '@/api/pipelines';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 
 const props = defineProps<{
   channelId: string | null;
@@ -54,11 +54,10 @@ function setPower(isEnabled: boolean): void {
     :model-value="pipeline.isEnabled"
     @update:model-value="setPower"
   />
-  <Badge v-else data-workbench-power-state variant="outline">{{
-    $t(
-      pipeline.isEnabled
-        ? "dashboard.pipelines.workbench.power.on"
-        : "dashboard.pipelines.workbench.power.off",
-    )
-  }}</Badge>
+  <StatusBadge
+    v-else
+    data-workbench-power-state
+    :tone="pipeline.isEnabled ? 'ok' : 'off'"
+    :label="$t(pipeline.isEnabled ? 'dashboard.pipelines.workbench.power.on' : 'dashboard.pipelines.workbench.power.off')"
+  />
 </template>

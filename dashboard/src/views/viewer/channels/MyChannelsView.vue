@@ -17,7 +17,7 @@ import { computed } from 'vue';
 import { useModeratedChannels, useMyChannels } from '@/api/channels';
 import { useWatchedChannels, type WatchedChannel } from '@/api/viewer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
@@ -98,7 +98,7 @@ function lastSeen(channel: WatchedChannel): string {
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="truncate font-medium">{{ channel.displayName }}</span>
               <span class="text-xs text-muted-foreground">
-                <Badge v-if="channel.isLive">{{ $t('viewer.channels.live') }}</Badge>
+                <StatusBadge v-if="channel.isLive" tone="live" :label="$t('viewer.channels.live')" />
                 <template v-else-if="lastSeen(channel)">
                   {{ $t('viewer.channels.lastSeen', { date: lastSeen(channel) }) }}
                 </template>

@@ -224,7 +224,7 @@ describe('AdminFeatureFlagsView', () => {
     expect(document.body.querySelectorAll('[data-override]')).toHaveLength(1);
     expect(document.body.querySelector('[data-new]')).toBeNull();
     expect(document.body.querySelector('[data-edit]')).toBeNull();
-    expect(document.body.querySelector('[data-override-delete]')).toBeNull();
+    expect(document.body.querySelector('[data-override] [data-row-delete]')).toBeNull();
     expect(document.body.querySelector('[data-override-save]')).toBeNull();
   });
 
@@ -334,7 +334,7 @@ describe('AdminFeatureFlagsView', () => {
 
     const before = reads.filter((path) => path.endsWith('/overrides')).length;
 
-    await click('[data-override] [data-override-delete]');
+    await click('[data-override] [data-row-delete]');
 
     expect(deletes).toHaveLength(1);
 

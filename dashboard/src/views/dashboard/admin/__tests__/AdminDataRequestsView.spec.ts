@@ -214,8 +214,10 @@ describe('AdminDataRequestsView', () => {
   it('keeps each row, its text and its status, inside the panel title inset on both sides', async () => {
     await open();
 
+    // Each row is a SummaryRow body, which owns the inset on both sides (px-3).
     for (const row of document.body.querySelectorAll<HTMLElement>('[data-request-row]')) {
-      expect(row.classList.contains('px-2')).toBe(true);
+      expect(row.dataset.slot).toBe('summary-row-body');
+      expect(row.classList.contains('px-3')).toBe(true);
     }
   });
 

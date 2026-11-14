@@ -15,7 +15,6 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import Edit from '~icons/nnz/edit';
-import Trash from '~icons/nnz/trash';
 
 import {
   useAdminFeatureFlagOverrides,
@@ -33,7 +32,8 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Badge } from '@/components/ui/badge';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -272,9 +272,10 @@ const whenOf = (entry: FeatureFlagOverride): string =>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-sm font-medium wrap-break-word">{{ flag.key }}</span>
-              <Badge :variant="flag.isEnabledGlobally ? 'default' : 'secondary'">
-                {{ flag.isEnabledGlobally ? $t('dashboard.admin.featureFlags.on') : $t('dashboard.admin.featureFlags.off') }}
-              </Badge>
+              <StatusBadge
+                :tone="flag.isEnabledGlobally ? 'ok' : 'off'"
+                :label="flag.isEnabledGlobally ? $t('dashboard.admin.featureFlags.on') : $t('dashboard.admin.featureFlags.off')"
+              />
               <span class="text-sm text-muted-foreground">
                 {{ $t('dashboard.admin.featureFlags.rollout', { percent: Number(flag.rolloutPercentage) }) }}
               </span>
@@ -433,23 +434,21 @@ const whenOf = (entry: FeatureFlagOverride): string =>
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-sm font-medium">{{ entry.flagKey }}</span>
               <span class="text-sm">{{ entry.channelName }}</span>
-              <Badge :variant="entry.isEnabled ? 'default' : 'secondary'">
-                {{ entry.isEnabled ? $t('dashboard.admin.featureFlags.overrideOn') : $t('dashboard.admin.featureFlags.overrideOff') }}
-              </Badge>
+              <StatusBadge
+                :tone="entry.isEnabled ? 'ok' : 'off'"
+                :label="entry.isEnabled ? $t('dashboard.admin.featureFlags.overrideOn') : $t('dashboard.admin.featureFlags.overrideOff')"
+              />
             </div>
             <p v-if="entry.reason" class="text-sm text-muted-foreground">{{ entry.reason }}</p>
             <p class="text-sm text-muted-foreground">{{ whenOf(entry) }}</p>
           </div>
-          <Button
+          <RowEditDelete
             v-if="can('featureflag:write')"
-            data-override-delete
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('dashboard.admin.featureFlags.overrideDelete', { channel: entry.channelName })"
-            @click="dropOverride(entry)"
-          >
-            <Trash class="size-5" aria-hidden="true" />
-          </Button>
+            :editable="false"
+            :edit-label="$t('dashboard.admin.featureFlags.overrideDelete', { channel: entry.channelName })"
+            :delete-label="$t('dashboard.admin.featureFlags.overrideDelete', { channel: entry.channelName })"
+            @delete="dropOverride(entry)"
+          />
         </li>
       </ul>
     </PanelCard>

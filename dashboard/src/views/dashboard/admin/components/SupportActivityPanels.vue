@@ -23,7 +23,10 @@ import {
 import DateTime from '@/components/layout/DateTime.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePanelState } from '@/composables/usePanelState';
 
 const props = defineProps<{ personId: string; justification: string }>();
@@ -85,22 +88,19 @@ const kinds = computed(() =>
     :error-text="t('dashboard.admin.support.history.error')"
     @retry="history.refetch()"
   >
-    <ul class="grid divide-y divide-border text-sm">
-      <li
+    <RowGroup>
+      <SummaryRow
         v-for="row in historyRows"
         :key="row.eventId"
         data-history-row
-        class="flex items-center gap-3 p-2"
+        :title="row.eventType"
+        :detail="row.channelName ?? t('dashboard.admin.support.history.platform')"
       >
-        <span class="min-w-0 flex-1 font-medium">{{ row.eventType }}</span>
-        <span class="text-muted-foreground">{{
-          row.channelName ?? t("dashboard.admin.support.history.platform")
-        }}</span>
-        <span class="text-muted-foreground tabular-nums">
+        <template #meta>
           <DateTime :value="row.occurredAt" variant="date" />
-        </span>
-      </li>
-    </ul>
+        </template>
+      </SummaryRow>
+    </RowGroup>
   </PanelCard>
   <PanelCard
     :title="t('dashboard.admin.support.items.title')"
@@ -124,23 +124,21 @@ const kinds = computed(() =>
         :options="kinds"
       />
     </template>
-    <ul class="grid divide-y divide-border text-sm">
-      <li
+    <RowGroup>
+      <SummaryRow
         v-for="row in items"
         :key="row.id"
         :data-command-row="kind === 'commands' ? '' : undefined"
         :data-pipeline-row="kind === 'pipelines' ? '' : undefined"
-        class="flex items-center gap-3 p-2"
+        :title="row.name"
       >
-        <span class="min-w-0 flex-1 font-medium">{{ row.name }}</span>
-        <span class="text-muted-foreground">
-          {{
-            row.isEnabled
-              ? t("dashboard.admin.support.items.on")
-              : t("dashboard.admin.support.items.off")
-          }}
-        </span>
-      </li>
-    </ul>
+        <template #end>
+          <StatusBadge
+            :tone="row.isEnabled ? 'ok' : 'off'"
+            :label="row.isEnabled ? t('dashboard.admin.support.items.on') : t('dashboard.admin.support.items.off')"
+          />
+        </template>
+      </SummaryRow>
+    </RowGroup>
   </PanelCard>
 </template>

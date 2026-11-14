@@ -30,9 +30,11 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatStrip from '@/components/layout/StatStrip.vue';
 import StatTile from '@/components/layout/StatTile.vue';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -43,8 +45,6 @@ import UpdateCard from './components/UpdateCard.vue';
 const SECONDS_PER_MINUTE: number = 60;
 const SECONDS_PER_HOUR: number = 3600;
 const SECONDS_PER_DAY: number = 86_400;
-
-type BadgeVariant = 'outline' | 'secondary' | 'destructive';
 
 // A check slower than this is worth a number; a fast one is just healthy.
 const SLOW_CHECK_MS: number = 500;
@@ -120,13 +120,13 @@ function statusLabel(value: string): string {
   return t(`dashboard.admin.system.status.${value}`, value);
 }
 
-function statusVariant(value: string): BadgeVariant {
+function statusTone(value: string): StatusTone {
   if (value === 'healthy')
-    return 'outline';
+    return 'ok';
 
   return value === 'degraded'
-    ? 'secondary'
-    : 'destructive';
+    ? 'attention'
+    : 'bad';
 }
 
 function latency(service: ServiceHealth): string | null {
@@ -199,37 +199,36 @@ async function submit(): Promise<void> {
       >
         <div v-if="system" class="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
           {{ $t("dashboard.admin.system.health.overall") }}
-          <Badge data-overall :variant="statusVariant(system.overall)">{{
-            statusLabel(system.overall)
-          }}</Badge>
+          <StatusBadge
+            data-overall
+            :tone="statusTone(system.overall)"
+            :label="statusLabel(system.overall)"
+          />
         </div>
-        <ul class="divide-y divide-border">
-          <li
+        <RowGroup>
+          <SummaryRow
             v-for="service in system?.services ?? []"
             :key="service.name"
             data-service-row
-            class="flex items-center gap-3 py-3"
+            :title="checkName(service)"
           >
-            <div class="min-w-0 flex-1">
-              <div data-service-name class="text-sm font-medium">
-                {{ checkName(service) }}
-              </div>
-              <div
-                v-if="checkMeaning(service)"
-                data-service-meaning
-                class="text-sm text-muted-foreground"
-              >
-                {{ checkMeaning(service) }}
-              </div>
-            </div>
-            <span v-if="latency(service)" class="text-xs text-muted-foreground tabular-nums">{{
-              latency(service)
-            }}</span>
-            <Badge :variant="statusVariant(service.status)">{{
-              statusLabel(service.status)
-            }}</Badge>
-          </li>
-        </ul>
+            <template #title>
+              <span data-service-name>{{ checkName(service) }}</span>
+            </template>
+            <template v-if="checkMeaning(service)" #meta>
+              <span data-service-meaning class="text-sm">{{ checkMeaning(service) }}</span>
+            </template>
+            <template #end>
+              <span v-if="latency(service)" class="text-xs text-muted-foreground tabular-nums">{{
+                latency(service)
+              }}</span>
+              <StatusBadge
+                :tone="statusTone(service.status)"
+                :label="statusLabel(service.status)"
+              />
+            </template>
+          </SummaryRow>
+        </RowGroup>
       </PanelCard>
 
       <PanelCard
@@ -298,17 +297,15 @@ async function submit(): Promise<void> {
           <span class="text-sm font-medium">{{
             $t("dashboard.admin.system.rotation.failures")
           }}</span>
-          <ul class="mt-2 divide-y divide-border">
-            <li
+          <RowGroup class="mt-2">
+            <SummaryRow
               v-for="row in outcome.failures"
               :key="String(row.cryptoKeyId)"
               data-rotation-failure
-              class="flex flex-wrap items-center gap-3 py-2 text-sm"
-            >
-              <code class="text-xs text-muted-foreground">{{ row.cryptoKeyId }}</code>
-              <span>{{ row.reason }}</span>
-            </li>
-          </ul>
+              :title="row.reason"
+              :meta="String(row.cryptoKeyId)"
+            />
+          </RowGroup>
         </div>
       </PanelCard>
     </div>

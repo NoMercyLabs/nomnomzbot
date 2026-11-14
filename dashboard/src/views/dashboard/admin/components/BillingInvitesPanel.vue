@@ -27,6 +27,7 @@ import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -230,9 +231,12 @@ async function confirmRevoke(): Promise<void> {
           <span class="tabular-nums">
             {{ t('dashboard.admin.billing.invites.redemptions', { used: invite.redemptionCount, max: invite.maxRedemptions }) }}
           </span>
-          <Badge v-if="isEnded(invite)" variant="outline" data-invite-ended>
-            {{ t("dashboard.admin.billing.invites.ended") }}
-          </Badge>
+          <StatusBadge
+            v-if="isEnded(invite)"
+            data-invite-ended
+            tone="off"
+            :label="t('dashboard.admin.billing.invites.ended')"
+          />
           <template v-else>
             <span data-invite-left class="tabular-nums">{{ usesLeft(invite) }}</span>
             <span v-if="invite.expiresAt" data-invite-expires-at>

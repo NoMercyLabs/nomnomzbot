@@ -25,6 +25,8 @@ import {
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -158,27 +160,31 @@ const consequences = computed<string[]>(() => {
         {{ t("dashboard.admin.billing.tiers.new") }}
       </Button>
     </template>
-    <ul class="grid divide-y divide-border text-sm">
-      <li v-for="tier in rows" :key="tier.id" data-tier-row class="flex items-center gap-3 p-2">
-        <div class="min-w-0 flex-1">
-          <span class="font-medium">{{ tier.displayName }}</span>
+    <RowGroup>
+      <SummaryRow
+        v-for="tier in rows"
+        :key="tier.id"
+        data-tier-row
+        :title="tier.displayName"
+        :detail="`${(Number(tier.priceCents) / 100).toFixed(2)} ${tier.currency}`"
+      >
+        <template #title>
+          {{ tier.displayName }}
           <Badge v-if="!tier.isPublic" variant="secondary" class="ml-2">
             {{ t("dashboard.admin.billing.tiers.private") }}
           </Badge>
-        </div>
-        <span class="text-muted-foreground tabular-nums">
-          {{ (Number(tier.priceCents) / 100).toFixed(2) }} {{ tier.currency }}
-        </span>
-        <Button v-if="can('billing:write')"
-                variant="outline"
-                size="sm"
-                data-tier-edit
-                @click="openForm(tier)"
-        >
-          {{ t("dashboard.admin.billing.tiers.edit") }}
-        </Button>
-      </li>
-    </ul>
+        </template>
+        <template v-if="can('billing:write')" #trailing>
+          <Button variant="outline"
+                  size="sm"
+                  data-tier-edit
+                  @click="openForm(tier)"
+          >
+            {{ t("dashboard.admin.billing.tiers.edit") }}
+          </Button>
+        </template>
+      </SummaryRow>
+    </RowGroup>
   </PanelCard>
   <FormDialog
     v-model:open="formOpen"

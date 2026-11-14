@@ -48,13 +48,14 @@ const errorText = computed<string>(() =>
       :error-text="errorText"
       @retry="providers.refetch()"
     >
-      <ul class="divide-y divide-border">
+      <!-- Each provider is a RowGroup of its own, so the groups stack with a gap instead of a divider. -->
+      <div class="grid gap-3">
         <ProviderCredentialRow
           v-for="credential in providers.data.value"
           :key="credential.provider"
           :credential="credential"
         />
-      </ul>
+      </div>
     </PanelCard>
   </PageBody>
 </template>

@@ -34,6 +34,8 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -247,47 +249,58 @@ async function confirmAction(): Promise<void> {
         :placeholder="t('dashboard.admin.billing.channel.id')"
       />
     </template>
-    <p v-if="noInvoices" data-no-invoices class="p-2 text-sm text-muted-foreground">
-      {{ t("dashboard.admin.billing.channel.noInvoices") }}
-    </p>
-    <ul v-else class="grid divide-y divide-border text-sm">
-      <li v-for="invoice in invoices.data.value ?? []" :key="invoice.id" data-invoice-row class="flex items-center gap-3 p-2">
-        <span class="min-w-0 flex-1">{{ invoice.number }} <span class="text-muted-foreground">{{ invoice.status }}</span></span>
-        <span class="tabular-nums">{{ amount(invoice) }}</span>
-        <Button v-if="can('billing:refund')"
-                variant="outline"
-                size="sm"
-                data-invoice-refund
-                @click="refunding = invoice"
+    <div class="grid gap-3">
+      <p v-if="noInvoices" data-no-invoices class="p-2 text-sm text-muted-foreground">
+        {{ t("dashboard.admin.billing.channel.noInvoices") }}
+      </p>
+      <RowGroup v-else>
+        <SummaryRow
+          v-for="invoice in invoices.data.value ?? []"
+          :key="invoice.id"
+          data-invoice-row
+          :title="invoice.number ?? ''"
+          :detail="invoice.status"
         >
-          {{ t("dashboard.admin.billing.channel.refund") }}
-        </Button>
-      </li>
-    </ul>
-    <p v-if="noGifts" data-no-gifts class="border-t border-border p-2 text-sm text-muted-foreground">
-      {{ t("dashboard.admin.billing.channel.noGifts") }}
-    </p>
-    <ul v-else class="grid divide-y divide-border border-t border-border text-sm">
-      <li v-for="grant in grants.data.value ?? []"
+          <template #end>
+            <span class="text-sm tabular-nums">{{ amount(invoice) }}</span>
+          </template>
+          <template v-if="can('billing:refund')" #trailing>
+            <Button variant="outline"
+                    size="sm"
+                    data-invoice-refund
+                    @click="refunding = invoice"
+            >
+              {{ t("dashboard.admin.billing.channel.refund") }}
+            </Button>
+          </template>
+        </SummaryRow>
+      </RowGroup>
+      <p v-if="noGifts" data-no-gifts class="p-2 text-sm text-muted-foreground">
+        {{ t("dashboard.admin.billing.channel.noGifts") }}
+      </p>
+      <RowGroup v-else>
+        <SummaryRow
+          v-for="grant in grants.data.value ?? []"
           :key="grant.id"
           :data-grant-row="grant.id"
-          class="flex items-center gap-3 p-2"
-      >
-        <span class="min-w-0 flex-1">
-          {{ tierLabel(grant.grantedTierId) || grant.grantedTierKey }}
-          <span class="text-muted-foreground">{{ grant.reason }}</span>
-        </span>
-        <span class="tabular-nums text-muted-foreground">{{ grantEnd(grant) }}</span>
-        <Button v-if="can('billing:write')"
-                variant="outline"
-                size="sm"
-                data-grant-end
-                @click="ending = grant"
+          :title="tierLabel(grant.grantedTierId) || grant.grantedTierKey"
+          :detail="grant.reason"
         >
-          {{ t("dashboard.admin.billing.channel.endNow") }}
-        </Button>
-      </li>
-    </ul>
+          <template #end>
+            <span class="text-sm tabular-nums text-muted-foreground">{{ grantEnd(grant) }}</span>
+          </template>
+          <template v-if="can('billing:write')" #trailing>
+            <Button variant="outline"
+                    size="sm"
+                    :data-grant-end="grant.id"
+                    @click="ending = grant"
+            >
+              {{ t("dashboard.admin.billing.channel.endNow") }}
+            </Button>
+          </template>
+        </SummaryRow>
+      </RowGroup>
+    </div>
     <template v-if="ready && can('billing:write')" #footer>
       <div class="flex flex-wrap items-center gap-2">
         <Button size="sm" data-grant-gift @click="openGift">

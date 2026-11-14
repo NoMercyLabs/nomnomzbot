@@ -22,6 +22,8 @@ import {
 } from '@/api/adminTenants';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import { useTime } from '@/composables/useTime';
@@ -109,26 +111,28 @@ function expiry(at: string | null | undefined): string {
         {{ t('dashboard.admin.tenants.limits.add') }}
       </Button>
     </template>
-    <ul class="grid divide-y divide-border text-sm">
-      <li v-for="row in limits.data.value" :key="row.id" data-limit-row class="flex items-center gap-3 p-2">
-        <div class="min-w-0 flex-1">
-          <span class="font-medium">{{ row.limitKey }}</span>
-          <span class="ml-2 tabular-nums">{{ row.limitValue }}</span>
-          <p class="text-muted-foreground">{{ row.reason }} {{ expiry(row.expiresAt) }}</p>
-        </div>
-        <Button
-          v-if="can('tenant:quota:manage')"
-          variant="ghost"
-          size="icon"
-          :data-clear-limit="row.limitKey"
-          :aria-label="t('dashboard.admin.tenants.limits.clear', { key: row.limitKey })"
-          :disabled="clear.isPending.value"
-          @click="clear.mutate({ broadcasterId: tenantId, limitKey: row.limitKey })"
-        >
-          <Cross class="size-5" aria-hidden="true" />
-        </Button>
-      </li>
-    </ul>
+    <RowGroup>
+      <SummaryRow
+        v-for="row in limits.data.value"
+        :key="row.id"
+        data-limit-row
+        :title="`${row.limitKey} ${row.limitValue}`"
+        :detail="`${row.reason} ${expiry(row.expiresAt)}`"
+      >
+        <template v-if="can('tenant:quota:manage')" #trailing>
+          <Button
+            variant="ghost"
+            size="icon"
+            :data-clear-limit="row.limitKey"
+            :aria-label="t('dashboard.admin.tenants.limits.clear', { key: row.limitKey })"
+            :disabled="clear.isPending.value"
+            @click="clear.mutate({ broadcasterId: tenantId, limitKey: row.limitKey })"
+          >
+            <Cross class="size-5" aria-hidden="true" />
+          </Button>
+        </template>
+      </SummaryRow>
+    </RowGroup>
   </PanelCard>
   <FormDialog
     v-model:open="open"

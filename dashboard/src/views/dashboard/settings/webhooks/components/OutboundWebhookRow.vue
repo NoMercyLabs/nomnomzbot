@@ -20,6 +20,7 @@ import type { OutboundWebhook } from '@/api/webhooks';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import IconAction from '@/components/layout/IconAction.vue';
 import RowEditDelete from '@/components/layout/RowEditDelete.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -67,14 +68,12 @@ const lastDelivery = computed(() =>
             })
           }}
         </Badge>
-        <Badge
+        <StatusBadge
           v-if="switchedOff"
           data-switched-off-badge
-          variant="outline"
-          class="border-destructive/50 text-destructive"
-        >
-          {{ $t("dashboard.settings.webhooks.outbound.switchedOff") }}
-        </Badge>
+          tone="bad"
+          :label="$t('dashboard.settings.webhooks.outbound.switchedOff')"
+        />
       </span>
       <span class="block font-mono text-sm text-muted-foreground wrap-break-word">{{
         address

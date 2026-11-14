@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n';
 import { useAuthorPricedUnit, useBillingPricedUnits } from '@/api/adminBilling';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
@@ -67,14 +69,21 @@ async function submit(): Promise<void> {
         {{ t("dashboard.admin.billing.units.new") }}
       </Button>
     </template>
-    <ul class="grid divide-y divide-border text-sm">
-      <li v-for="unit in rows" :key="unit.id" data-unit-row class="flex items-center gap-3 p-2">
-        <span class="min-w-0 flex-1 font-medium">{{ unit.unitKey }}</span>
-        <span class="text-muted-foreground tabular-nums">
-          {{ t("dashboard.admin.billing.units.price", { price: unit.priceMinorUnitsPerBatch, currency: unit.currency, batch: unit.batchSize }) }}
-        </span>
-      </li>
-    </ul>
+    <RowGroup>
+      <SummaryRow
+        v-for="unit in rows"
+        :key="unit.id"
+        data-unit-row
+        :title="unit.unitKey"
+        :detail="
+          t('dashboard.admin.billing.units.price', {
+            price: unit.priceMinorUnitsPerBatch,
+            currency: unit.currency,
+            batch: unit.batchSize,
+          })
+        "
+      />
+    </RowGroup>
   </PanelCard>
   <FormDialog
     v-model:open="open"

@@ -30,7 +30,9 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -214,43 +216,52 @@ async function submit(): Promise<void> {
       :error-text="$t('dashboard.admin.dataRequests.list.error')"
       @retry="requests.refetch()"
     >
-      <ul class="divide-y divide-border">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in requests.data.value ?? []"
           :key="row.id"
           data-request-row
-          class="flex flex-wrap items-center gap-3 px-2 py-3"
+          wrap
+          :title="$t(`dashboard.admin.dataRequests.type.${row.requestType}`)"
         >
-          <div class="min-w-0 flex-1">
-            <span class="flex flex-wrap gap-x-3 text-sm font-medium">
+          <template #title>
+            <span class="flex flex-wrap gap-x-3">
               <span>{{ $t(`dashboard.admin.dataRequests.type.${row.requestType}`) }}</span>
               <span>{{
                 $t("dashboard.admin.dataRequests.list.subject", { hash: hashOf(row) })
               }}</span>
             </span>
-            <span class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          </template>
+          <template #meta>
+            <span class="flex flex-wrap gap-x-3">
               <span>{{ requesterOf(row) }}</span>
               <span>{{ rowsOf(row) }}</span>
               <span>{{
                 $t("dashboard.admin.dataRequests.list.requested", { when: when(row.requestedAt) })
               }}</span>
             </span>
-            <span v-if="row.failureReason" class="block text-xs text-destructive">{{
+            <span v-if="row.failureReason" class="block text-destructive">{{
               row.failureReason
             }}</span>
-          </div>
-          <StatusBadge
-            :tone="row.status === 'failed' ? 'bad' : 'off'"
-            :label="$t(statusLabelKey(row.status))"
-          />
-          <Button
+          </template>
+          <template #end>
+            <StatusBadge
+              :tone="row.status === 'failed' ? 'bad' : 'off'"
+              :label="$t(statusLabelKey(row.status))"
+            />
+          </template>
+          <template
             v-if="row.status === 'failed' && row.requestType === 'erasure' && can('compliance:erasure')"
-            variant="outline"
-            data-retry
-            @click="openRetry(row)"
-          >{{ $t("dashboard.admin.dataRequests.retry.action") }}</Button>
-        </li>
-      </ul>
+            #trailing
+          >
+            <Button
+              variant="outline"
+              data-retry
+              @click="openRetry(row)"
+            >{{ $t("dashboard.admin.dataRequests.retry.action") }}</Button>
+          </template>
+        </SummaryRow>
+      </RowGroup>
     </PanelCard>
 
     <FormDialog

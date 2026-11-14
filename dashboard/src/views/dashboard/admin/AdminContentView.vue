@@ -31,6 +31,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -234,9 +235,7 @@ async function submit(): Promise<void> {
               {{ $t("dashboard.admin.content.kindKey", { kind: row.kind, key: row.key }) }}
             </span>
           </button>
-          <Badge v-if="row.retiredAt" variant="outline">{{
-            $t("dashboard.admin.content.retired")
-          }}</Badge>
+          <StatusBadge v-if="row.retiredAt" tone="off" :label="$t('dashboard.admin.content.retired')" />
           <span v-else class="text-xs text-muted-foreground">
             {{ $t("dashboard.admin.content.version", { version: Number(row.currentVersion ?? 0) }) }}
           </span>

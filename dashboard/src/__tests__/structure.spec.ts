@@ -1244,10 +1244,8 @@ const rawSearchInputAllowlist = [
 
 const handDeleteButton = /~icons\/nnz\/(?:trash|delete)/;
 // Each entry was reviewed on its own (Aaoa's layout todo): none is a list page's row delete, so RowEditDelete and
-// EditorFooter do not fit. The escalation ladder moved to RowEditDelete and left.
+// EditorFooter do not fit. The escalation ladder and the feature flag overrides moved to RowEditDelete and left.
 const handDeleteButtonAllowlist = [
-  // The feature flag override delete moves to RowEditDelete together with the status badges of that page.
-  'views/dashboard/admin/AdminFeatureFlagsView.vue',
   // The "Erase" text button in the tenant action bar: a destructive tenant action, not an icon-only row delete.
   'views/dashboard/admin/components/TenantActions.vue',
   // One of the decision actions (skip, move, remove) on a media share queue item that only lives in the queue.

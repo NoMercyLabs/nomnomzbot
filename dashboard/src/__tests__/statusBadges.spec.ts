@@ -15,15 +15,11 @@ import { describe, expect, it } from 'vitest';
 
 // A status is a StatusBadge: a dot plus words, with one of five tones. A view never picks a Badge variant from a
 // state (:variant="state === ..."), because that draws a tinted pill and a second status look. A file below keeps
-// a bound variant for one stated reason; the list only shrinks.
-const stateBadge = /<Badge\b[^>]*\s:variant=/;
+// a bound variant for one stated reason; the list only shrinks. A Badge tagged as a state (data-state, data-status,
+// data-ended...) with a fixed variant is the same local decision, so the guard reads that tag too.
+const stateBadge = /<Badge\b[^>]*(?:\s:variant=|\sdata-[a-z-]*(?:state|status|overall|exhausted|ended|retired|inactive)\b)/;
 
-const laneC = 'admin form in the lane C area; it moves onto StatusBadge when lane C lands';
-
-const allowlist = {
-  'views/dashboard/admin/AdminFeatureFlagsView.vue': laneC,
-  'views/dashboard/admin/AdminSystemView.vue': laneC,
-} as const satisfies Record<string, string>;
+const allowlist = {} as const satisfies Record<string, string>;
 
 const src = join(__dirname, '..');
 
@@ -54,7 +50,9 @@ const allowed = Object.keys(allowlist);
 describe('status badges', () => {
   it('spots a Badge whose variant is chosen from a state', () => {
     expect(stateBadge.test('<Badge :variant="failed ? \'destructive\' : \'secondary\'">')).toBe(true);
+    expect(stateBadge.test('<Badge variant="outline" data-ended>')).toBe(true);
     expect(stateBadge.test('<Badge variant="outline">')).toBe(false);
+    expect(stateBadge.test('<Badge variant="secondary" data-invite-tier>')).toBe(false);
     expect(stateBadge.test('<StatusBadge :tone="tone(row.status)" :label="row.status" />')).toBe(false);
   });
 
