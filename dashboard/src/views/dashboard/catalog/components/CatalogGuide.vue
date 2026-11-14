@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import type { PanelState } from '@/composables/usePanelState';
+import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 import { merge } from '@/lib/array';
 import ChevronDown from '~icons/nnz/chevron-down';
 
@@ -110,6 +111,15 @@ const listState = computed<PanelState>(() =>
   visible.value.length > 0
     ? 'ready'
     : 'empty');
+
+// The back entry is a link out of the settings, not a group of pages.
+const reviewedGroups = settingsNav
+  .filter((group) => group.key !== 'back')
+  .map((group) => ({
+    key: group.key,
+    name: group.key.replace('settings.', ''),
+    count: group.entries.length,
+  }));
 
 const edited = ref('');
 const deleted = ref('');
@@ -219,6 +229,30 @@ const deleted = ref('');
           <SummaryRow v-for="row in visible" :key="row.id" :title="`!${row.id}`" :detail="t(`dashboard.catalog.guide.filters.kind.${row.kind}`)" />
         </RowGroup>
       </ListPanel>
+    </div>
+  </section>
+
+  <section data-catalog="guide-settings" class="grid gap-4">
+    <h2 class="text-base font-semibold">{{ t('dashboard.catalog.guide.settings.title') }}</h2>
+    <p class="text-sm text-muted-foreground">{{ t('dashboard.catalog.guide.settings.source') }}</p>
+    <div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+      <PanelCard :title="t('dashboard.catalog.guide.settings.ruleHeading')" pad>
+        <ol data-catalog-contract class="grid gap-1 text-sm">
+          <li v-for="rule in ['frame', 'title', 'crumb', 'slots', 'body']" :key="rule">
+            {{ t(`dashboard.catalog.guide.settings.rule.${rule}`) }}
+          </li>
+        </ol>
+      </PanelCard>
+      <PanelCard :title="t('dashboard.catalog.guide.settings.reviewHeading')" pad>
+        <p class="mb-2 text-sm text-muted-foreground">{{ t('dashboard.catalog.guide.settings.reviewNote') }}</p>
+        <ul data-catalog-review class="grid gap-2 text-sm">
+          <li v-for="group in reviewedGroups" :key="group.key" :data-count="group.count">
+            <span class="font-medium">{{ t(`frame.group.${group.key}`) }}</span>
+            <Badge variant="secondary" class="ml-2">{{ t('dashboard.catalog.guide.settings.entries', { count: group.count }) }}</Badge>
+            <span class="block text-muted-foreground">{{ t(`dashboard.catalog.guide.settings.review.${group.name}`) }}</span>
+          </li>
+        </ul>
+      </PanelCard>
     </div>
   </section>
 </template>

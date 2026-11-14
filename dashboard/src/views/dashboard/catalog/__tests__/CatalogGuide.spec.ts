@@ -18,6 +18,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
+import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 
 import CatalogGuide from '../components/CatalogGuide.vue';
 import en from '../i18n/en.json';
@@ -142,5 +143,37 @@ describe('the advanced filter recipe', () => {
 
     expect(demo.text()).toContain(en.dashboard.catalog.guide.filters.noMatch);
     expect(demo.find('[data-slot="panel-empty"]').exists()).toBe(true);
+  });
+});
+
+describe('the settings authoring contract and the sidebar review', () => {
+  it('lists the five contract rules, naming the frame, the route title and the slots', async () => {
+    const wrapper = await open();
+    const rules = wrapper.findAll('[data-catalog="guide-settings"] [data-catalog-contract] li');
+    const words = en.dashboard.catalog.guide.settings.rule;
+
+    expect(rules).toHaveLength(5);
+    const texts = rules.map((rule) => rule.text());
+
+    expect(texts).toEqual([words.frame, words.title, words.crumb, words.slots, words.body]);
+    expect(rules[3]?.text()).toContain('tabs');
+    expect(rules[3]?.text()).toContain('panel');
+  });
+
+  it('reviews every settings sidebar group with its entry count and a reason', async () => {
+    const wrapper = await open();
+    const rows = wrapper.findAll('[data-catalog="guide-settings"] [data-catalog-review] li');
+    const groups = settingsNav.filter((group) => group.key !== 'back');
+
+    expect(rows).toHaveLength(groups.length);
+
+    for (const [index, group] of groups.entries()) {
+      expect(rows[index]?.text()).toContain(String(group.entries.length));
+      expect(rows[index]?.text()).toContain(i18n.global.t(`frame.group.${group.key}`));
+    }
+
+    const counted = rows.reduce((sum, row) => sum + Number(row.attributes('data-count')), 0);
+
+    expect(counted).toBe(28);
   });
 });

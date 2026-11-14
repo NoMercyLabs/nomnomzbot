@@ -33,6 +33,7 @@ const blank = defineComponent({ render: () => h('div') });
 async function open(
   props: Record<string, unknown>,
   withActions: boolean,
+  extraSlots: Record<string, () => ReturnType<typeof h>> = {},
 ): Promise<void> {
   vi.stubGlobal(
     'ResizeObserver',
@@ -67,6 +68,7 @@ async function open(
     ...(withActions
       ? { actions: () => h('button', { 'data-test': 'save' }, 'Save') }
       : {}),
+    ...extraSlots,
   };
 
   mounted = mount(SettingsPageFrame, {
@@ -109,6 +111,26 @@ describe('SettingsPageFrame', () => {
 
     expect(q('[data-slot=page-body]')).toBeNull();
     expect(q('[data-test=content]')?.textContent).toBe('Body content');
+  });
+
+  it('puts the tabs slot in the header bar, above the body', async () => {
+    await open({}, false, { tabs: () => h('nav', { 'data-test': 'tabs' }, 'Tabs') });
+
+    expect(q('header [data-slot=page-bar] [data-test=tabs]')?.textContent).toBe('Tabs');
+    expect(q('[data-slot=page-body] [data-test=tabs]')).toBeNull();
+  });
+
+  it('puts the panel slot beside the page body, in the one panel-beside row', async () => {
+    await open({}, false, { panel: () => h('aside', { 'data-test': 'panel' }, 'Side') });
+
+    expect(q('[data-slot=panel-beside] [data-slot=page-body] [data-test=content]')?.textContent).toBe('Body content');
+    expect(q('[data-slot=panel-beside] [data-test=panel]')?.textContent).toBe('Side');
+  });
+
+  it('draws no panel row when the page has no panel slot', async () => {
+    await open({}, false);
+
+    expect(q('[data-slot=panel-beside]')).toBeNull();
   });
 
   it('keeps the body scrolling unless the page is dense', async () => {

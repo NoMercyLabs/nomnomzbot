@@ -110,6 +110,6 @@ describe('the catalog guide tab', () => {
       .findAll('[data-catalog]')
       .map((section) => section.attributes('data-catalog'));
 
-    expect(drawn).toEqual(['guide-tiers', 'guide-actions', 'guide-filters']);
+    expect(drawn).toEqual(['guide-tiers', 'guide-actions', 'guide-filters', 'guide-settings']);
   });
 });

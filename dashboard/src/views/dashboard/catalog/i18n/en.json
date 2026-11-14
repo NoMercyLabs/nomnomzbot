@@ -217,6 +217,29 @@
             "any": "Any time",
             "week": "This week"
           }
+        },
+        "settings": {
+          "title": "Settings pages: the authoring contract",
+          "source": "SettingsPageFrame.vue in src/views/dashboard/settings/components, the route meta in settings/route.ts and the sidebar in src/layouts/dashboard/settingsNavigation.ts.",
+          "rule": {
+            "frame": "1. Every settings page opens with SettingsPageFrame. A page never builds its own PageHeader or PageBody.",
+            "title": "2. The title is the titleKey of the page's route meta, and it equals the sidebar word. A page sets title only when the text is computed.",
+            "crumb": "3. The crumb reads Settings. A page in a named sidebar group passes that group's word as crumb.",
+            "slots": "4. The named slots are actions (header buttons), status and meta (header text), tabs and bar (the header bar) and panel (a panel beside the body).",
+            "body": "5. A list with a detail, or a board, sets body=\"none\" and draws its own approved body in the default slot."
+          },
+          "ruleHeading": "The contract",
+          "reviewHeading": "Sidebar review",
+          "reviewNote": "Reviewed with 28 destinations in 6 groups. All six groups are kept: each group answers one question, and a seventh group would leave one with fewer than three pages.",
+          "entries": "{count} pages",
+          "review": {
+            "you": "Kept. One personal page, apart from the channel settings.",
+            "bot": "Kept. Everything that changes how the bot talks and behaves.",
+            "connections": "Kept. Every account and platform the bot links to.",
+            "developers": "Kept. The three machine-facing doors: keys, webhooks and feeds.",
+            "access": "Kept. The largest group, ten pages, with one question: who may do what, and what is blocked. Each page has its own icon, so the list stays scannable.",
+            "account": "Kept. The plan, the limits, the person's data and the channel itself."
+          }
         }
       },
       "primary": "Save changes",

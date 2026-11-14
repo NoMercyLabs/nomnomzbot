@@ -217,6 +217,29 @@
             "any": "Altijd",
             "week": "Deze week"
           }
+        },
+        "settings": {
+          "title": "Instellingenpagina's: het opbouwcontract",
+          "source": "SettingsPageFrame.vue in src/views/dashboard/settings/components, de route-meta in settings/route.ts en de zijbalk in src/layouts/dashboard/settingsNavigation.ts.",
+          "rule": {
+            "frame": "1. Elke instellingenpagina opent met SettingsPageFrame. Een pagina bouwt nooit een eigen PageHeader of PageBody.",
+            "title": "2. De titel is de titleKey in de route-meta van de pagina en gelijk aan het woord in de zijbalk. Een pagina zet title alleen als de tekst wordt berekend.",
+            "crumb": "3. De kruimel is Instellingen. Een pagina in een benoemde zijbalkgroep geeft het woord van die groep als kruimel.",
+            "slots": "4. De benoemde slots zijn actions (knoppen in de kop), status en meta (tekst in de kop), tabs en bar (de kopbalk) en panel (een paneel naast de inhoud).",
+            "body": "5. Een lijst met detail of een bord zet body=\"none\" en tekent zijn eigen goedgekeurde inhoud in het standaardslot."
+          },
+          "ruleHeading": "Het contract",
+          "reviewHeading": "Zijbalk beoordeeld",
+          "reviewNote": "Beoordeeld met 28 bestemmingen in 6 groepen. Alle zes groepen blijven: elke groep beantwoordt één vraag en een zevende groep laat er één met minder dan drie pagina's over.",
+          "entries": "{count} pagina's",
+          "review": {
+            "you": "Blijft. Eén persoonlijke pagina, los van de kanaalinstellingen.",
+            "bot": "Blijft. Alles wat verandert hoe de bot praat en zich gedraagt.",
+            "connections": "Blijft. Elk account en elk platform waaraan de bot koppelt.",
+            "developers": "Blijft. De drie deuren voor machines: sleutels, webhooks en feeds.",
+            "access": "Blijft. De grootste groep, tien pagina's, met één vraag: wie mag wat en wat is geblokkeerd. Elke pagina heeft een eigen pictogram, zodat de lijst scanbaar blijft.",
+            "account": "Blijft. Het abonnement, de limieten, de gegevens van de persoon en het kanaal zelf."
+          }
         }
       },
       "primary": "Wijzigingen opslaan",

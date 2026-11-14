@@ -37,7 +37,7 @@ const { tabs, view } = useTabbedPage(VIEWS, specs);
 
 <template>
   <SettingsPageFrame>
-    <template #bar>
+    <template #tabs>
       <PageTabs :tabs="tabs" />
     </template>
 

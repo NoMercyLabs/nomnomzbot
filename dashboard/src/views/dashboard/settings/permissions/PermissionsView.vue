@@ -82,7 +82,7 @@ const areaOpen = computed<boolean>(() => pane.id.value !== null);
 
 <template>
   <SettingsPageFrame :body="view === 'actions' ? 'none' : undefined">
-    <template #bar><PageTabs :tabs="tabs" /></template>
+    <template #tabs><PageTabs :tabs="tabs" /></template>
 
     <ListDetail v-if="view === 'actions'" data-view="permissions" :show-detail="areaOpen">
       <template #list>
