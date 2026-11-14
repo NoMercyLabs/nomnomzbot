@@ -226,6 +226,17 @@ describe('the invite page, with a code that cannot be used', () => {
     expect(wrapper.find('[data-action="redeem"]').exists()).toBe(false);
     expect(control(wrapper, '[data-action="home"]').attributes('href')).toBe('/');
   });
+
+  it('draws the way home as the primary action, like the page-not-found card', async () => {
+    invite = unusable;
+    const wrapper = await open('NOPE', false);
+
+    const classes = control(wrapper, '[data-action="home"]').classes();
+
+    // The pill shape and ink color belong to the default button variant; the outline variant is rounded-[12px].
+    expect(classes).toContain('font-extrabold');
+    expect(classes).not.toContain('rounded-[12px]');
+  });
 });
 
 describe('the invite page, signed in', () => {

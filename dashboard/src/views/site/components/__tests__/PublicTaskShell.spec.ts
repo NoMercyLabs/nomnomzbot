@@ -52,6 +52,14 @@ describe('the public task shell', () => {
     expect(wrapper.find('h1').text()).toBe('Sign in');
   });
 
+  it('draws the task title larger than the brand link', async () => {
+    const wrapper = await mountShell({ default: '<h1>Sign in</h1>' });
+    const column = wrapper.get('[data-slot="task-column"]');
+
+    expect(wrapper.get('[data-slot="task-brand"]').classes()).toContain('text-base');
+    expect(column.classes()).toContain('[&_h1]:text-xl');
+  });
+
   it('puts the card in the max-w-100 column and the below slot under it', async () => {
     const wrapper = await mountShell({
       default: '<section id="card">Card</section>',

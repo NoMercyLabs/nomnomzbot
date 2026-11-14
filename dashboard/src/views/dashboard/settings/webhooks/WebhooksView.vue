@@ -296,7 +296,7 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <SettingsPageFrame body="none" :crumb="$t('dashboard.settings.webhooks.crumb')">
+  <SettingsPageFrame body="none" :crumb="$t('frame.group.settings.developers')">
     <PanelBeside>
       <PageBody>
         <PanelCard

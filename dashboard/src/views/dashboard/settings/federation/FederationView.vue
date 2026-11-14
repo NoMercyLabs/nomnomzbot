@@ -116,7 +116,7 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
 </script>
 
 <template>
-  <SettingsPageFrame>
+  <SettingsPageFrame :crumb="$t('frame.group.settings.connections')">
     <PanelCard
       data-view="federation"
       tier="lead"

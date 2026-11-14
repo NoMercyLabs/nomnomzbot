@@ -103,7 +103,7 @@ function detailOf(key: SupporterSourceKey, stored: SupporterConnection | undefin
 </script>
 
 <template>
-  <PageHeader :title="t('dashboard.supporters.sources.title')" />
+  <PageHeader :title="t('dashboard.supporters.sources.title')" :crumb="t('frame.group.settings.connections')" />
   <PageBody>
     <PanelCard
       tier="lead"

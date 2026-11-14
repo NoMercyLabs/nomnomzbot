@@ -50,7 +50,7 @@ withDefaults(
     <div
       data-slot="task-column"
       :class="cn(
-        'flex w-full flex-col items-center gap-6',
+        'flex w-full flex-col items-center gap-6 [&_h1]:text-xl',
         width === 'wizard' ? 'max-w-xl' : 'max-w-100',
       )"
     >

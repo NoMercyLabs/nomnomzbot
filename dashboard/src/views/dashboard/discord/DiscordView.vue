@@ -173,7 +173,7 @@ function ruleSummary(rule: DiscordRule | null): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <PageHeader :title="t('dashboard.discord.title')" />
+    <PageHeader :title="t('dashboard.discord.title')" :crumb="t('frame.group.settings.connections')" />
 
     <PageBody>
       <PanelCard

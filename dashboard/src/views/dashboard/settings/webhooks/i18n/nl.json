@@ -2,7 +2,6 @@
   "dashboard": {
     "settings": {
       "webhooks": {
-        "crumb": "Inrichting",
         "outbound": {
           "title": "Uitgaande webhooks",
           "description": "Stuur de events van je kanaal naar een adres dat jij beheert, zoals een eigen server of een automatiseringsdienst.",

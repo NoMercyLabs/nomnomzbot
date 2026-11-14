@@ -111,7 +111,7 @@ function signIn(): void {
         </TaskActions>
       </template>
       <TaskActions v-else>
-        <Button as-child variant="outline">
+        <Button as-child>
           <RouterLink to="/" data-action="home">{{ $t('site.invite.home') }}</RouterLink>
         </Button>
       </TaskActions>

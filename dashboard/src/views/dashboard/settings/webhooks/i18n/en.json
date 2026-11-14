@@ -2,7 +2,6 @@
   "dashboard": {
     "settings": {
       "webhooks": {
-        "crumb": "Setup",
         "outbound": {
           "title": "Outbound webhooks",
           "description": "Post your channel's events to an address you control, such as a home server or an automation service.",

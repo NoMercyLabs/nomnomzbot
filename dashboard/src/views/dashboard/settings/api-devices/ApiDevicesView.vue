@@ -126,7 +126,7 @@ async function confirmRevoke(): Promise<void> {
 </script>
 
 <template>
-  <SettingsPageFrame>
+  <SettingsPageFrame :crumb="$t('frame.group.settings.developers')">
     <div data-view="api-devices" class="grid gap-4">
       <PanelCard
         data-panel="tokens"
