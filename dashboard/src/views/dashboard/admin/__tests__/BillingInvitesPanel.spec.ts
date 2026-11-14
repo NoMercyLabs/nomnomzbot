@@ -321,6 +321,19 @@ describe('BillingInvitesPanel', () => {
     expect(rowText('v2')).not.toContain('Expires');
   });
 
+  it('lists each invite as a SummaryRow inside a RowGroup, the code as title and copy and revoke trailing', async () => {
+    await open();
+
+    const row = hook('[data-invite-row="v2"]');
+    const trailing = row.querySelector('[data-slot="summary-row-trailing"]')!;
+
+    expect(row.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('FRIENDS');
+    expect(trailing.querySelector('[data-copy-link]')).not.toBeNull();
+    expect(trailing.querySelector('[data-invite-revoke]')).not.toBeNull();
+    expect(row.parentElement!.className).toContain('rounded-[12px]');
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
+  });
+
   it('copies the share link of one invite row', async () => {
     await open();
 

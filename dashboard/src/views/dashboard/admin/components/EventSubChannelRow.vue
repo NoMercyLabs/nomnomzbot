@@ -18,7 +18,9 @@ import type {
   AdminEventSubTopicHealth,
 } from '@/api/adminActivity';
 import DateTime from '@/components/layout/DateTime.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { humanize } from '@/lib/text';
 import ChevronDown from '~icons/nnz/chevron-down';
@@ -77,29 +79,26 @@ const needsSignIn = computed(() =>
       </CollapsibleTrigger>
     </div>
     <CollapsibleContent>
-      <ul class="mt-3 divide-y divide-border rounded-md border border-border">
-        <li class="flex items-center gap-4 px-3 py-2 text-xs text-muted-foreground max-md:hidden">
-          <span class="min-w-0 flex-1">{{ $t('dashboard.admin.eventsubHealth.columns.topic') }}</span>
-          <span class="w-32 shrink-0">{{ $t('dashboard.admin.eventsubHealth.columns.state') }}</span>
-          <span class="w-28 shrink-0">{{ $t('dashboard.admin.eventsubHealth.columns.confirmed') }}</span>
-          <span class="w-56 shrink-0">{{ $t('dashboard.admin.eventsubHealth.columns.error') }}</span>
-        </li>
-        <li
+      <RowGroup class="mt-3">
+        <SummaryRow
           v-for="topic in topics"
           :key="topic.subscriptionId"
           data-topic-row
-          class="flex items-center gap-4 px-3 py-2 text-sm max-md:flex-wrap max-md:gap-y-1"
+          wrap
+          :title="humanize(topic.eventType)"
         >
-          <span class="min-w-0 flex-1 max-md:basis-full">{{ humanize(topic.eventType) }}</span>
-          <span class="shrink-0 md:w-32">
+          <template #meta>
+            <span class="flex flex-wrap gap-x-1">
+              <span>{{ $t('dashboard.admin.eventsubHealth.columns.confirmed') }}</span>
+              <DateTime :value="topic.lastConfirmedAt" variant="date" />
+            </span>
+            <span v-if="topic.lastError" data-topic-error class="block">{{ topic.lastError }}</span>
+          </template>
+          <template #end>
             <StatusBadge :tone="isBroken(topic) ? 'bad' : 'ok'" :label="humanize(topic.status)" />
-          </span>
-          <span class="shrink-0 text-muted-foreground md:w-28">
-            <DateTime :value="topic.lastConfirmedAt" variant="date" />
-          </span>
-          <span class="min-w-0 text-muted-foreground max-md:basis-full max-md:empty:hidden md:w-56 md:shrink-0">{{ topic.lastError }}</span>
-        </li>
-      </ul>
+          </template>
+        </SummaryRow>
+      </RowGroup>
     </CollapsibleContent>
   </Collapsible>
 </template>

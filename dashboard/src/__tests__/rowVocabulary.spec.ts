@@ -22,15 +22,10 @@ const handRow = /min-h-11[^"]*\bitems-center\b|rounded-\[8px\][^"]*\bpx-3 py-2\b
 const domainRow = 'a domain row that owns behavior (links, selection, its own actions)';
 const formRow = 'a form row with an inline error or a field next to its label';
 const helpOnly = 'a help-only row with no title copy';
-const laneC = 'admin form or list in the lane C area; it moves when lane C lands';
 
 const allowlist = {
-  'views/dashboard/admin/components/BillingInvitesPanel.vue': laneC,
-  'views/dashboard/admin/components/EventSubChannelRow.vue': laneC,
-  'views/dashboard/admin/components/PlatformActionDefaults.vue': laneC,
-  'views/dashboard/admin/components/PlatformBuiltinReplyDefaults.vue': laneC,
-  'views/dashboard/admin/components/PlatformEventResponseDefaults.vue': laneC,
-  'views/dashboard/admin/components/RunStepTimeline.vue': laneC,
+  'views/dashboard/admin/components/RunStepTimeline.vue':
+    'a run timeline: host calls nest in a step card, where a 12px RowGroup breaks concentric radius',
   'views/dashboard/admin/components/TenantsTable.vue': domainRow,
   'views/dashboard/channel-points/components/RedemptionsPanel.vue': domainRow,
   'views/dashboard/event-responses/components/DefaultLineList.vue': domainRow,

@@ -25,7 +25,9 @@ import { rungNames, rungOf, rungs as ladder } from '@/api/permissions';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { merge } from '@/lib/array';
@@ -158,49 +160,52 @@ function apply(): void {
     :error-text="listError"
     @retry="actions.refetch()"
   >
-    <ul class="divide-y divide-border">
-      <li
-        v-for="row in actions.data.value ?? []"
-        :key="row.actionKey"
-        :data-action="row.actionKey"
-        class="flex items-center gap-4 px-4 py-3"
+    <RowGroup>
+      <div v-for="row in actions.data.value ?? []"
+           :key="row.actionKey"
+           :data-action="row.actionKey"
       >
-        <div class="min-w-0 flex-1">
-          <p class="flex flex-wrap items-center gap-2 text-sm font-medium">
-            {{ nameOf(row) }}
+        <SummaryRow
+          wrap
+          :title="nameOf(row)"
+          :detail="row.description && row.description !== nameOf(row) ? row.description : undefined"
+        >
+          <template #meta>
+            <span data-detail class="flex flex-col">
+              <span>{{
+                $t("dashboard.admin.platformDefaults.actions.shipped", {
+                  role: levelName(row.shippedDefaultLevel),
+                })
+              }}</span>
+              <span>{{
+                $t(
+                  "dashboard.admin.platformDefaults.actions.overrides",
+                  Number(row.channelOverrideCount),
+                )
+              }}</span>
+            </span>
+          </template>
+          <template #end>
             <StatusBadge
               v-if="row.platformDefaultLevel !== null && row.platformDefaultLevel !== undefined"
               data-changed
               tone="live"
               :label="$t('dashboard.admin.platformDefaults.actions.changed')"
             />
-          </p>
-          <p v-if="row.description && row.description !== nameOf(row)" class="text-sm text-muted-foreground">{{ row.description }}</p>
-          <p data-detail class="flex flex-col text-xs text-muted-foreground">
-            <span>{{
-              $t("dashboard.admin.platformDefaults.actions.shipped", {
-                role: levelName(row.shippedDefaultLevel),
-              })
-            }}</span>
-            <span>{{
-              $t(
-                "dashboard.admin.platformDefaults.actions.overrides",
-                Number(row.channelOverrideCount),
-              )
-            }}</span>
-          </p>
-        </div>
-        <span class="text-sm font-medium">{{ levelName(row.effectiveDefaultLevel) }}</span>
-        <Button v-if="can('platform:defaults:manage')"
-                variant="outline"
-                size="sm"
-                data-edit
-                @click="startEdit(row)"
-        >
-          {{ $t("dashboard.admin.platformDefaults.actions.edit") }}
-        </Button>
-      </li>
-    </ul>
+            <span class="text-sm font-medium">{{ levelName(row.effectiveDefaultLevel) }}</span>
+          </template>
+          <template v-if="can('platform:defaults:manage')" #trailing>
+            <Button variant="outline"
+                    size="sm"
+                    data-edit
+                    @click="startEdit(row)"
+            >
+              {{ $t("dashboard.admin.platformDefaults.actions.edit") }}
+            </Button>
+          </template>
+        </SummaryRow>
+      </div>
+    </RowGroup>
   </PanelCard>
 
   <FormDialog

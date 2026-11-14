@@ -27,7 +27,9 @@ import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -213,49 +215,51 @@ async function confirmRevoke(): Promise<void> {
         {{ t("dashboard.admin.billing.invites.new") }}
       </Button>
     </template>
-    <ul class="grid divide-y divide-border text-sm">
-      <li v-for="invite in rows"
-          :key="invite.id"
-          :data-invite-row="invite.id"
-          class="flex flex-wrap items-center gap-3 p-2"
-      >
-        <code class="font-mono" :class="{ 'text-muted-foreground line-through': isEnded(invite) }">{{ invite.code }}</code>
-        <span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
-          <template v-if="grantedTier(invite)">
-            <Badge variant="secondary" data-invite-tier>{{ grantedTier(invite) }}</Badge>
-            <span data-invite-length>{{ lengthText(invite) }}</span>
+    <RowGroup>
+      <div v-for="invite in rows" :key="invite.id" :data-invite-row="invite.id">
+        <SummaryRow wrap :title="invite.code">
+          <template #title>
+            <code class="font-mono" :class="{ 'text-muted-foreground line-through': isEnded(invite) }">{{ invite.code }}</code>
           </template>
-          <Badge v-if="invite.grantsFoundersBadge" variant="secondary">
-            {{ t("dashboard.admin.billing.invites.founder") }}
-          </Badge>
-          <span class="tabular-nums">
-            {{ t('dashboard.admin.billing.invites.redemptions', { used: invite.redemptionCount, max: invite.maxRedemptions }) }}
-          </span>
-          <StatusBadge
-            v-if="isEnded(invite)"
-            data-invite-ended
-            tone="off"
-            :label="t('dashboard.admin.billing.invites.ended')"
-          />
-          <template v-else>
-            <span data-invite-left class="tabular-nums">{{ usesLeft(invite) }}</span>
-            <span v-if="invite.expiresAt" data-invite-expires-at>
-              {{ t('dashboard.admin.billing.invites.expires', { date: time.date(invite.expiresAt) }) }}
+          <template #meta>
+            <span class="flex flex-wrap gap-x-3 gap-y-1">
+              <span v-if="grantedTier(invite)" data-invite-length>{{ lengthText(invite) }}</span>
+              <span class="tabular-nums">
+                {{ t('dashboard.admin.billing.invites.redemptions', { used: invite.redemptionCount, max: invite.maxRedemptions }) }}
+              </span>
+              <template v-if="!isEnded(invite)">
+                <span data-invite-left class="tabular-nums">{{ usesLeft(invite) }}</span>
+                <span v-if="invite.expiresAt" data-invite-expires-at>
+                  {{ t('dashboard.admin.billing.invites.expires', { date: time.date(invite.expiresAt) }) }}
+                </span>
+              </template>
             </span>
           </template>
-        </span>
-        <template v-if="!isEnded(invite)">
-          <CopyLinkButton :url="inviteLink(invite.code)" :label="t('dashboard.admin.billing.invites.copy')" />
-          <Button v-if="can('billing:write')"
-                  variant="ghost"
-                  data-invite-revoke
-                  @click="revoking = invite"
-          >
-            {{ t("dashboard.admin.billing.invites.revoke") }}
-          </Button>
-        </template>
-      </li>
-    </ul>
+          <template #end>
+            <Badge v-if="grantedTier(invite)" variant="secondary" data-invite-tier>{{ grantedTier(invite) }}</Badge>
+            <Badge v-if="invite.grantsFoundersBadge" variant="secondary">
+              {{ t("dashboard.admin.billing.invites.founder") }}
+            </Badge>
+            <StatusBadge
+              v-if="isEnded(invite)"
+              data-invite-ended
+              tone="off"
+              :label="t('dashboard.admin.billing.invites.ended')"
+            />
+          </template>
+          <template v-if="!isEnded(invite)" #trailing>
+            <CopyLinkButton :url="inviteLink(invite.code)" :label="t('dashboard.admin.billing.invites.copy')" />
+            <Button v-if="can('billing:write')"
+                    variant="ghost"
+                    data-invite-revoke
+                    @click="revoking = invite"
+            >
+              {{ t("dashboard.admin.billing.invites.revoke") }}
+            </Button>
+          </template>
+        </SummaryRow>
+      </div>
+    </RowGroup>
   </PanelCard>
   <FormDialog
     v-if="can('billing:write')"

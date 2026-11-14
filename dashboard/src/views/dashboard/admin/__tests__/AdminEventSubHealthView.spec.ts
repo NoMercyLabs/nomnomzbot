@@ -213,6 +213,21 @@ describe('AdminEventSubHealthView', () => {
     expect(topicRows()[1]!.textContent).toContain('Oct 1, 2026');
   });
 
+  it('lists the topics as SummaryRows inside a RowGroup, the topic as title and its state at the end', async () => {
+    await open();
+    byToggle(0)!.click();
+    await settle();
+
+    const first = topicRows()[0]!;
+
+    expect(first.dataset.slot).toBe('summary-row-body');
+    expect(first.querySelector('[data-slot="summary-row-title"]')!.textContent).toBe('Channel raid');
+    expect(first.querySelector('[data-slot="summary-row-meta"]')!.textContent).toContain('token gone');
+    expect(first.querySelector('[data-tone="bad"]')).not.toBeNull();
+    expect(first.closest('.rounded-\\[12px\\]')).not.toBeNull();
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
+  });
+
   it('shows no raw topic key, version, mono text or empty-error word in the details', async () => {
     await open();
     byToggle(0)!.click();

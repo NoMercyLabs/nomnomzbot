@@ -25,7 +25,9 @@ import {
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
@@ -130,46 +132,46 @@ function apply(): void {
     :error-text="listError"
     @retry="events.refetch()"
   >
-    <ul class="divide-y divide-border">
-      <li
-        v-for="row in events.data.value ?? []"
-        :key="row.eventType"
-        :data-event="row.eventType"
-        class="flex items-center gap-4 px-4 py-3"
-      >
-        <div class="min-w-0 flex-1">
-          <p class="flex flex-wrap items-center gap-2 text-sm font-medium">
+    <RowGroup>
+      <div v-for="row in events.data.value ?? []" :key="row.eventType" :data-event="row.eventType">
+        <SummaryRow wrap :title="row.eventType">
+          <template #title>
             <code class="text-xs">{{ row.eventType }}</code>
+          </template>
+          <template #meta>
+            <span v-if="row.message" class="block wrap-break-word text-sm text-foreground">{{ row.message }}</span>
+            <span class="flex flex-wrap gap-x-3">
+              <span>{{
+                $t("dashboard.admin.platformDefaults.events.following", Number(row.channelsFollowing))
+              }}</span>
+              <span>{{
+                $t(
+                  "dashboard.admin.platformDefaults.events.overrides",
+                  Number(row.channelsWithOwnResponse),
+                )
+              }}</span>
+            </span>
+          </template>
+          <template #end>
             <StatusBadge
               v-if="row.isEnabled"
               data-enabled
               tone="live"
               :label="$t('dashboard.admin.platformDefaults.events.enabled')"
             />
-          </p>
-          <p v-if="row.message" class="wrap-break-word text-sm">{{ row.message }}</p>
-          <p class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-            <span>{{
-              $t("dashboard.admin.platformDefaults.events.following", Number(row.channelsFollowing))
-            }}</span>
-            <span>{{
-              $t(
-                "dashboard.admin.platformDefaults.events.overrides",
-                Number(row.channelsWithOwnResponse),
-              )
-            }}</span>
-          </p>
-        </div>
-        <Button v-if="can('platform:defaults:manage')"
-                variant="outline"
-                size="sm"
-                data-edit
-                @click="startEdit(row)"
-        >
-          {{ $t("dashboard.admin.platformDefaults.events.edit") }}
-        </Button>
-      </li>
-    </ul>
+          </template>
+          <template v-if="can('platform:defaults:manage')" #trailing>
+            <Button variant="outline"
+                    size="sm"
+                    data-edit
+                    @click="startEdit(row)"
+            >
+              {{ $t("dashboard.admin.platformDefaults.events.edit") }}
+            </Button>
+          </template>
+        </SummaryRow>
+      </div>
+    </RowGroup>
   </PanelCard>
 
   <FormDialog

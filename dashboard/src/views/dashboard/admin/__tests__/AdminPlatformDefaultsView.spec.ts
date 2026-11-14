@@ -347,6 +347,24 @@ describe('AdminPlatformDefaultsView', () => {
     expect(row('timers.create').querySelector('[data-changed]')).not.toBeNull();
   });
 
+  it('lists actions, built-in replies and event responses as SummaryRows inside RowGroups, Edit trailing', async () => {
+    await open();
+
+    const rows = [row('moderation.ban'), builtinRow('lurk.start'), eventRow('channel.follow')];
+    const titles = rows.map((each) => each.querySelector('[data-slot="summary-row-title"]')?.textContent?.trim());
+
+    expect(titles[0]).toBe('Ban a viewer');
+    expect(titles[1]).toBe('lurk.start');
+    expect(titles[2]).toBe('channel.follow');
+
+    for (const each of rows) {
+      expect(each.querySelector('[data-slot="summary-row-trailing"] [data-edit]')).not.toBeNull();
+      expect(each.parentElement!.className).toContain('rounded-[12px]');
+    }
+
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
+  });
+
   it('keeps Apply off until the preview of the chosen level arrived, then sends the counted number', async () => {
     await open();
     await edit('moderation.ban');
@@ -446,7 +464,7 @@ describe('AdminPlatformDefaultsView', () => {
     await open();
 
     expect(row('moderation.ban').textContent).toContain('Ban a viewer');
-    expect(row('moderation.ban').querySelector('p')?.textContent).not.toContain('moderation.ban');
+    expect(row('moderation.ban').querySelector('[data-slot="summary-row-title"]')!.textContent).not.toContain('moderation.ban');
     expect(row('moderation.ban').querySelector('code')).toBeNull();
   });
 

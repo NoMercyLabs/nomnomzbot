@@ -23,7 +23,9 @@ import {
 } from '@/api/adminPlatformDefaults';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
@@ -139,43 +141,43 @@ function apply(): void {
     :error-text="listError"
     @retry="replies.refetch()"
   >
-    <ul class="divide-y divide-border">
-      <li
-        v-for="row in replies.data.value ?? []"
-        :key="rowKey(row)"
-        :data-builtin="rowKey(row)"
-        class="flex items-center gap-4 px-4 py-3"
-      >
-        <div class="min-w-0 flex-1">
-          <p class="flex flex-wrap items-center gap-2 text-sm font-medium">
+    <RowGroup>
+      <div v-for="row in replies.data.value ?? []" :key="rowKey(row)" :data-builtin="rowKey(row)">
+        <SummaryRow wrap :title="rowKey(row)">
+          <template #title>
             <code class="text-xs">{{ rowKey(row) }}</code>
+          </template>
+          <template #meta>
+            <span class="block wrap-break-word text-sm text-foreground">{{ effective(row) }}</span>
+            <span class="block">
+              {{
+                $t(
+                  "dashboard.admin.platformDefaults.replies.overrides",
+                  Number(row.channelsWithOwnReply),
+                )
+              }}
+            </span>
+          </template>
+          <template #end>
             <StatusBadge
               v-if="row.platformTemplate"
               data-changed
               tone="live"
               :label="$t('dashboard.admin.platformDefaults.replies.changed')"
             />
-          </p>
-          <p class="wrap-break-word text-sm">{{ effective(row) }}</p>
-          <p class="text-xs text-muted-foreground">
-            {{
-              $t(
-                "dashboard.admin.platformDefaults.replies.overrides",
-                Number(row.channelsWithOwnReply),
-              )
-            }}
-          </p>
-        </div>
-        <Button v-if="can('platform:defaults:manage')"
-                variant="outline"
-                size="sm"
-                data-edit
-                @click="startEdit(row)"
-        >
-          {{ $t("dashboard.admin.platformDefaults.replies.edit") }}
-        </Button>
-      </li>
-    </ul>
+          </template>
+          <template v-if="can('platform:defaults:manage')" #trailing>
+            <Button variant="outline"
+                    size="sm"
+                    data-edit
+                    @click="startEdit(row)"
+            >
+              {{ $t("dashboard.admin.platformDefaults.replies.edit") }}
+            </Button>
+          </template>
+        </SummaryRow>
+      </div>
+    </RowGroup>
   </PanelCard>
 
   <FormDialog
