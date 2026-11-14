@@ -21,8 +21,8 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { officialOrigin, servedOrigin, toBotOrigin } from '@/lib/botAddress';
 import { useConnectionsStore } from '@/stores/connections';
 
@@ -38,6 +38,19 @@ const checked = ref<{ origin: string; probe: BotProbe } | 'invalid' | null>(null
 
 function host(origin: string): string {
   return new URL(origin).host;
+}
+
+// A ready bot is good news, a bot that answers but is not set up is plain information, and a bot this page
+// cannot reach (or may not call from https) is an error.
+const probeTones = {
+  ready: 'success',
+  reachable: 'info',
+  unreachable: 'error',
+  mixedContent: 'error',
+} as const satisfies Record<BotProbe['state'], 'success' | 'info' | 'error'>;
+
+function probeTone(state: BotProbe['state']): 'success' | 'info' | 'error' {
+  return probeTones[state];
 }
 
 function detail(origin: string): string {
@@ -126,37 +139,33 @@ async function check(): Promise<void> {
         </SummaryRow>
       </RowGroup>
 
-      <form class="flex flex-col gap-2" @submit.prevent="check">
-        <Label for="bot-address">{{ $t('site.login.bots.address') }}</Label>
-        <div class="flex gap-2">
-          <Input
-            id="bot-address"
-            v-model="typed"
-            :placeholder="$t('site.login.bots.placeholder')"
-            autocomplete="url"
-            spellcheck="false"
-            :aria-invalid="checked === 'invalid' || undefined"
-          />
-          <Button type="submit" variant="outline" :disabled="checking || !typed.trim()">
-            {{ $t('site.login.bots.check') }}
-          </Button>
-        </div>
-        <PublicWait v-if="checking">{{ $t('site.login.bots.checking') }}</PublicWait>
-        <InlineNotice v-else-if="checked === 'invalid'" tone="error" compact>
-          {{ $t('site.login.bots.invalid') }}
-        </InlineNotice>
-        <p v-else-if="checked" class="flex items-baseline gap-2 text-sm" role="status">
-          <span
-            class="dot"
-            :class="{
-              ok: checked.probe.state === 'ready',
-              bad: checked.probe.state === 'unreachable' || checked.probe.state === 'mixedContent',
-            }"
-          />
-          <span>{{
+      <form @submit.prevent="check">
+        <Field :data-invalid="checked === 'invalid' || undefined">
+          <FieldLabel for="bot-address">{{ $t('site.login.bots.address') }}</FieldLabel>
+          <div class="flex gap-2">
+            <Input
+              id="bot-address"
+              v-model="typed"
+              :placeholder="$t('site.login.bots.placeholder')"
+              autocomplete="url"
+              spellcheck="false"
+              :aria-invalid="checked === 'invalid' || undefined"
+            />
+            <Button type="submit" variant="outline" :disabled="checking || !typed.trim()">
+              {{ $t('site.login.bots.check') }}
+            </Button>
+          </div>
+          <PublicWait v-if="checking">{{ $t('site.login.bots.checking') }}</PublicWait>
+          <FieldError v-else-if="checked === 'invalid'">{{ $t('site.login.bots.invalid') }}</FieldError>
+          <InlineNotice
+            v-else-if="checked"
+            :tone="probeTone(checked.probe.state)"
+            role="status"
+            compact
+          >{{
             $t(`site.login.bots.${checked.probe.state}`, { host: host(checked.origin) })
-          }}</span>
-        </p>
+          }}</InlineNotice>
+        </Field>
       </form>
     </div>
     <template #footer>

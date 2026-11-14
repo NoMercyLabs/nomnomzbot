@@ -18,7 +18,6 @@ import { useEditNote, type UserNote } from '@/api/people';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -85,9 +84,9 @@ function save(): void {
       />
       <FieldError v-if="textError">{{ textError }}</FieldError>
     </Field>
-    <Label class="gap-2 text-sm font-normal">
-      <Checkbox v-model="pinned" data-profile-note-edit-pin />
-      {{ $t('profile.notes.pin') }}
-    </Label>
+    <Field orientation="horizontal">
+      <Checkbox id="profile-note-edit-pin" v-model="pinned" data-profile-note-edit-pin />
+      <FieldLabel for="profile-note-edit-pin" class="font-normal">{{ $t('profile.notes.pin') }}</FieldLabel>
+    </Field>
   </FormDialog>
 </template>

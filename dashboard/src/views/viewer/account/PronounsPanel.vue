@@ -15,7 +15,7 @@ import { computed } from 'vue';
 
 import { useMyPronouns, usePronounCatalog, useSetMyPronouns } from '@/api/viewerAccount';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Label } from '@/components/ui/label';
+import { Field, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -55,8 +55,8 @@ function pickAlt(value: AcceptableValue): void {
     @retry="catalog.refetch()"
   >
     <div class="grid gap-4 sm:grid-cols-2">
-      <div class="grid gap-1.5">
-        <Label for="viewer-pronoun-primary">{{ $t('viewer.account.pronouns.primary') }}</Label>
+      <Field>
+        <FieldLabel for="viewer-pronoun-primary">{{ $t('viewer.account.pronouns.primary') }}</FieldLabel>
         <Select :model-value="primary" @update:model-value="pickPrimary">
           <SelectTrigger id="viewer-pronoun-primary" data-field-primary class="w-full">
             <SelectValue :placeholder="$t('viewer.account.pronouns.pick')" />
@@ -72,9 +72,9 @@ function pickAlt(value: AcceptableValue): void {
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
-      <div class="grid gap-1.5">
-        <Label for="viewer-pronoun-alt">{{ $t('viewer.account.pronouns.alt') }}</Label>
+      </Field>
+      <Field>
+        <FieldLabel for="viewer-pronoun-alt">{{ $t('viewer.account.pronouns.alt') }}</FieldLabel>
         <Select :model-value="alt" @update:model-value="pickAlt">
           <SelectTrigger id="viewer-pronoun-alt" data-field-alt class="w-full">
             <SelectValue :placeholder="$t('viewer.account.pronouns.pick')" />
@@ -90,7 +90,7 @@ function pickAlt(value: AcceptableValue): void {
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </Field>
     </div>
   </PanelCard>
 </template>

@@ -23,7 +23,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -188,10 +188,10 @@ function confirmDelete(): void {
           @keydown.enter.ctrl.prevent="add"
         />
         <div class="flex items-center justify-between gap-2">
-          <Label class="gap-2 text-sm font-normal">
-            <Checkbox v-model="pinned" data-profile-note-pin />
-            {{ $t('profile.notes.pin') }}
-          </Label>
+          <Field orientation="horizontal" class="w-auto">
+            <Checkbox id="profile-note-pin" v-model="pinned" data-profile-note-pin />
+            <FieldLabel for="profile-note-pin" class="font-normal">{{ $t('profile.notes.pin') }}</FieldLabel>
+          </Field>
           <Button
             data-profile-note-add
             type="button"

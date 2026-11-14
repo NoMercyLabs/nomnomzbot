@@ -17,18 +17,11 @@ import { oneOf } from '../lib/array';
 
 // Aaoa's layout audit (P2, adopt the Field system consistently): a form field is a Field with a FieldLabel,
 // a FieldInfo for its hint and a FieldError for its message. A raw <Label>, or a raw <label> that carries
-// `for` or the old `grid gap-1` wrapper, builds a second field style. The files below still do; the lane
-// that owns each moves it to Field and removes it from the list, and a clean file must leave it.
+// `for` or the old `grid gap-1` wrapper, builds a second field style. A file that still does goes on the list
+// below until its owner moves it to Field, and a clean file must leave it. The list is empty: every form is a Field.
 const src = join(__dirname, '..');
 const rawFieldLabel = /<Label\b|<label\b[^>]*(?:grid gap-1|\s:?for=)/;
-const stillRaw = [
-  // Lane A (site and viewer pages)
-  'views/site/login/components/BotChooser.vue',
-  'views/viewer/account/PronounsPanel.vue',
-  // Lane D (shared components)
-  'components/layout/profile/ProfileNoteEdit.vue',
-  'components/layout/profile/ProfileNotes.vue',
-] as const satisfies readonly string[];
+const stillRaw: readonly string[] = [];
 
 function vueSources(folder: string): string[] {
   return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
