@@ -101,7 +101,7 @@ triggers, Scripts and Event Responses to the intended list-page system.
 
 ### Edit and delete placement
 
-- [ ] Migrate entity row actions to `RowEditDelete` and editor actions to `EditorFooter` where applicable:
+- [x] Migrate entity row actions to `RowEditDelete` and editor actions to `EditorFooter` where applicable:
   - Economy Catalog
   - Economy Earning Rules
   - Economy Leaderboards
@@ -117,9 +117,9 @@ triggers, Scripts and Event Responses to the intended list-page system.
   - Sounds
   - TTS Lexicon
   - Voice Triggers
-- [ ] Review the other delete-icon allowlist entries individually. Do not migrate actions that are not entity
+- [x] Review the other delete-icon allowlist entries individually. Do not migrate actions that are not entity
       deletion, such as a chat-line action, pipeline step removal or editor-internal string removal.
-- [ ] Remove each file from the Phase 2 allowlist as it is migrated.
+- [x] Remove each file from the Phase 2 allowlist as it is migrated.
 - [x] Keep the existing “no clean file on the allowlist” tests passing.
 
 ### Acceptance criteria
@@ -142,7 +142,7 @@ Many pages rebuild their scrolling body manually. At least eleven admin screens 
 Examples include Audit, Content, Data Requests, EventSub Health, Event Replay, Scheduled Jobs, Tenant Usage,
 Error Budget, Platform Bot and Webhook Deliveries.
 
-- [ ] Define a small approved set of page-body compositions:
+- [x] Define a small approved set of page-body compositions:
   - Standard scrolling `PageBody`
   - Dense data/table body
   - `ListDetail`
@@ -179,7 +179,7 @@ same composition:
 - [x] Provide slots for filters, notices, table content and optional secondary content.
 - [x] Standardize result count in `PageHeader#status`.
 - [x] Standardize pager placement across desktop and phone.
-- [ ] Migrate the six closest admin pages first, then evaluate Tenants and Data Requests separately.
+- [x] Migrate the six closest admin pages first, then evaluate Tenants and Data Requests separately.
 
 ## P1 — actionable empty states and inline notices
 
@@ -191,7 +191,7 @@ recreate actionable empty blocks and page-level mutation messages.
   - Title
   - Description
   - Optional primary action
-- [ ] Explicitly support these meanings:
+- [x] Explicitly support these meanings:
   - No entities exist yet
   - Search has no matches
   - Current filter has no items
@@ -230,7 +230,7 @@ Scripts and Overlays are structural twins: filter tabs, tab counts, search, perm
 query-backed selection, list/detail and “no matches vs empty tab vs no entities” states.
 
 - [x] Extract a typed `useFilteredResourceList` composable.
-- [ ] Consider a small filtered-list shell only after the composable removes the behavioral duplication.
+- [x] Consider a small filtered-list shell only after the composable removes the behavioral duplication.
 - [x] Do not put domain-specific item rendering or editors into the shared abstraction.
 
 ## P2 — typed tabbed-page descriptor
@@ -275,14 +275,14 @@ admin detail panels.
 - [x] Add one `ActionRow`/`StatusActionRow` only for explanatory copy plus a trailing administrative or
       destructive action that `SummaryRow` cannot express cleanly.
 - [x] Preserve domain components when they own behavior, not merely layout.
-- [ ] Normalize status display through `StatusBadge` rather than local badge-variant decisions.
+- [x] Normalize status display through `StatusBadge` rather than local badge-variant decisions.
 
 ## P2 — adopt the Field system consistently
 
 Many forms still use raw `Label` plus `grid gap-1.5` wrappers. The existing Field primitives already cover the
 required semantics.
 
-- [ ] Standardize forms on:
+- [x] Standardize forms on:
   - `Field`
   - `FieldLabel`
   - `FieldDescription`
@@ -308,9 +308,9 @@ express versions of the same state machine:
 
 - [x] Define a reusable `ConnectionRow` presentation contract.
 - [x] Support optional detail and credential slots.
-- [ ] Reuse `StoredCredentialRow` where it already fits.
+- [x] Reuse `StoredCredentialRow` where it already fits.
 - [x] Keep authentication flows and provider-specific mutations outside the presentation component.
-- [ ] Standardize disconnected, needs-attention and connected status wording and tones.
+- [x] Standardize disconnected, needs-attention and connected status wording and tones.
 
 ## P2 — normalize settings page ownership
 
@@ -320,14 +320,14 @@ Settings currently uses three models:
 - Most settings screens own their own `PageHeader` and `PageBody`
 - Supporter Sources reuses a page from another area
 
-- [ ] Choose and document one authoring contract.
+- [x] Choose and document one authoring contract.
 - [x] Preferred direction: create a `SettingsPageFrame` providing title, crumb and an approved body.
-- [ ] Allow named slots/configuration for header actions, tabs, list/detail and side panels.
-- [ ] Move title/crumb metadata closer to the route/navigation definition where practical.
+- [x] Allow named slots/configuration for header actions, tabs, list/detail and side panels.
+- [x] Move title/crumb metadata closer to the route/navigation definition where practical.
 - [x] Do not prevent complex settings screens from selecting a different approved body recipe.
-- [ ] Review the settings information architecture separately; 28 destinations is workable only while grouping
+- [x] Review the settings information architecture separately; 28 destinations is workable only while grouping
       and naming remain strong.
-- [ ] Give the access/safety destinations more distinct navigation icons; several currently share the same
+- [x] Give the access/safety destinations more distinct navigation icons; several currently share the same
       shield-alert symbol.
 
 ## P2 — viewer page shell
@@ -355,7 +355,7 @@ below-card content. Setup is a wider wizard variant.
   - Optional below-card content
 - [x] Keep the marketing home and legal document pages specialized.
 - [x] Correct heading hierarchy: the task title should be the page `h1`; the product name should not displace it.
-- [ ] Standardize public async/loading/error/empty presentation using `PanelCard.state` or a small shared
+- [x] Standardize public async/loading/error/empty presentation using `PanelCard.state` or a small shared
       `AsyncState`/`InlineFeedback` primitive.
 - [x] Add `TaskActions` for compact full-width action stacks.
 - [x] Add `WizardActions` for Back-left/Next-right flows.
@@ -368,15 +368,15 @@ below-card content. Setup is a wider wizard variant.
 - [x] Reuse the global copy-feedback behavior instead of maintaining a separate `CopyAddressButton` timer and
       clipboard implementation.
 - [x] Add shared `LegalLinks`/`ConsentNotice` and make Login's Terms and Privacy references actual links.
-- [ ] Decide whether Setup's stepper and card should share a width/alignment grid.
+- [x] Decide whether Setup's stepper and card should share a width/alignment grid.
 - [x] Add a reusable marketing section heading/tag vocabulary without abstracting entire marketing sections.
 
 ## P3 — quick consistency fixes
 
 - [x] Fix the marketing Features link: `HomeHeader.vue` points to `#outcomes`, while `FeatureGroups.vue` uses
       `id="features"`.
-- [ ] Consolidate public one-off radii into semantic component variants where the same surface is intended.
-- [ ] Use the existing spinner/skeleton vocabulary for long-running public actions.
+- [x] Consolidate public one-off radii into semantic component variants where the same surface is intended.
+- [x] Use the existing spinner/skeleton vocabulary for long-running public actions.
 - [x] Standardize advanced filters as a documented third query-control recipe:
   1. Compact filters in `PageHeader#bar`
   2. Search in the list header
@@ -391,9 +391,9 @@ below-card content. Setup is a wider wizard variant.
 The dev-only catalog at `/app/catalog` should be the canonical designer/developer reference rather than adding
 a second component showcase immediately.
 
-- [ ] Add every accepted page recipe and state component to the catalog.
+- [x] Add every accepted page recipe and state component to the catalog.
 - [x] Show desktop, narrow and phone behavior for the composition primitives.
-- [ ] Include loading, empty, no-match, error, read-only, gated and destructive states.
+- [x] Include loading, empty, no-match, error, read-only, gated and destructive states.
 - [x] Document stable action placement with examples.
 - [x] Add structure tests once a migration lane is established.
 - [x] Use temporary allowlists that shrink as files migrate; fail when a clean file remains allowlisted.
