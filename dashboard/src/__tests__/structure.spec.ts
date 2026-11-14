@@ -977,7 +977,6 @@ const smallIconButton = /['"]icon-(sm|xs)['"]/;
 const smallIconButtonAllowlist = [
   'views/dashboard/chat/components/ChatComposer.vue',
   'views/dashboard/chat/components/ChatLine.vue',
-  'views/dashboard/chat/components/EmotePicker.vue',
   'views/dashboard/commands/components/RandomReplyList.vue',
   'views/dashboard/discord/DiscordView.vue',
   'views/dashboard/music/MusicView.vue',

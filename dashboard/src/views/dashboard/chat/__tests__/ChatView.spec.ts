@@ -1871,13 +1871,21 @@ describe('ChatView reply', () => {
   });
 
   // Stoney 2026-10-21, mobile: the emoji button leaves the input on a phone and sits beside it, as its own 36 px button.
-  it('puts the emote picker beside the box below md, not inside it', async () => {
+  // Review 2026-11-14 (D25): on a desktop it was 32 px inside the box beside the 36 px Send; one height per row.
+  it('puts the emote picker beside the box at every width, at the 36 px height of Send', async () => {
     await open();
-    const tray = document.querySelector<HTMLElement>('[data-composer-box] [data-emote-picker]')!.parentElement!;
+    const picker = document.querySelector<HTMLElement>('[data-composer-box] [data-emote-picker]')!;
+    const send = document.querySelector<HTMLElement>('button[type="submit"]')!;
 
-    expect(tray.classList).toContain('max-md:static');
-    expect(document.querySelector('[data-composer-box]')!.classList).toContain('max-md:flex');
-    expect(input().classList).toContain('max-md:pe-2.5');
+    expect(picker.parentElement!.className).not.toMatch(/absolute/);
+    expect(document.querySelector('[data-composer-box]')!.classList).toContain('flex');
+    expect(input().classList).toContain('pe-2.5');
+    // A 28 px line, 3 px above and below and a 1 px border: the box is 36 px, the height of both buttons.
+    expect(Array.from(input().classList)).toEqual(expect.arrayContaining(['leading-7', 'py-0.75', 'min-h-9']));
+    expect(picker.classList).toContain('size-9');
+    expect(picker.className).not.toMatch(/md:size-8/);
+    expect(send.classList).toContain('h-9');
+    expect(send.className).not.toMatch(/md:h-8/);
   });
 
   it('shows the parent a reply line answers, from the names Twitch sent', async () => {

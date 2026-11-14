@@ -364,8 +364,7 @@ function closeTones(isOpen: boolean): void {
         data-emote-picker
         type="button"
         variant="ghost"
-        size="icon-sm"
-        class="rounded-[calc(var(--radius-md)-2px)] focus-visible:ring-inset"
+        size="icon"
         :aria-label="$t('dashboard.chat.picker.open')"
       >
         <Smile class="size-5" aria-hidden="true" />

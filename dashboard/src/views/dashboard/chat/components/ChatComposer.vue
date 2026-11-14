@@ -342,7 +342,7 @@ const boxClass = [
   'dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50',
   'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
   'dark:aria-invalid:border-destructive/50 aria-invalid:ring-3 focus-visible:ring-3',
-  'max-h-32 min-h-9 w-full min-w-0 overflow-y-auto rounded-md border bg-transparent py-1 ps-2.5 pe-10 max-md:pe-2.5 text-base',
+  'max-h-32 min-h-9 w-full min-w-0 overflow-y-auto rounded-md border bg-transparent py-0.75 ps-2.5 pe-2.5 text-base',
   'leading-7 break-words whitespace-pre-wrap shadow-xs transition-[color,box-shadow] outline-none md:text-sm',
 ].join(' ');
 
@@ -430,33 +430,33 @@ async function submit(): Promise<void> {
         :active="list.active.value"
         @pick="choose"
       />
-      <!-- Below md the emote button sits beside the box, not over its right edge. -->
-      <div data-composer-box class="group/box relative min-w-0 flex-1 max-md:flex max-md:items-end max-md:gap-2">
-        <EditorContent :editor="editor" class="max-md:min-w-0 max-md:flex-1" />
-        <span
-          v-if="text === ''"
-          aria-hidden="true"
-          class="pointer-events-none absolute inset-y-0 inset-s-[calc(--spacing(2.5)+1px)] flex items-center text-base
-            text-muted-foreground md:text-sm"
-        >
-          {{ $t('dashboard.chat.composer.placeholder') }}
-        </span>
-        <div class="absolute inset-e-0.5 bottom-0.5 flex items-center gap-1 max-md:static">
+      <!-- The emote button sits beside the box at the 36 px height of Send, so the row has one control height. -->
+      <div data-composer-box class="group/box flex min-w-0 flex-1 items-end gap-2">
+        <div class="relative min-w-0 flex-1">
+          <EditorContent :editor="editor" />
+          <span
+            v-if="text === ''"
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-y-0 inset-s-[calc(--spacing(2.5)+1px)] flex items-center text-base
+              text-muted-foreground md:text-sm"
+          >
+            {{ $t('dashboard.chat.composer.placeholder') }}
+          </span>
           <!-- The same quiet key cap as the search field, until you are in the box. -->
           <Kbd
             v-if="text === ''"
             data-shortcut-mark
-            class="rounded-[calc(var(--radius-md)-8px)]! border border-border bg-transparent group-focus-within/box:hidden max-md:hidden"
+            class="absolute inset-e-2 bottom-2 rounded-[calc(var(--radius-md)-8px)]! border border-border bg-transparent group-focus-within/box:hidden max-md:hidden"
           >
             {{ keyCaps(composeShortcut).join(' ') }}
           </Kbd>
-          <EmotePicker
-            :emotes="emotes.data.value ?? []"
-            @pick="pickFromPicker"
-            @opened="readEmotesAgain"
-            @closed="focusBox"
-          />
         </div>
+        <EmotePicker
+          :emotes="emotes.data.value ?? []"
+          @pick="pickFromPicker"
+          @opened="readEmotesAgain"
+          @closed="focusBox"
+        />
       </div>
       <span
         v-if="showCount"
