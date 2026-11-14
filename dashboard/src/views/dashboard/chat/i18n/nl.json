@@ -26,6 +26,8 @@
       "player": {
         "show": "Toon de stream",
         "hide": "Verberg de stream",
+        "toggle": "Stream",
+        "offline": "{name} is offline",
         "title": "{name} live"
       },
       "identity": {

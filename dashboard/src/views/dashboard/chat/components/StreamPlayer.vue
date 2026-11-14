@@ -12,13 +12,16 @@
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
 import { TwitchPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/twitch';
-import { onBeforeUnmount, onMounted, useId } from 'vue';
+import { onBeforeUnmount, useId, watch } from 'vue';
 
 import { servedOrigin } from '@/lib/botAddress';
 
 const props = defineProps<{
   login: string;
   title: string;
+  // The bot already knows when the channel is offline: no player is built for a stream that is not there.
+  live: boolean;
+  offlineLabel: string;
 }>();
 
 const containerId = `nnz-stream-player-${useId()}`;
@@ -26,8 +29,8 @@ const proxyUrl = `${servedOrigin}/api/v1/stream/playlist`;
 
 let player: ReturnType<typeof nmplayer> | null = null;
 
-onMounted(() => {
-  const live = {
+function build(): void {
+  const stream = {
     id: props.login,
     title: props.title,
     url: `https://www.twitch.tv/${props.login}`,
@@ -39,18 +42,32 @@ onMounted(() => {
     .setup({
       muted: true,
       autoPlay: true,
-      playlist: [live],
+      playlist: [stream],
     });
-});
+}
 
-onBeforeUnmount(() => {
+function dispose(): void {
   void player?.dispose();
   player = null;
-});
+}
+
+watch(() =>
+  props.live, (live) => {
+  dispose();
+
+  if (live) {
+    build();
+  }
+}, { immediate: true, flush: 'post' });
+
+onBeforeUnmount(dispose);
 </script>
 
 <template>
   <div data-stream-player class="aspect-video w-full overflow-hidden rounded-xl bg-muted">
-    <div :id="containerId" class="size-full" />
+    <div v-if="live" :id="containerId" class="size-full" />
+    <div v-else data-stream-offline class="flex size-full items-center justify-center p-4 text-center text-sm text-muted-foreground">
+      {{ offlineLabel }}
+    </div>
   </div>
 </template>

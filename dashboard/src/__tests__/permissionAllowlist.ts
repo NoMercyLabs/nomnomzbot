@@ -50,7 +50,7 @@ export const permissionAllowlist = [
       'catalog/components/CatalogPages.vue': 6,
       'chat/components/ChatDisplayPanel.vue': 2,
       'chat/components/ChatDockHeader.vue': 7,
-      'chat/ChatView.vue': 7,
+      'chat/ChatView.vue': 8,
       'chat/components/ChatLine.vue': 2,
       'home/components/PollDialog.vue': 1,
       'home/components/PredictionDialog.vue': 1,

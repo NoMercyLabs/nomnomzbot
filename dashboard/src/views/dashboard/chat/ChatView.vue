@@ -44,7 +44,6 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
-import IconAction from '@/components/layout/IconAction.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { useBackLayer } from '@/composables/useBackCloses';
@@ -125,10 +124,6 @@ const playerLogin = computed<string>(() =>
     : current.value?.login ?? '');
 const playerShown = computed(() =>
   playerOn.value && !poppedOut.value && playerLogin.value !== '');
-const playerLabel = computed(() =>
-  playerOn.value
-    ? t('dashboard.chat.player.hide')
-    : t('dashboard.chat.player.show'));
 
 // The docked header keeps the search field shut until the person asks for it; the desktop page always shows it.
 const dockSearchOpen = ref(false);
@@ -435,14 +430,17 @@ async function confirmBan(): Promise<void> {
           class="w-64 phone:w-auto phone:min-w-0 phone:flex-1"
           :placeholder="$t('dashboard.chat.search.placeholder')"
         />
-        <IconAction
+        <Button
           data-player-toggle
-          :label="playerLabel"
+          variant="outline"
+          size="default"
           :aria-pressed="playerOn"
+          :aria-label="$t('dashboard.chat.player.toggle')"
           @click="playerOn = !playerOn"
         >
-          <MediaPlayer class="size-5" aria-hidden="true" />
-        </IconAction>
+          <MediaPlayer class="size-4" aria-hidden="true" />
+          <span class="phone:sr-only">{{ $t('dashboard.chat.player.toggle') }}</span>
+        </Button>
         <Button
           v-if="!viewerMode"
           data-mod-tools-toggle
@@ -536,10 +534,12 @@ async function confirmBan(): Promise<void> {
             :key="playerLogin"
             :login="playerLogin"
             :title="$t('dashboard.chat.player.title', { name: current?.displayName ?? playerLogin })"
+            :live="live"
+            :offline-label="$t('dashboard.chat.player.offline', { name: current?.displayName ?? playerLogin })"
           />
         </div>
         <PanelCard
-          :class="docked ? 'min-h-0 flex-1' : ['min-h-96 flex-1', { 'lg:w-85 lg:flex-none': playerShown }]"
+          :class="docked ? 'min-h-0 flex-1' : ['min-h-96 flex-1', { 'lg:w-96 2xl:w-md lg:flex-none': playerShown }]"
           tier="lead"
           :headless="docked"
           :flush="docked"

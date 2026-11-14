@@ -26,6 +26,8 @@
       "player": {
         "show": "Show the stream",
         "hide": "Hide the stream",
+        "toggle": "Stream",
+        "offline": "{name} is offline",
         "title": "{name} live"
       },
       "identity": {

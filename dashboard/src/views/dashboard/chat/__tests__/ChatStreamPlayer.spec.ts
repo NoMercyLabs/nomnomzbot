@@ -13,7 +13,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -94,22 +94,37 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
-vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({
-    channelId: ref('c1'),
-    current: ref({
-      login: 'stoney_eagle',
-      displayName: 'Stoney_Eagle',
-      isLive: true,
+// The channel the page shows; a test turns it offline or live through this one shared ref.
+const channel = vi.hoisted(() => ({ current: null as { value: { isLive: boolean } } | null }));
+
+vi.mock('@/composables/useCurrentChannel', async () => {
+  const vue = await import('vue');
+  const current = vue.ref({
+    login: 'stoney_eagle',
+    displayName: 'Stoney_Eagle',
+    isLive: true,
+  });
+
+  channel.current = current;
+
+  return {
+    useCurrentChannel: () => ({
+      channelId: vue.ref('c1'),
+      current,
     }),
-  }),
-}));
+  };
+});
 
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   players.length = 0;
   localStorage.clear();
+
+  if (channel.current) {
+    channel.current.value.isLive = true;
+  }
+
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
 
@@ -299,6 +314,53 @@ describe('ChatView stream player', () => {
     } finally {
       window.matchMedia = realMatchMedia;
     }
+  });
+
+  // Stoney 2026-11-13, on the offline channel's "Something went wrong" (screenshot): "it should show the stream as
+  // offline and that button does not match".
+  it('shows an offline channel as offline and builds no player for it', async () => {
+    channel.current!.value.isLive = false;
+
+    await open();
+    await flip();
+
+    expect(players).toHaveLength(0);
+    expect(document.body.querySelector('[data-stream-offline]')?.textContent?.trim()).toBe('Stoney_Eagle is offline');
+  });
+
+  it('builds the player once the offline channel goes live', async () => {
+    channel.current!.value.isLive = false;
+
+    await open();
+    await flip();
+    channel.current!.value.isLive = true;
+    await settle();
+    await playerBuilt();
+
+    expect(players).toHaveLength(1);
+    expect(document.body.querySelector('[data-stream-offline]')).toBeNull();
+  });
+
+  it('draws the stream toggle like its neighbors: an outline button with its name beside the icon', async () => {
+    await open();
+
+    const settings = document.body.querySelector('[data-mod-tools-toggle]');
+
+    expect(toggle()!.getAttribute('data-variant')).toBe('outline');
+    expect(toggle()!.getAttribute('data-variant')).toBe(settings!.getAttribute('data-variant'));
+    expect(toggle()!.getAttribute('data-size')).toBe(settings!.getAttribute('data-size'));
+    expect(toggle()!.textContent?.trim()).toBe('Stream');
+  });
+
+  // Stoney 2026-11-14: "the chat is also not wide enough when showing the player" (340 px wrapped most lines).
+  it('keeps the chat column beside the player wide enough for a line with its badges', async () => {
+    await open();
+    await turnOn();
+
+    const panel = document.body.querySelector('[data-page-body] [data-slot="panel-card"]')!;
+
+    expect(panel.classList.contains('lg:w-96')).toBe(true);
+    expect(panel.classList.contains('2xl:w-md')).toBe(true);
   });
 
   it('gives the docked chat no toggle and no player, even when the choice is on', async () => {
