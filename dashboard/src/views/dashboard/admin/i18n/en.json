@@ -397,11 +397,7 @@
         "title": "EventSub health",
         "count": "{count} channels",
         "columns": {
-          "channel": "Channel",
-          "topic": "Topic",
-          "state": "State",
-          "confirmed": "Last confirmed",
-          "error": "Last error"
+          "confirmed": "Last confirmed"
         },
         "noSubscriptions": "No Twitch subscriptions",
         "working": "Working",

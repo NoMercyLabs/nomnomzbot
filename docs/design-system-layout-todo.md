@@ -269,9 +269,9 @@ flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2
 This occurs across Integrations, Federation, Webhooks, Channel Management, Event Journal, Giveaways, Games and
 admin detail panels.
 
-- [ ] Migrate simple title/detail/meta/leading/trailing rows to `SummaryRow`.
+- [x] Migrate simple title/detail/meta/leading/trailing rows to `SummaryRow`.
 - [x] Use `SettingRow` for boolean settings.
-- [ ] Use `RowGroup` instead of raw `divide-y` lists where the semantics match.
+- [x] Use `RowGroup` instead of raw `divide-y` lists where the semantics match.
 - [x] Add one `ActionRow`/`StatusActionRow` only for explanatory copy plus a trailing administrative or
       destructive action that `SummaryRow` cannot express cleanly.
 - [x] Preserve domain components when they own behavior, not merely layout.

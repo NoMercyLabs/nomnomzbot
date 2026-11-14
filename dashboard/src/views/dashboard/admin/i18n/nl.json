@@ -397,11 +397,7 @@
         "title": "EventSub-gezondheid",
         "count": "{count} kanalen",
         "columns": {
-          "channel": "Kanaal",
-          "topic": "Onderwerp",
-          "state": "Status",
-          "confirmed": "Laatst bevestigd",
-          "error": "Laatste fout"
+          "confirmed": "Laatst bevestigd"
         },
         "noSubscriptions": "Geen abonnementen",
         "working": "Werkt",
