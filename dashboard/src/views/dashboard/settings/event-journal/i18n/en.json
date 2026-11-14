@@ -323,7 +323,7 @@
         },
         "legacy": {
           "title": "History from the old bot",
-          "description": "Copies the channel history of the old NoMercy bot into the journal. Running it again adds nothing twice.",
+          "description": "Copies the channel history from the earlier version of NomNomzBot into the journal. Running it again adds nothing twice.",
           "import": "Import old history",
           "imported": "Read {total} rows. {imported} imported, {duplicate} already there, {unmapped} not recognized. The journal grew from {before} to {after}.",
           "skippedType": "{type}: {count} not recognized"

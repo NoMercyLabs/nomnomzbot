@@ -369,6 +369,25 @@ describe('Event journal backup and rebuild tab', () => {
     expect(result).toContain('40');
   });
 
+  // Review 2026-11-14 (D18): both panels drew a divider over an empty body until a result arrived.
+  it('draws no divider and no empty body under a panel head until a result fills it', async () => {
+    await openTools();
+
+    const panels = ['journal-file', 'legacy-history'].map((name) => q(`[data-panel="${name}"]`));
+
+    expect(panels[1]!.textContent).not.toMatch(/NoMercy/);
+
+    for (const panel of panels) {
+      expect(panel.querySelector('header')!.className).not.toMatch(/border-b/);
+      expect(panel.querySelectorAll(':scope > div')).toHaveLength(0);
+    }
+
+    await click(q('[data-import-legacy]'));
+
+    expect(panels[1]!.querySelector('header')!.className).toMatch(/border-b/);
+    expect(panels[1]!.querySelector(':scope > div [data-legacy-result]')).not.toBeNull();
+  });
+
   it('imports the old bot history and itemizes what it skipped', async () => {
     await openTools();
     await click(q('[data-import-legacy]'));

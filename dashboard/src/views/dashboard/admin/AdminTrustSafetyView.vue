@@ -335,7 +335,7 @@ function run(current: Step): Promise<void> {
           <template #footer>
             <div class="grid w-full gap-2">
               <p class="text-sm font-medium">{{ $t("dashboard.admin.trustSafety.apply.title") }}</p>
-              <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+              <div class="grid gap-2">
                 <Field>
                   <FieldLabel for="ts-block-target">{{
                     $t("dashboard.admin.trustSafety.apply.target")

@@ -11,6 +11,7 @@
 
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, nextTick, ref } from 'vue';
 
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
@@ -35,6 +36,28 @@ function panel(state: PanelState, extra: Record<string, unknown> = {}): VueWrapp
     global: { plugins: [i18n] },
   });
 }
+
+// Review 2026-11-14 (D18): a panel whose body is only results drew a divider over an empty body until one came.
+describe('the panel card body', () => {
+  it('draws no body and no head divider while every slot line is hidden, and both once one shows', async () => {
+    const shown = ref(false);
+    const Host = defineComponent({
+      components: { PanelCard },
+      setup: () => ({ shown }),
+      template: '<PanelCard title="History"><p v-if="shown" data-result>done</p></PanelCard>',
+    });
+    const wrapper = mount(Host, { global: { plugins: [i18n] } });
+
+    expect(wrapper.find('header').classes()).not.toContain('border-b');
+    expect(wrapper.findAll('section > div')).toHaveLength(0);
+
+    shown.value = true;
+    await nextTick();
+
+    expect(wrapper.find('header').classes()).toContain('border-b');
+    expect(wrapper.find('section > div [data-result]').exists()).toBe(true);
+  });
+});
 
 // Stoney 2026-10-14: the description wrapped word by word beside the header tabs ("stop making me nitpick").
 describe('the panel card header', () => {

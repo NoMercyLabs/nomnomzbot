@@ -14,7 +14,7 @@
 // state (C7): the panel keeps its size in every state. A skeleton shows only after 150 ms,
 // so a fast answer never flashes one. The default slot shows only in the ready state.
 import { useTimeoutFn } from '@vueuse/core';
-import { computed, ref, watch } from 'vue';
+import { Comment, Fragment, computed, ref, useSlots, watch, type VNode } from 'vue';
 
 import Cross from '~icons/nnz/cross';
 
@@ -62,6 +62,25 @@ const props = withDefaults(
 defineEmits<{ retry: [] }>();
 
 const drawerClose = useDrawerClose();
+const slots = useSlots();
+
+// A slot whose every v-if is false renders only comments: that is no body, so the card draws no divider over it.
+function filled(nodes: VNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type === Comment)
+      return false;
+
+    return node.type !== Fragment || filled(node.children as VNode[]);
+  });
+}
+
+// Read during render, so the body appears the moment a result fills the slot.
+function bodyShown(): boolean {
+  if (props.state !== 'ready')
+    return true;
+
+  return filled(slots.default?.() ?? []);
+}
 
 const rootClass = computed<string | string[]>(() => {
   if (props.bare)
@@ -135,7 +154,7 @@ watch(
     <header
       v-if="!headless"
       class="flex flex-none flex-wrap content-center items-center gap-x-2 gap-y-1"
-      :class="bare ? '' : 'min-h-13 border-b border-border px-4 py-2'"
+      :class="[bare ? '' : 'min-h-13 px-4 py-2', !bare && bodyShown() ? 'border-b border-border' : '']"
     >
       <component
         :is="heading"
@@ -166,7 +185,7 @@ watch(
       </div>
       <p v-if="description" class="basis-full text-sm text-muted-foreground">{{ description }}</p>
     </header>
-    <div class="min-h-0 flex-1" :class="bodyClass">
+    <div v-if="bodyShown()" class="min-h-0 flex-1" :class="bodyClass">
       <slot v-if="state === 'ready'" />
       <div
         v-else-if="state === 'loading'"

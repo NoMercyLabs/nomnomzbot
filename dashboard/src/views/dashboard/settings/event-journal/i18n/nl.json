@@ -323,7 +323,7 @@
         },
         "legacy": {
           "title": "Geschiedenis van de oude bot",
-          "description": "Kopieert de kanaalgeschiedenis van de oude NoMercy-bot naar het journaal. Opnieuw draaien voegt niets dubbel toe.",
+          "description": "Kopieert de kanaalgeschiedenis uit de vorige versie van NomNomzBot naar het journaal. Opnieuw draaien voegt niets dubbel toe.",
           "import": "Oude geschiedenis importeren",
           "imported": "{total} rijen gelezen. {imported} geïmporteerd, {duplicate} al aanwezig, {unmapped} niet herkend. Het journaal groeide van {before} naar {after}.",
           "skippedType": "{type}: {count} niet herkend"

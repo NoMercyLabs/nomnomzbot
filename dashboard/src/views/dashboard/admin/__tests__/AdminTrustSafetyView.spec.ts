@@ -553,6 +553,16 @@ describe('AdminTrustSafetyView', () => {
     ]);
   });
 
+  it('gives the account search the full row width, so its placeholder and hint never squeeze', async () => {
+    await open();
+
+    const targetField = document.body.querySelector('[data-block-target]')!.closest('[data-slot="field"]')!;
+    const row = targetField.parentElement!;
+
+    expect(row.className).not.toMatch(/grid-cols/);
+    expect(row.querySelector('[data-block-reason]')).not.toBeNull();
+  });
+
   it('scrolls the page body on a phone and stretches the left column on a desktop', async () => {
     await open();
 

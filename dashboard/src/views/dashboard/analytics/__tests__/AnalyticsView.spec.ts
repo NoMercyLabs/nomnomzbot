@@ -295,6 +295,16 @@ describe('the Analytics overview', () => {
     expect(tile('Peak viewers')).toContain('31');
   });
 
+  // Review 2026-11-14 (D17): auto-fit put five tiles on the first row at 1280 and left one alone.
+  it('lays its six tiles out three to a row from a small screen up, so no tile sits alone', async () => {
+    await open();
+
+    const strip = document.body.querySelector<HTMLElement>('[data-analytics-kpis]')!;
+
+    expect(strip.children).toHaveLength(6);
+    expect(strip.classList).toContain('sm:[&:has(>:last-child:nth-child(6))]:grid-cols-3');
+  });
+
   it('reads the stream list only as far back as the range', async () => {
     await open();
 
