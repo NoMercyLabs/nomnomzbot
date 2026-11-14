@@ -119,6 +119,28 @@ describe('signing in by role', () => {
   });
 });
 
+// Aaoa's layout todo P2 (public pages): the redirect takes a moment, so the pressed button shows the shared
+// Spinner and every sign-in button is disabled until the page leaves, so a second press cannot start a second sign-in.
+describe('the sign-in redirect while it runs', () => {
+  it('shows the spinner on the pressed button and disables every sign-in button', async () => {
+    vi.stubGlobal('isSecureContext', true);
+    vi.stubGlobal('location', { ...window.location, assign: vi.fn<(url: string) => void>() });
+    stubBot();
+    const wrapper = await mountLogin();
+    const labels = ['Continue as broadcaster', 'Continue as moderator', 'Continue as viewer'];
+    const pressed = wrapper.findAll('button').find((b) => b.text() === 'Continue as moderator');
+
+    await pressed!.trigger('click');
+
+    const buttons = wrapper.findAll('button').filter((b) => labels.includes(b.text()));
+
+    expect(buttons).toHaveLength(3);
+    expect(buttons.every((b) => b.attributes('disabled') !== undefined)).toBe(true);
+    expect(pressed!.find('svg.animate-spin').exists()).toBe(true);
+    expect(buttons.filter((b) => b.find('svg.animate-spin').exists())).toHaveLength(1);
+  });
+});
+
 describe('the page heading', () => {
   it('has one h1, the task title, while the brand is a link and not a heading', async () => {
     vi.stubGlobal('isSecureContext', true);
@@ -168,6 +190,7 @@ describe('a bot that answers the sign-in list with 429', () => {
 
     expect(wrapper.text()).toContain('Too many sign-in tries. Try again in 30 seconds.');
     expect(wrapper.text()).not.toContain('no sign-in switched on');
+    expect(wrapper.find('[data-tone="error"]').text()).toContain('Too many sign-in tries');
 
     const retry = wrapper.findAll('button').find((b) => b.text() === 'Try again');
 
@@ -201,6 +224,7 @@ describe('a bot that answers the sign-in list with 429', () => {
 
     expect(wrapper.text()).toContain('no sign-in switched on');
     expect(wrapper.text()).not.toContain('Too many sign-in tries');
+    expect(wrapper.find('[data-empty-kind="none"]').text()).toContain('no sign-in switched on');
   });
 });
 

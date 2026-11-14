@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 import { useRedeemInviteCode } from '@/api/billing';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
@@ -53,15 +54,15 @@ async function redeemNow(): Promise<void> {
 <template>
   <PublicWait v-if="!isLoaded">{{ $t('site.invite.channelLoading') }}</PublicWait>
   <div v-else-if="target === null" class="flex flex-col gap-3">
-    <p class="text-sm">{{ $t('site.invite.noChannel') }}</p>
+    <InlineNotice tone="info" compact>{{ $t('site.invite.noChannel') }}</InlineNotice>
     <Button as-child class="w-full">
       <RouterLink to="/app" data-action="dashboard">{{ $t('site.invite.dashboard') }}</RouterLink>
     </Button>
   </div>
   <div v-else-if="done" class="flex flex-col gap-3">
-    <p data-result="redeemed" class="text-sm">
+    <InlineNotice tone="success" compact data-result="redeemed">
       {{ $t('site.invite.redeemed', { channel: target.displayName, gift: props.gift }) }}
-    </p>
+    </InlineNotice>
     <Button as-child class="w-full">
       <RouterLink to="/app" data-action="dashboard">{{ $t('site.invite.dashboard') }}</RouterLink>
     </Button>
@@ -73,6 +74,7 @@ async function redeemNow(): Promise<void> {
       :disabled="redeem.isPending.value"
       @click="redeemNow"
     >
+      <Spinner v-if="redeem.isPending.value" />
       {{ $t('site.invite.redeem', { channel: target.displayName }) }}
     </Button>
     <InlineNotice v-if="failure" tone="error" compact>{{ failure }}</InlineNotice>

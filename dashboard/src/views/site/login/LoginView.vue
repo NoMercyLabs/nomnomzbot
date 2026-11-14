@@ -10,18 +10,21 @@
 -->
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
-import { useIntervalFn } from '@vueuse/core';
+import { useEventListener, useIntervalFn } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { activeBot } from '@/api/activeBot';
 import { providersQuery, RateLimitedError, signInUrl, type LoginProvider, type LoginRole } from '@/api/signIn';
+import EmptyState from '@/components/layout/EmptyState.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { useBackLayer } from '@/composables/useBackCloses';
 import { officialOrigin, servedOrigin } from '@/lib/botAddress';
 import { returnPath } from '@/router/guard';
@@ -132,12 +135,23 @@ function hasRoles(provider: LoginProvider): boolean {
   return provider.key === 'twitch' && !codeOnly.value;
 }
 
+// The browser leaves for the platform: the pressed button holds the spinner and every sign-in button stays
+// disabled until the page is gone, so a second press cannot start a second sign-in.
+const leaving = ref<string | null>(null);
+
+// Back from the platform restores this page from memory; it must not stay locked.
+useEventListener(window, 'pageshow', () => {
+  leaving.value = null;
+});
+
 function signInAs(provider: LoginProvider, role: LoginRole): void {
+  leaving.value = `${provider.key}:${role}`;
   window.location.assign(signInUrl(provider.key, returnTo.value, role));
 }
 
 function signIn(provider: LoginProvider): void {
   if (!codeOnly.value) {
+    leaving.value = provider.key;
     window.location.assign(signInUrl(provider.key, returnTo.value));
 
     return;
@@ -196,12 +210,9 @@ function signIn(provider: LoginProvider): void {
         <PublicWait v-else-if="providers.isPending.value">
           {{ $t('site.login.loading') }}
         </PublicWait>
-        <div
-          v-else-if="providers.isError.value || shown.length === 0"
-          class="flex flex-col gap-3"
-          role="alert"
-        >
-          <p class="text-sm">{{ problemLine }}</p>
+        <div v-else-if="providers.isError.value || shown.length === 0" class="flex flex-col gap-3">
+          <InlineNotice v-if="providers.isError.value" tone="error" compact>{{ problemLine }}</InlineNotice>
+          <EmptyState v-else bare :description="problemLine" />
           <Button
             variant="outline"
             class="w-full"
@@ -225,18 +236,22 @@ function signIn(provider: LoginProvider): void {
                 v-for="role in roles"
                 :key="role"
                 :variant="role === 'broadcaster' ? 'default' : 'outline'"
+                :disabled="leaving !== null"
                 @click="signInAs(provider, role)"
               >
-                <PlatformLogo :platform="provider.key" :mono="role === 'broadcaster'" />
+                <Spinner v-if="leaving === `${provider.key}:${role}`" />
+                <PlatformLogo v-else :platform="provider.key" :mono="role === 'broadcaster'" />
                 {{ $t(`site.login.role.${role}`) }}
               </Button>
             </template>
             <Button
               v-else
               :variant="shown.length === 1 ? 'default' : 'outline'"
+              :disabled="leaving !== null"
               @click="signIn(provider)"
             >
-              <PlatformLogo :platform="provider.key" :mono="shown.length === 1" />
+              <Spinner v-if="leaving === provider.key" />
+              <PlatformLogo v-else :platform="provider.key" :mono="shown.length === 1" />
               {{ $t('site.login.with', { provider: provider.displayName }) }}
             </Button>
           </template>

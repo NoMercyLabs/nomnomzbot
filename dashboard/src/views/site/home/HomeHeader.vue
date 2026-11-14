@@ -64,13 +64,18 @@ const links: Link[] = [
       :aria-label="t('site.home.nav.label')"
       class="hidden flex-1 items-center gap-1 text-sm md:flex"
     >
-      <a
-        v-for="link in links"
-        :key="link.key"
-        class="rounded-[8px] px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-        :href="link.href"
-        v-bind="link.external ? { target: '_blank', rel: 'noopener' } : {}"
-      >{{ t(link.key) }}</a>
+      <Button v-for="link in links"
+              :key="link.key"
+              as-child
+              variant="ghost"
+              size="sm"
+              class="text-muted-foreground"
+      >
+        <a
+          :href="link.href"
+          v-bind="link.external ? { target: '_blank', rel: 'noopener' } : {}"
+        >{{ t(link.key) }}</a>
+      </Button>
     </nav>
     <div class="hidden items-center gap-2 md:flex">
       <LanguagePicker />
@@ -102,11 +107,12 @@ const links: Link[] = [
         </SheetHeader>
         <nav :aria-label="t('site.home.nav.label')" class="flex flex-col gap-1 text-base">
           <SheetClose v-for="link in links" :key="link.key" as-child>
-            <a
-              class="rounded-[12px] px-3 py-2 hover:bg-muted"
-              :href="link.href"
-              v-bind="link.external ? { target: '_blank', rel: 'noopener' } : {}"
-            >{{ t(link.key) }}</a>
+            <Button as-child variant="ghost" class="justify-start">
+              <a
+                :href="link.href"
+                v-bind="link.external ? { target: '_blank', rel: 'noopener' } : {}"
+              >{{ t(link.key) }}</a>
+            </Button>
           </SheetClose>
         </nav>
         <div class="flex flex-col gap-3">

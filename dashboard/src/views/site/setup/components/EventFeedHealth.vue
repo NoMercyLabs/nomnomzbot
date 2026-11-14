@@ -26,6 +26,7 @@ import {
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 import PublicWait from '../../components/PublicWait.vue';
 import SetupAddress from './SetupAddress.vue';
@@ -58,9 +59,9 @@ const tone = computed(() =>
       {{ $t('site.setup.feed.signInFirst') }}
     </p>
     <PublicWait v-else-if="facts.isPending.value">{{ $t('site.setup.feed.checking') }}</PublicWait>
-    <p v-else-if="facts.isError.value || !verdict" class="text-sm text-muted-foreground" role="status">
+    <InlineNotice v-else-if="facts.isError.value || !verdict" tone="info" compact>
       {{ $t('site.setup.feed.unknown') }}
-    </p>
+    </InlineNotice>
     <template v-else>
       <StatusBadge :tone="tone" :label="$t(`site.setup.feed.${verdict.state}`, verdict)" />
 
@@ -72,6 +73,7 @@ const tone = computed(() =>
         </div>
         <div class="flex gap-2">
           <Button variant="outline" :disabled="regrant.isPending.value" @click="regrant.mutate()">
+            <Spinner v-if="regrant.isPending.value" />
             {{ $t('site.setup.feed.regrant') }}
           </Button>
           <Button v-if="regrant.data.value" variant="ghost" @click="facts.refetch()">
@@ -82,6 +84,7 @@ const tone = computed(() =>
 
       <div v-else-if="verdict.state !== 'ok'">
         <Button variant="outline" :disabled="reconcile.isPending.value" @click="reconcile.mutate()">
+          <Spinner v-if="reconcile.isPending.value" />
           {{ $t('site.setup.feed.reconcile') }}
         </Button>
         <InlineNotice v-if="reconcile.isError.value" tone="error" compact class="mt-2">

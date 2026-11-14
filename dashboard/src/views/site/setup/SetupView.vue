@@ -20,6 +20,7 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 import PublicTaskShell from '../components/PublicTaskShell.vue';
 import WizardActions from '../components/WizardActions.vue';
@@ -59,10 +60,12 @@ async function finish(): Promise<void> {
     <template v-if="!wizard.isSuccess.value">
       <h1 class="sr-only">{{ $t('site.setup.brand') }}</h1>
       <PublicWait v-if="wizard.isPending.value">{{ $t('site.setup.loading') }}</PublicWait>
-      <div v-else class="flex flex-col items-center gap-3" role="alert">
-        <p class="text-sm">{{ $t('site.setup.unreachable') }}</p>
-        <Button variant="outline" @click="wizard.refetch()">{{ $t('site.setup.retry') }}</Button>
-      </div>
+      <InlineNotice v-else tone="error">
+        {{ $t('site.setup.unreachable') }}
+        <template #action>
+          <Button variant="outline" @click="wizard.refetch()">{{ $t('site.setup.retry') }}</Button>
+        </template>
+      </InlineNotice>
     </template>
 
     <StepsFrame
@@ -112,6 +115,7 @@ async function finish(): Promise<void> {
           </template>
           <template #next>
             <Button v-if="onFinish" :disabled="complete.isPending.value" @click="finish">
+              <Spinner v-if="complete.isPending.value" />
               {{ $t('site.setup.finish.action') }}
             </Button>
             <Button

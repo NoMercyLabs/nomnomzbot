@@ -13,6 +13,7 @@
 // not signed in gets one button that starts the Twitch sign-in with the invite; the bot redeems it on the
 // channel that sign-in sets up. A signed-in streamer redeems it on their own channel from here.
 import { useQuery } from '@tanstack/vue-query';
+import { useEventListener } from '@vueuse/core';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -23,6 +24,7 @@ import { signInUrl } from '@/api/signIn';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { rememberInviteGift } from '@/composables/useInviteOutcome';
 
 import PublicTaskShell from '../components/PublicTaskShell.vue';
@@ -84,7 +86,15 @@ const description = computed<string>(() => {
     : t('site.invite.unusable.body');
 });
 
+// The browser leaves for Twitch: the button shows the shared Spinner and stays disabled until the page is gone.
+const leaving = ref(false);
+
+useEventListener(window, 'pageshow', () => {
+  leaving.value = false;
+});
+
 function signIn(): void {
+  leaving.value = true;
   rememberInviteGift(gift.value);
   window.location.assign(signInUrl('twitch', '/app', 'broadcaster', code.value));
 }
@@ -104,8 +114,9 @@ function signIn(): void {
       <template v-else-if="usable">
         <InviteRedeem v-if="signedIn" :code="code" :gift="gift" />
         <TaskActions v-else>
-          <Button data-action="sign-in" @click="signIn">
-            <PlatformLogo platform="twitch" mono />
+          <Button data-action="sign-in" :disabled="leaving" @click="signIn">
+            <Spinner v-if="leaving" />
+            <PlatformLogo v-else platform="twitch" mono />
             {{ $t('site.invite.signIn') }}
           </Button>
         </TaskActions>

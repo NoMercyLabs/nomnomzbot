@@ -207,6 +207,18 @@ describe('the invite page, signed out', () => {
     expect(requestsTo('/api/v1/channels/CH123/billing/invite/redeem')).toHaveLength(0);
   });
 
+  it('shows the spinner and disables the sign-in button while the browser leaves for Twitch', async () => {
+    const wrapper = await open('WELCOME6', false);
+    const button = control(wrapper, '[data-action="sign-in"]');
+
+    expect(button.find('svg.animate-spin').exists()).toBe(false);
+
+    await button.trigger('click');
+
+    expect(button.attributes('disabled')).toBeDefined();
+    expect(button.find('svg.animate-spin').exists()).toBe(true);
+  });
+
   it('remembers what the invite gives, so the page after sign-in can name it', async () => {
     const wrapper = await open('WELCOME6', false);
 

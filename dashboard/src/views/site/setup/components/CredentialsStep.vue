@@ -17,6 +17,7 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 
 import InstructionLine from './InstructionLine.vue';
 
@@ -56,6 +57,7 @@ const canSave = () =>
           :variant="step.complete ? 'outline' : 'default'"
           :disabled="!canSave() || save.isPending.value"
         >
+          <Spinner v-if="save.isPending.value" />
           {{ $t('site.setup.saveCredentials') }}
         </Button>
         <Button
@@ -65,6 +67,7 @@ const canSave = () =>
           :disabled="useShared.isPending.value"
           @click="useShared.mutate()"
         >
+          <Spinner v-if="useShared.isPending.value" />
           {{ $t('site.setup.useShared') }}
         </Button>
       </div>

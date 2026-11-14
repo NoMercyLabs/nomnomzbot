@@ -22,6 +22,7 @@ import {
 } from '@/api/setup';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 import PublicWait from '../../components/PublicWait.vue';
 import InstructionLine from './InstructionLine.vue';
@@ -63,9 +64,9 @@ watch(connected, (now) => {
       <li v-for="line in step.instructions" :key="line"><InstructionLine :line="line" /></li>
     </ul>
 
-    <p v-if="connected" class="text-sm" role="status">
+    <InlineNotice v-if="connected" tone="success" compact>
       {{ $t('site.setup.botConnected', { name: status.data.value?.displayName ?? status.data.value?.login ?? '' }) }}
-    </p>
+    </InlineNotice>
     <PublicWait v-else-if="waiting">{{ $t('site.setup.botWaiting') }}</PublicWait>
     <InlineNotice v-if="authorize.isError.value" tone="error" compact>
       {{ $t('site.setup.botFailed') }}
@@ -77,6 +78,7 @@ watch(connected, (now) => {
         :disabled="authorize.isPending.value"
         @click="authorize.mutate()"
       >
+        <Spinner v-if="authorize.isPending.value" />
         {{ $t('site.setup.botAuthorize') }}
       </Button>
     </div>

@@ -160,7 +160,6 @@ async function check(): Promise<void> {
           <InlineNotice
             v-else-if="checked"
             :tone="probeTone(checked.probe.state)"
-            role="status"
             compact
           >{{
             $t(`site.login.bots.${checked.probe.state}`, { host: host(checked.origin) })

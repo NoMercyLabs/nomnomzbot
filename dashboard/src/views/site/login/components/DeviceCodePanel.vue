@@ -20,6 +20,7 @@ import {
   type DeviceOutcome,
   type LoginProvider,
 } from '@/api/signIn';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 
 import PublicWait from '../../components/PublicWait.vue';
@@ -70,7 +71,7 @@ onMounted(() => start.mutate());
       <template v-else>
         <p class="text-sm">{{ $t('site.login.device.instruction', { site }) }}</p>
         <p
-          class="rounded-[12px] border border-border bg-muted py-3 text-center font-mono text-2xl font-semibold tracking-widest select-all"
+          class="rounded-md border border-border bg-muted py-3 text-center font-mono text-2xl font-semibold tracking-widest select-all"
           :aria-label="$t('site.login.device.codeLabel')"
         >
           {{ code.userCode }}
@@ -87,9 +88,9 @@ onMounted(() => start.mutate());
       </template>
     </template>
     <template v-else>
-      <p class="text-sm" role="alert">
+      <InlineNotice tone="error" compact>
         {{ $t(`site.login.device.${outcome}`, { provider: provider.displayName }) }}
-      </p>
+      </InlineNotice>
       <Button variant="outline" class="w-full" @click="start.mutate()">{{
         $t('site.login.device.again')
       }}</Button>
