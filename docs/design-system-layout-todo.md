@@ -202,7 +202,7 @@ recreate actionable empty blocks and page-level mutation messages.
   - Error
   - Success
   - Plan/read-only gating
-- [ ] Replace repeated `text-sm text-destructive` mutation paragraphs.
+- [x] Replace repeated `text-sm text-destructive` mutation paragraphs.
 - [x] Replace matching bordered-muted notices in Scripts, Channel Points and similar pages.
 - [x] Keep whole-panel failures in `PanelCard.state`; use notices only for page or mutation feedback.
 
