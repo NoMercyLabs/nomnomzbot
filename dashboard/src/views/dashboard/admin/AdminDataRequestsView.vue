@@ -14,6 +14,8 @@
 // Data requests: the platform ledger of export, erasure and opt-out requests, newest first, with the
 // counts by status on the status filter. An operator retries a failed erasure after the counted blast radius is shown.
 // A subject shows as a hash, never by name. A change arrives over the admin hub.
+// It does not use AdminCollectionPage: the ledger loads as one list with no pages and no search, filtered by one
+// status select above one lead PanelCard, while AdminCollectionPage is built around a page count and a pager.
 import { useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';

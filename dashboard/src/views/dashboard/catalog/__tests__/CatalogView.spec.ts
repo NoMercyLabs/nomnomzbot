@@ -138,7 +138,15 @@ const SECTIONS_BY_VIEW = {
   layouts: ['layouts'],
   feedback: ['empty-states', 'notices', 'connections'],
   rows: ['rows', 'editors'],
-  pages: ['page-body', 'settings-frame', 'admin-collection', 'task-shell'],
+  pages: [
+    'page-body',
+    'page-body-set',
+    'settings-frame',
+    'admin-collection',
+    'task-shell',
+    'setup-shell',
+    'viewer-page',
+  ],
   guide: ['guide-tiers', 'guide-actions', 'guide-filters', 'guide-settings'],
 } as const satisfies Record<string, readonly string[]>;
 

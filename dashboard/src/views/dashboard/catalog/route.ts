@@ -25,5 +25,7 @@ export const dashboardCatalogRoute = {
       (locale) => import(`./i18n/${locale}.json`),
       // The page recipes tab draws a real AdminCollectionPage, which prints the admin pager and crumb words.
       (locale) => import(`../admin/i18n/${locale}.json`),
+      // The Setup shell example draws the real StepsFrame, which prints the setup step words.
+      (locale) => import(`../../site/setup/i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;

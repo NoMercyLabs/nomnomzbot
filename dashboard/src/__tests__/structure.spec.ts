@@ -948,6 +948,10 @@ function sidePanelChildrenOutsidePanelCard(path: string): string[] {
   const text: string = readFileSync(path, 'utf8');
 
   return sidePanelChildren(text).flatMap((name) => {
+    // A PanelCard placed straight in the SidePanel is what this rule asks for.
+    if (name === 'PanelCard')
+      return [];
+
     const importPath = importedFrom(text, name);
 
     if (importPath === null)

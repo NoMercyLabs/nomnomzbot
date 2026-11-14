@@ -26,11 +26,13 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
+import { keysOf } from '@/lib/array';
 
 import CatalogConnections from '../components/CatalogConnections.vue';
 import CatalogEditors from '../components/CatalogEditors.vue';
 import CatalogFeedback from '../components/CatalogFeedback.vue';
 import CatalogPages from '../components/CatalogPages.vue';
+import CatalogPanelStates from '../components/CatalogPanelStates.vue';
 import CatalogRows from '../components/CatalogRows.vue';
 import CatalogWidthFrame from '../components/CatalogWidthFrame.vue';
 import en from '../i18n/en.json';
@@ -210,11 +212,101 @@ describe('CatalogPages', () => {
     const wrapper = await show(CatalogPages);
     const drawn = wrapper.findAll('[data-catalog]').map((section) => section.attributes('data-catalog'));
 
-    expect(drawn).toEqual(['page-body', 'settings-frame', 'admin-collection', 'task-shell']);
-    expect(wrapper.findAll('[data-catalog-frame]')).toHaveLength(4);
+    expect(drawn).toEqual([
+      'page-body',
+      'page-body-set',
+      'settings-frame',
+      'admin-collection',
+      'task-shell',
+      'setup-shell',
+      'viewer-page',
+    ]);
+
+    expect(wrapper.findAll('[data-catalog-frame]')).toHaveLength(6);
     expect(wrapper.find('[data-slot="task-actions"]').exists()).toBe(true);
     expect(wrapper.find('[data-slot="wizard-actions"]').exists()).toBe(true);
     expect(wrapper.find('[data-slot="task-column"]').exists()).toBe(true);
     expect(wrapper.find('[data-slot="page-body"]').exists()).toBe(true);
+  });
+
+  it('names the six approved page bodies and draws one live example of each', async () => {
+    const wrapper = await show(CatalogPages);
+    const items = wrapper.findAll('[data-catalog="page-body-set"] [data-body]');
+    const names = items.map((item) => item.attributes('data-body'));
+
+    expect(names).toEqual(['standard', 'dense', 'listDetail', 'board', 'workspace', 'beside']);
+
+    const marks = {
+      standard: '[data-slot="page-body"]',
+      dense: '[data-slot="page-body"]',
+      listDetail: '[data-slot="list-detail"]',
+      board: '[data-slot="board-grid"]',
+      workspace: '[data-slot="workspace"]',
+      beside: '[data-slot="panel-beside"] [data-slot="page-body"]',
+    } as const;
+
+    for (const name of keysOf(marks)) {
+      const item = wrapper.get(`[data-catalog="page-body-set"] [data-body="${name}"]`);
+
+      expect(item.find(`[data-body-example] ${marks[name]}`).exists()).toBe(true);
+      expect(item.text()).toContain(en.dashboard.catalog.pages.bodies[name].name);
+    }
+  });
+
+  it('shows the Setup shell: the stepper and the card on the one wizard column', async () => {
+    const wrapper = await show(CatalogPages);
+    const section = wrapper.get('[data-catalog="setup-shell"]');
+    const column = section.get('[data-slot="task-column"]');
+
+    expect(column.classes()).toContain('max-w-xl');
+    expect(column.find(':scope > nav li').exists()).toBe(true);
+    expect(column.get(':scope > [data-slot="panel-card"]').classes()).toContain('w-full');
+    expect(section.findAll('li[aria-current="step"]')).toHaveLength(1);
+  });
+
+  it('shows the viewer page: the title as h1 with its status and its action, then the body', async () => {
+    const wrapper = await show(CatalogPages);
+    const page = wrapper.get('[data-catalog="viewer-page"] [data-slot="viewer-page"]');
+
+    expect(page.get('h1').text()).toBe(en.dashboard.catalog.pages.viewerTitle);
+    expect(page.find('[data-slot="viewer-page-status"]').exists()).toBe(true);
+    expect(page.find('[data-slot="viewer-page-actions"] button').exists()).toBe(true);
+  });
+});
+
+describe('CatalogPanelStates', () => {
+  it('draws loading, empty, error, read-only and destructive next to the ready and quiet panels', async () => {
+    const wrapper = await show(CatalogPanelStates);
+    const titles = wrapper.findAllComponents(PanelCard).map((card) => card.props('title'));
+    const words = en.dashboard.catalog.panel;
+
+    expect(titles).toEqual([
+      words.ready,
+      words.loading,
+      words.empty,
+      words.error,
+      words.quiet,
+      words.readOnly,
+      words.destructive,
+    ]);
+  });
+
+  it('shows the read-only state as a locked scope with its reason, and its control disabled', async () => {
+    const wrapper = await show(CatalogPanelStates);
+    const scope = wrapper.get('[data-state-demo="read-only"] [data-slot="read-only-scope"]');
+
+    expect(scope.attributes('disabled')).toBeDefined();
+    expect(scope.attributes('title')).toBe(en.dashboard.catalog.panel.readOnlyReason);
+    // The fieldset disables the switch: a person cannot flip it.
+    expect(scope.get('button[role="switch"]').element.matches(':disabled')).toBe(true);
+  });
+
+  it('shows the destructive state with its own button variant and the consequence in words', async () => {
+    const wrapper = await show(CatalogPanelStates);
+    const card = wrapper.get('[data-state-demo="destructive"]');
+    const button = card.findComponent(Button);
+
+    expect(button.props('variant')).toBe('destructive');
+    expect(card.text()).toContain(en.dashboard.catalog.panel.destructiveText);
   });
 });

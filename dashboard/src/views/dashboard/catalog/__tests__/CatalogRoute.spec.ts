@@ -27,4 +27,11 @@ describe('catalog route words', () => {
     expect(t('dashboard.admin.pager.next')).toBe('Next');
     expect(t('dashboard.admin.crumb')).toBe('Admin');
   });
+
+  // The Setup shell example on the pages tab draws the real StepsFrame, which names its steps nav.
+  it('loads the setup words the Setup shell example prints', async () => {
+    await dashboardCatalogRoute.component();
+
+    expect(i18n.global.t('site.setup.stepsLabel')).toBe('Setup steps');
+  });
 });

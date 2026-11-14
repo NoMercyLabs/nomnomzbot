@@ -155,7 +155,54 @@
         "wizardTitle": "Wizard step",
         "back": "Back",
         "next": "Next",
-        "below": "Below the card: a link or a note."
+        "below": "Below the card: a link or a note.",
+        "bodySet": "The approved page bodies",
+        "bodies": {
+          "standard": {
+            "name": "Standard PageBody",
+            "rule": "PageBody. The default: the body scrolls under a fixed header.",
+            "panel": "A panel in the scrolling body"
+          },
+          "dense": {
+            "name": "Dense PageBody",
+            "rule": "PageBody dense. A list page: its lead panel fills the height and scrolls inside itself.",
+            "panel": "The lead panel scrolls, not the body"
+          },
+          "listDetail": {
+            "name": "ListDetail",
+            "rule": "ListDetail. A list column with the detail beside it. On a phone only one shows.",
+            "list": "List",
+            "detail": "Detail"
+          },
+          "board": {
+            "name": "BoardGrid",
+            "rule": "BoardGrid with BoardCell. A 12-column board that never grows; each panel scrolls.",
+            "one": "Panel one",
+            "two": "Panel two"
+          },
+          "workspace": {
+            "name": "Full-bleed workspace",
+            "rule": "No PageBody and no padding. An editor or a chat fills the area under the header.",
+            "toolbar": "Toolbar",
+            "stage": "The workspace fills the area to every edge"
+          },
+          "beside": {
+            "name": "PanelBeside with one body",
+            "rule": "PanelBeside holds exactly one approved body, and a SidePanel beside it. Narrow, the panel is a drawer.",
+            "panel": "The body of the page",
+            "side": "Side panel"
+          }
+        },
+        "setup": "Setup shell: PublicTaskShell at the wizard width, with StepsFrame and the card",
+        "setupStepOne": "Twitch app",
+        "setupStepTwo": "Bot account",
+        "setupFinish": "Finish",
+        "setupCard": "Connect your Twitch app",
+        "viewer": "ViewerPage: the page of a viewer",
+        "viewerTitle": "My channels",
+        "viewerStatus": "3 followed",
+        "viewerAction": "Find a channel",
+        "viewerBody": "Rows of the viewer's own data go here. ViewerLayout owns the width."
       },
       "guide": {
         "tiers": {
@@ -345,7 +392,13 @@
         "error": "Error",
         "retried": "Retry pressed {count} times",
         "lead": "Lead panel",
-        "quiet": "Quiet panel"
+        "quiet": "Quiet panel",
+        "readOnly": "Read-only",
+        "readOnlyReason": "You can look at this, but only an admin can change it.",
+        "readOnlySwitch": "Speak replies aloud",
+        "destructive": "Destructive",
+        "destructiveText": "This removes the command and its history. It cannot be undone.",
+        "destructiveAction": "Remove command"
       },
       "template": {
         "title": "Template field and helper panel (command)",

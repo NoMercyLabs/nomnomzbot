@@ -155,7 +155,54 @@
         "wizardTitle": "Wizardstap",
         "back": "Terug",
         "next": "Volgende",
-        "below": "Onder de kaart: een link of een notitie."
+        "below": "Onder de kaart: een link of een notitie.",
+        "bodySet": "De goedgekeurde paginainhouden",
+        "bodies": {
+          "standard": {
+            "name": "Standaard PageBody",
+            "rule": "PageBody. De standaard: de inhoud scrolt onder een vaste kop.",
+            "panel": "Een paneel in de scrollende inhoud"
+          },
+          "dense": {
+            "name": "Compacte PageBody",
+            "rule": "PageBody dense. Een lijstpagina: het hoofdpaneel vult de hoogte en scrolt in zichzelf.",
+            "panel": "Het hoofdpaneel scrolt, niet de inhoud"
+          },
+          "listDetail": {
+            "name": "ListDetail",
+            "rule": "ListDetail. Een lijstkolom met het detail ernaast. Op een telefoon toont er één.",
+            "list": "Lijst",
+            "detail": "Detail"
+          },
+          "board": {
+            "name": "BoardGrid",
+            "rule": "BoardGrid met BoardCell. Een bord van 12 kolommen dat nooit groeit; elk paneel scrolt.",
+            "one": "Paneel een",
+            "two": "Paneel twee"
+          },
+          "workspace": {
+            "name": "Werkruimte over de volle breedte",
+            "rule": "Geen PageBody en geen opvulling. Een editor of een chat vult het gebied onder de kop.",
+            "toolbar": "Werkbalk",
+            "stage": "De werkruimte vult het gebied tot aan elke rand"
+          },
+          "beside": {
+            "name": "PanelBeside met één inhoud",
+            "rule": "PanelBeside bevat precies één goedgekeurde inhoud en een SidePanel ernaast. Smal is het paneel een lade.",
+            "panel": "De inhoud van de pagina",
+            "side": "Zijpaneel"
+          }
+        },
+        "setup": "Setup-schil: PublicTaskShell op wizardbreedte, met StepsFrame en de kaart",
+        "setupStepOne": "Twitch-app",
+        "setupStepTwo": "Botaccount",
+        "setupFinish": "Afronden",
+        "setupCard": "Koppel je Twitch-app",
+        "viewer": "ViewerPage: de pagina van een kijker",
+        "viewerTitle": "Mijn kanalen",
+        "viewerStatus": "3 gevolgd",
+        "viewerAction": "Zoek een kanaal",
+        "viewerBody": "Rijen met de eigen gegevens van de kijker komen hier. ViewerLayout bepaalt de breedte."
       },
       "guide": {
         "tiers": {
@@ -345,7 +392,13 @@
         "error": "Fout",
         "retried": "{count} keer op Opnieuw geklikt",
         "lead": "Hoofdpaneel",
-        "quiet": "Rustig paneel"
+        "quiet": "Rustig paneel",
+        "readOnly": "Alleen lezen",
+        "readOnlyReason": "Je kunt dit bekijken, maar alleen een beheerder kan het wijzigen.",
+        "readOnlySwitch": "Antwoorden hardop voorlezen",
+        "destructive": "Onomkeerbaar",
+        "destructiveText": "Dit verwijdert het commando en zijn geschiedenis. Het kan niet ongedaan worden gemaakt.",
+        "destructiveAction": "Commando verwijderen"
       },
       "template": {
         "title": "Sjabloonveld en hulppaneel (commando)",
