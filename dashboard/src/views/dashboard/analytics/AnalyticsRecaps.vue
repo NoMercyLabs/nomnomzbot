@@ -179,13 +179,16 @@ async function save(): Promise<void> {
       :error-text="t('dashboard.analytics.error')"
       @retry="recaps.refetch()"
     >
-      <Table class="min-w-176 table-fixed">
-        <TableHeader>
-          <TableRow class="hover:bg-transparent">
-            <TableHead class="w-16" />
+      <!-- Below md each recap is a labeled card, so no column runs past the panel edge; the header stays as
+           a row of sort buttons. -->
+      <Table stacked class="table-fixed md:min-w-176">
+        <TableHeader class="max-md:block">
+          <TableRow class="hover:bg-transparent max-md:flex-row max-md:flex-wrap max-md:gap-1 max-md:border-0 max-md:p-0">
+            <TableHead class="w-16 max-md:hidden" />
             <TableHead
               v-for="column in COLUMNS"
               :key="column.key"
+              class="max-md:w-auto max-md:px-0"
               :class="[column.width, column.hidden]"
               :aria-sort="ariaSort(column.key)"
             >
@@ -202,23 +205,23 @@ async function save(): Promise<void> {
                 <ArrowsUpDown v-else class="size-4 text-muted-foreground" />
               </Button>
             </TableHead>
-            <TableHead class="w-24" />
+            <TableHead class="w-24 max-md:hidden" />
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow v-for="recap in rows" :key="recap.streamId" data-recap-row>
-            <TableCell>
+            <TableCell stack="title">
               <Avatar class="size-10 rounded-md">
                 <AvatarImage :src="recap.stats.channel?.avatarUrl ?? ''" alt="" />
                 <AvatarFallback class="rounded-md">{{ recap.stats.channel?.name?.slice(0, 1) }}</AvatarFallback>
               </Avatar>
             </TableCell>
-            <TableCell class="truncate font-medium">{{ started(recap) }}</TableCell>
-            <TableCell class="truncate" :title="recap.stats.stream.title ?? ''">{{ title(recap) }}</TableCell>
-            <TableCell class="tabular-nums">{{ length(recap) }}</TableCell>
-            <TableCell class="tabular-nums">{{ peak(recap) }}</TableCell>
-            <TableCell class="tabular-nums">{{ chat(recap) }}</TableCell>
-            <TableCell class="text-right">
+            <TableCell class="truncate font-medium" :label="t(`${page}.columns.started`)">{{ started(recap) }}</TableCell>
+            <TableCell stack="title" class="truncate" :title="recap.stats.stream.title ?? ''">{{ title(recap) }}</TableCell>
+            <TableCell class="tabular-nums" :label="t(`${page}.columns.length`)">{{ length(recap) }}</TableCell>
+            <TableCell class="tabular-nums" :label="t(`${page}.columns.peak`)">{{ peak(recap) }}</TableCell>
+            <TableCell class="tabular-nums" :label="t(`${page}.columns.chat`)">{{ chat(recap) }}</TableCell>
+            <TableCell stack="actions" class="text-right">
               <Button variant="outline" size="sm" data-recap-open @click="opened = recap">{{ t(`${page}.open`) }}</Button>
             </TableCell>
           </TableRow>

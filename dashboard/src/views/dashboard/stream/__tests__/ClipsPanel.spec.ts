@@ -17,6 +17,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
+import { laptopWidth, phoneWidth, setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 
 import ClipsPanel from '../ClipsPanel.vue';
@@ -109,7 +110,10 @@ beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
 });
 
+const realMatchMedia = window.matchMedia;
+
 afterEach(() => {
+  window.matchMedia = realMatchMedia;
   mounted?.unmount();
   mounted = null;
   document.body.innerHTML = '';
@@ -156,6 +160,29 @@ async function submit(): Promise<void> {
 }
 
 describe('ClipsPanel', () => {
+  it('on a phone gives the title the room: the upload is a 36px icon button named by its aria-label', async () => {
+    setWidth(phoneWidth);
+    await open();
+
+    const upload = uploadButtons()[0]!;
+
+    expect(upload.getAttribute('data-size')).toBe('icon');
+    expect(upload.getAttribute('aria-label')).toBe('Upload to YouTube');
+    expect(upload.textContent?.trim()).toBe('');
+    expect(upload.querySelector('svg')!.getAttribute('class')).toContain('size-5');
+    expect(rows()[0]!.className).not.toContain('flex-wrap');
+  });
+
+  it('on a desktop keeps the written Upload to YouTube button', async () => {
+    setWidth(laptopWidth);
+    await open();
+
+    const upload = uploadButtons()[0]!;
+
+    expect(upload.getAttribute('data-variant')).toBe('outline');
+    expect(upload.textContent?.trim()).toBe('Upload to YouTube');
+  });
+
   it('lists each clip with who made it, when and its views, and says how many uploads are left', async () => {
     await open();
 

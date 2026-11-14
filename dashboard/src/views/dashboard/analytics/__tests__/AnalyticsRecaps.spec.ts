@@ -190,6 +190,25 @@ const rows = (): string[] =>
   [...document.body.querySelectorAll('[data-recap-row]')].map((row) => row.textContent ?? '');
 
 describe('the Recaps tab', () => {
+  it('on a phone stacks each recap as a labeled card instead of a wide table cut at the panel edge, and keeps the sort buttons', async () => {
+    await open();
+
+    const container = document.body.querySelector('[data-slot="table-container"]')!;
+    const table = document.body.querySelector('table[data-slot="table"]')!;
+    const head = document.body.querySelector('thead[data-slot="table-header"]')!;
+    const cells = [...document.body.querySelectorAll('[data-recap-row] td')];
+    const labels = [...document.body.querySelectorAll('[data-recap-row]:first-child [data-cell-label]')]
+      .map((label) => label.textContent?.trim());
+
+    expect(container.className).toContain('max-md:overflow-visible');
+    expect(table.classList.contains('min-w-176')).toBe(false);
+    expect(table.classList.contains('md:min-w-176')).toBe(true);
+    expect(cells.every((cell) => cell.hasAttribute('data-stack'))).toBe(true);
+    expect(labels).toEqual(['Stream', 'Length', 'Peak', 'Chat']);
+    expect(head.className).not.toContain('max-md:hidden');
+    expect(head.querySelectorAll('[data-sort]')).toHaveLength(5);
+  });
+
   it('lists the kept recaps from the endpoint, newest first, with date, title and length, and no saved size', async () => {
     await open();
 
@@ -225,8 +244,15 @@ describe('the Recaps tab', () => {
 
     await open();
 
+    // A phone card names each value with a label inside the cell; the value is the text beside it.
+    const valueOf = (cell: HTMLTableCellElement): string | undefined => {
+      const label = cell.querySelector('[data-cell-label]')?.textContent ?? '';
+
+      return cell.textContent?.slice(label.length).trim();
+    };
+
     const cells = [...document.body.querySelectorAll('[data-recap-row]')]
-      .map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent?.trim()))
+      .map((row) => [...row.querySelectorAll('td')].map(valueOf))
       .find((row) => row.includes('–'));
 
     expect(cells?.[2]).toBe('–');

@@ -13,16 +13,19 @@
 // The channel's Twitch clips, newest first. Each clip can go to the streamer's YouTube channel.
 // Google allows the app 100 uploads a day in total, so the panel says how many are left.
 import type { InfiniteData } from '@tanstack/vue-query';
+import Upload from '~icons/nnz/upload';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useClips, type ChannelClip, type ChannelClips, type ClipUpload } from '@/api/clips';
+import IconAction from '@/components/layout/IconAction.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
 
@@ -33,6 +36,7 @@ const time = useTime();
 const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const page = 'dashboard.stream.clips';
+const tablet = useScreenFrom('tablet');
 
 const clips = useClips(channelId);
 const rows = computed<ChannelClip[]>(() =>
@@ -89,7 +93,6 @@ const detail = (clip: ChannelClip): string =>
         :key="clip.id"
         data-clip
         truncate
-        wrap
         :title="clip.title"
         :detail="detail(clip)"
       >
@@ -102,7 +105,9 @@ const detail = (clip: ChannelClip): string =>
           >
         </template>
         <template #end>
+          <!-- On a phone the title keeps the room: the upload shrinks to an icon that names itself. -->
           <Button
+            v-if="tablet"
             data-clip-upload
             variant="outline"
             size="sm"
@@ -111,6 +116,15 @@ const detail = (clip: ChannelClip): string =>
           >
             {{ t(`${page}.upload.open`) }}
           </Button>
+          <IconAction
+            v-else
+            data-clip-upload
+            :label="t(`${page}.upload.open`)"
+            :disabled="left === 0"
+            @click="choose(clip)"
+          >
+            <Upload class="size-5" aria-hidden="true" />
+          </IconAction>
         </template>
       </SummaryRow>
     </RowGroup>
