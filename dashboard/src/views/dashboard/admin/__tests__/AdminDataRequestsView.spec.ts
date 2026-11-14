@@ -211,6 +211,14 @@ describe('AdminDataRequestsView', () => {
     expect(text()).toContain('42');
   });
 
+  it('keeps each row, its text and its status, inside the panel title inset on both sides', async () => {
+    await open();
+
+    for (const row of document.body.querySelectorAll<HTMLElement>('[data-request-row]')) {
+      expect(row.classList.contains('px-2')).toBe(true);
+    }
+  });
+
   it('words each row in plain terms: who asked, and rows exported or erased', async () => {
     await open();
 

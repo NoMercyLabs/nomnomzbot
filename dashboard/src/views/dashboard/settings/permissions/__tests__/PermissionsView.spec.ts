@@ -320,16 +320,29 @@ const removeOf = (name: string): HTMLElement =>
   rowOf(name).querySelector('[data-member-remove]') as HTMLElement;
 
 describe('Permissions', () => {
-  it('keeps a name on one line: the role select and remove button wrap to a second line instead of squeezing it', async () => {
+  it('keeps every team row in one layout: name, role select and remove on one line, a long name cut with an ellipsis, never a staircase', async () => {
     await open();
 
     const row = rowOf('modmary');
     const trailing = row.querySelector('[data-slot="summary-row-trailing"]');
+    const title = q('[data-member="modmary"]').querySelector('[data-slot="summary-row-title"]');
 
-    expect(row.className).toContain('flex-wrap');
+    expect(row.className).not.toContain('flex-wrap');
+    expect(trailing?.className).not.toContain('ml-auto');
+    expect(title?.className).toContain('truncate');
     expect(trailing?.querySelector('[data-member-role]')).not.toBeNull();
     expect(trailing?.querySelector('[data-member-remove]')).not.toBeNull();
     expect(q('[data-member="modmary"]').querySelector('[data-member-role]')).toBeNull();
+  });
+
+  it('lines the Team add row and the Actions group labels up with their panel title', async () => {
+    await open();
+
+    const team = q('[data-panel="team-roles"]');
+    const addRow = team.querySelector('[data-member-add]')!.parentElement!;
+
+    expect(team.querySelector('header + div')!.classList.contains('p-2')).toBe(true);
+    expect(addRow.classList.contains('px-2')).toBe(true);
   });
 
   it('shows each person with the role name, never a number, and locks the broadcaster', async () => {
@@ -605,6 +618,18 @@ describe('Permissions layout', () => {
     expect(q('[data-area="chat"]').textContent).toContain('3 actions');
     expect(q('[data-area="chat"]').textContent).toContain('1 changed');
     expect(q('[data-area="obs"]').textContent).not.toContain('changed');
+  });
+
+  it('lines each Actions group label up with the panel title', async () => {
+    await open('actions');
+
+    const labels = [...document.body.querySelectorAll<HTMLElement>('[data-panel="action-matrix"] h3')];
+
+    expect(labels.length).toBeGreaterThan(0);
+
+    for (const label of labels) {
+      expect(label.classList.contains('px-2')).toBe(true);
+    }
   });
 
   it('shows only the actions of the picked area and keeps the area in the address', async () => {

@@ -125,7 +125,7 @@ const changeLevel = (actionKey: string, rung: RungName): Promise<void> =>
       {{ $t('dashboard.settings.permissions.areas.noMatch') }}
     </p>
     <section v-for="group in byPlane" :key="group.plane" class="pb-3">
-      <h3 class="pb-1 text-sm font-medium text-muted-foreground">
+      <h3 class="px-2 pb-1 text-sm font-medium text-muted-foreground">
         {{ $t(`dashboard.settings.permissions.matrix.plane.${group.plane}`) }}
       </h3>
       <RowGroup>

@@ -223,6 +223,14 @@ describe('the viewer account page', () => {
     expect(page.find('[data-slot="viewer-page-status"] [data-viewer-standing]').exists()).toBe(true);
   });
 
+  it('lines the pronoun fields up with their panel title', async () => {
+    const wrapper = await mountPage();
+    const panel = wrapper.find('[data-viewer-pronouns]');
+
+    expect(panel.find('header').classes()).toContain('px-4');
+    expect(panel.find('header + div').classes()).toContain('p-4');
+  });
+
   it('sends the picked pronoun in the PUT body and shows the saved pronoun after', async () => {
     const wrapper = await mountPage();
     const primary = wrapper.get('[data-viewer-pronouns]').findAllComponents(Select)[0]!;

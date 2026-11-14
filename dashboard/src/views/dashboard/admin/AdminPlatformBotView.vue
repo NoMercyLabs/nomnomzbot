@@ -153,6 +153,7 @@ async function checkApproval(): Promise<void> {
 
     <PanelCard
       v-if="can('platform:bot:manage')"
+      pad
       :title="$t('dashboard.admin.platformBot.reconnect.title')"
       :description="$t('dashboard.admin.platformBot.reconnect.description')"
     >

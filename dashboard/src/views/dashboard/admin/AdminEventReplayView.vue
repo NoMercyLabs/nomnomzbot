@@ -38,6 +38,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
@@ -213,10 +214,12 @@ async function submit(): Promise<void> {
       tier="lead"
       :title="$t('dashboard.admin.eventReplay.scope.title')"
       :description="$t('dashboard.admin.eventReplay.scope.description')"
+      pad
     >
-      <div class="grid grid-cols-1 gap-3 md:flex md:flex-wrap md:items-end">
-        <Field class="gap-1 md:w-auto">
-          <FieldLabel for="replay-tenant" class="text-xs font-normal text-muted-foreground">
+      <!-- One even grid: what to replay (channel, projection, event type) on the first row, the time window under it. -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field>
+          <FieldLabel for="replay-tenant">
             {{ $t("dashboard.admin.eventReplay.scope.channel") }}
           </FieldLabel>
           <OptionSelect
@@ -224,60 +227,60 @@ async function submit(): Promise<void> {
             v-model="broadcasterId"
             data-tenant
             searchable
-            class="w-full rounded-md border border-input bg-transparent shadow-xs md:w-56! dark:bg-input/30"
+            class="w-full rounded-md border border-input bg-transparent shadow-xs dark:bg-input/30"
             :options="tenantChoices"
             :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
             :search-placeholder="$t('frame.channel.find')"
             :empty-text="$t('frame.channel.noMatch')"
           />
         </Field>
-        <Field class="gap-1 md:w-auto">
-          <FieldLabel for="replay-projection" class="text-xs font-normal text-muted-foreground">
+        <Field>
+          <FieldLabel for="replay-projection">
             {{ $t("dashboard.admin.eventReplay.scope.projection") }}
           </FieldLabel>
           <OptionSelect
             id="replay-projection"
             v-model="projectionName"
             data-projection
-            class="w-full md:w-56!"
+            class="w-full"
             :options="projectionChoices"
             :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
           />
         </Field>
-        <Field class="gap-1 md:w-auto">
-          <FieldLabel for="replay-event-type" class="text-xs font-normal text-muted-foreground">
+        <Field>
+          <FieldLabel for="replay-event-type">
             {{ $t("dashboard.admin.eventReplay.scope.eventType") }}
           </FieldLabel>
           <OptionSelect
             id="replay-event-type"
             v-model="eventType"
             data-event-type
-            class="w-full md:w-56!"
+            class="w-full"
             :options="eventTypeChoices"
           />
         </Field>
-        <Field class="gap-1 md:w-auto">
-          <FieldLabel for="replay-from" class="text-xs font-normal text-muted-foreground">
+        <Field>
+          <FieldLabel for="replay-from">
             {{ $t("dashboard.admin.eventReplay.scope.from") }}
           </FieldLabel>
-          <input
+          <Input
             id="replay-from"
             v-model="from"
             data-from
             type="datetime-local"
-            class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
+            class="w-full"
           />
         </Field>
-        <Field class="gap-1 md:w-auto">
-          <FieldLabel for="replay-to" class="text-xs font-normal text-muted-foreground">
+        <Field>
+          <FieldLabel for="replay-to">
             {{ $t("dashboard.admin.eventReplay.scope.to") }}
           </FieldLabel>
-          <input
+          <Input
             id="replay-to"
             v-model="to"
             data-to
             type="datetime-local"
-            class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
+            class="w-full"
           />
         </Field>
       </div>
@@ -320,7 +323,7 @@ async function submit(): Promise<void> {
           v-for="row in history.data.value ?? []"
           :key="String(row.id)"
           data-replay-row
-          class="flex flex-wrap items-center gap-3 py-3"
+          class="flex flex-wrap items-center gap-3 px-2 py-3"
         >
           <div class="min-w-0 flex-1">
             <span class="block text-sm font-medium">{{ row.targetResource }}</span>

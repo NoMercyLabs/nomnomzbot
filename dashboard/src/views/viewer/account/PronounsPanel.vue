@@ -48,6 +48,7 @@ function pickAlt(value: AcceptableValue): void {
   <PanelCard
     :title="$t('viewer.account.pronouns.title')"
     :description="$t('viewer.account.pronouns.description')"
+    pad
     :state="state"
     :error-text="$t('viewer.account.pronouns.error')"
     data-viewer-pronouns

@@ -264,6 +264,15 @@ describe('the schedule panel', () => {
 });
 
 describe('the raid rules panel', () => {
+  it('lines its fields up with the panel title: the body pads 16px, the same inset as the title', async () => {
+    await show(RaidRulesPanel);
+
+    const panel = pick('[data-slot=panel-card]');
+
+    expect(panel.querySelector('header')!.classList.contains('px-4')).toBe(true);
+    expect(panel.querySelector('header + div')!.classList.contains('p-4')).toBe(true);
+  });
+
   it('saves the whole rule set with the edited weight and keeps Save off until a change', async () => {
     await show(RaidRulesPanel);
 

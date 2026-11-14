@@ -117,6 +117,7 @@ function submit(): void {
     :title="t('dashboard.stream.raids.title')"
     :description="t('dashboard.stream.raids.description')"
     tier="lead"
+    pad
     :state="state"
     :error-text="t('dashboard.stream.raids.error')"
     @retry="query.refetch()"

@@ -97,7 +97,7 @@ async function add(): Promise<void> {
     <RowGroup>
       <SummaryRow
         v-for="member in rows"
-        wrap
+        truncate
         :key="member.id"
         :data-member="member.username ?? member.userId"
         :title="member.username ?? member.userId"
@@ -125,7 +125,7 @@ async function add(): Promise<void> {
         </template>
       </SummaryRow>
     </RowGroup>
-    <div v-if="canManage" class="flex flex-wrap items-center gap-2 pt-3">
+    <div v-if="canManage" class="flex flex-wrap items-center gap-2 px-2 pt-3">
       <PersonPicker :picked="picked" :label="$t('dashboard.settings.permissions.team.person')" @pick="picked = $event" />
       <OptionSelect
         v-model="newRole"

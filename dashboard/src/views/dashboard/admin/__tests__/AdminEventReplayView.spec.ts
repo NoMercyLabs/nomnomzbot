@@ -393,6 +393,39 @@ describe('AdminEventReplayView', () => {
     expect(field('[data-tenant]').className).toContain('border-input');
   });
 
+  it('sets the five scope fields in one even grid, at the panel title inset, with the shared label and the shared date input', async () => {
+    await open();
+
+    const hooks = ['[data-tenant]', '[data-projection]', '[data-event-type]', '[data-from]', '[data-to]'];
+    const fields = hooks.map((hook) => field(hook).closest<HTMLElement>('[data-slot="field"]')!);
+    const grid = fields[0]!.parentElement!;
+    const panel = grid.closest('[data-slot="panel-card"]')!;
+
+    for (const one of fields) {
+      expect(one.parentElement).toBe(grid);
+      expect(one.querySelector('[data-slot="field-label"]')!.className).not.toContain('text-xs');
+    }
+
+    expect(grid.classList.contains('grid')).toBe(true);
+    expect(grid.className).not.toContain('flex-wrap');
+    expect(grid.classList.contains('lg:grid-cols-3')).toBe(true);
+    expect(field('[data-from]').getAttribute('data-slot')).toBe('input');
+    expect(field('[data-to]').getAttribute('data-slot')).toBe('input');
+    expect(panel.querySelector('header + div')!.classList.contains('p-4')).toBe(true);
+  });
+
+  it('keeps each past replay row inside the panel title inset', async () => {
+    await open();
+
+    const rows = [...document.body.querySelectorAll<HTMLElement>('[data-replay-row]')];
+
+    expect(rows.length).toBeGreaterThan(0);
+
+    for (const row of rows) {
+      expect(row.classList.contains('px-2')).toBe(true);
+    }
+  });
+
   it('registers an admin-only route', () => {
     const children = dashboardRoutes.children ?? [];
     const registered = children.find((route) => route.name === 'dashboard-admin-event-replay');

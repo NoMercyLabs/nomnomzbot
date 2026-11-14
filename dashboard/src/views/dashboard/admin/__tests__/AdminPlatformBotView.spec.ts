@@ -155,6 +155,15 @@ describe('AdminPlatformBotView', () => {
     expect(document.body.querySelector('[data-slot="connection-row"]')?.textContent).toContain('nomnomzbot');
   });
 
+  it('lines the reason field up with the reconnect panel title', async () => {
+    await open();
+
+    const panel = document.body.querySelector('[data-field-reason]')!.closest('[data-slot="panel-card"]')!;
+
+    expect(panel.querySelector('header')!.classList.contains('px-4')).toBe(true);
+    expect(panel.querySelector('header + div')!.classList.contains('p-4')).toBe(true);
+  });
+
   it('draws the platform bot through the connection row and never uses the streamer attention tone', async () => {
     await open();
 

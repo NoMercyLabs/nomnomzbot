@@ -219,7 +219,7 @@ async function submit(): Promise<void> {
           v-for="row in requests.data.value ?? []"
           :key="row.id"
           data-request-row
-          class="flex flex-wrap items-center gap-3 py-3"
+          class="flex flex-wrap items-center gap-3 px-2 py-3"
         >
           <div class="min-w-0 flex-1">
             <span class="flex flex-wrap gap-x-3 text-sm font-medium">
