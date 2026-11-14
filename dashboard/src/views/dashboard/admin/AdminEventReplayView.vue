@@ -35,6 +35,8 @@ import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -318,21 +320,22 @@ async function submit(): Promise<void> {
       :error-text="$t('dashboard.admin.eventReplay.history.error')"
       @retry="history.refetch()"
     >
-      <ul class="divide-y divide-border">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in history.data.value ?? []"
           :key="String(row.id)"
           data-replay-row
-          class="flex flex-wrap items-center gap-3 px-2 py-3"
+          :title="row.targetResource ?? ''"
         >
-          <div class="min-w-0 flex-1">
-            <span class="block text-sm font-medium">{{ row.targetResource }}</span>
-            <span class="block text-xs text-muted-foreground">{{ row.justification }}</span>
-            <span class="block text-xs text-muted-foreground"><DateTime :value="row.occurredAt" variant="dateTime" /></span>
-          </div>
-          <Badge variant="outline">{{ row.outcome }}</Badge>
-        </li>
-      </ul>
+          <template #meta>
+            <span class="block">{{ row.justification }}</span>
+            <span class="block"><DateTime :value="row.occurredAt" variant="dateTime" /></span>
+          </template>
+          <template #end>
+            <Badge variant="outline">{{ row.outcome }}</Badge>
+          </template>
+        </SummaryRow>
+      </RowGroup>
     </PanelCard>
 
     <FormDialog

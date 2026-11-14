@@ -206,6 +206,23 @@ describe('AdminFeatureFlagsView', () => {
     expect(one('[data-restricted]').textContent).toContain('earn money with NomNomzBot');
   });
 
+  it('lists flags and overrides as SummaryRows inside RowGroups, the key as title and the action trailing', async () => {
+    await open();
+
+    const flag = one('[data-flag="beta-widgets"]');
+    const override = one('[data-override]');
+
+    for (const body of [flag, override]) {
+      expect(body.dataset.slot).toBe('summary-row-body');
+      expect(body.closest('.rounded-\\[12px\\]')).not.toBeNull();
+    }
+
+    expect(flag.querySelector('[data-slot="summary-row-title"]')!.textContent).toBe('beta-widgets');
+    expect(flag.parentElement!.querySelector('[data-slot="summary-row-trailing"] [data-edit]')!.getAttribute('aria-label')).toBeTruthy();
+    expect(override.parentElement!.querySelector('[data-slot="summary-row-trailing"] [data-row-delete]')).not.toBeNull();
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
+  });
+
   it('keeps the two intro lines inside the flags panel, not loose in the page body', async () => {
     await open();
 
@@ -224,13 +241,13 @@ describe('AdminFeatureFlagsView', () => {
     expect(document.body.querySelectorAll('[data-override]')).toHaveLength(1);
     expect(document.body.querySelector('[data-new]')).toBeNull();
     expect(document.body.querySelector('[data-edit]')).toBeNull();
-    expect(document.body.querySelector('[data-override] [data-row-delete]')).toBeNull();
+    expect(document.body.querySelector('[data-override] ~ [data-slot="summary-row-trailing"] [data-row-delete]')).toBeNull();
     expect(document.body.querySelector('[data-override-save]')).toBeNull();
   });
 
   it('shows the counted blast radius before it saves, then sends every field of the definition', async () => {
     await open();
-    await click('[data-flag="beta-widgets"] [data-edit]');
+    await click('[data-flag="beta-widgets"] ~ [data-slot="summary-row-trailing"] [data-edit]');
 
     expect(field('description').value).toBe('New widget runtime');
     expect(field('rolloutPercentage').value).toBe('25');
@@ -313,7 +330,7 @@ describe('AdminFeatureFlagsView', () => {
 
   it('sets a per-channel override for the chosen flag with its reason and expiry', async () => {
     await open();
-    await click('[data-flag="dark-launch"] [data-edit]');
+    await click('[data-flag="dark-launch"] ~ [data-slot="summary-row-trailing"] [data-edit]');
     await type('[data-field="overrideChannel"]', '01J0000000000000000000000B');
     await type('[data-field="overrideReason"]', 'kill switch');
     one('[data-field="overrideEnabled"]').click();
@@ -334,7 +351,7 @@ describe('AdminFeatureFlagsView', () => {
 
     const before = reads.filter((path) => path.endsWith('/overrides')).length;
 
-    await click('[data-override] [data-row-delete]');
+    await click('[data-override] ~ [data-slot="summary-row-trailing"] [data-row-delete]');
 
     expect(deletes).toHaveLength(1);
 
@@ -387,7 +404,7 @@ describe('AdminFeatureFlagsView', () => {
     it('takes a step for the editor and Back closes it on the same route', async () => {
       const { router, start } = await openInHistory();
 
-      await click('[data-flag="beta-widgets"] [data-edit]');
+      await click('[data-flag="beta-widgets"] ~ [data-slot="summary-row-trailing"] [data-edit]');
       await settleHistory();
       expect(document.body.querySelector('[data-editor]')).not.toBeNull();
       expectStepAdded(router, start);
@@ -401,7 +418,7 @@ describe('AdminFeatureFlagsView', () => {
     it('closes the review first on Back, then the editor, and the review back button pops its step', async () => {
       const { router, start } = await openInHistory();
 
-      await click('[data-flag="beta-widgets"] [data-edit]');
+      await click('[data-flag="beta-widgets"] ~ [data-slot="summary-row-trailing"] [data-edit]');
       await click('[data-review]');
       await settleHistory();
       expect(document.body.querySelector('[data-confirm-panel]')).not.toBeNull();

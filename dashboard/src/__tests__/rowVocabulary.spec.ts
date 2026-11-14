@@ -25,12 +25,6 @@ const helpOnly = 'a help-only row with no title copy';
 const laneC = 'admin form or list in the lane C area; it moves when lane C lands';
 
 const allowlist = {
-  'views/dashboard/admin/AdminAccessView.vue': laneC,
-  'views/dashboard/admin/AdminContentView.vue': laneC,
-  'views/dashboard/admin/AdminEventReplayView.vue': laneC,
-  'views/dashboard/admin/AdminFeatureFlagsView.vue': laneC,
-  'views/dashboard/admin/AdminSupportView.vue': laneC,
-  'views/dashboard/admin/AdminTrustSafetyView.vue': laneC,
   'views/dashboard/admin/components/BillingInvitesPanel.vue': laneC,
   'views/dashboard/admin/components/EventSubChannelRow.vue': laneC,
   'views/dashboard/admin/components/PlatformActionDefaults.vue': laneC,

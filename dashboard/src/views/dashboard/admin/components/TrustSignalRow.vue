@@ -18,6 +18,7 @@ import ChevronRight from '~icons/nnz/chevron-right';
 
 import type { CrossTenantAbuseSignal } from '@/api/adminTrustSafety';
 import DateTime from '@/components/layout/DateTime.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -28,23 +29,23 @@ const open = ref(false);
 </script>
 
 <template>
-  <li data-signal-row class="px-4 py-2">
-    <Collapsible v-model:open="open">
-      <div class="flex items-center gap-3">
-        <div class="min-w-0 flex-1">
-          <p class="flex min-w-0 items-center gap-1.5 text-sm">
-            <UserName :user-id="signal.subjectPlatformUserId" :name="signal.subjectDisplayName" />
-            <span class="text-muted-foreground">{{ signal.provider }}</span>
-          </p>
-          <p class="text-xs text-muted-foreground">
-            {{
-              $t("dashboard.admin.trustSafety.signals.summary", {
-                tenants: Number(signal.tenantCount),
-                detections: Number(signal.detectionCount),
-              })
-            }}
-          </p>
-        </div>
+  <Collapsible v-model:open="open" data-signal-row>
+    <SummaryRow
+      :title="signal.subjectDisplayName"
+      :meta="
+        $t('dashboard.admin.trustSafety.signals.summary', {
+          tenants: Number(signal.tenantCount),
+          detections: Number(signal.detectionCount),
+        })
+      "
+    >
+      <template #title>
+        <span class="flex min-w-0 items-center gap-1.5">
+          <UserName :user-id="signal.subjectPlatformUserId" :name="signal.subjectDisplayName" />
+          <span class="font-normal text-muted-foreground">{{ signal.provider }}</span>
+        </span>
+      </template>
+      <template #trailing>
         <CollapsibleTrigger as-child>
           <Button
             variant="ghost"
@@ -56,22 +57,22 @@ const open = ref(false);
             <ChevronRight v-else class="size-5" aria-hidden="true" />
           </Button>
         </CollapsibleTrigger>
-      </div>
-      <CollapsibleContent>
-        <ul class="mt-1 grid gap-1 border-l border-border pl-3">
-          <li
-            v-for="hit in signal.hits"
-            :key="hit.detectionId"
-            data-signal-hit
-            class="flex flex-wrap gap-x-3 text-xs text-muted-foreground"
-          >
-            <span class="text-foreground">{{ hit.channelName }}</span>
-            <span>{{ hit.reason }}</span>
-            <span>{{ $t(`dashboard.admin.trustSafety.review.outcome.${hit.outcome}`) }}</span>
-            <DateTime :value="hit.detectedAt" />
-          </li>
-        </ul>
-      </CollapsibleContent>
-    </Collapsible>
-  </li>
+      </template>
+    </SummaryRow>
+    <CollapsibleContent>
+      <ul class="mx-3 mb-2 grid gap-1 border-l border-border pl-3">
+        <li
+          v-for="hit in signal.hits"
+          :key="hit.detectionId"
+          data-signal-hit
+          class="flex flex-wrap gap-x-3 text-xs text-muted-foreground"
+        >
+          <span class="text-foreground">{{ hit.channelName }}</span>
+          <span>{{ hit.reason }}</span>
+          <span>{{ $t(`dashboard.admin.trustSafety.review.outcome.${hit.outcome}`) }}</span>
+          <DateTime :value="hit.detectedAt" />
+        </li>
+      </ul>
+    </CollapsibleContent>
+  </Collapsible>
 </template>

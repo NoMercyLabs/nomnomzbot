@@ -39,6 +39,8 @@ import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Badge } from '@/components/ui/badge';
@@ -276,82 +278,75 @@ async function submit(): Promise<void> {
       :error-text="$t('dashboard.admin.access.principals.error')"
       @retry="principals.refetch()"
     >
-      <ul class="divide-y divide-border">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in visible"
           :key="row.id"
           data-principal-row
-          class="flex min-h-16 flex-wrap items-center gap-3 py-3"
+          wrap
+          :title="row.name"
         >
-          <div class="min-w-40 flex-1 basis-48 max-md:basis-full">
-            <UserName
-              :user-id="row.userId"
-              :name="row.name"
-              class="block truncate text-sm font-medium"
-            />
+          <template #title>
+            <UserName :user-id="row.userId" :name="row.name" class="block truncate" />
+          </template>
+          <template #meta>
             <span
               v-if="ordinals.get(row.id)"
               data-principal-ordinal
-              class="block text-xs text-muted-foreground"
+              class="block"
             >{{ $t("dashboard.admin.access.principals.ordinal", ordinals.get(row.id)!) }}</span>
-            <span class="block text-xs text-muted-foreground">
+            <span class="block">
               {{
                 row.principalType === 0
                   ? $t("dashboard.admin.access.principals.employee")
                   : $t("dashboard.admin.access.principals.serviceAccount")
               }}
             </span>
-            <span
-              v-if="row.expiresAt"
-              data-principal-expires
-              class="block text-xs text-muted-foreground"
-            >
+            <span v-if="row.expiresAt" data-principal-expires class="block">
               {{ $t("dashboard.admin.access.principals.expires") }}
               <DateTime :value="row.expiresAt" />
             </span>
-          </div>
-          <div
-            class="flex min-w-0 flex-3 basis-96 flex-wrap items-center gap-2 max-md:basis-full"
-          >
-            <StatusBadge
-              v-if="!row.isActive"
-              tone="off"
-              :label="$t('dashboard.admin.access.principals.inactive')"
-            />
-            <span
-              v-else-if="row.activeAssignments.length === 0"
-              class="text-xs text-muted-foreground"
-            >{{ $t("dashboard.admin.access.principals.noRoles") }}</span>
-            <span
-              v-for="{ held, count } in grouped(row.activeAssignments)"
-              :key="held.id"
-              data-assignment
-              class="inline-flex min-h-9 flex-wrap items-center gap-x-1 rounded-md border border-border pr-0.5 pl-2 text-xs"
-            >
-              <span class="whitespace-nowrap">{{ held.roleName }}</span>
-              <span v-if="count > 1" data-assignment-count class="text-muted-foreground">{{
-                $t("dashboard.admin.access.principals.times", { count })
-              }}</span>
-              <span v-if="held.scopeChannelId" data-assignment-scope class="text-muted-foreground">
-                <AccessScope :channel-id="held.scopeChannelId" />
-              </span>
-              <span v-if="held.expiresAt" data-assignment-expires class="text-muted-foreground">
-                {{ $t("dashboard.admin.access.principals.expires") }}
-                <DateTime :value="held.expiresAt" />
-              </span>
-              <Button
-                v-if="can('iam:manage')"
-                variant="ghost"
-                size="icon"
-                data-revoke
-                :aria-label="$t('dashboard.admin.access.actions.revoke', { role: held.roleName })"
-                @click="open('revoke', row, held)"
+            <span data-principal-chips class="flex flex-wrap items-center gap-2 pt-2 text-foreground">
+              <StatusBadge
+                v-if="!row.isActive"
+                tone="off"
+                :label="$t('dashboard.admin.access.principals.inactive')"
+              />
+              <span
+                v-else-if="row.activeAssignments.length === 0"
+                class="text-xs text-muted-foreground"
+              >{{ $t("dashboard.admin.access.principals.noRoles") }}</span>
+              <span
+                v-for="{ held, count } in grouped(row.activeAssignments)"
+                :key="held.id"
+                data-assignment
+                class="inline-flex min-h-9 flex-wrap items-center gap-x-1 rounded-md border border-border pr-0.5 pl-2 text-xs"
               >
-                <Cross class="size-5" aria-hidden="true" />
-              </Button>
+                <span class="whitespace-nowrap">{{ held.roleName }}</span>
+                <span v-if="count > 1" data-assignment-count class="text-muted-foreground">{{
+                  $t("dashboard.admin.access.principals.times", { count })
+                }}</span>
+                <span v-if="held.scopeChannelId" data-assignment-scope class="text-muted-foreground">
+                  <AccessScope :channel-id="held.scopeChannelId" />
+                </span>
+                <span v-if="held.expiresAt" data-assignment-expires class="text-muted-foreground">
+                  {{ $t("dashboard.admin.access.principals.expires") }}
+                  <DateTime :value="held.expiresAt" />
+                </span>
+                <Button
+                  v-if="can('iam:manage')"
+                  variant="ghost"
+                  size="icon"
+                  data-revoke
+                  :aria-label="$t('dashboard.admin.access.actions.revoke', { role: held.roleName })"
+                  @click="open('revoke', row, held)"
+                >
+                  <Cross class="size-5" aria-hidden="true" />
+                </Button>
+              </span>
             </span>
-          </div>
-          <div v-if="can('iam:manage')" class="flex shrink-0 items-center gap-2 max-md:basis-full">
+          </template>
+          <template v-if="can('iam:manage')" #trailing>
             <template v-if="row.isActive">
               <Button variant="outline" data-assign @click="open('assign', row)">{{
                 $t("dashboard.admin.access.actions.assign")
@@ -370,9 +365,9 @@ async function submit(): Promise<void> {
               :disabled="reactivate.isPending.value"
               @click="reactivate.mutate(row.id)"
             >{{ $t("dashboard.admin.access.actions.reactivate") }}</Button>
-          </div>
-        </li>
-      </ul>
+          </template>
+        </SummaryRow>
+      </RowGroup>
       <InlineNotice
         v-if="reactivate.isError.value"
         tone="error"
@@ -394,47 +389,46 @@ async function submit(): Promise<void> {
       :error-text="$t('dashboard.admin.access.roles.error')"
       @retry="roles.refetch()"
     >
-      <ul class="divide-y divide-border">
-        <Collapsible
-          v-for="role in roles.data.value ?? []"
-          :key="role.id"
-          as="li"
-          data-role-row
-          class="py-2"
-        >
-          <div class="flex items-center gap-3">
-            <CollapsibleTrigger
+      <RowGroup>
+        <Collapsible v-for="role in roles.data.value ?? []" :key="role.id" data-role-row>
+          <CollapsibleTrigger as-child>
+            <SummaryRow
+              pick
+              truncate
               data-role-toggle
-              class="group touch-hit flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              class="group outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              :title="role.name"
+              :detail="role.description ?? undefined"
             >
-              <ChevronDown
-                class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
-                aria-hidden="true"
-              />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium">{{ role.name }}</span>
-                <span class="block truncate text-xs text-muted-foreground">{{
-                  role.description
-                }}</span>
-              </span>
-            </CollapsibleTrigger>
-            <span data-role-badge class="flex w-24 shrink-0 justify-end">
-              <Badge v-if="role.isSystem" variant="outline">{{
-                $t("dashboard.admin.access.roles.system")
-              }}</Badge>
-            </span>
-            <span data-role-count class="w-28 shrink-0 text-right text-xs text-muted-foreground">
-              {{
-                $t(
-                  "dashboard.admin.access.roles.permissions",
-                  { count: role.permissionKeys.length },
-                  role.permissionKeys.length,
-                )
-              }}
-            </span>
-          </div>
+              <template #leading>
+                <ChevronDown
+                  class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+                  aria-hidden="true"
+                />
+              </template>
+              <template #end>
+                <span data-role-badge class="flex w-24 shrink-0 justify-end">
+                  <Badge v-if="role.isSystem" variant="outline">{{
+                    $t("dashboard.admin.access.roles.system")
+                  }}</Badge>
+                </span>
+                <span
+                  data-role-count
+                  class="w-28 shrink-0 text-right text-xs text-muted-foreground"
+                >
+                  {{
+                    $t(
+                      "dashboard.admin.access.roles.permissions",
+                      { count: role.permissionKeys.length },
+                      role.permissionKeys.length,
+                    )
+                  }}
+                </span>
+              </template>
+            </SummaryRow>
+          </CollapsibleTrigger>
           <CollapsibleContent>
-            <ul class="flex flex-wrap gap-1.5 pt-2 pl-6">
+            <ul class="flex flex-wrap gap-1.5 pr-3 pb-2 pl-10">
               <li
                 v-for="key in role.permissionKeys"
                 :key="key"
@@ -445,7 +439,7 @@ async function submit(): Promise<void> {
             </ul>
           </CollapsibleContent>
         </Collapsible>
-      </ul>
+      </RowGroup>
     </PanelCard>
 
     <PanelCard

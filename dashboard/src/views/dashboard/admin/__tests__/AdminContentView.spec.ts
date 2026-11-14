@@ -178,7 +178,7 @@ describe('AdminContentView', () => {
     expect(document.body.querySelectorAll('[data-definition-row]')).toHaveLength(1);
     expect(text()).toContain('Hug command');
 
-    (document.body.querySelector('[data-definition-row] button') as HTMLElement).click();
+    (document.body.querySelector('[data-definition-row]') as HTMLElement).click();
     await settle();
 
     const detail = calls.find((call) => call.path.endsWith('/definitions/{id}'))!;
@@ -186,6 +186,32 @@ describe('AdminContentView', () => {
     expect(detail.options?.params?.path?.id).toBe('def1');
     expect(document.body.querySelectorAll('[data-version-row]')).toHaveLength(2);
     expect(text()).toContain('12');
+  });
+
+  it('lists definitions and versions as SummaryRows inside RowGroups, each with its title', async () => {
+    await open();
+
+    const definition = document.body.querySelector<HTMLElement>('[data-definition-row]')!;
+
+    expect(definition.tagName).toBe('BUTTON');
+    expect(definition.dataset.slot).toBe('summary-row-body');
+    expect(definition.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('Hug command');
+    expect(definition.closest('.rounded-\\[12px\\]')).not.toBeNull();
+
+    definition.click();
+    await settle();
+
+    expect(definition.className).toContain('bg-accent');
+
+    const versions = [...document.body.querySelectorAll<HTMLElement>('[data-version-row]')];
+
+    for (const version of versions) {
+      expect(version.dataset.slot).toBe('summary-row-body');
+      expect(version.closest('.rounded-\\[12px\\]')).not.toBeNull();
+    }
+
+    expect(versions[0]!.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('Version');
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
   });
 
   it('links every label of the page filter and the create form to its control', async () => {
@@ -242,7 +268,7 @@ describe('AdminContentView', () => {
 
   it('drafts a new version from the current payload', async () => {
     await open();
-    (document.body.querySelector('[data-definition-row] button') as HTMLElement).click();
+    (document.body.querySelector('[data-definition-row]') as HTMLElement).click();
     await settle();
     byText('button', 'Draft new version')!.click();
     await settle();
@@ -264,7 +290,7 @@ describe('AdminContentView', () => {
 
   it('shows what retiring touches before it deletes, then retires', async () => {
     await open();
-    (document.body.querySelector('[data-definition-row] button') as HTMLElement).click();
+    (document.body.querySelector('[data-definition-row]') as HTMLElement).click();
     await settle();
     byText('button', 'Retire')!.click();
     await settle();

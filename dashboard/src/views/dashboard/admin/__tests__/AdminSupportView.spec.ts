@@ -240,11 +240,25 @@ describe('AdminSupportView', () => {
     expect(text()).toContain('Stoney_Eagle');
   });
 
+  it('lists each person as a pickable SummaryRow inside a RowGroup, the name as its title', async () => {
+    await open();
+    await type('[data-justification]', 'Ticket 41');
+    await type('input[type="search"]', 'stoney');
+
+    const row = document.body.querySelector<HTMLElement>('[data-person-row]')!;
+
+    expect(row.tagName).toBe('BUTTON');
+    expect(row.dataset.slot).toBe('summary-row-body');
+    expect(row.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('Stoney_Eagle');
+    expect(row.closest('.rounded-\\[12px\\]')).not.toBeNull();
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
+  });
+
   it('shows standings and history of the picked person, each read with the justification', async () => {
     await open();
     await type('[data-justification]', 'Ticket 41');
     await type('input[type="search"]', 'stoney');
-    document.body.querySelector<HTMLElement>('[data-person-row] button')!.click();
+    document.body.querySelector<HTMLElement>('[data-person-row]')!.click();
     await settle();
 
     expect(sent('/support/people/{subjectUserId}')!.query.justification).toBe('Ticket 41');

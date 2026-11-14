@@ -707,34 +707,55 @@ describe('AdminAccessView', () => {
     expect(rows[1]!.querySelector('[data-role-badge]')!.textContent?.trim()).toBe('');
   });
 
-  it('gives the role chips three shares of the row so two chips sit side by side at 1280', async () => {
+  it('puts the role chips on their own wrapping line under the name, so wide chips never cover it', async () => {
     await open();
 
-    const chips = document.body.querySelector('[data-principal-row] > div:nth-child(2)')!;
+    const row = document.body.querySelector('[data-principal-row]')!;
+    const chips = row.querySelector<HTMLElement>('[data-principal-chips]')!;
 
-    expect(chips.className).toContain('flex-3');
-    expect(chips.className).toContain('basis-96');
+    expect(chips.closest('[data-slot="summary-row-meta"]')).not.toBeNull();
+    expect(chips.classList.contains('flex-wrap')).toBe(true);
+    expect(chips.querySelectorAll('[data-assignment]').length).toBeGreaterThan(0);
   });
 
   it('pads the principals and roles lists to the same 16px as their headers', async () => {
     await open();
 
-    const lists = [
-      document.body.querySelector('[data-principal-row]')!.parentElement!,
+    const groups = [
+      document.body.querySelector('[data-principal-row]')!.parentElement!.parentElement!,
       document.body.querySelector('[data-role-row]')!.parentElement!,
     ];
 
-    for (const list of lists) {
-      expect(list.parentElement!.className).toContain('p-4');
+    for (const group of groups) {
+      expect(group.parentElement!.className).toContain('p-4');
     }
   });
 
-  it('keeps the principal name block a minimum width so wide role chips wrap instead of covering it', async () => {
+  it('lists each principal as a SummaryRow inside a RowGroup, the name as its title and the actions trailing', async () => {
     await open();
 
-    const nameBlock = document.body.querySelector('[data-principal-row] > div')!;
+    const body = document.body.querySelector<HTMLElement>('[data-principal-row]')!;
+    const row = body.parentElement!;
 
-    expect(nameBlock.className).toContain('min-w-40');
+    expect(body.dataset.slot).toBe('summary-row-body');
+    expect(body.querySelector('[data-slot="summary-row-title"] [data-user="u1"]')).not.toBeNull();
+    expect(row.parentElement!.className).toContain('rounded-[12px]');
+
+    const trailing = row.querySelector('[data-slot="summary-row-trailing"]')!;
+
+    expect(trailing.querySelector('[data-assign]')).not.toBeNull();
+    expect(trailing.querySelector('[data-deactivate]')).not.toBeNull();
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
+  });
+
+  it('lists each role as a pickable SummaryRow that opens its permission keys', async () => {
+    await open();
+
+    const toggle = document.body.querySelector<HTMLElement>('[data-role-row] [data-role-toggle]')!;
+
+    expect(toggle.tagName).toBe('BUTTON');
+    expect(toggle.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('Support');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('gives the deactivate confirm the destructive look and the assign confirm the lead look', async () => {

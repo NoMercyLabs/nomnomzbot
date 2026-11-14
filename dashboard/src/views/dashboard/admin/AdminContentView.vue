@@ -29,6 +29,8 @@ import FormDialog from '@/components/layout/FormDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -217,30 +219,30 @@ async function submit(): Promise<void> {
       :error-text="$t('dashboard.admin.content.error')"
       @retry="definitions.refetch()"
     >
-      <ul class="divide-y divide-border">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in definitions.data.value ?? []"
           :key="row.id"
           data-definition-row
-          class="flex items-center gap-3 py-2"
+          pick
+          truncate
+          :selected="row.id === pickedId"
+          :title="row.displayName"
+          :detail="$t('dashboard.admin.content.kindKey', { kind: row.kind, key: row.key })"
+          @click="pick(row)"
         >
-          <button
-            type="button"
-            class="min-w-0 flex-1 text-left"
-            :class="{ 'font-medium': row.id === pickedId }"
-            @click="pick(row)"
-          >
-            <span class="block truncate text-sm font-medium">{{ row.displayName }}</span>
-            <span class="block truncate text-xs text-muted-foreground">
-              {{ $t("dashboard.admin.content.kindKey", { kind: row.kind, key: row.key }) }}
+          <template #end>
+            <StatusBadge
+              v-if="row.retiredAt"
+              tone="off"
+              :label="$t('dashboard.admin.content.retired')"
+            />
+            <span v-else class="shrink-0 text-xs text-muted-foreground">
+              {{ $t("dashboard.admin.content.version", { version: Number(row.currentVersion ?? 0) }) }}
             </span>
-          </button>
-          <StatusBadge v-if="row.retiredAt" tone="off" :label="$t('dashboard.admin.content.retired')" />
-          <span v-else class="text-xs text-muted-foreground">
-            {{ $t("dashboard.admin.content.version", { version: Number(row.currentVersion ?? 0) }) }}
-          </span>
-        </li>
-      </ul>
+          </template>
+        </SummaryRow>
+      </RowGroup>
     </PanelCard>
 
     <PanelCard
@@ -261,26 +263,26 @@ async function submit(): Promise<void> {
           })
         }}
       </p>
-      <ul class="divide-y divide-border">
-        <li
+      <RowGroup>
+        <SummaryRow
           v-for="row in picked?.versions ?? []"
           :key="row.id"
           data-version-row
-          class="flex items-center gap-3 py-2"
+          truncate
+          :title="$t('dashboard.admin.content.version', { version: Number(row.version) })"
         >
-          <span class="text-sm font-medium">
-            {{ $t("dashboard.admin.content.version", { version: Number(row.version) }) }}
-          </span>
-          <span class="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-            {{ row.payloadJson }}
-          </span>
-          <Badge variant="outline">{{
-            row.publishedAt
-              ? $t("dashboard.admin.content.published")
-              : $t("dashboard.admin.content.draftState")
-          }}</Badge>
-        </li>
-      </ul>
+          <template #meta>
+            <span class="block truncate font-mono">{{ row.payloadJson }}</span>
+          </template>
+          <template #end>
+            <Badge variant="outline">{{
+              row.publishedAt
+                ? $t("dashboard.admin.content.published")
+                : $t("dashboard.admin.content.draftState")
+            }}</Badge>
+          </template>
+        </SummaryRow>
+      </RowGroup>
       <template v-if="can('content:author')" #footer>
         <div class="flex w-full justify-end gap-2">
           <Button variant="outline" @click="openDraft">{{

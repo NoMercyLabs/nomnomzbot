@@ -23,6 +23,8 @@ import DetailPane from '@/components/layout/DetailPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
@@ -73,6 +75,13 @@ const selected = computed(() => rows.value.find((row) => row.userId === selected
 function pick(row: SupportPerson): void {
   pane.open(row.userId);
 }
+
+function metaOf(row: SupportPerson): string {
+  return t('dashboard.admin.support.list.meta', {
+    username: row.username,
+    count: Number(row.tenantCount),
+  });
+}
 </script>
 
 <template>
@@ -96,26 +105,19 @@ function pick(row: SupportPerson): void {
           :error-text="listError"
           @retry="people.refetch()"
         >
-          <ul class="grid divide-y divide-border text-sm">
-            <li v-for="row in rows" :key="row.userId" data-person-row>
-              <button
-                type="button"
-                class="flex w-full min-w-0 flex-col p-2 text-left hover:bg-accent"
-                :class="row.userId === selectedId ? 'bg-accent' : ''"
-                @click="pick(row)"
-              >
-                <span class="truncate font-medium">{{ row.displayName }}</span>
-                <span class="truncate text-muted-foreground">
-                  {{
-                    t("dashboard.admin.support.list.meta", {
-                      username: row.username,
-                      count: Number(row.tenantCount),
-                    })
-                  }}
-                </span>
-              </button>
-            </li>
-          </ul>
+          <RowGroup>
+            <SummaryRow
+              v-for="row in rows"
+              :key="row.userId"
+              data-person-row
+              pick
+              truncate
+              :selected="row.userId === selectedId"
+              :title="row.displayName"
+              :detail="metaOf(row)"
+              @click="pick(row)"
+            />
+          </RowGroup>
         </ListPanel>
       </div>
     </template>

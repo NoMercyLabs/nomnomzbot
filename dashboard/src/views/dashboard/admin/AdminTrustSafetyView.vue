@@ -40,6 +40,7 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import type { SupportPerson } from '@/api/adminSupport';
@@ -267,7 +268,7 @@ function run(current: Step): Promise<void> {
         :error-text="$t('dashboard.admin.trustSafety.error')"
         @retry="queue.refetch()"
       >
-        <ul class="divide-y divide-border">
+        <RowGroup>
           <TrustReviewRow
             v-for="item in queueRows"
             :key="item.detectionId"
@@ -276,7 +277,7 @@ function run(current: Step): Promise<void> {
             @confirm="step = { kind: 'confirm', item }"
             @overturn="step = { kind: 'overturn', item }"
           />
-        </ul>
+        </RowGroup>
         <template v-if="queuePages > 1" #footer>
           <AdminPager
             :page="queuePage"
@@ -301,13 +302,13 @@ function run(current: Step): Promise<void> {
           :error-text="$t('dashboard.admin.trustSafety.error')"
           @retry="signals.refetch()"
         >
-          <ul class="divide-y divide-border">
+          <RowGroup>
             <TrustSignalRow
               v-for="signal in signals.data.value ?? []"
               :key="signal.provider + signal.subjectPlatformUserId"
               :signal="signal"
             />
-          </ul>
+          </RowGroup>
         </PanelCard>
 
         <PanelCard
@@ -323,7 +324,7 @@ function run(current: Step): Promise<void> {
           :error-text="$t('dashboard.admin.trustSafety.error')"
           @retry="blocks.refetch()"
         >
-          <ul class="divide-y divide-border">
+          <RowGroup>
             <TrustBlockRow
               v-for="block in blocks.data.value ?? []"
               :key="block.id"
@@ -331,7 +332,7 @@ function run(current: Step): Promise<void> {
               :can-lift="canManageBlocks"
               @lift="step = { kind: 'lift', block }"
             />
-          </ul>
+          </RowGroup>
           <template #footer>
             <div class="grid w-full gap-2">
               <p class="text-sm font-medium">{{ $t("dashboard.admin.trustSafety.apply.title") }}</p>

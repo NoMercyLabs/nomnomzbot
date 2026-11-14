@@ -460,6 +460,27 @@ describe('AdminTrustSafetyView', () => {
     expect(block.textContent).toContain('Partly applied');
   });
 
+  it('lists reviews, signals and blocks as SummaryRows inside RowGroups, each with its name and actions', async () => {
+    await open();
+    await giveReason('weekly review');
+
+    for (const hook of ['[data-review-row]', '[data-signal-row]', '[data-block-row]']) {
+      const row = document.body.querySelector<HTMLElement>(hook)!;
+      const body = row.querySelector<HTMLElement>('[data-slot="summary-row-body"]')!;
+
+      expect(row.parentElement!.className).toContain('rounded-[12px]');
+      expect(body.querySelector('[data-slot="summary-row-title"]')!.textContent!.trim()).not.toBe('');
+    }
+
+    const trailing = (hook: string) =>
+      document.body.querySelector(`${hook} [data-slot="summary-row-trailing"]`)!.textContent;
+
+    expect(trailing('[data-review-row]')).toContain('Overturn');
+    expect(trailing('[data-block-row]')).toContain('Lift');
+    expect(document.body.querySelector('[data-signal-row] [data-slot="summary-row-trailing"] button')!.getAttribute('aria-expanded')).toBe('false');
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
+  });
+
   it('keeps the two review actions as quiet siblings; only the network block is destructive', async () => {
     await open();
     await giveReason('weekly review');
@@ -495,7 +516,7 @@ describe('AdminTrustSafetyView', () => {
     await open();
     await giveReason('weekly review');
 
-    const line = document.body.querySelector('[data-review-row] p')!;
+    const line = document.body.querySelector('[data-review-row] [data-slot="summary-row-title"] > span')!;
     const channel = line.querySelector('span.text-muted-foreground')!;
 
     expect(channel.textContent).toBe('Stoney_Eagle');

@@ -421,9 +421,15 @@ describe('AdminEventReplayView', () => {
 
     expect(rows.length).toBeGreaterThan(0);
 
+    // Each row is a SummaryRow body inside a RowGroup, which owns the inset on both sides (px-3).
     for (const row of rows) {
-      expect(row.classList.contains('px-2')).toBe(true);
+      expect(row.dataset.slot).toBe('summary-row-body');
+      expect(row.classList.contains('px-3')).toBe(true);
+      expect(row.closest('.rounded-\\[12px\\]')).not.toBeNull();
+      expect(row.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('chat-history');
     }
+
+    expect(document.body.querySelector('ul.divide-y')).toBeNull();
   });
 
   it('registers an admin-only route', () => {
