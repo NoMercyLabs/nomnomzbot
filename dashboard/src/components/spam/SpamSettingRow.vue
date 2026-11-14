@@ -12,6 +12,7 @@
 // One spam-defense knob: its name, what it does and what moving it costs on the left, its control on the right.
 // A knob the engine does not read yet carries a badge and the reason, so the page never claims an effect it lacks.
 import { Badge } from '@/components/ui/badge';
+import { FieldError } from '@/components/ui/field';
 
 defineProps<{
   settingKey: string;
@@ -34,7 +35,7 @@ defineProps<{
       <p class="text-sm text-muted-foreground">{{ explanation }}</p>
       <p class="text-sm text-muted-foreground">{{ cost }}</p>
       <p v-if="inactiveReason" class="text-sm text-muted-foreground">{{ inactiveReason }}</p>
-      <p v-if="invalidText" role="alert" data-invalid class="text-sm text-destructive">{{ invalidText }}</p>
+      <FieldError v-if="invalidText" data-invalid>{{ invalidText }}</FieldError>
     </div>
     <div class="flex shrink-0 items-center gap-2 md:w-40 md:justify-end">
       <slot />

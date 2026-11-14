@@ -285,11 +285,38 @@ describe('Escalation policy page', () => {
     action('save').click();
     await flushPromises();
 
-    const message = step(1).querySelector('[data-row-error]')?.textContent;
+    const refusal = step(1).querySelector('[data-row-error]');
 
-    expect(message).toBe('A timeout step needs a length inside the allowed range.');
+    expect(refusal?.textContent).toBe('A timeout step needs a length inside the allowed range.');
+    expect(refusal?.getAttribute('data-slot')).toBe('field-error');
     expect(step(0).querySelector('[data-row-error]')).toBeNull();
     expect(stepInput(1, 'atOffense').value).toBe('4');
+  });
+
+  it('puts a default-timeout refusal under that one field as its field error', async () => {
+    http.PUT.mockResolvedValue({
+      error: {
+        status: 'error',
+        message: 'x',
+        code: 'VALIDATION_FAILED',
+        data: {
+          key: 'moderation.escalation.error.timeoutStepOutOfRange',
+          field: 'defaultTimeoutSeconds',
+        },
+      },
+      response: { ok: false, status: 400 },
+    });
+
+    await open();
+    await typeInto(stepInput(1, 'atOffense'), '4');
+
+    action('save').click();
+    await flushPromises();
+
+    const refusal = document.body.querySelector('[data-field="defaultTimeoutSeconds"] [data-row-error]');
+
+    expect(refusal?.textContent).toBe('A timeout step needs a length inside the allowed range.');
+    expect(refusal?.getAttribute('data-slot')).toBe('field-error');
   });
 
   it('locks every field and offers no Save to a person without the write right', async () => {

@@ -63,6 +63,8 @@ describe('NumberRow', () => {
     const wrapper = build({ error: 'Too high' });
 
     expect(wrapper.get('[data-row-error]').text()).toBe('Too high');
+    expect(wrapper.get('[data-row-error]').attributes('data-slot')).toBe('field-error');
+    expect(wrapper.get('[data-row-error]').attributes('role')).toBe('alert');
     expect(wrapper.get('input').attributes('aria-invalid')).toBe('true');
   });
 });

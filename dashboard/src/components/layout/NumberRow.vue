@@ -16,6 +16,7 @@ import { useId } from 'vue';
 
 import ArrowCounterClockwise from '~icons/nnz/arrow-counter-clockwise';
 
+import { FieldError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
 import IconAction from './IconAction.vue';
@@ -78,8 +79,8 @@ function change(typed: string | number): void {
         @update:model-value="change"
       />
     </div>
-    <p v-if="error" data-row-error role="alert" class="mt-1 text-sm text-destructive">
+    <FieldError v-if="error" data-row-error class="mt-1">
       {{ error }}
-    </p>
+    </FieldError>
   </div>
 </template>

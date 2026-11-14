@@ -206,6 +206,8 @@ describe('SpamDefenseView', () => {
     const range = row('accountAgeGateDays').querySelector('[data-invalid]');
 
     expect(range?.textContent).toBe('Enter a value from 0 to 365.');
+    expect(range?.getAttribute('data-slot')).toBe('field-error');
+    expect(range?.getAttribute('role')).toBe('alert');
 
     expect(row('establishedDays').querySelector('[data-invalid]')?.textContent).toContain(
       'at least as long',

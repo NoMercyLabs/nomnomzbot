@@ -104,9 +104,16 @@ async function again(deliveryId: number | string): Promise<void> {
               })
             }}
           </span>
-          <span v-if="delivery.error" class="block text-sm text-destructive wrap-break-word">
+          <InlineNotice
+            v-if="delivery.error"
+            tone="error"
+            compact
+            role="status"
+            data-delivery-error
+            class="wrap-break-word"
+          >
             {{ delivery.error }}
-          </span>
+          </InlineNotice>
         </div>
         <Button
           v-if="can('webhooks:outbound:write')"

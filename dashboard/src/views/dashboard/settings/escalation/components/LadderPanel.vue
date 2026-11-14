@@ -24,6 +24,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import DurationInput from '@/components/layout/DurationInput.vue';
 import { Button } from '@/components/ui/button';
+import { FieldError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 
@@ -146,15 +147,14 @@ function removeStep(index: number): void {
             @delete="removeStep(index)"
           />
         </div>
-        <p
+        <FieldError
           v-for="message in stepErrors(index)"
           :key="message"
           data-row-error
-          role="alert"
-          class="mt-1 text-sm text-destructive"
+          class="mt-1"
         >
           {{ message }}
-        </p>
+        </FieldError>
       </div>
     </RowGroup>
     <Button

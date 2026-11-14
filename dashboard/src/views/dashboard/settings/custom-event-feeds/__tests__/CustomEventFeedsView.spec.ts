@@ -131,6 +131,7 @@ beforeEach(() => {
       isEnabled: true,
       sourceKind: 'push',
       inboundUrl: 'https://bot.test/in/f2',
+      fieldErrors: { bpm: 'No value at $.heart.bpm' },
     }),
   ];
 
@@ -194,6 +195,16 @@ describe('Custom event feeds', () => {
 
     expect(row('heartrate').querySelector('button[role="switch"]')?.getAttribute('aria-checked')).toBe('false');
     expect(row('ticker').querySelector('button[role="switch"]')?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('names the fields that failed on the last data in an error notice, only on that feed', async () => {
+    await open();
+
+    const failure = row('ticker').querySelector('[data-field-errors]');
+
+    expect(failure?.textContent).toContain('These fields failed on the last data: bpm');
+    expect(failure?.getAttribute('data-tone')).toBe('error');
+    expect(row('heartrate').querySelector('[data-field-errors]')).toBeNull();
   });
 
   it('makes a feed with the typed names, the default poll kind and the field rows', async () => {

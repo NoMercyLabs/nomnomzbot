@@ -25,16 +25,10 @@ const scopedFolders = ['views'] as const satisfies readonly string[];
 const allowlist = [
   // BasicsView: stepError is a message under one input (text-xs, next to that field).
   'views/dashboard/settings/BasicsView.vue',
-  // LadderPanel: the per-step messages sit under one ladder step.
-  'views/dashboard/settings/escalation/components/LadderPanel.vue',
-  // PolicyPanel: the default-timeout message sits under that one field.
-  'views/dashboard/settings/escalation/components/PolicyPanel.vue',
   // PlatformDefaultPreview: the failed line shares a flex row with its Retry button.
   'views/dashboard/admin/components/PlatformDefaultPreview.vue',
   // ModToolsPanel: the duration range message sits under one mode input (text-xs).
   'views/dashboard/chat/components/ModToolsPanel.vue',
-  // CatalogCodeEditor: the script error span shares a button row with the editor button.
-  'views/dashboard/catalog/components/CatalogCodeEditor.vue',
   // ObsSetupAction: the stranded flag is a span with a status badge that sits beside the connect button.
   'views/dashboard/overlays/components/ObsSetupAction.vue',
 ] as const satisfies readonly string[];

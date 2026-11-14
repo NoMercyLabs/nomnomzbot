@@ -17,6 +17,7 @@ import { computed } from 'vue';
 import type { EventFeed } from '@/api/customEventFeeds';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,9 +59,15 @@ const lastReceived = useFormattedTime(() => props.feed.lastReceivedAt, 'dateTime
             : $t('dashboard.settings.customEventFeeds.neverReceived')
         }}
       </span>
-      <span v-if="failedFields.length > 0" data-field-errors class="block text-sm text-destructive">
+      <InlineNotice
+        v-if="failedFields.length > 0"
+        tone="error"
+        compact
+        role="status"
+        data-field-errors
+      >
         {{ $t('dashboard.settings.customEventFeeds.fieldErrors', { fields: failedFields.join(', ') }) }}
-      </span>
+      </InlineNotice>
     </div>
     <CopyLinkButton
       v-if="feed.inboundUrl"

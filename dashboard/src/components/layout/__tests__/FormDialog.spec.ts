@@ -155,6 +155,8 @@ describe('the form dialog', () => {
     const alert = document.body.querySelector('[data-form-error]') as Element;
 
     expect(alert.textContent).toContain('That name is already taken.');
+    expect(alert.getAttribute('data-tone')).toBe('error');
+    expect(alert.getAttribute('role')).toBe('alert');
     const footer = document.body.querySelector('[data-slot="dialog-footer"]') as Element;
 
     expect(alert.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

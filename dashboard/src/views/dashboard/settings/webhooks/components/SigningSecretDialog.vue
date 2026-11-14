@@ -23,6 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{ secret: string | null }>();
@@ -58,10 +59,12 @@ async function copy(): Promise<void> {
           data-signing-secret
           class="rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm break-all select-all"
         >{{ secret }}</code>
-        <p class="flex items-start gap-2 text-sm text-destructive">
-          <AlertTriangle class="mt-0.5 size-4 flex-none" aria-hidden="true" />
-          {{ $t("dashboard.settings.webhooks.outbound.secret.warning") }}
-        </p>
+        <InlineNotice tone="error" compact role="status" data-secret-warning>
+          <span class="flex items-start gap-2">
+            <AlertTriangle class="mt-0.5 size-4 flex-none" aria-hidden="true" />
+            {{ $t("dashboard.settings.webhooks.outbound.secret.warning") }}
+          </span>
+        </InlineNotice>
       </div>
       <AlertDialogFooter class="flex-none border-t border-border px-6 py-4">
         <Button data-copy-secret variant="outline" @click="copy">

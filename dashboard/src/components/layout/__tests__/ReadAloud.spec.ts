@@ -290,6 +290,8 @@ describe('Read aloud', () => {
     expect(FakeAudio.played).toHaveLength(0);
     expect(document.querySelector('[data-read-bar]')).toBeNull();
     expect(document.querySelector('[data-read-failed]')?.textContent).toContain('not available');
+    expect(document.querySelector('[data-read-failed]')?.getAttribute('data-tone')).toBe('error');
+    expect(document.querySelector('[data-read-failed]')?.getAttribute('role')).toBe('alert');
     expect(document.querySelector('[data-read-aloud-start]')).not.toBeNull();
   });
 

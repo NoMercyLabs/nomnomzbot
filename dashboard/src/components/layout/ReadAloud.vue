@@ -24,6 +24,7 @@ import Previous from '~icons/nnz/previous';
 import Speaker from '~icons/nnz/speaker';
 import Stop from '~icons/nnz/stop';
 
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import { useReadAloud } from '@/composables/useReadAloud';
 
@@ -61,9 +62,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <p v-if="failed" data-read-failed role="alert" class="text-sm text-destructive">
+  <InlineNotice v-if="failed" tone="error" compact data-read-failed>
     {{ t('common.readAloud.unavailable') }}
-  </p>
+  </InlineNotice>
 
   <Button v-if="supported && status === 'idle'"
           data-read-aloud-start

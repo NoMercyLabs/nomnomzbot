@@ -21,6 +21,7 @@ import {
   type ScriptProject,
 } from '@/api/codeScripts';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 import { errorText } from '@/lib/errors';
@@ -72,9 +73,9 @@ async function saveEditor(files: EditorFiles): Promise<CompileFeedback> {
       <Button variant="outline" @click="openEditor">{{
         t('dashboard.catalog.codeEditor.open')
       }}</Button>
-      <span v-if="scripts.error.value" role="alert" class="text-sm text-destructive">
+      <InlineNotice v-if="scripts.error.value" tone="error" compact>
         {{ errorText(scripts.error.value, t) }}
-      </span>
+      </InlineNotice>
       <span v-else-if="editorMissing" class="text-sm text-muted-foreground">
         {{ t('dashboard.catalog.codeEditor.none') }}
       </span>

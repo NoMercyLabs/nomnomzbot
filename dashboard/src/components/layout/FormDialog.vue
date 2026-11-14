@@ -22,6 +22,7 @@
 import Cross from '~icons/nnz/cross';
 import { nextTick, ref } from 'vue';
 
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { useReadOnly } from '@/components/layout/readOnly';
 import { Button } from '@/components/ui/button';
@@ -151,14 +152,14 @@ function focusFirstField(event: Event): void {
             <slot />
           </ReadOnlyScope>
         </div>
-        <div
+        <InlineNotice
           v-if="error"
+          tone="error"
           data-form-error
-          role="alert"
-          class="flex-none px-6 pb-4 text-sm text-destructive"
+          class="mx-6 mb-4 flex-none"
         >
           {{ error }}
-        </div>
+        </InlineNotice>
         <DialogFooter class="flex-none border-t border-border px-6 py-4">
           <!-- Actions about the thing itself (delete, duplicate) sit apart at the start, away from Save. -->
           <div v-if="$slots['footer-start']" class="flex items-center gap-2 sm:mr-auto">

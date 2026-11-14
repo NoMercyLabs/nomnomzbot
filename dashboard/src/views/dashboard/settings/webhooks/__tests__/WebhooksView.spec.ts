@@ -671,7 +671,8 @@ describe('Webhooks page', () => {
     const reveal = q('[data-signing-secret]');
 
     expect(reveal.textContent).toContain('whsec_once');
-    expect(document.body.textContent).toContain('only time');
+    expect(q('[data-secret-warning]').textContent).toContain('only time');
+    expect(q('[data-secret-warning]').getAttribute('data-tone')).toBe('error');
     expect(q('[data-copy-secret]')).not.toBeNull();
 
     await click(q('[data-secret-done]'));
@@ -838,7 +839,11 @@ describe('Webhooks outbound actions', () => {
     const row = q('[data-delivery="77"]');
 
     expect(row.textContent).toContain('500');
-    expect(row.textContent).toContain('Server said no');
+
+    const failure = row.querySelector('[data-delivery-error]');
+
+    expect(failure?.textContent).toContain('Server said no');
+    expect(failure?.getAttribute('data-tone')).toBe('error');
 
     await click(q('[data-delivery-retry]'));
 

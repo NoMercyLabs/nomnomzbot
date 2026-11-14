@@ -20,6 +20,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import RowText from '@/components/layout/RowText.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
+import { FieldError } from '@/components/ui/field';
 
 import type { EscalationDraft } from '../escalationDraft';
 
@@ -97,14 +98,13 @@ const timeoutId = useId();
             :max="Number(limits.maxTimeoutSeconds)"
           />
         </div>
-        <p
+        <FieldError
           v-if="errors.defaultTimeoutSeconds"
           data-row-error
-          role="alert"
-          class="mt-1 text-sm text-destructive"
+          class="mt-1"
         >
           {{ errors.defaultTimeoutSeconds }}
-        </p>
+        </FieldError>
       </div>
     </RowGroup>
   </PanelCard>
