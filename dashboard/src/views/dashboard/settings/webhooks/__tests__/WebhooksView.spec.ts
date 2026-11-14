@@ -311,6 +311,20 @@ describe('Webhooks page', () => {
     expect(q('[data-copy-link]').classList.contains('border-border')).toBe(true);
   });
 
+  // One primary per group: the lead list's create is the page create (sticky footer on a phone); the inbound
+  // list keeps its own create as an outline button in its panel header.
+  it('draws the outbound create as the page create button and keeps the inbound create secondary', async () => {
+    await open();
+
+    const outbound = document.body.querySelector('[data-slot="page-create"] [data-new-outbound]');
+    const inbound = document.body.querySelector('[data-new-inbound]');
+
+    expect(outbound).not.toBeNull();
+    expect(outbound?.getAttribute('data-variant')).toBe('default');
+    expect(inbound?.closest('[data-slot="page-create"]')).toBeNull();
+    expect(inbound?.getAttribute('data-variant')).toBe('outline');
+  });
+
   it('names every row switch after its webhook', async () => {
     await open();
 

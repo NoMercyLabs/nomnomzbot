@@ -42,6 +42,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
 import PageBody from '@/components/layout/PageBody.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
@@ -312,10 +313,11 @@ async function confirmDelete(): Promise<void> {
           @retry="outbound.refetch()"
         >
           <template v-if="can('webhooks:outbound:write')" #actions>
-            <Button data-new-outbound @click="openEditor(null)">
-              <Add class="size-5" />
-              {{ $t("dashboard.settings.webhooks.outbound.new") }}
-            </Button>
+            <PageCreateButton
+              data-new-outbound
+              :label="$t('dashboard.settings.webhooks.outbound.new')"
+              @create="openEditor(null)"
+            />
           </template>
           <RowGroup>
             <OutboundWebhookRow
