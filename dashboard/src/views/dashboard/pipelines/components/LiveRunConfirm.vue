@@ -23,6 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 
 import { livePlan } from './liveRunPlan';
@@ -65,9 +66,9 @@ const groups = computed(() =>
             : 'bg-muted/40'"
         >
           <h3 class="m-0 text-sm font-medium">{{ $t(`${page}.groups.${group.key}`) }}</h3>
-          <p v-if="group.real" data-live-real class="m-0 text-sm text-destructive">
+          <InlineNotice v-if="group.real" tone="error" compact data-live-real>
             {{ $t(`${page}.real.${group.key}`) }}
-          </p>
+          </InlineNotice>
           <ul class="m-0 grid list-none gap-1 p-0">
             <li v-for="(item, index) in group.steps" :key="item.id ?? index" data-live-step class="grid gap-0.5 text-sm">
               <span data-live-step-title>{{ item.title }}</span>

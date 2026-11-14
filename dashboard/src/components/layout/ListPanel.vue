@@ -24,6 +24,7 @@ withDefaults(
     description?: string;
     state?: PanelState;
     emptyText?: string;
+    emptyKind?: InstanceType<typeof PanelCard>['$props']['emptyKind'];
     errorText?: string;
     // A phone list with no head: the page then puts its own search above the card.
     headless?: boolean;
@@ -33,6 +34,7 @@ withDefaults(
     description: undefined,
     state: 'ready',
     emptyText: undefined,
+    emptyKind: 'none',
     errorText: undefined,
     headless: false,
   },
@@ -53,6 +55,7 @@ const search = defineModel<string>({ default: '' });
     :description="description"
     :state="state"
     :empty-text="emptyText"
+    :empty-kind="emptyKind"
     :error-text="errorText"
     :headless="headless"
     @retry="$emit('retry')"

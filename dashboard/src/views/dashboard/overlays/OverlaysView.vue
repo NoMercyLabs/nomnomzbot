@@ -140,6 +140,7 @@ function open(id: string | null): void {
           :description="count === undefined ? hint : `${count} · ${hint}`"
           :state="panelState"
           :empty-text="emptyText"
+          :empty-kind="empty.kind"
           :error-text="$t('dashboard.overlays.list.error')"
           @retry="widgets.refetch()"
         >

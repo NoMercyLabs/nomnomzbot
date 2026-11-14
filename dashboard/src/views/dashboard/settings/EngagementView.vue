@@ -341,10 +341,12 @@ async function submit(): Promise<void> {
       <InlineNotice v-if="error" tone="error" compact class="px-3">{{ error }}</InlineNotice>
     </form>
     <template v-if="can('engagement:write')" #footer>
-      <span
+      <InlineNotice
         v-if="changed && !(cooldownValid && milestonesValid)"
-        class="mr-auto text-sm text-destructive"
-      >{{ $t("dashboard.settings.engagement.invalid") }}</span>
+        tone="error"
+        compact
+        class="mr-auto"
+      >{{ $t("dashboard.settings.engagement.invalid") }}</InlineNotice>
       <Button
         type="button"
         variant="outline"

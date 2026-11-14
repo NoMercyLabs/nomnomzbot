@@ -16,6 +16,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useChannelFeatures, useToggleFeature, type ChannelFeature } from '@/api/features';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -134,7 +135,7 @@ async function flip(feature: ChannelFeature): Promise<void> {
           </RowGroup>
         </section>
       </div>
-      <p v-if="error" role="alert" class="px-3 pt-3 text-sm text-destructive">{{ error }}</p>
+      <InlineNotice v-if="error" tone="error" compact class="px-3 pt-3">{{ error }}</InlineNotice>
     </PanelCard>
   </SettingsPageFrame>
 </template>

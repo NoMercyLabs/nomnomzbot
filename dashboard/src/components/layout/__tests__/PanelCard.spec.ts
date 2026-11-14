@@ -163,6 +163,16 @@ describe('the panel card states', () => {
     expect(empty.text()).toBe('No commands yet.');
   });
 
+  it('passes the empty kind on, so a search or a filter shows its own empty state', () => {
+    const kinds = ['noMatch', 'filtered', 'gated'] as const;
+
+    for (const emptyKind of kinds) {
+      const empty = panel('empty', { emptyKind }).find('[data-slot="panel-empty"]');
+
+      expect(empty.attributes('data-empty-kind')).toBe(emptyKind);
+    }
+  });
+
   it('shows the empty text it is given, else the shared words', () => {
     expect(panel('empty', { emptyText: 'No commands yet.' }).text()).toContain('No commands yet.');
     expect(panel('empty').text()).toContain('Nothing here yet.');

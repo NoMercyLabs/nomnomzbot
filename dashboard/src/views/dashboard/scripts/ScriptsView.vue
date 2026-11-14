@@ -172,6 +172,7 @@ function opened(id: string | null): void {
         :description="count === undefined ? hint : `${count} · ${hint}`"
         :state="panelState"
         :empty-text="emptyText"
+        :empty-kind="empty.kind"
         :error-text="listError"
         @retry="scripts.refetch()"
       >

@@ -79,6 +79,7 @@ function work(report: ViewerReport, action: ReportAction): void {
       :title="$t('dashboard.settings.reports.listTitle')"
       :state="state"
       :empty-text="$t(`dashboard.settings.reports.empty.${status}`)"
+      :empty-kind="status === 'open' ? 'none' : 'filtered'"
       :error-text="$t('dashboard.settings.reports.loadError')"
       @retry="reports.refetch()"
     >

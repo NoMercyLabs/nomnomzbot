@@ -509,6 +509,7 @@ describe('ScriptsView', () => {
     await typeSearch('zzz');
     expect(rowNames()).toEqual([]);
     expect(text()).toContain('No script matches "zzz".');
+    expect(document.body.querySelector('[data-empty-kind="noMatch"]')).not.toBeNull();
   });
 
   it('switches a script off with a PATCH of isEnabled only and moves the tab counts', async () => {

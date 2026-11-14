@@ -29,14 +29,10 @@ const allowlist = [
   'views/dashboard/settings/escalation/components/LadderPanel.vue',
   // PolicyPanel: the default-timeout message sits under that one field.
   'views/dashboard/settings/escalation/components/PolicyPanel.vue',
-  // FeaturesView: the rows lane owns it.
-  'views/dashboard/settings/features/FeaturesView.vue',
   // PlatformDefaultPreview: the failed line shares a flex row with its Retry button.
   'views/dashboard/admin/components/PlatformDefaultPreview.vue',
   // ModToolsPanel: the duration range message sits under one mode input (text-xs).
   'views/dashboard/chat/components/ModToolsPanel.vue',
-  // OverlayDetail: the failure and delete-error spans share a button row, where a block would break the row.
-  'views/dashboard/overlays/components/OverlayDetail.vue',
   // CatalogCodeEditor: the script error span shares a button row with the editor button.
   'views/dashboard/catalog/components/CatalogCodeEditor.vue',
   // ObsSetupAction: the stranded flag is a span with a status badge that sits beside the connect button.

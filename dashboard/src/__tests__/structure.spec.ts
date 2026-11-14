@@ -50,6 +50,12 @@ function writesPlainPageBody(path: string): boolean {
   return /<(div|section)\b[^>]*\bdata-page-body\b/.test(text);
 }
 
+function writesPlainFailure(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return /<(?:p|span|div)\b[^>]*\btext-sm text-destructive\b/.test(text);
+}
+
 // Section 2a of frontend-vue-foundation.md: code lives by topic, never in a grab bag.
 describe('folder layout', () => {
   it('keeps lib/utils.ts to the cn() that shadcn-vue needs', () => {
@@ -159,6 +165,34 @@ describe('folder layout', () => {
       .map((path) => relative(src, path).replace(/\\/g, '/'));
 
     expect(tinted).toEqual([]);
+  });
+
+  // Aaoa's layout todo P2 (feedback): a mutation failure is <InlineNotice tone="error">, never a hand-written
+  // `text-sm text-destructive` paragraph. The files below still hold one in a field or row of their own; the
+  // lane that owns each moves it to InlineNotice and removes it from the list, and a clean file must leave it.
+  it('shows a mutation failure through InlineNotice, never a text-sm text-destructive paragraph', () => {
+    const stillPlain: readonly string[] = [
+      'components/layout/FormDialog.vue',
+      'components/layout/NumberRow.vue',
+      'components/layout/ReadAloud.vue',
+      'components/spam/SpamSettingRow.vue',
+      'views/dashboard/catalog/components/CatalogCodeEditor.vue',
+      'views/dashboard/settings/escalation/components/LadderPanel.vue',
+      'views/dashboard/settings/escalation/components/PolicyPanel.vue',
+      'views/dashboard/settings/webhooks/components/OutboundDeliveriesCard.vue',
+      'views/dashboard/settings/webhooks/components/SigningSecretDialog.vue',
+    ];
+    const vuePaths = allPaths(src)
+      .filter((path) => path.endsWith('.vue'))
+      .map((path) => relative(src, path).replace(/\\/g, '/'));
+    const plain = vuePaths
+      .filter((path) => !path.startsWith('components/ui/'))
+      .filter(writesPlainFailure)
+      .filter((path) => !stillPlain.includes(path));
+    const converted = stillPlain.filter((path) => !writesPlainFailure(path));
+
+    expect(plain).toEqual([]);
+    expect(converted).toEqual([]);
   });
 
   // Owner 2026-10-17: gray hint lines under every field clutter a form. A field hint is a FieldInfo icon

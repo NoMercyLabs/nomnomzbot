@@ -22,6 +22,7 @@ import {
   useSetChatColor,
   useStartScopeRegrant,
 } from '@/api/chatIdentity';
+import EmptyState from '@/components/layout/EmptyState.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
@@ -83,9 +84,13 @@ function badgeImage(urls: Record<string, string>): string | undefined {
     pad
     class="h-full"
   >
-    <p v-if="!canRead" data-test="no-access" class="text-sm text-muted-foreground">
-      {{ $t('dashboard.chat.identity.noAccess') }}
-    </p>
+    <EmptyState
+      v-if="!canRead"
+      kind="gated"
+      bare
+      data-test="no-access"
+      :description="$t('dashboard.chat.identity.noAccess')"
+    />
     <p v-else-if="identityQuery.isPending.value" class="text-sm text-muted-foreground">
       {{ $t('dashboard.chat.identity.loading') }}
     </p>

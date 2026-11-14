@@ -34,7 +34,9 @@ const http = vi.hoisted(() => ({
 }));
 
 vi.mock('@/api/client', () => ({ client: http }));
-vi.mock('@/api/access', () => ({ useChannelAccess: () => ({ can: () => true }) }));
+const access = vi.hoisted(() => ({ allowed: true }));
+
+vi.mock('@/api/access', () => ({ useChannelAccess: () => ({ can: () => access.allowed }) }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({
@@ -78,6 +80,7 @@ beforeEach(() => {
   http.GET.mockReset();
   http.PUT.mockReset();
   http.POST.mockReset();
+  access.allowed = true;
 });
 
 afterEach(() => {
@@ -86,6 +89,15 @@ afterEach(() => {
 });
 
 describe('Chat identity panel', () => {
+  it('shows the gated empty state, not plain text, when the person may not read the identity', async () => {
+    access.allowed = false;
+    const panel = await open(identity);
+    const gated = panel.find('[data-slot="panel-empty"]');
+
+    expect(gated.attributes('data-empty-kind')).toBe('gated');
+    expect(gated.text()).toBe(en.dashboard.chat.identity.noAccess);
+  });
+
   it('sends the color name when a swatch is clicked', async () => {
     http.PUT.mockResolvedValue({ data: { data: identity }, response: ok });
 

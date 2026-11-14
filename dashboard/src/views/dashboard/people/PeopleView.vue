@@ -288,6 +288,16 @@ const emptyText = computed<string>(() => {
   return t('dashboard.people.list.empty');
 });
 
+// A search that finds nobody is noMatch; a subscriber or regular tab with nobody is filtered; else nobody yet.
+const emptyKind = computed<'none' | 'noMatch' | 'filtered'>(() => {
+  if (view.value === 'subscriber' || view.value === 'regular')
+    return 'filtered';
+
+  return searching.value
+    ? 'noMatch'
+    : 'none';
+});
+
 const hint = computed<string>(() => t(`dashboard.people.hints.${view.value}`));
 // The bot knows how many people a tab holds before every page is loaded; New is counted from what is loaded.
 const listTotal = computed<number>(() => {
@@ -461,6 +471,7 @@ useEventListener(document, 'keydown', closeOnEscape);
         :description="count === undefined ? hint : `${count} · ${hint}`"
         :state="listState"
         :empty-text="emptyText"
+        :empty-kind="emptyKind"
         :error-text="$t('dashboard.people.list.error')"
         @retry="searching ? found.refetch() : activeQuery.refetch()"
         @enter="openFirstHit"

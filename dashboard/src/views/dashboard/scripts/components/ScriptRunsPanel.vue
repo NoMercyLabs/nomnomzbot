@@ -64,6 +64,7 @@ function timeOf(run: SessionRun): string {
     :description="$t('dashboard.scripts.runs.count', { count: runs.length })"
     :state="state"
     :empty-text="emptyText"
+    :empty-kind="runs.length === 0 ? 'none' : 'filtered'"
   >
     <template #actions>
       <FilterBar

@@ -42,6 +42,8 @@ const props = withDefaults(
     still?: boolean;
     state?: PanelState;
     emptyText?: string;
+    // Why nothing shows: a search found nothing (noMatch), a filter hides every row (filtered), the person may not see it (gated).
+    emptyKind?: InstanceType<typeof EmptyState>['$props']['kind'];
     errorText?: string;
   }>(),
   {
@@ -55,6 +57,7 @@ const props = withDefaults(
     still: false,
     state: 'ready',
     emptyText: undefined,
+    emptyKind: 'none',
     errorText: undefined,
   },
 );
@@ -200,6 +203,7 @@ watch(
       <slot v-else-if="state === 'empty' && $slots.empty" name="empty" />
       <EmptyState
         v-else-if="state === 'empty'"
+        :kind="emptyKind"
         :bare="bare"
         :icon="false"
         :description="emptyText ?? $t('common.panel.empty')"

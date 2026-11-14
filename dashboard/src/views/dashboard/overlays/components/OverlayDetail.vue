@@ -35,6 +35,7 @@ import CodeEditor from '@/components/layout/CodeEditor.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
@@ -287,9 +288,12 @@ async function sendTest(eventType: string): Promise<void> {
               @update:model-value="toggle(Boolean($event))"
             />
           </label>
-          <Badge v-else data-overlay-state variant="outline">{{
-            $t(widget.isEnabled ? "dashboard.overlays.detail.on" : "dashboard.overlays.detail.off")
-          }}</Badge>
+          <StatusBadge
+            v-else
+            data-overlay-state
+            :tone="widget.isEnabled ? 'ok' : 'off'"
+            :label="$t(widget.isEnabled ? 'dashboard.overlays.detail.on' : 'dashboard.overlays.detail.off')"
+          />
           <div v-if="can('widget:write')" class="grid justify-items-end gap-1">
             <Button
               data-edit-code
@@ -300,9 +304,9 @@ async function sendTest(eventType: string): Promise<void> {
               <Code aria-hidden="true" />
               {{ $t("dashboard.overlays.detail.editCode") }}
             </Button>
-            <span v-if="editor.failure.value" role="alert" class="text-sm text-destructive">{{
+            <InlineNotice v-if="editor.failure.value" tone="error" compact>{{
               editor.failure.value
-            }}</span>
+            }}</InlineNotice>
           </div>
           <div class="grid justify-items-end gap-1">
             <Button :disabled="!widget.overlayUrl" @click="copyAddress">
@@ -402,7 +406,7 @@ async function sendTest(eventType: string): Promise<void> {
           </Button>
         </template>
       </EditorFooter>
-      <span v-if="deleteError" role="alert" class="text-sm text-destructive">{{ deleteError }}</span>
+      <InlineNotice v-if="deleteError" tone="error" compact>{{ deleteError }}</InlineNotice>
     </div>
     <CodeEditor
       v-if="editor.session.value"
