@@ -20,6 +20,7 @@ import {
   useVoiceTriggers,
   type VoiceTrigger,
 } from '@/api/voiceTriggers';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
@@ -27,6 +28,7 @@ import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import EmptyState from '@/components/layout/EmptyState.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -61,6 +63,19 @@ const row = computed<VoiceTrigger | undefined>(() =>
 function removeTrigger(item: VoiceTrigger): void {
   pane.close();
   remove.mutate(item.id);
+}
+
+// The row's Delete asks here; the editor's own Delete asks in its footer.
+const asking = ref<VoiceTrigger>();
+
+function confirmRowDelete(): void {
+  const item = asking.value;
+
+  asking.value = undefined;
+
+  if (item) {
+    removeTrigger(item);
+  }
 }
 </script>
 
@@ -125,6 +140,14 @@ function removeTrigger(item: VoiceTrigger): void {
           <template v-if="!item.isEnabled" #end>
             <StatusBadge tone="off" :label="$t('dashboard.voiceTriggers.list.off')" />
           </template>
+          <template v-if="canWrite" #trailing>
+            <RowEditDelete
+              :edit-label="$t('dashboard.voiceTriggers.list.edit', { name: item.word })"
+              :delete-label="$t('dashboard.voiceTriggers.list.delete', { name: item.word })"
+              @edit="pane.open(item.id)"
+              @delete="asking = item"
+            />
+          </template>
         </SummaryRow>
       </PanelCard>
     </template>
@@ -141,4 +164,12 @@ function removeTrigger(item: VoiceTrigger): void {
     </template>
   </ListDetail>
   <NewVoiceTriggerDialog v-model:open="creating" />
+  <ConfirmDialog
+    :open="asking !== undefined"
+    :title="$t('dashboard.voiceTriggers.editor.confirmTitle', { name: asking?.word })"
+    :description="$t('dashboard.voiceTriggers.editor.confirmBody', { count: asking?.currentCount })"
+    :action="$t('dashboard.voiceTriggers.editor.confirmAction')"
+    @update:open="asking = undefined"
+    @confirm="confirmRowDelete"
+  />
 </template>

@@ -222,11 +222,22 @@ describe('Escalation policy page', () => {
     expect(stepCount()).toBe(3);
     expect(stepInput(2, 'atOffense').value).toBe('4');
 
-    step(0).querySelector<HTMLButtonElement>('[data-action="remove-step"]')!.click();
+    step(0).querySelector<HTMLButtonElement>('[data-row-delete]')!.click();
     await flushPromises();
 
     expect(stepCount()).toBe(2);
     expect(stepInput(0, 'atOffense').value).toBe('3');
+  });
+
+  it('removes a step through the shared row delete button, with no Edit beside it', async () => {
+    await open();
+
+    const end = step(0).querySelector('[data-slot="row-edit-delete"]')!;
+    const names = [...end.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'));
+
+    expect(names).toEqual(['Remove step']);
+    expect(end.querySelector('[data-row-delete]')).not.toBeNull();
+    expect(end.querySelector('[data-row-edit]')).toBeNull();
   });
 
   it('switches a step between warn, timeout and ban and gives a timeout the default duration', async () => {

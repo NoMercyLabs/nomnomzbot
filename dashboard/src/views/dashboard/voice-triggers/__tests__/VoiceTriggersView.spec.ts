@@ -273,6 +273,26 @@ describe('Voice triggers tab', () => {
     expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.id)).toEqual(['a']);
     expect(words()).toEqual(['word b']);
   });
+
+  it('ends every row with Edit then Delete icon buttons that open the editor and the confirm', async () => {
+    await open();
+
+    const rowEnd = rowOf('word a').parentElement!.querySelector('[data-slot="row-edit-delete"]')!;
+    const names = [...rowEnd.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'));
+
+    expect(names).toEqual(['Edit word a', 'Delete word a']);
+
+    rowEnd.querySelector<HTMLButtonElement>('[data-row-delete]')!.click();
+    await settle();
+
+    expect(document.body.textContent).toContain('Delete word a?');
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0);
+
+    await click(buttonByText('Delete voice trigger'));
+
+    expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.id)).toEqual(['a']);
+    expect(words()).toEqual(['word b']);
+  });
 });
 
 describe('Voice triggers phone editor', () => {

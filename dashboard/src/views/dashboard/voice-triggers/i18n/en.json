@@ -14,7 +14,9 @@
         "pickTitle": "No voice trigger open",
         "heard": "Heard {count} time | Heard {count} times",
         "copyListener": "Copy listener link",
-        "off": "Off"
+        "off": "Off",
+        "edit": "Edit {name}",
+        "delete": "Delete {name}"
       },
       "editor": {
         "enabled": "Enabled",

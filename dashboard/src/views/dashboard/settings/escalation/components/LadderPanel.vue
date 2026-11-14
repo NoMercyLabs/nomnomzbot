@@ -15,12 +15,11 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import Plus from '~icons/nnz/add';
-import Trash from '~icons/nnz/trash';
 
 import type { EscalationPolicy } from '@/api/escalationPolicy';
-import IconAction from '@/components/layout/IconAction.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import DurationInput from '@/components/layout/DurationInput.vue';
@@ -137,15 +136,15 @@ function removeStep(index: number): void {
             :max="Number(limits.maxTimeoutSeconds)"
             @update:model-value="step.timeoutSeconds = $event"
           />
-          <IconAction
+          <!-- A rung edits inline, so the row has no Edit; the shared Delete shows while a rung may go. -->
+          <RowEditDelete
             class="ms-auto"
-            data-action="remove-step"
-            :label="$t('dashboard.settings.escalation.ladder.remove')"
-            :disabled="!canRemove"
-            @click="removeStep(index)"
-          >
-            <Trash class="size-5" />
-          </IconAction>
+            :edit-label="$t('dashboard.settings.escalation.ladder.remove')"
+            :delete-label="$t('dashboard.settings.escalation.ladder.remove')"
+            :editable="false"
+            :deletable="canRemove"
+            @delete="removeStep(index)"
+          />
         </div>
         <p
           v-for="message in stepErrors(index)"

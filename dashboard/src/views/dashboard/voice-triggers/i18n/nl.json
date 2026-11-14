@@ -14,7 +14,9 @@
         "pickTitle": "Geen spraaktrigger open",
         "heard": "{count} keer gehoord | {count} keer gehoord",
         "copyListener": "Kopieer luisterlink",
-        "off": "Uit"
+        "off": "Uit",
+        "edit": "Bewerk {name}",
+        "delete": "Verwijder {name}"
       },
       "editor": {
         "enabled": "Aan",

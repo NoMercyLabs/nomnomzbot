@@ -1209,21 +1209,28 @@ const rawSearchInputAllowlist = [
 ] as const satisfies readonly string[];
 
 const handDeleteButton = /~icons\/nnz\/(?:trash|delete)/;
+// Each entry was reviewed on its own (Aaoa's layout todo): none is a list page's row delete, so RowEditDelete and
+// EditorFooter do not fit. The escalation ladder moved to RowEditDelete and left.
 const handDeleteButtonAllowlist = [
-  // Non-entity actions that stay by hand: each one removes or ends something that is not a list page's
-  // entity (a ladder step, a feature flag, a tenant, a queue item, a peer, a role), so RowEditDelete and
-  // EditorFooter do not fit.
-  'views/dashboard/settings/escalation/components/LadderPanel.vue',
+  // The feature flag override delete moves to RowEditDelete together with the status badges of that page.
   'views/dashboard/admin/AdminFeatureFlagsView.vue',
+  // The "Erase" text button in the tenant action bar: a destructive tenant action, not an icon-only row delete.
   'views/dashboard/admin/components/TenantActions.vue',
+  // One of the decision actions (skip, move, remove) on a media share queue item that only lives in the queue.
   'views/dashboard/media-share/components/MediaShareQueueRow.vue',
+  // Takes a track off the playback queue, beside Next and the moderation actions.
   'views/dashboard/music/MusicView.vue',
+  // Removes one milestone number inside the engagement settings form: an editor-internal list item.
   'views/dashboard/settings/EngagementView.vue',
+  // Switches a federation opt-in off (peers.disable); the peer itself is not deleted.
   'views/dashboard/settings/federation/components/FederationPeerRow.vue',
+  // Takes a person off the team beside their role select; the owner row cannot be removed.
   'views/dashboard/settings/permissions/components/TeamRolesPanel.vue',
-  // Not an entity delete at all: a chat line action, a list item removed inside an editor, a step in a pipeline.
+  // A chat line moderation action: delete the message in chat.
   'views/dashboard/chat/components/ChatLine.vue',
+  // Removes one string inside the overlay editor: an editor-internal list item.
   'views/dashboard/overlays/components/StringListEditor.vue',
+  // Removes a step from the pipeline being edited.
   'views/dashboard/pipelines/components/StepInspector.vue',
 ] as const satisfies readonly string[];
 
