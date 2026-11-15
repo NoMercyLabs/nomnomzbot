@@ -147,7 +147,7 @@ jobs:
             echo "- **Docker, full stack:** set \`API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:${ch}\` in \`.env\`, then run"
             echo "  \`scripts/switchover.ps1\`. The new version starts next to the old one; no downtime."
             echo "- **Docker, lite:** \`docker compose -f docker-compose.lite.yml pull && docker compose -f docker-compose.lite.yml up -d\`."
-            echo "- **No Docker:** download the single-file binary for your OS below, and run it."
+            echo "- **No Docker:** download the archive for your OS below, unpack it, and run \`nomnomz\` from its folder."
             echo "- Your data stays in place. Pin \`:${version}\` instead to stay on exactly this release."
             echo
             echo "## Changes"
