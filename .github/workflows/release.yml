@@ -202,12 +202,14 @@ jobs:
           publish="server/src/NomNomzBot.Api/bin/Release/net10.0/${rid}/publish"
           stage="nomnomz-${version}-${rid}"
           mkdir -p "$stage"
+          # The binary serves the dashboard (wwwroot) and the editor and landing pages (Assets) from its own
+          # folder, so the archive carries the whole publish folder, without debug symbols.
+          cp -r "$publish"/. "$stage/"
+          find "$stage" -name '*.pdb' -type f -delete
           if [[ "$rid" == win-* ]]; then
-            cp "$publish/nomnomz.exe" "$stage/"
             name="${stage}.zip"
             zip -qr "$name" "$stage"
           else
-            cp "$publish/nomnomz" "$stage/"
             name="${stage}.tar.gz"
             tar -czf "$name" "$stage"
           fi
