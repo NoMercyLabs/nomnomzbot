@@ -135,6 +135,41 @@ public sealed class TwitchTokenResolver(
         return await GetBotTokenAsync(ct);
     }
 
+    public async Task<Result<TwitchAccessContext>> GetChannelBotTokenAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        IntegrationConnection? connection = await db
+            .ChannelBotAuthorizations.IgnoreQueryFilters()
+            .Where(a => a.BroadcasterId == broadcasterId && a.IsActive && a.DeletedAt == null)
+            .Join(db.BotAccounts.IgnoreQueryFilters(), a => a.BotAccountId, b => b.Id, (_, b) => b)
+            .Where(b =>
+                b.IsActive
+                && b.DeletedAt == null
+                && b.Platform == AuthEnums.Platform.Twitch
+                && b.IdentityType == AuthEnums.BotIdentityType.Custom
+            )
+            .Join(
+                db.IntegrationConnections.IgnoreQueryFilters(),
+                b => b.ConnectionId,
+                c => c.Id,
+                (_, c) => c
+            )
+            .Where(c => c.DeletedAt == null)
+            .FirstOrDefaultAsync(ct);
+
+        if (connection is null)
+        {
+            return Result.Failure<TwitchAccessContext>(
+                "This channel has no active own bot.",
+                TwitchErrorCodes.NoToken
+            );
+        }
+
+        return await BuildContextAsync(connection, ct);
+    }
+
     public async Task<Result<TwitchAccessContext>> GetUserTokenAsync(
         Guid userId,
         CancellationToken ct = default
@@ -182,16 +217,10 @@ public sealed class TwitchTokenResolver(
 
         // A personal viewer/moderator grant (no channel) refreshes by its own connection id; the
         // (null, twitch) pair names many users and must never pick the row.
-        TokenResult? refreshed =
-            context.BroadcasterId is null
-            && context.ServiceName == UserProvider
-            && context.ConnectionId is { } connectionId
-                ? await authService.RefreshConnectionAsync(connectionId, ct)
-                : await authService.RefreshTokenAsync(
-                    context.BroadcasterId,
-                    context.ServiceName,
-                    ct
-                );
+        TokenResult? refreshed = context
+            is { BroadcasterId: null, ServiceName: UserProvider, ConnectionId: { } connectionId }
+            ? await authService.RefreshConnectionAsync(connectionId, ct)
+            : await authService.RefreshTokenAsync(context.BroadcasterId, context.ServiceName, ct);
 
         if (refreshed is null)
         {

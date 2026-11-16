@@ -32,6 +32,12 @@ public enum TwitchHelixAuth
     /// subject rather than only its scopes; <see cref="User"/> may silently sign the call as the bot.
     /// </summary>
     UserStrict = 4,
+
+    /// <summary>
+    /// The token of the tenant's OWN white-label bot (its active custom bot authorization), resolved by
+    /// <c>BroadcasterId</c>. No fallback: the call fails with <c>no_token</c> when the tenant has no own bot.
+    /// </summary>
+    ChannelBot = 5,
 }
 
 /// <summary>

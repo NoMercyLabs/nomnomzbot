@@ -317,11 +317,11 @@ public sealed class HelixChatProvider : IChatPlatform
     }
 
     /// <summary>
-    /// Posts one chat message on the given <paramref name="auth"/>. Only the <see cref="TwitchHelixAuth.User"/>
-    /// (owner-as-bot) path is tenant-scoped — it rides THIS channel's broadcaster token, so the transport needs
-    /// the tenant to resolve it; the shared-bot (<c>App</c>) and app-token (<c>BotApp</c>) paths ride a
-    /// subject-agnostic token, so they carry no tenant. Returns false on any transport failure (the caller
-    /// decides whether to retry on a different token).
+    /// Posts one chat message on the given <paramref name="auth"/>. The <see cref="TwitchHelixAuth.User"/>
+    /// (owner-as-bot) and <see cref="TwitchHelixAuth.ChannelBot"/> (own white-label bot) paths are tenant-scoped —
+    /// they ride a token of THIS channel, so the transport needs the tenant to resolve it; the shared-bot
+    /// (<c>App</c>) and app-token (<c>BotApp</c>) paths ride a subject-agnostic token, so they carry no tenant.
+    /// Returns false on any transport failure (the caller decides whether to retry on a different token).
     /// </summary>
     private async Task<bool> TrySendAsync(
         Guid broadcasterId,
@@ -337,7 +337,9 @@ public sealed class HelixChatProvider : IChatPlatform
             HttpMethod.Post,
             "chat/messages",
             auth,
-            BroadcasterId: auth == TwitchHelixAuth.User ? broadcasterId : null,
+            BroadcasterId: auth is TwitchHelixAuth.User or TwitchHelixAuth.ChannelBot
+                ? broadcasterId
+                : null,
             Body: new
             {
                 BroadcasterId = twitchBroadcasterId,
@@ -389,7 +391,9 @@ public sealed class HelixChatProvider : IChatPlatform
     /// the send and whose token signs it. The order mirrors the token resolution
     /// (<see cref="ITwitchTokenResolver.GetBotTokenAsync"/> → <c>GetBroadcasterTokenAsync</c>):
     /// <list type="number">
-    ///   <item>a shared platform bot (<c>twitch_bot</c>, no broadcaster) → rides the app/bot token;</item>
+    ///   <item>THIS channel's own white-label bot (its active custom bot authorization) → rides that bot's
+    ///   own token (<see cref="TwitchHelixAuth.ChannelBot"/>);</item>
+    ///   <item>else a shared platform bot (<c>twitch_bot</c>, no broadcaster) → rides the app/bot token;</item>
     ///   <item>else THIS channel's OWN owner (<c>twitch</c>, this broadcaster) → the main-account-is-the-bot
     ///   model (onboarding.md), riding that channel's own broadcaster token.</item>
     /// </list>
@@ -405,13 +409,55 @@ public sealed class HelixChatProvider : IChatPlatform
             return cached;
 
         BotSenderIdentity? sender =
-            await SharedBotSenderAsync(broadcasterId, ct)
+            await CustomBotSenderAsync(broadcasterId, ct)
+            ?? await SharedBotSenderAsync(broadcasterId, ct)
             ?? await OwnerSenderAsync(broadcasterId, ct);
 
         if (sender is not null)
             _senderByBroadcaster[broadcasterId] = sender;
 
         return sender;
+    }
+
+    /// <summary>
+    /// THIS channel's own white-label bot as the bot sender: the connection behind its active custom Twitch
+    /// bot authorization, the same row <see cref="ITwitchTokenResolver.GetChannelBotTokenAsync"/> signs with, so
+    /// <c>sender_id</c> and the token belong to one account. Null when the channel has no active own bot.
+    /// </summary>
+    private async Task<BotSenderIdentity?> CustomBotSenderAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        var row = await _db
+            .ChannelBotAuthorizations.IgnoreQueryFilters()
+            .Where(a => a.BroadcasterId == broadcasterId && a.IsActive && a.DeletedAt == null)
+            .Join(_db.BotAccounts.IgnoreQueryFilters(), a => a.BotAccountId, b => b.Id, (_, b) => b)
+            .Where(b =>
+                b.IsActive
+                && b.DeletedAt == null
+                && b.Platform == AuthEnums.Platform.Twitch
+                && b.IdentityType == AuthEnums.BotIdentityType.Custom
+            )
+            .Join(
+                _db.IntegrationConnections.IgnoreQueryFilters(),
+                b => b.ConnectionId,
+                c => c.Id,
+                (_, c) => c
+            )
+            .Where(c => c.DeletedAt == null)
+            .Select(c => new { c.ProviderAccountId, c.Scopes })
+            .FirstOrDefaultAsync(ct);
+
+        if (row is null || string.IsNullOrEmpty(row.ProviderAccountId))
+            return null;
+
+        return new(
+            TwitchHelixAuth.ChannelBot,
+            row.ProviderAccountId,
+            HasBotScope(row.Scopes),
+            await BroadcasterGrantsChannelBotAsync(broadcasterId, ct)
+        );
     }
 
     /// <summary>

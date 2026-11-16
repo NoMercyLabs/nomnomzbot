@@ -258,6 +258,8 @@ public sealed class TwitchHelixTransport(
                     allowBotFallback: false,
                     ct
                 ),
+            TwitchHelixAuth.ChannelBot when request.BroadcasterId is { } botChannel =>
+                await tokenResolver.GetChannelBotTokenAsync(botChannel, ct),
             TwitchHelixAuth.BotApp => await tokenResolver.GetAppTokenAsync(ct),
             _ => await tokenResolver.GetBotTokenAsync(ct),
         };
@@ -464,7 +466,9 @@ public sealed class TwitchHelixTransport(
             ? Task.CompletedTask
             : PublishReauthCoreAsync(
                 request.BroadcasterId,
-                request.Auth == TwitchHelixAuth.App ? "twitch_bot" : "twitch",
+                request.Auth is TwitchHelixAuth.App or TwitchHelixAuth.ChannelBot
+                    ? "twitch_bot"
+                    : "twitch",
                 reason,
                 missingScope,
                 ct

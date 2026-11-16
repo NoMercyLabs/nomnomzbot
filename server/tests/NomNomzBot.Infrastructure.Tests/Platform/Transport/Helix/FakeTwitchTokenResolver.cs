@@ -47,6 +47,21 @@ public sealed class FakeTwitchTokenResolver : ITwitchTokenResolver
             )
         );
 
+    public Task<Result<TwitchAccessContext>> GetChannelBotTokenAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    ) =>
+        Task.FromResult(
+            Result.Success(
+                new TwitchAccessContext(
+                    CurrentToken,
+                    broadcasterId,
+                    "twitch_bot",
+                    "helix:channel-bot"
+                )
+            )
+        );
+
     public Task<Result<TwitchAccessContext>> GetUserTokenAsync(
         Guid userId,
         CancellationToken ct = default

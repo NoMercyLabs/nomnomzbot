@@ -56,6 +56,16 @@ public interface ITwitchTokenResolver
     );
 
     /// <summary>
+    /// Returns the token of channel <paramref name="broadcasterId"/>'s own white-label bot: the connection behind
+    /// its active custom Twitch bot authorization (service <c>twitch_bot</c>, this broadcaster). It never falls
+    /// back to the shared bot or the owner. Fails with <c>no_token</c> when the channel has no active own bot.
+    /// </summary>
+    Task<Result<TwitchAccessContext>> GetChannelBotTokenAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// Returns the logged-in operator's OWN Twitch user token (service <c>twitch</c>) — the connection whose
     /// Twitch account IS this user, independent of which tenant it is filed under (chat-client.md §3.1). Used to
     /// send/act AS the operator (a moderator in a channel they moderate), not the tenant broadcaster. Fails with
