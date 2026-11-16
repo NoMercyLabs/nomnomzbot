@@ -3,6 +3,13 @@
     "settings": {
       "integrations": {
         "title": "Connected services",
+        "missingScopes": {
+          "title": "1 more Twitch permission to grant | {count} more Twitch permissions to grant",
+          "description": "Some features need Twitch permissions your connection does not have yet. Grant them to turn those features on. Nothing you already allowed changes.",
+          "grant": "Grant permissions",
+          "enterCode": "Enter this code on Twitch: {code}",
+          "regrantFailed": "The permission request failed. Try again."
+        },
         "description": "The outside services your channel uses. Connect one through its own sign-in page. Disconnect shows first what stops working.",
         "loadFailed": "The services could not be loaded.",
         "empty": "No services are available for this channel.",

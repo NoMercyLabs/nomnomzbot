@@ -61,6 +61,12 @@ export const integrationReplies: FakeReply[] = [
     args: [],
   }),
   get(`${channelPath}/integrations/spotify/credentials`, fixture(integrationsSpotify)),
+  // The sample channel holds every Twitch permission, so the missing-permissions notice stays away.
+  get('/api/v1/twitch/diagnostics/missing-scopes', {
+    status: 'ok',
+    data: { connectionStatus: 'connected', scopes: [] },
+    args: [],
+  }),
   // A channel that has not connected its own bot account speaks through the shared bot.
   get(`${channelPath}/bot/status`, {
     status: 'success',

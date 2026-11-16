@@ -14,6 +14,7 @@ import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
 import { failed } from './errors';
+import { merge } from '@/lib/array';
 import type { components } from './schema';
 
 export type ScopeDiagnostics = components['schemas']['TwitchScopeDiagnostics'];
@@ -52,6 +53,14 @@ async function fetchMissingScopes(): Promise<MissingScopes> {
 
   return data.data;
 }
+
+// Every scope the product needs and the connection lacks; the Integrations page offers the grant.
+export const missingScopesQuery = (channelId: string) =>
+  queryOptions({
+    queryKey: merge(twitchHealthKey(channelId), ['missing-scopes'] as const),
+    queryFn: fetchMissingScopes,
+    retry: false,
+  });
 
 async function fetchSubscriptions(channelId: string): Promise<EventSubSubscription[]> {
   const { data, error, response } = await client.GET(

@@ -3,6 +3,13 @@
     "settings": {
       "integrations": {
         "title": "Gekoppelde diensten",
+        "missingScopes": {
+          "title": "Nog 1 Twitch-recht om te geven | Nog {count} Twitch-rechten om te geven",
+          "description": "Sommige functies hebben Twitch-rechten nodig die je koppeling nog niet heeft. Geef ze om die functies aan te zetten. Wat je al hebt toegestaan blijft zoals het is.",
+          "grant": "Rechten geven",
+          "enterCode": "Voer deze code in op Twitch: {code}",
+          "regrantFailed": "De aanvraag voor rechten is mislukt. Probeer het opnieuw."
+        },
         "description": "De externe diensten die je kanaal gebruikt. Koppel een dienst via zijn eigen inlogpagina. Bij ontkoppelen zie je eerst wat stopt met werken.",
         "loadFailed": "De diensten konden niet worden geladen.",
         "empty": "Er zijn geen diensten beschikbaar voor dit kanaal.",

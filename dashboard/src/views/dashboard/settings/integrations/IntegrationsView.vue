@@ -49,6 +49,7 @@ import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 
 import SettingsPageFrame from '../components/SettingsPageFrame.vue';
+import MissingTwitchScopesNotice from './components/MissingTwitchScopesNotice.vue';
 import SpotifyCredentialsPanel from './components/SpotifyCredentialsPanel.vue';
 
 const primaryAccount = 'twitch';
@@ -278,6 +279,7 @@ function setLeavingOpen(open: boolean): void {
 
 <template>
   <SettingsPageFrame>
+    <MissingTwitchScopesNotice />
     <PanelCard
       data-view="integrations"
       pad
