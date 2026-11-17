@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
@@ -23,7 +24,7 @@ namespace NomNomzBot.Infrastructure.BackgroundServices;
 /// Startup backfill for the onboarding seed pipeline. Channels that finished onboarding before the seed-job
 /// handlers existed (e.g. the first self-host owner) never had their Twitch data pulled in, so their dashboard
 /// Rewards / Community / roles pages stay empty. On boot this re-publishes <see cref="ChannelOnboardedEvent"/>
-/// for every onboarded channel, which fans out to the same independently-resilient seed handlers as a live
+/// for every open channel (onboarded, or moderated by an onboarded user), which fans out to the same independently-resilient seed handlers as a live
 /// onboarding — re-pulling rewards, the moderator roster, and management memberships from Twitch.
 ///
 /// Safe to run on every startup: the seed handlers each call an idempotent upsert sync (matched by Twitch id /
@@ -95,8 +96,9 @@ public sealed class OnboardedChannelSeedBackfillService : BackgroundService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        List<ChannelSeedRow> rows = await db
-            .Channels.Where(c => c.IsOnboarded)
+        // Open = onboarded, or moderated by an onboarded user (ChannelOpenness, the one rule).
+        List<ChannelSeedRow> rows = await ChannelOpenness
+            .OpenChannels(db)
             .Select(c => new ChannelSeedRow(c.Id, c.OwnerUserId, c.TwitchChannelId!, c.Name))
             .ToListAsync(ct);
 
