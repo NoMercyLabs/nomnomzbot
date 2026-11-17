@@ -69,11 +69,34 @@ public sealed class NonOnboardedChannelSilenceTests
         }
     }
 
-    private static Channel Channel(Guid id, string externalId, bool onboarded) =>
+    private static readonly Guid ModUser = Guid.Parse("0192a000-0000-7000-8000-0000000000e1");
+    private static readonly Guid ModChannel = Guid.Parse("0192a000-0000-7000-8000-0000000000e2");
+
+    // A user who owns an onboarded channel of their own (the "onboarded user" of the open rule).
+    private static Channel OnboardedModeratorHome() =>
+        Channel(ModChannel, "modhome1", onboarded: true, ModUser);
+
+    private static ChannelMembership Membership(Guid channel, Guid user) =>
+        new()
+        {
+            BroadcasterId = channel,
+            UserId = user,
+            ManagementRole = ManagementRole.Moderator,
+            LevelValue = PermissionLevel.Moderator.ToLevelValue(),
+            Source = MembershipSource.TwitchBadge,
+            GrantedAt = Clock.GetUtcNow().UtcDateTime,
+        };
+
+    private static Channel Channel(
+        Guid id,
+        string externalId,
+        bool onboarded,
+        Guid? ownerUserId = null
+    ) =>
         new()
         {
             Id = id,
-            OwnerUserId = Owner,
+            OwnerUserId = ownerUserId ?? Owner,
             Provider = AuthEnums.Platform.Twitch,
             ExternalChannelId = externalId,
             TwitchChannelId = externalId,
@@ -84,20 +107,22 @@ public sealed class NonOnboardedChannelSilenceTests
             BillingTierKey = "free",
         };
 
-    private static async Task<AuthDbContext> TwoChannelsAsync()
+    private static async Task<AuthDbContext> TwoChannelsAsync(params object[] extra)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(Channel(ClosedTenant, "closed1", onboarded: false));
         db.Channels.Add(Channel(OpenTenant, "open1", onboarded: true));
+        db.AddRange(extra);
         await db.SaveChangesAsync();
         return db;
     }
 
     private static async Task<(ActingProbe Acting, StoringProbe Storing)> IngestChatAsync(
-        Guid tenant
+        Guid tenant,
+        params object[] extra
     )
     {
-        AuthDbContext db = await TwoChannelsAsync();
+        AuthDbContext db = await TwoChannelsAsync(extra);
         ActingProbe acting = new();
         StoringProbe storing = new();
 
@@ -187,6 +212,128 @@ public sealed class NonOnboardedChannelSilenceTests
 
         storing.Stored.Should().Equal("m-1");
         acting.Commands.Should().Equal("!hug");
+    }
+
+    [Fact]
+    public async Task A_non_onboarded_channel_moderated_by_an_onboarded_user_reaches_every_handler_and_the_bot_sends()
+    {
+        object[] seed = [OnboardedModeratorHome(), Membership(ClosedTenant, ModUser)];
+
+        (ActingProbe acting, StoringProbe storing) = await IngestChatAsync(ClosedTenant, seed);
+        (bool message, bool reply, bool asBroadcaster, IChatPlatform twitch) = await SendAllAsync(
+            ClosedTenant,
+            seed
+        );
+
+        storing.Stored.Should().Equal("m-1");
+        acting.Commands.Should().Equal("!hug");
+        message.Should().BeTrue();
+        reply.Should().BeTrue();
+        asBroadcaster.Should().BeTrue();
+        await twitch
+            .Received(1)
+            .SendMessageAsync(ClosedTenant, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_non_onboarded_channel_that_no_onboarded_user_moderates_stays_closed()
+    {
+        // The onboarded user moderates a different channel, not this one.
+        object[] seed = [OnboardedModeratorHome(), Membership(OpenTenant, ModUser)];
+
+        (ActingProbe acting, StoringProbe storing) = await IngestChatAsync(ClosedTenant, seed);
+        (bool message, bool reply, bool asBroadcaster, IChatPlatform twitch) = await SendAllAsync(
+            ClosedTenant,
+            seed
+        );
+
+        storing.Stored.Should().Equal("m-1");
+        acting.Commands.Should().BeEmpty();
+        (message || reply || asBroadcaster).Should().BeFalse();
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_moderator_who_is_not_onboarded_does_not_open_the_channel()
+    {
+        // The moderator's own channel row exists but is not onboarded.
+        Channel home = Channel(ModChannel, "modhome1", onboarded: false, ModUser);
+        object[] seed = [home, Membership(ClosedTenant, ModUser)];
+
+        (ActingProbe acting, _) = await IngestChatAsync(ClosedTenant, seed);
+        (bool message, _, _, IChatPlatform twitch) = await SendAllAsync(ClosedTenant, seed);
+
+        acting.Commands.Should().BeEmpty();
+        message.Should().BeFalse();
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_onboarded_user_with_only_a_viewer_standing_does_not_open_the_channel()
+    {
+        ChannelCommunityStanding standing = new()
+        {
+            BroadcasterId = ClosedTenant,
+            UserId = ModUser,
+            Standing = CommunityStanding.Vip,
+            LevelValue = PermissionLevel.Vip.ToLevelValue(),
+            Source = StandingSource.ChatTags,
+        };
+        object[] seed = [OnboardedModeratorHome(), standing];
+
+        (ActingProbe acting, _) = await IngestChatAsync(ClosedTenant, seed);
+        (bool message, _, _, _) = await SendAllAsync(ClosedTenant, seed);
+
+        acting.Commands.Should().BeEmpty();
+        message.Should().BeFalse();
+    }
+
+    private static async Task<(
+        bool Message,
+        bool Reply,
+        bool AsBroadcaster,
+        IChatPlatform Twitch
+    )> SendAllAsync(Guid tenant, params object[] extra)
+    {
+        AuthDbContext db = await TwoChannelsAsync(extra);
+        IChatPlatform twitch = Substitute.For<IChatPlatform>();
+        twitch.Provider.Returns(AuthEnums.Platform.Twitch);
+        twitch
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        twitch
+            .SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        twitch
+            .SendMessageAsBroadcasterAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        ChatPlatformRouter router = new(
+            [twitch],
+            db,
+            new OutboundChatShaper(),
+            new TokenBucketChatSendQueue(),
+            NullLogger<ChatPlatformRouter>.Instance
+        );
+
+        return (
+            await router.SendMessageAsync(tenant, "hello"),
+            await router.SendReplyAsync(tenant, "m-1", "hi"),
+            await router.SendMessageAsBroadcasterAsync(tenant, "yo"),
+            twitch
+        );
     }
 
     [Fact]

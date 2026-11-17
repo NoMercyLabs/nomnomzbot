@@ -9,7 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -17,8 +16,9 @@ using NomNomzBot.Application.Contracts.Twitch;
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
 
 /// <summary>
-/// Reads <c>Channels.IsOnboarded</c> straight from the database on every ask (one primary-key lookup), so a
-/// channel that onboards is open on the very next event with no stale cache. Singleton: it opens its own scope.
+/// Asks <see cref="ChannelOpenness"/> straight from the database on every ask (one query), so a channel that
+/// onboards, or gains an onboarded moderator, is open on the very next event with no stale cache. Singleton:
+/// it opens its own scope.
 /// </summary>
 public sealed class ChannelOnboardingGate(IServiceScopeFactory scopeFactory)
     : IChannelOnboardingGate
@@ -35,9 +35,6 @@ public sealed class ChannelOnboardingGate(IServiceScopeFactory scopeFactory)
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        return await db.Channels.AnyAsync(
-            c => c.Id == broadcasterId && !c.IsOnboarded,
-            cancellationToken
-        );
+        return await ChannelOpenness.IsClosedAsync(db, broadcasterId, cancellationToken);
     }
 }
