@@ -93,6 +93,9 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/auth/me'))
         return { data: { data: { username: 'stoney_eagle' } }, response: { status: 200, ok: true } };
 
+      if (path.endsWith('/channels/{channelId}/stream'))
+        return { data: { data: { title: 'Building the bot live' } }, response: { status: 200, ok: true } };
+
       return { data: { data: [] }, response: { status: 200, ok: true } };
     },
   },
@@ -235,7 +238,11 @@ describe('ChatView stream player', () => {
     expect(player.setup).toMatchObject({
       muted: true,
       autoPlay: true,
-      playlist: [expect.objectContaining({ url: 'https://www.twitch.tv/stoney_eagle' })],
+      playlist: [expect.objectContaining({
+        url: 'https://www.twitch.tv/stoney_eagle',
+        // Stoney 2026-11-17: the player showed "Stoney_Eagle live" instead of the stream's own title.
+        title: 'Building the bot live',
+      })],
     });
 
     expect(document.getElementById(player.containerId)).not.toBeNull();

@@ -31,7 +31,7 @@ import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { actionMatrixKey, membersKey, personGrantsKey } from '@/api/permissions';
 import { pipelinesKey } from '@/api/pipelines';
 import { redemptionsKey, rewardsKey, type Redemption } from '@/api/rewards';
-import { adScheduleKey } from '@/api/stream';
+import { adScheduleKey, streamInfoKey } from '@/api/stream';
 import { vtsConnectionKey, vtsInventoryKey } from '@/api/vts';
 
 import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
@@ -81,6 +81,7 @@ const everyKey: Keys[] = [
   predictionsKey,
   pollHistoryKey,
   adScheduleKey,
+  streamInfoKey,
   musicQueueKey,
   musicHistoryKey,
   musicTopRequestersKey,
@@ -267,7 +268,8 @@ const eventKeys: (readonly [string, unknown, readonly Keys[]])[] = [
       title: 't',
       gameName: 'g',
     },
-    [homeStatsKey],
+    // The chat player's title reads the stream info, so a title change reaches it at once.
+    [homeStatsKey, streamInfoKey],
   ],
 ];
 

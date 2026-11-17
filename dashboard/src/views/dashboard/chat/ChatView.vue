@@ -34,6 +34,7 @@ import {
   useViewerChatHistory,
   type ChatLine as ChatLineData,
 } from '@/api/chat';
+import { useStreamInfo } from '@/api/stream';
 import { useViewerChannel } from '@/api/viewer';
 import { useViewerChatLive } from '@/realtime/useViewerChatLive';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -124,6 +125,18 @@ const playerLogin = computed<string>(() =>
     : current.value?.login ?? '');
 const playerShown = computed(() =>
   playerOn.value && !poppedOut.value && playerLogin.value !== '');
+
+// The player shows the stream's own title. It takes a title once, when it is built, so it waits for the stream
+// info and is rebuilt when the title changes; a viewer page or a failed read falls back to "<name> live".
+const streamInfo = useStreamInfo(() =>
+  playerShown.value && !viewerRoute
+    ? channelId.value
+    : null);
+const playerTitle = computed<string>(() =>
+  streamInfo.data.value?.title ||
+  t('dashboard.chat.player.title', { name: current.value?.displayName ?? playerLogin.value }));
+const playerReady = computed<boolean>(() =>
+  viewerRoute || !streamInfo.isPending.value || streamInfo.isError.value);
 
 // The docked header keeps the search field shut until the person asks for it; the desktop page always shows it.
 const dockSearchOpen = ref(false);
@@ -531,9 +544,10 @@ async function confirmBan(): Promise<void> {
       <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row">
         <div v-if="playerShown" class="min-w-0 lg:flex lg:flex-1 lg:justify-center">
           <StreamPlayer
-            :key="playerLogin"
+            v-if="playerReady"
+            :key="`${playerLogin}:${playerTitle}`"
             :login="playerLogin"
-            :title="$t('dashboard.chat.player.title', { name: current?.displayName ?? playerLogin })"
+            :title="playerTitle"
             :live="live"
             :offline-label="$t('dashboard.chat.player.offline', { name: current?.displayName ?? playerLogin })"
           />

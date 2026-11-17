@@ -31,7 +31,7 @@ import { obsBridgeKey, obsConnectionKey, obsScenesKey, obsStateKey } from '@/api
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { actionMatrixKey, membersKey, personGrantsKey } from '@/api/permissions';
 import { rewardsKey } from '@/api/rewards';
-import { adScheduleKey } from '@/api/stream';
+import { adScheduleKey, streamInfoKey } from '@/api/stream';
 import { vtsConnectionKey, vtsInventoryKey } from '@/api/vts';
 import { outboundWebhooksKey } from '@/api/webhooks';
 import { widgetsKey } from '@/api/widgets';
@@ -85,7 +85,8 @@ const eventHandlers = [
   refreshing('CommandExecuted', homeKeys),
   refreshing('ModAction', merge(homeKeys, [reviewQueueKey])),
   refreshing('StreamStatusChanged', merge(homeKeys, [botStatusKey, adScheduleKey])),
-  refreshing('StreamInfoChanged', [homeStatsKey]),
+  // The chat player's title reads the stream info.
+  refreshing('StreamInfoChanged', [homeStatsKey, streamInfoKey]),
   refreshing('MusicStateChanged', musicKeys),
   // The redemption queue itself is written from the event (redemptionQueue.ts), so it is not refetched.
   refreshing('RewardRedeemed', homeKeys),
