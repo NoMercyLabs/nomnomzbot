@@ -11,6 +11,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.SpamDefense;
@@ -57,6 +58,10 @@ public sealed class SpamDefenseHandler
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
+            // The channel's spam defense is what authorises the delete, timeout, ban and reversal below.
+            using IDisposable sanction = scope
+                .ServiceProvider.GetRequiredService<IOutboundSanctionAccessor>()
+                .Begin(OutboundSanction.ChannelConfiguration("spam_defense"));
             ISpamDefenseService spamDefense =
                 scope.ServiceProvider.GetRequiredService<ISpamDefenseService>();
 

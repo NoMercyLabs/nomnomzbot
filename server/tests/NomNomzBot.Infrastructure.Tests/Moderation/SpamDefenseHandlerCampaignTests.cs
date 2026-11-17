@@ -18,6 +18,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -54,6 +56,10 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
     private readonly IModeratorChatReaders _readers = Substitute.For<IModeratorChatReaders>();
     private readonly ServiceProvider _services;
     private readonly SpamDefenseHandler _handler;
+
+    private readonly OutboundSanctionAccessor _sanctions = new();
+    private OutboundSanction? _sanctionAtTimeout;
+    private OutboundSanction? _sanctionAtDelete;
 
     private SpamDecision _decision = new(SpamOutcome.None, SpamOutcome.None, false, "ordinary");
     private bool _timeoutSucceeds = true;
@@ -93,7 +99,11 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(_ => Task.FromResult(Result.Success()));
+            .Returns(_ =>
+            {
+                _sanctionAtDelete = _sanctions.Current;
+                return Task.FromResult(Result.Success());
+            });
 
         _moderation
             .TimeoutAsync(
@@ -106,12 +116,14 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
                 Arg.Any<CancellationToken>()
             )
             .Returns(_ =>
-                Task.FromResult(
+            {
+                _sanctionAtTimeout = _sanctions.Current;
+                return Task.FromResult(
                     _timeoutSucceeds
                         ? Result.Success(new ModerationActionResult(true, null))
                         : Result.Failure<ModerationActionResult>("twitch_unavailable")
-                )
-            );
+                );
+            });
 
         _moderation
             .GetAutomodConfigAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -164,6 +176,7 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
         services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(_spamDefense);
         services.AddSingleton(_readers);
+        services.AddSingleton<IOutboundSanctionAccessor>(_sanctions);
         services.AddSingleton<Infrastructure.Moderation.ChatSafety.ChatSafetyMeter>();
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
@@ -233,6 +246,29 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
         SpamCampaignRecord record = Stored();
         record.ActionedAccountIds.Should().BeEmpty();
         record.ActionedCount.Should().Be(0);
+    }
+
+    /// <summary>
+    /// Stoney, 2026-11-17, after anda had to ban a "Best viewers with streamboo .com" bot by hand: "why did anda
+    /// have to ban this bot? TURN IT ON!". The verdict was right, but the outbound guard refused the delete and
+    /// the ban because nothing named the spam defense as the basis for the write.
+    /// </summary>
+    [Fact]
+    public async Task ASpamVerdict_IsCarriedOutUnderTheChannelsSpamDefenseSanction()
+    {
+        await QualifyCampaignAsync();
+        _decision = new SpamDecision(
+            SpamOutcome.DeleteAndEscalate,
+            SpamOutcome.DeleteAndEscalate,
+            false,
+            "campaign member"
+        );
+
+        await ChatAsync("stranger0");
+
+        _sanctionAtTimeout.Should().NotBeNull();
+        _sanctionAtDelete.Should().NotBeNull();
+        _sanctions.Current.Should().BeNull();
     }
 
     [Fact]
