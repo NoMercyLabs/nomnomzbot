@@ -19,6 +19,7 @@ using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
@@ -69,7 +70,14 @@ public sealed class EventSubGapBackfillServiceTests
             .Returns(Result.Success(new TwitchPage<TwitchChannelFollower>([], null, 0)));
 
         return (
-            new(points, channels, journal, bus, NullLogger<EventSubGapBackfillService>.Instance),
+            new(
+                points,
+                channels,
+                ScopeGateTestKit.OpenGate(),
+                journal,
+                bus,
+                NullLogger<EventSubGapBackfillService>.Instance
+            ),
             points,
             channels,
             journal,

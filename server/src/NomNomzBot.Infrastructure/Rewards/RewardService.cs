@@ -36,6 +36,7 @@ public class RewardService : IRewardService
     private readonly TimeProvider _clock;
     private readonly ILogger<RewardService> _logger;
     private readonly IHeldTextService? _heldText;
+    private readonly ITwitchScopeGateService? _scopeGate;
 
     // Resolved per call, never captured: IEventResponseExecutor -> IPipelineEngine -> every ICommandAction
     // (redemption fulfil/refund take IRewardService), so injecting the executor directly is a DI cycle.
@@ -57,9 +58,11 @@ public class RewardService : IRewardService
         TimeProvider clock,
         ILogger<RewardService> logger,
         IServiceProvider services,
-        IHeldTextService? heldText = null
+        IHeldTextService? heldText = null,
+        ITwitchScopeGateService? scopeGate = null
     )
     {
+        _scopeGate = scopeGate;
         _db = db;
         _channelPoints = channelPoints;
         _clock = clock;
@@ -767,6 +770,17 @@ public class RewardService : IRewardService
         );
         if (!channelExists)
             return Errors.ChannelNotFound(broadcasterId);
+
+        // A token without the read scope skips the read: no Twitch call, no warning, one inbox item.
+        if (
+            _scopeGate is not null
+            && !await _scopeGate.HasScopeOrRecordAsync(
+                broadcaster,
+                TwitchScopes.ChannelReadRedemptions,
+                cancellationToken
+            )
+        )
+            return ITwitchScopeGateService.MissingScope(TwitchScopes.ChannelReadRedemptions);
 
         // Reconcile the bot's MANAGED rewards (rewards.md §3.1): Helix returns only rewards this client_id
         // created (`only_manageable_rewards=true`). A freshly-onboarded channel where the bot has created

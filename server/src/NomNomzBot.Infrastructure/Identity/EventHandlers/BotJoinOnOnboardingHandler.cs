@@ -47,6 +47,7 @@ namespace NomNomzBot.Infrastructure.Identity.EventHandlers;
 public sealed class BotJoinOnOnboardingHandler(
     IApplicationDbContext db,
     ITwitchModeratorsApi moderators,
+    ITwitchScopeGateService scopeGate,
     IConfiguration configuration,
     IOutboundSanctionAccessor sanctions,
     ILogger<BotJoinOnOnboardingHandler> logger
@@ -158,6 +159,22 @@ public sealed class BotJoinOnOnboardingHandler(
                 return;
             }
 
+            if (
+                !await scopeGate.HasScopeOrRecordAsync(
+                    @event.BroadcasterId,
+                    TwitchScopes.ChannelManageModerators,
+                    ct
+                )
+            )
+            {
+                logger.LogDebug(
+                    "Onboarding seed (bot join): skipped for {BroadcasterId}, the token lacks {Scope}",
+                    @event.BroadcasterId,
+                    TwitchScopes.ChannelManageModerators
+                );
+                return;
+            }
+
             using IDisposable sanction = sanctions.Begin(
                 OutboundSanction.PlatformConfiguration(
                     $"saas_bot_moderator_grant:{sharedBot.BotUsername}"
@@ -177,7 +194,8 @@ public sealed class BotJoinOnOnboardingHandler(
                     @event.BroadcasterId
                 );
             else
-                logger.LogWarning(
+                logger.Log(
+                    TwitchSnapshotLogLevel.For(modResult.ErrorCode),
                     "Onboarding seed (bot join): could not grant moderator status to the shared bot in {BroadcasterId}: {Error} ({Code})",
                     @event.BroadcasterId,
                     modResult.ErrorMessage,

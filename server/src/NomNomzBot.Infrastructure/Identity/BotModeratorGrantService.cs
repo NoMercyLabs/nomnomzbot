@@ -31,7 +31,7 @@ namespace NomNomzBot.Infrastructure.Identity;
 public sealed class BotModeratorGrantService(
     IApplicationDbContext db,
     ITwitchModeratorsApi moderators,
-    IScopeNotificationService scopeNotifications,
+    ITwitchScopeGateService scopeGate,
     IConfiguration configuration,
     IOutboundSanctionAccessor sanctions,
     BotModeratorGrantBackoff backoff,
@@ -60,6 +60,15 @@ public sealed class BotModeratorGrantService(
         )
             return Result.Success(false);
 
+        if (
+            !await scopeGate.HasScopeOrRecordAsync(
+                broadcasterId,
+                TwitchScopes.ChannelManageModerators,
+                cancellationToken
+            )
+        )
+            return Result.Success(false);
+
         if (!backoff.TryEnter(broadcasterId))
             return Result.Success(false);
 
@@ -83,15 +92,8 @@ public sealed class BotModeratorGrantService(
             return Result.Success(true);
         }
 
-        if (granted.ErrorCode == TwitchErrorCodes.MissingScope)
-            await scopeNotifications.RecordMissingScopeAsync(
-                broadcasterId,
-                TwitchScopes.ChannelManageModerators,
-                null,
-                cancellationToken
-            );
-
-        logger.LogWarning(
+        logger.Log(
+            TwitchSnapshotLogLevel.For(granted.ErrorCode),
             "Bot moderator self-heal: could not grant moderator to {BotUsername} in {BroadcasterId}: {Error} ({Code})",
             sharedBot.BotUsername,
             broadcasterId,

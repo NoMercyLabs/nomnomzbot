@@ -278,6 +278,7 @@ public sealed class OnboardingSeedHandlerTests
         BannedUserImportOnOnboardingHandler sut = new(
             new SingleContextScopeFactory(db),
             moderation,
+            ScopeGateTestKit.OpenGate(),
             TimeProvider.System,
             log
         );
@@ -331,6 +332,7 @@ public sealed class OnboardingSeedHandlerTests
         BannedUserImportOnOnboardingHandler sut = new(
             new SingleContextScopeFactory(db),
             moderation,
+            ScopeGateTestKit.OpenGate(),
             TimeProvider.System,
             log
         );
@@ -400,6 +402,7 @@ public sealed class OnboardingSeedHandlerTests
         BannedUserImportOnOnboardingHandler sut = new(
             new SingleContextScopeFactory(db),
             moderation,
+            ScopeGateTestKit.OpenGate(),
             TimeProvider.System,
             log
         );
@@ -428,6 +431,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig("tw-bot-1"),
             TestSanction.Held(),
             log
@@ -450,6 +454,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig("tw-bot-1"),
             TestSanction.Held(),
             log
@@ -472,17 +477,13 @@ public sealed class OnboardingSeedHandlerTests
         ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
         moderators
             .AddModeratorAsync(Broadcaster, "tw-bot-1", Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Failure(
-                    "Missing required scope 'channel:manage:moderators'.",
-                    TwitchErrorCodes.MissingScope
-                )
-            );
+            .Returns(Result.Failure("Twitch refused the grant.", TwitchErrorCodes.TwitchError));
 
         ListLogger<BotJoinOnOnboardingHandler> log = new();
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig("tw-bot-1"),
             TestSanction.Held(),
             log
@@ -510,6 +511,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig("tw-bot-1"),
             TestSanction.Held(),
             log
@@ -1063,6 +1065,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig("some-other-bot-id"),
             TestSanction.Held(),
             log
@@ -1098,6 +1101,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig(username: "nomercybot_"),
             TestSanction.Held(),
             log
@@ -1134,6 +1138,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig(userId: "tw-bot-1", username: "nomercybot_"),
             TestSanction.Held(),
             log
@@ -1160,6 +1165,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig(),
             TestSanction.Held(),
             log
@@ -1189,6 +1195,7 @@ public sealed class OnboardingSeedHandlerTests
         BotJoinOnOnboardingHandler sut = new(
             db,
             moderators,
+            ScopeGateTestKit.OpenGate(),
             SaasBotConfig(username: "NomNomzBot"),
             TestSanction.Held(),
             log

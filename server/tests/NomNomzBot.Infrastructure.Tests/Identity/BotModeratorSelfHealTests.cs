@@ -42,8 +42,7 @@ public sealed class BotModeratorSelfHealTests
 
     private readonly AuthDbContext _db = AuthTestBuilder.NewContext();
     private readonly ITwitchModeratorsApi _moderators = Substitute.For<ITwitchModeratorsApi>();
-    private readonly IScopeNotificationService _scopeNotices =
-        Substitute.For<IScopeNotificationService>();
+    private readonly ScopeGateTestKit _kit;
     private readonly IChannelTwitchBotResolver _resolver =
         Substitute.For<IChannelTwitchBotResolver>();
     private readonly IActionRequiredChangeNotifier _inbox =
@@ -54,6 +53,7 @@ public sealed class BotModeratorSelfHealTests
     public BotModeratorSelfHealTests()
     {
         _backoff = new(_clock);
+        _kit = new(_db);
         _resolver
             .ResolveAsync(Broadcaster, Arg.Any<CancellationToken>())
             .Returns(new ChannelTwitchBot(BotUserId, BotLogin));
@@ -95,28 +95,18 @@ public sealed class BotModeratorSelfHealTests
     [Fact]
     public async Task Reconcile_records_the_scope_gap_and_keeps_the_status_when_the_grant_scope_is_missing()
     {
-        await SeedAsync();
+        await SeedAsync(grantModeratorScope: false);
         BotReadsAsModerator(false);
-        _moderators
-            .AddModeratorAsync(Broadcaster, BotUserId, Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Failure(
-                    "Missing required scope 'channel:manage:moderators'.",
-                    TwitchErrorCodes.MissingScope
-                )
-            );
 
         Result result = await Service("1335549269").ReconcileAsync(Broadcaster);
 
         result.IsSuccess.Should().BeTrue();
-        await _scopeNotices
-            .Received(1)
-            .RecordMissingScopeAsync(
-                Broadcaster,
-                TwitchScopes.ChannelManageModerators,
-                null,
-                Arg.Any<CancellationToken>()
-            );
+        await _moderators
+            .DidNotReceive()
+            .AddModeratorAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        (await _kit.InboxScopesAsync(Broadcaster))
+            .Should()
+            .Equal(TwitchScopes.ChannelManageModerators);
         Channel stored = await _db.Channels.AsNoTracking().SingleAsync(c => c.Id == Broadcaster);
         stored.BotIsModerator.Should().BeFalse();
     }
@@ -210,6 +200,7 @@ public sealed class BotModeratorSelfHealTests
         BotJoinOnOnboardingHandler onboarding = new(
             _db,
             _moderators,
+            _kit.Gate,
             Pinned("1335549269"),
             TestSanction.Held(),
             NullLogger<BotJoinOnOnboardingHandler>.Instance
@@ -261,8 +252,13 @@ public sealed class BotModeratorSelfHealTests
                 )
             );
 
-    private async Task SeedAsync()
+    private async Task SeedAsync(bool grantModeratorScope = true)
     {
+        if (grantModeratorScope)
+            await _kit.GrantAsync(Broadcaster, TwitchScopes.ChannelManageModerators);
+        else
+            await _kit.GrantAsync(Broadcaster, "chat:read");
+
         _db.BotAccounts.Add(
             new()
             {
@@ -294,7 +290,7 @@ public sealed class BotModeratorSelfHealTests
         BotModeratorGrantService grants = new(
             _db,
             _moderators,
-            _scopeNotices,
+            _kit.Gate,
             Pinned(pinnedBotUserId),
             TestSanction.Held(),
             _backoff,

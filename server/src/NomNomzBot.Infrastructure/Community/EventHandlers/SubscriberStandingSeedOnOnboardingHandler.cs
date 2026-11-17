@@ -32,6 +32,7 @@ public sealed class SubscriberStandingSeedOnOnboardingHandler(
     ICommunityStandingService standings,
     IUserService users,
     ITwitchSubscriptionsApi subscriptions,
+    ITwitchScopeGateService scopeGate,
     ILogger<SubscriberStandingSeedOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
 {
@@ -39,6 +40,22 @@ public sealed class SubscriberStandingSeedOnOnboardingHandler(
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        if (
+            !await scopeGate.HasScopeOrRecordAsync(
+                @event.BroadcasterId,
+                TwitchScopes.ChannelReadSubscriptions,
+                ct
+            )
+        )
+        {
+            logger.LogDebug(
+                "Onboarding seed (subscriber standing): skipped for {BroadcasterId}, the token lacks {Scope}",
+                @event.BroadcasterId,
+                TwitchScopes.ChannelReadSubscriptions
+            );
+            return;
+        }
 
         logger.LogInformation(
             "Onboarding seed (subscriber standing): fetching subscriber list from Twitch for {BroadcasterId} ({Name})",

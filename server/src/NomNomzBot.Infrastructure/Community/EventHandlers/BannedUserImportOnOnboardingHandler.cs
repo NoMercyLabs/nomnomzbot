@@ -36,6 +36,7 @@ namespace NomNomzBot.Infrastructure.Community.EventHandlers;
 public sealed class BannedUserImportOnOnboardingHandler(
     IServiceScopeFactory scopeFactory,
     ITwitchModerationApi moderation,
+    ITwitchScopeGateService scopeGate,
     TimeProvider timeProvider,
     ILogger<BannedUserImportOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
@@ -49,6 +50,22 @@ public sealed class BannedUserImportOnOnboardingHandler(
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        if (
+            !await scopeGate.HasScopeOrRecordAsync(
+                @event.BroadcasterId,
+                TwitchScopes.ModerationRead,
+                ct
+            )
+        )
+        {
+            logger.LogDebug(
+                "Onboarding seed (banned users): skipped for {BroadcasterId}, the token lacks {Scope}",
+                @event.BroadcasterId,
+                TwitchScopes.ModerationRead
+            );
+            return;
+        }
 
         logger.LogInformation(
             "Onboarding seed (banned users): importing banned users from Twitch for {BroadcasterId} ({Name})",

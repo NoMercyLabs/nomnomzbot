@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Identity;
 
 namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 
@@ -50,7 +51,8 @@ public sealed class RewardSeedOnOnboardingHandler(
                     @event.BroadcasterId
                 );
             else
-                logger.LogWarning(
+                logger.Log(
+                    TwitchSnapshotLogLevel.For(result.ErrorCode),
                     "Onboarding seed (rewards): sync returned a failure for {BroadcasterId}: {Error} ({Code})",
                     @event.BroadcasterId,
                     result.ErrorMessage,

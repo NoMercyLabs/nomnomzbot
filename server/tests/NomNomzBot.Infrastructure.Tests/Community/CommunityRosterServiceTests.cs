@@ -51,6 +51,7 @@ public sealed class CommunityRosterServiceTests
         CommunityRosterService sut = new(
             db,
             mods,
+            ScopeGateTestKit.OpenGate(),
             new FakeTimeProvider(Now),
             NullLogger<CommunityRosterService>.Instance
         );

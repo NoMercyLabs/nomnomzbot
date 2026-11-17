@@ -31,6 +31,7 @@ public sealed class VipStandingSeedOnOnboardingHandler(
     ICommunityStandingService standings,
     IUserService users,
     ITwitchModeratorsApi moderators,
+    ITwitchScopeGateService scopeGate,
     ILogger<VipStandingSeedOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
 {
@@ -38,6 +39,22 @@ public sealed class VipStandingSeedOnOnboardingHandler(
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        if (
+            !await scopeGate.HasScopeOrRecordAsync(
+                @event.BroadcasterId,
+                TwitchScopes.ChannelReadVips,
+                ct
+            )
+        )
+        {
+            logger.LogDebug(
+                "Onboarding seed (VIP standing): skipped for {BroadcasterId}, the token lacks {Scope}",
+                @event.BroadcasterId,
+                TwitchScopes.ChannelReadVips
+            );
+            return;
+        }
 
         logger.LogInformation(
             "Onboarding seed (VIP standing): fetching VIP list from Twitch for {BroadcasterId} ({Name})",

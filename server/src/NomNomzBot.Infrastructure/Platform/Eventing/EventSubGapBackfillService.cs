@@ -31,6 +31,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
 {
     private readonly ITwitchChannelPointsApi _channelPoints;
     private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchScopeGateService _scopeGate;
     private readonly IEventJournal _journal;
     private readonly IEventBus _eventBus;
     private readonly ILogger<EventSubGapBackfillService> _logger;
@@ -40,6 +41,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
     public EventSubGapBackfillService(
         ITwitchChannelPointsApi channelPoints,
         ITwitchChannelsApi channels,
+        ITwitchScopeGateService scopeGate,
         IEventJournal journal,
         IEventBus eventBus,
         ILogger<EventSubGapBackfillService> logger
@@ -47,6 +49,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
     {
         _channelPoints = channelPoints;
         _channels = channels;
+        _scopeGate = scopeGate;
         _journal = journal;
         _eventBus = eventBus;
         _logger = logger;
@@ -125,6 +128,16 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
     )
     {
         List<(Guid, DateTimeOffset, Func<RewardRedeemedEvent>)> found = [];
+
+        // A token without the scope skips the sweep quietly; the gap sits in the streamer's inbox once.
+        if (
+            !await _scopeGate.HasScopeOrRecordAsync(
+                broadcasterId,
+                TwitchScopes.ChannelReadRedemptions,
+                ct
+            )
+        )
+            return found;
 
         Result<IReadOnlyList<TwitchCustomReward>> rewardsResult =
             await _channelPoints.GetCustomRewardsAsync(
@@ -215,6 +228,15 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
     )
     {
         List<(Guid, DateTimeOffset, Func<FollowEvent>)> found = [];
+
+        if (
+            !await _scopeGate.HasScopeOrRecordAsync(
+                broadcasterId,
+                TwitchScopes.ModeratorReadFollowers,
+                ct
+            )
+        )
+            return found;
 
         string? cursor = null;
         bool keepPaging = true;

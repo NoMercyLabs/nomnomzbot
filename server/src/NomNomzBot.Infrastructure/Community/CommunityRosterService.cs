@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Infrastructure.Identity;
 
 namespace NomNomzBot.Infrastructure.Community;
 
@@ -29,6 +30,7 @@ namespace NomNomzBot.Infrastructure.Community;
 public sealed class CommunityRosterService(
     IApplicationDbContext db,
     ITwitchModeratorsApi moderators,
+    ITwitchScopeGateService scopeGate,
     TimeProvider clock,
     ILogger<CommunityRosterService> logger
 ) : ICommunityRosterService
@@ -52,13 +54,20 @@ public sealed class CommunityRosterService(
         // failed read is logged with its actual Helix error code so the cause is observable, and a read
         // that failed (rather than returned empty) propagates as a failure so the onboarding seed handler
         // and the dashboard surface "could not read your moderators" instead of a false zero.
-        Result<TwitchPage<TwitchModerator>> modsResult = await moderators.GetModeratorsAsync(
+        // A token without the scope skips that read (no Twitch call, one inbox item); the failure then carries
+        // the missing_scope code, which logs below Warning because the inbox already tells the streamer.
+        Result<TwitchPage<TwitchModerator>> modsResult = await scopeGate.HasScopeOrRecordAsync(
             broadcasterId,
-            new(),
+            TwitchScopes.ModerationRead,
             cancellationToken
-        );
+        )
+            ? await moderators.GetModeratorsAsync(broadcasterId, new(), cancellationToken)
+            : ITwitchScopeGateService.MissingScope<TwitchPage<TwitchModerator>>(
+                TwitchScopes.ModerationRead
+            );
         if (modsResult.IsFailure)
-            logger.LogWarning(
+            logger.Log(
+                TwitchSnapshotLogLevel.For(modsResult.ErrorCode),
                 "Community roster sync: reading moderators from Twitch failed for {BroadcasterId}: {Error} ({Code}){Detail}",
                 broadcasterId,
                 modsResult.ErrorMessage,
@@ -66,13 +75,18 @@ public sealed class CommunityRosterService(
                 modsResult.ErrorDetail is null ? "" : $" — {modsResult.ErrorDetail}"
             );
 
-        Result<TwitchPage<TwitchVip>> vipsResult = await moderators.GetVipsAsync(
+        Result<TwitchPage<TwitchVip>> vipsResult = await scopeGate.HasScopeOrRecordAsync(
             broadcasterId,
-            new(),
+            TwitchScopes.ChannelReadVips,
             cancellationToken
-        );
+        )
+            ? await moderators.GetVipsAsync(broadcasterId, new(), cancellationToken)
+            : ITwitchScopeGateService.MissingScope<TwitchPage<TwitchVip>>(
+                TwitchScopes.ChannelReadVips
+            );
         if (vipsResult.IsFailure)
-            logger.LogWarning(
+            logger.Log(
+                TwitchSnapshotLogLevel.For(vipsResult.ErrorCode),
                 "Community roster sync: reading VIPs from Twitch failed for {BroadcasterId}: {Error} ({Code}){Detail}",
                 broadcasterId,
                 vipsResult.ErrorMessage,
