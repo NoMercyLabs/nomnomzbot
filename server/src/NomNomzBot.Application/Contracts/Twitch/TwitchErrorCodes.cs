@@ -21,6 +21,9 @@ public static class TwitchErrorCodes
     public const string NoToken = "no_token";
     public const string MissingScope = "missing_scope";
     public const string Unauthorized = "unauthorized";
+
+    /// <summary>Twitch answered 403: the token is valid, but Twitch refuses this action here.</summary>
+    public const string Forbidden = "forbidden";
     public const string RateLimited = "rate_limited";
     public const string NotFound = "not_found";
     public const string Conflict = "conflict";

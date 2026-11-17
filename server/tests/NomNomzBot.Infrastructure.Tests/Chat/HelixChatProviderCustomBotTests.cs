@@ -24,6 +24,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform;
@@ -177,7 +178,8 @@ public sealed class HelixChatProviderCustomBotTests
             new HelixBadgeSendGate(TimeProvider.System),
             options,
             NullLogger<HelixChatProvider>.Instance,
-            sanctions
+            sanctions,
+            new BotChatSendRefusalReporter(Substitute.For<IEventBus>(), TimeProvider.System)
         );
         return (provider, wire);
     }

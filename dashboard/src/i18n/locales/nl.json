@@ -1162,6 +1162,8 @@
         "attention_obs_not_connected_message": "Acties die niet konden draaien omdat OBS niet verbonden was: {count}. Ze staan in het gebeurtenissenlogboek. Deze melding verdwijnt zodra OBS weer verbindt.",
         "attention_bot_not_moderator_title": "{botName} is geen moderator in je kanaal",
         "attention_bot_not_moderator_message": "Typ /mod {botName} in je Twitch-chat. Twitch beperkt wat een bot zonder moderatorrol kan doen.",
+        "attention_bot_send_refused_title": "Twitch weigerde het bericht van {botName} in {channelName}",
+        "attention_bot_send_refused_message": "{botName} kan nog niet praten in {channelName}. Maak {botName} moderator in {channelName}: vraag de kanaaleigenaar om /mod {botName} te typen in de Twitch-chat. Daarna praat de bot vanzelf weer.",
         "attention_spotify_blocked_title": "Spotify heeft je muziek gepauzeerd tot {until}",
         "attention_spotify_blocked_message": "Spotify heeft je Spotify-app geblokkeerd na te veel verzoeken. Verzoeknummers en nu-speelt wachten tot dan. Wil je nu verder? Maak een nieuwe app in het Spotify Developer Dashboard en vul de Client ID en Client Secret in op de pagina Integraties.",
         "attention_audio_source_missing_title": "Geluiden hebben geen Audio-widget",

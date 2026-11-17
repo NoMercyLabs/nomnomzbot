@@ -12,11 +12,15 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -42,7 +46,9 @@ public sealed class HelixChatProviderTests
     private static (HelixChatProvider Provider, CapturingHelixTransport Transport) Build(
         AuthDbContext db,
         ITwitchIdentityResolver? identityResolver = null,
-        IHelixBadgeSendGate? badgeGate = null
+        IHelixBadgeSendGate? badgeGate = null,
+        IEventBus? bus = null,
+        TimeProvider? clock = null
     )
     {
         CapturingHelixTransport transport = new();
@@ -61,9 +67,149 @@ public sealed class HelixChatProviderTests
                 }
             ),
             NullLogger<HelixChatProvider>.Instance,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            NewRefusals(bus ?? Substitute.For<IEventBus>(), clock)
         );
         return (provider, transport);
+    }
+
+    private static BotChatSendRefusalReporter NewRefusals(
+        IEventBus bus,
+        TimeProvider? clock = null
+    ) => new(bus, clock ?? TimeProvider.System);
+
+    private sealed class RecordingBus : IEventBus
+    {
+        public List<IDomainEvent> Published { get; } = [];
+
+        public Task PublishAsync<TEvent>(
+            TEvent @event,
+            CancellationToken cancellationToken = default
+        )
+            where TEvent : class, IDomainEvent
+        {
+            Published.Add(@event);
+            return Task.CompletedTask;
+        }
+
+        public void PublishFireAndForget<TEvent>(TEvent @event)
+            where TEvent : class, IDomainEvent => Published.Add(@event);
+    }
+
+    private static async Task<(
+        HelixChatProvider Provider,
+        CapturingHelixTransport Transport,
+        RecordingBus Bus,
+        FakeTimeProvider Clock
+    )> BuildRefusalProviderAsync()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        RecordingBus bus = new();
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 11, 17, 12, 0, 0, TimeSpan.Zero));
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(
+            db,
+            bus: bus,
+            clock: clock
+        );
+        return (provider, transport, bus, clock);
+    }
+
+    /// <summary>
+    /// Twitch refusing the bot (403) in a channel must reach that channel's inbox: the provider publishes ONE
+    /// refusal event naming the channel and the bot, which <c>BotSendRefusedSource</c> turns into the item.
+    /// </summary>
+    [Fact]
+    public async Task SendMessage_WhenTwitchRefusesTheBot_PublishesOneRefusalNamingTheChannelAndBot()
+    {
+        (HelixChatProvider provider, CapturingHelixTransport transport, RecordingBus bus, _) =
+            await BuildRefusalProviderAsync();
+        transport.SendResult = Result.Failure("Forbidden", TwitchErrorCodes.Forbidden);
+
+        bool sent = await provider.SendMessageAsync(Owner, "hello chat");
+
+        sent.Should().BeFalse();
+        BotChatSendRefusedEvent refused = bus
+            .Published.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<BotChatSendRefusedEvent>()
+            .Subject;
+        refused.BroadcasterId.Should().Be(Owner);
+        refused.BotUsername.Should().Be("b");
+    }
+
+    /// <summary>A second refusal for the same channel inside the throttle adds no second event (no duplicate item).</summary>
+    [Fact]
+    public async Task SendMessage_WhenRefusedAgainInsideTheThrottle_PublishesNoDuplicate()
+    {
+        (
+            HelixChatProvider provider,
+            CapturingHelixTransport transport,
+            RecordingBus bus,
+            FakeTimeProvider clock
+        ) = await BuildRefusalProviderAsync();
+        transport.SendResult = Result.Failure("Forbidden", TwitchErrorCodes.Forbidden);
+
+        await provider.SendMessageAsync(Owner, "one");
+        clock.Advance(TimeSpan.FromMinutes(5));
+        await provider.SendMessageAsync(Owner, "two");
+
+        bus.Published.Should().ContainSingle().Which.Should().BeOfType<BotChatSendRefusedEvent>();
+    }
+
+    /// <summary>A network error says nothing about the bot's standing in the channel, so it raises no fix item.</summary>
+    [Fact]
+    public async Task SendMessage_WhenTheFailureIsNotARefusal_PublishesNothing()
+    {
+        (HelixChatProvider provider, CapturingHelixTransport transport, RecordingBus bus, _) =
+            await BuildRefusalProviderAsync();
+        transport.SendResult = Result.Failure("connection reset", TwitchErrorCodes.Transport);
+
+        bool sent = await provider.SendMessageAsync(Owner, "hello chat");
+
+        sent.Should().BeFalse();
+        bus.Published.Should().BeEmpty();
+    }
+
+    /// <summary>The first send that goes through after a refusal publishes the recovery, which clears the item.</summary>
+    [Fact]
+    public async Task SendMessage_WhenASendSucceedsAfterARefusal_PublishesTheRecovery()
+    {
+        (HelixChatProvider provider, CapturingHelixTransport transport, RecordingBus bus, _) =
+            await BuildRefusalProviderAsync();
+        transport.SendResults.Enqueue(Result.Failure("Forbidden", TwitchErrorCodes.Forbidden));
+        transport.SendResults.Enqueue(Result.Success());
+
+        await provider.SendMessageAsync(Owner, "refused");
+        bool sent = await provider.SendMessageAsync(Owner, "delivered");
+
+        sent.Should().BeTrue();
+        bus.Published.Should().HaveCount(2);
+        bus.Published[0].Should().BeOfType<BotChatSendRefusedEvent>();
+        bus.Published[1]
+            .Should()
+            .BeOfType<BotChatSendRecoveredEvent>()
+            .Which.BroadcasterId.Should()
+            .Be(Owner);
+    }
+
+    /// <summary>A send that always worked publishes nothing: no recovery noise for a healthy channel.</summary>
+    [Fact]
+    public async Task SendMessage_WhenNeverRefused_PublishesNothing()
+    {
+        (HelixChatProvider provider, _, RecordingBus bus, _) = await BuildRefusalProviderAsync();
+
+        bool sent = await provider.SendMessageAsync(Owner, "hello chat");
+
+        sent.Should().BeTrue();
+        bus.Published.Should().BeEmpty();
     }
 
     private static async Task AddConnectionAsync(
@@ -803,7 +949,8 @@ public sealed class HelixChatProviderTests
                 }
             ),
             NullLogger<HelixChatProvider>.Instance,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            NewRefusals(Substitute.For<IEventBus>())
         );
 
         ChatUnbanOutcome outcome = await provider.UnbanUserAsync(Owner, "target-1");
@@ -838,7 +985,8 @@ public sealed class HelixChatProviderTests
                 }
             ),
             NullLogger<HelixChatProvider>.Instance,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            NewRefusals(Substitute.For<IEventBus>())
         );
 
         ChatUnbanOutcome outcome = await provider.UnbanUserAsync(Owner, "target-2");

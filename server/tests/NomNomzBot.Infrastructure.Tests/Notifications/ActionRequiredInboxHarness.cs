@@ -49,6 +49,7 @@ internal static class ActionRequiredInboxHarness
                 new BotModeratorStatusReader(db, new ChannelTwitchBotResolver(db))
             ),
             new MassBanFailureSource(db),
+            new BotSendRefusedSource(db, clock),
         ];
 
     // The real unban source fails for a channel with no row, which most inbox tests do not seed. Those tests

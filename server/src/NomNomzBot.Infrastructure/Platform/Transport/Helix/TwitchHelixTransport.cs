@@ -383,6 +383,7 @@ public sealed class TwitchHelixTransport(
         string code = response.StatusCode switch
         {
             HttpStatusCode.Unauthorized => TwitchErrorCodes.Unauthorized,
+            HttpStatusCode.Forbidden => TwitchErrorCodes.Forbidden,
             HttpStatusCode.NotFound => TwitchErrorCodes.NotFound,
             HttpStatusCode.TooManyRequests => TwitchErrorCodes.RateLimited,
             HttpStatusCode.Conflict => TwitchErrorCodes.Conflict,

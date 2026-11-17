@@ -1908,6 +1908,12 @@ public static class DependencyInjection
         // outlive one request so a channel without channel:bot / bot-mod doesn't pay a doomed extra
         // Helix call on every message.
         services.AddSingleton<IHelixBadgeSendGate, HelixBadgeSendGate>();
+        // Singleton for the same reason: which channels Twitch refused the bot in outlives one request, so one
+        // refusal raises one inbox notice instead of one per message.
+        services.AddSingleton<
+            Application.Chat.Services.IBotChatSendRefusalReporter,
+            BotChatSendRefusalReporter
+        >();
         // Live shared-chat session state (singleton): the shared-ban trust web's "active session"
         // precondition — fed by the shared_chat begin/update/end handlers, read at ban time.
         services.AddSingleton<ISharedChatSessionTracker, SharedChatSessionTracker>();

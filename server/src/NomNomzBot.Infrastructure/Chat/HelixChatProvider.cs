@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -45,6 +46,7 @@ public sealed class HelixChatProvider : IChatPlatform
     private readonly IHelixBadgeSendGate _badgeGate;
     private readonly TwitchOptions _options;
     private readonly IOutboundSanctionAccessor _sanctions;
+    private readonly IBotChatSendRefusalReporter _refusals;
     private readonly ILogger<HelixChatProvider> _logger;
 
     // Bot sender identity resolved PER BROADCASTER — never one process-wide account. On a multi-tenant
@@ -63,9 +65,11 @@ public sealed class HelixChatProvider : IChatPlatform
         IHelixBadgeSendGate badgeGate,
         IOptions<TwitchOptions> options,
         ILogger<HelixChatProvider> logger,
-        IOutboundSanctionAccessor sanctions
+        IOutboundSanctionAccessor sanctions,
+        IBotChatSendRefusalReporter refusals
     )
     {
+        _refusals = refusals;
         _transport = transport;
         _moderation = moderation;
         _identityResolver = identityResolver;
@@ -235,19 +239,19 @@ public sealed class HelixChatProvider : IChatPlatform
 
         if (attemptAppToken)
         {
-            if (
-                await TrySendAsync(
-                    broadcasterId,
-                    twitchBroadcasterId,
-                    sender,
-                    message,
-                    replyToMessageId,
-                    TwitchHelixAuth.BotApp,
-                    ct
-                )
-            )
+            Result appSent = await TrySendAsync(
+                broadcasterId,
+                twitchBroadcasterId,
+                sender,
+                message,
+                replyToMessageId,
+                TwitchHelixAuth.BotApp,
+                ct
+            );
+            if (appSent.IsSuccess)
             {
                 _badgeGate.Clear(broadcasterId);
+                await _refusals.ReportDeliveredAsync(broadcasterId, ct);
                 return true;
             }
 
@@ -266,7 +270,7 @@ public sealed class HelixChatProvider : IChatPlatform
             }
         }
 
-        return await TrySendAsync(
+        Result sent = await TrySendAsync(
             broadcasterId,
             twitchBroadcasterId,
             sender,
@@ -275,6 +279,26 @@ public sealed class HelixChatProvider : IChatPlatform
             sender.FallbackAuth,
             ct
         );
+        return await ReportOutcomeAsync(broadcasterId, sent, ct);
+    }
+
+    /// <summary>
+    /// The send is done: a refusal by Twitch (403, on every token the bot can send with) goes to the channel's
+    /// action-required inbox, a success clears an earlier refusal, and any other failure (network, rate limit,
+    /// a server error) is left alone, because it says nothing about the bot's standing in the channel.
+    /// </summary>
+    private async Task<bool> ReportOutcomeAsync(
+        Guid broadcasterId,
+        Result sent,
+        CancellationToken ct
+    )
+    {
+        if (sent.IsSuccess)
+            await _refusals.ReportDeliveredAsync(broadcasterId, ct);
+        else if (sent.ErrorCode == TwitchErrorCodes.Forbidden)
+            await _refusals.ReportRefusedAsync(broadcasterId, _options.BotUsername, ct);
+
+        return sent.IsSuccess;
     }
 
     /// <summary>
@@ -305,7 +329,7 @@ public sealed class HelixChatProvider : IChatPlatform
             return false;
         }
 
-        return await TrySendAsync(
+        Result sent = await TrySendAsync(
             broadcasterId,
             twitchBroadcasterId,
             sender,
@@ -314,6 +338,7 @@ public sealed class HelixChatProvider : IChatPlatform
             TwitchHelixAuth.User,
             ct
         );
+        return sent.IsSuccess;
     }
 
     /// <summary>
@@ -321,9 +346,10 @@ public sealed class HelixChatProvider : IChatPlatform
     /// (owner-as-bot) and <see cref="TwitchHelixAuth.ChannelBot"/> (own white-label bot) paths are tenant-scoped —
     /// they ride a token of THIS channel, so the transport needs the tenant to resolve it; the shared-bot
     /// (<c>App</c>) and app-token (<c>BotApp</c>) paths ride a subject-agnostic token, so they carry no tenant.
-    /// Returns false on any transport failure (the caller decides whether to retry on a different token).
+    /// Returns the failed <see cref="Result"/> on any transport failure (the caller decides whether to retry on a
+    /// different token, and whether the failure was Twitch refusing the bot).
     /// </summary>
-    private async Task<bool> TrySendAsync(
+    private async Task<Result> TrySendAsync(
         Guid broadcasterId,
         string twitchBroadcasterId,
         BotSenderIdentity sender,
@@ -359,10 +385,9 @@ public sealed class HelixChatProvider : IChatPlatform
                 broadcasterId,
                 result.ErrorMessage
             );
-            return false;
         }
 
-        return true;
+        return result;
     }
 
     /// <summary>

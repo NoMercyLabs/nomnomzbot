@@ -383,6 +383,7 @@ public abstract class BaseController : ControllerBase
             or "MUSIC_AUTH_FAILED"
             or "TWITCH_ERROR"
             or TwitchErrorCodes.TwitchError
+            or TwitchErrorCodes.Forbidden
             or TwitchErrorCodes.Transport
             or "VTS_ERROR"
             or "VTS_BRIDGE_OFFLINE"
