@@ -29,6 +29,7 @@ EXEMPT = {
     'ChannelModerators': 'current moderator roster mirrored from Twitch; the boot sync refills it, not history',
     'Users': 'identity rows created on first sight of a Twitch user, not history',
     'Rewards': 'current state of the Twitch reward definitions, not history',
+    'MusicHeldWrites': 'outbox of held favorite and banger writes, a row is deleted once sent, not history',
     'Streams': 'DEBT 2026-10-12: history with no projection; S-STREAMS-PROJECTION adds it',
 }
 

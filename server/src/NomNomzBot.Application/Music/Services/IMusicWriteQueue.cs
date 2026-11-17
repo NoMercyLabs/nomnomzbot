@@ -64,6 +64,9 @@ public interface IMusicWriteQueue
     /// <summary>Sends every held write of the channel; returns how many went out.</summary>
     Task<int> FlushAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
 
+    /// <summary>Sends every held write of every channel, including those held before a restart; returns how many went out.</summary>
+    Task<int> FlushAllAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Records provider units spent outside the queue, such as making a playlist.</summary>
     void Charge(string provider, int units);
 }

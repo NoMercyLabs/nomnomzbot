@@ -134,6 +134,11 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Music.Entities.SongRequestQueueItem> SongRequestQueueItems =>
         Set<Domain.Music.Entities.SongRequestQueueItem>();
 
+    // Music — favorite and banger writes held until the stream ends. Concrete-context only, like the
+    // song-request mirror above: only MusicWriteQueue reads and writes it.
+    public DbSet<Domain.Music.Entities.MusicHeldWrite> MusicHeldWrites =>
+        Set<Domain.Music.Entities.MusicHeldWrite>();
+
     // Generic named pick-lists (the {list.pick.<name>} primitive).
     public DbSet<Domain.PickLists.Entities.PickList> PickLists =>
         Set<Domain.PickLists.Entities.PickList>();

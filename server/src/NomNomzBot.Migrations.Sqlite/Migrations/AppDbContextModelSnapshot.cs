@@ -9405,6 +9405,46 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("BlockedTracks");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Music.Entities.MusicHeldWrite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlaylistId")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackUrisJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "CreatedAt")
+                        .HasDatabaseName("IX_MusicHeldWrite_BroadcasterId_CreatedAt");
+
+                    b.ToTable("MusicHeldWrites");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Music.Entities.SongRequestQueueItem", b =>
                 {
                     b.Property<Guid>("Id")

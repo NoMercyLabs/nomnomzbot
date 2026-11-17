@@ -9,20 +9,24 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Platform.Persistence;
 
 namespace NomNomzBot.Infrastructure.Music;
 
 /// <inheritdoc />
 /// <remarks>
-/// Held writes live in memory only: a restart drops them. Persisting them needs a new table in both
-/// migration sets, which is not cheap enough for this slice.
+/// Held writes live in the <c>MusicHeldWrites</c> table, the source of truth: a row is inserted when a
+/// write is held and deleted once the provider accepts it, so a restart cannot drop a held write.
 /// </remarks>
 public sealed class MusicWriteQueue(
     IServiceScopeFactory scopes,
@@ -32,7 +36,7 @@ public sealed class MusicWriteQueue(
 ) : IMusicWriteQueue
 {
     private readonly object _gate = new();
-    private readonly List<MusicWriteRequest> _held = [];
+    private readonly SemaphoreSlim _flushing = new(1, 1);
     private readonly List<(DateTimeOffset At, int Units)> _youTubeSpend = [];
     private DateTimeOffset _spendDayEnds = DateTimeOffset.MinValue;
 
@@ -43,8 +47,14 @@ public sealed class MusicWriteQueue(
     {
         if (ShouldHold(request))
         {
-            lock (_gate)
-                _held.Add(request);
+            Result stored = await StoreHeldAsync(request, cancellationToken);
+            if (stored.IsFailure)
+                return Result.Failure<MusicWriteOutcome>(
+                    stored.ErrorMessage,
+                    stored.ErrorCode,
+                    stored.ErrorDetail
+                );
+
             return Result.Success(MusicWriteOutcome.Held);
         }
 
@@ -64,35 +74,38 @@ public sealed class MusicWriteQueue(
         CancellationToken cancellationToken = default
     )
     {
-        List<MusicWriteRequest> mine;
-        lock (_gate)
+        await _flushing.WaitAsync(cancellationToken);
+        try
         {
-            mine = _held.Where(r => r.BroadcasterId == broadcasterId).ToList();
-            _held.RemoveAll(r => r.BroadcasterId == broadcasterId);
+            List<MusicHeldWrite> rows = await LoadHeldAsync(broadcasterId, cancellationToken);
+            int sent = 0;
+            foreach (MusicHeldWrite row in rows)
+                if (await FlushRowAsync(row, cancellationToken))
+                    sent++;
+
+            return sent;
+        }
+        finally
+        {
+            _flushing.Release();
+        }
+    }
+
+    public async Task<int> FlushAllAsync(CancellationToken cancellationToken = default)
+    {
+        List<Guid> broadcasterIds;
+        using (IServiceScope scope = scopes.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            broadcasterIds = await db
+                .MusicHeldWrites.Select(r => r.BroadcasterId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
         }
 
         int sent = 0;
-        foreach (MusicWriteRequest request in mine)
-        {
-            if (IsCooling(request.Provider))
-            {
-                lock (_gate)
-                    _held.Add(request);
-                continue;
-            }
-
-            Result result = await SendAsync(request, cancellationToken);
-            if (result.IsSuccess)
-                sent++;
-            else
-                logger.LogWarning(
-                    "A held {Kind} write on {Provider} for {BroadcasterId} failed at flush: {Code}",
-                    request.Kind,
-                    request.Provider,
-                    broadcasterId,
-                    result.ErrorCode
-                );
-        }
+        foreach (Guid broadcasterId in broadcasterIds)
+            sent += await FlushAsync(broadcasterId, cancellationToken);
 
         return sent;
     }
@@ -102,6 +115,82 @@ public sealed class MusicWriteQueue(
         if (provider == MusicWriteBudget.YouTube)
             RecordYouTubeSpend(units);
     }
+
+    private async Task<Result> StoreHeldAsync(MusicWriteRequest request, CancellationToken ct)
+    {
+        try
+        {
+            using IServiceScope scope = scopes.CreateScope();
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.MusicHeldWrites.Add(
+                new()
+                {
+                    BroadcasterId = request.BroadcasterId,
+                    Provider = request.Provider,
+                    Kind = request.Kind.ToString(),
+                    TrackUrisJson = JsonSerializer.Serialize(request.TrackUris),
+                    PlaylistId = request.PlaylistId,
+                    CreatedAt = clock.GetUtcNow().UtcDateTime,
+                }
+            );
+            await db.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (DbUpdateException ex)
+        {
+            logger.LogError(
+                ex,
+                "Could not store a held music write for {BroadcasterId}",
+                request.BroadcasterId
+            );
+            return Result.Failure("The write could not be held.", "SERVICE_UNAVAILABLE");
+        }
+    }
+
+    private async Task<List<MusicHeldWrite>> LoadHeldAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        using IServiceScope scope = scopes.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await db
+            .MusicHeldWrites.AsNoTracking()
+            .Where(r => r.BroadcasterId == broadcasterId)
+            .OrderBy(r => r.CreatedAt)
+            .ThenBy(r => r.Id)
+            .ToListAsync(ct);
+    }
+
+    private async Task<bool> FlushRowAsync(MusicHeldWrite row, CancellationToken ct)
+    {
+        if (IsCooling(row.Provider))
+            return false;
+
+        Result result = await SendAsync(ToRequest(row), ct);
+        if (result.IsFailure)
+        {
+            logger.LogWarning(
+                "A held {Kind} write on {Provider} for {BroadcasterId} failed at flush: {Code}",
+                row.Kind,
+                row.Provider,
+                row.BroadcasterId,
+                result.ErrorCode
+            );
+            return false;
+        }
+
+        using IServiceScope scope = scopes.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.MusicHeldWrites.Where(r => r.Id == row.Id).ExecuteDeleteAsync(ct);
+        return true;
+    }
+
+    private static MusicWriteRequest ToRequest(MusicHeldWrite row) =>
+        new(
+            row.BroadcasterId,
+            row.Provider,
+            Enum.Parse<MusicWriteKind>(row.Kind),
+            JsonSerializer.Deserialize<List<string>>(row.TrackUrisJson) ?? [],
+            row.PlaylistId
+        );
 
     private bool ShouldHold(MusicWriteRequest request)
     {
