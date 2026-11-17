@@ -17,8 +17,11 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 
 /// <summary>
 /// Broadcasts StreamStatusChanged to all dashboard clients when a stream goes online.
+/// It only informs the dashboard, so it runs for a channel that did not onboard too.
 /// </summary>
-public sealed class ChannelOnlineBroadcastHandler : IEventHandler<ChannelOnlineEvent>
+public sealed class ChannelOnlineBroadcastHandler
+    : IEventHandler<ChannelOnlineEvent>,
+        IOnboardingExemptHandler
 {
     private readonly IDashboardNotifier _notifier;
 
@@ -43,8 +46,11 @@ public sealed class ChannelOnlineBroadcastHandler : IEventHandler<ChannelOnlineE
 
 /// <summary>
 /// Broadcasts StreamStatusChanged to all dashboard clients when a stream goes offline.
+/// It only informs the dashboard, so it runs for a channel that did not onboard too.
 /// </summary>
-public sealed class ChannelOfflineBroadcastHandler : IEventHandler<ChannelOfflineEvent>
+public sealed class ChannelOfflineBroadcastHandler
+    : IEventHandler<ChannelOfflineEvent>,
+        IOnboardingExemptHandler
 {
     private readonly IDashboardNotifier _notifier;
 

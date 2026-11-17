@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Notifications.Services;
@@ -29,14 +30,19 @@ namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 /// the stream goes offline via EventSub stream.offline.
 /// Computes actual stream duration from ChannelContext.WentLiveAt and runs the operator's
 /// configured <c>stream.offline</c> event response through the shared executor.
+/// The offline state is recorded in every channel; the configured response acts, so it runs only in an
+/// onboarded channel.
 /// </summary>
-public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
+public sealed class ChannelOfflineHandler
+    : IEventHandler<ChannelOfflineEvent>,
+        IOnboardingExemptHandler
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPipelineEngine _pipeline;
     private readonly IChannelRegistry _registry;
     private readonly IActionRequiredChangeNotifier _inbox;
     private readonly IShoutoutQueue _shoutoutQueue;
+    private readonly IChannelOnboardingGate _onboardingGate;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChannelOfflineHandler> _logger;
 
@@ -46,6 +52,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         IChannelRegistry registry,
         IActionRequiredChangeNotifier inbox,
         IShoutoutQueue shoutoutQueue,
+        IChannelOnboardingGate onboardingGate,
         TimeProvider timeProvider,
         ILogger<ChannelOfflineHandler> logger
     )
@@ -55,6 +62,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         _registry = registry;
         _inbox = inbox;
         _shoutoutQueue = shoutoutQueue;
+        _onboardingGate = onboardingGate;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -160,6 +168,9 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         await KeepRecapAsync(scope, broadcasterId, endedStreamId, cancellationToken);
 
         await _pipeline.CancelAllForChannelAsync(broadcasterId);
+
+        if (await _onboardingGate.IsClosedAsync(broadcasterId, cancellationToken))
+            return;
 
         // The operator's configured "stream.offline" response (the row the event-responses page edits) —
         // through the shared executor, like every other trigger source.

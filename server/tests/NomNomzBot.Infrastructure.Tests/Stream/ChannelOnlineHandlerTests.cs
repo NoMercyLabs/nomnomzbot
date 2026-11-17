@@ -20,6 +20,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -87,6 +88,7 @@ public sealed class ChannelOnlineHandlerTests
             registry,
             inbox,
             shoutoutQueue ?? new ShoutoutQueue(),
+            new ChannelOnboardingGate(provider.GetRequiredService<IServiceScopeFactory>()),
             NullLogger<ChannelOnlineHandler>.Instance
         );
         return (sut, db, inbox);
@@ -268,6 +270,82 @@ public sealed class ChannelOnlineHandlerTests
 
         queue.Peek(Broadcaster).Should().BeNull();
         queue.Peek(otherChannel)!.Target.Id.Should().Be("502");
+    }
+
+    // 2026-11-17: a moderator's channel that never onboarded went live, the event bus passed stream.online only
+    // to recording handlers, and this one was not one of them, so the channel stayed "offline" all stream.
+    [Fact]
+    public async Task A_channel_that_did_not_onboard_is_saved_as_live_but_its_go_live_response_does_not_run()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Broadcaster,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-9",
+                TwitchChannelId = "tw-9",
+                Name = "streamer9",
+                NameNormalized = "streamer9",
+                IsOnboarded = false,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.SaveChanges();
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        ChannelContext ctx = new()
+        {
+            BroadcasterId = Broadcaster,
+            TwitchChannelId = "tw-9",
+            ChannelName = "streamer9",
+        };
+        registry
+            .GetOrCreateAsync(Broadcaster, "tw-9", "streamer9", Arg.Any<CancellationToken>())
+            .Returns(ctx);
+        IEventResponseExecutor executor = Substitute.For<IEventResponseExecutor>();
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddSingleton(executor);
+        services.AddSingleton(Substitute.For<ITwitchStreamsApi>());
+        services.AddSingleton<EventLogger>();
+        services.AddSingleton<IChannelOnboardingGate, ChannelOnboardingGate>();
+        services.AddSingleton<EventBus>();
+        services.AddSingleton<IEventHandler<ChannelOnlineEvent>>(sp => new ChannelOnlineHandler(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            registry,
+            new LiveStateCapturingNotifier(db),
+            new ShoutoutQueue(),
+            sp.GetRequiredService<IChannelOnboardingGate>(),
+            NullLogger<ChannelOnlineHandler>.Instance
+        ));
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        await provider
+            .GetRequiredService<EventBus>()
+            .PublishAsync(
+                new ChannelOnlineEvent
+                {
+                    Provider = AuthEnums.Platform.Twitch,
+                    BroadcasterId = Broadcaster,
+                    BroadcasterDisplayName = "Streamer9",
+                    StreamTitle = "Building a book reader",
+                    GameName = "Software and Game Development",
+                    StartedAt = new(2026, 11, 17, 12, 15, 0, TimeSpan.Zero),
+                    IsChannelIngress = true,
+                }
+            );
+
+        (await db.Channels.AsNoTracking().SingleAsync(c => c.Id == Broadcaster))
+            .IsLive.Should()
+            .BeTrue("the moderators see the channel live while it streams");
+        ctx.IsLive.Should().BeTrue();
+        (await db.Streams.CountAsync(s => s.ChannelId == Broadcaster)).Should().Be(1);
+        await executor
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default, default!, default, default, default!, default);
     }
 
     private static QueuedShoutout WaitingShoutout(Guid broadcasterId, string targetId) =>

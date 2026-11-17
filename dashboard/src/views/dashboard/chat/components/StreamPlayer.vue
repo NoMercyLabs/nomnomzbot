@@ -64,7 +64,8 @@ onBeforeUnmount(dispose);
 </script>
 
 <template>
-  <div data-stream-player class="aspect-video w-full overflow-hidden rounded-xl bg-muted">
+  <!-- From lg up the 16:9 box is never taller than the window under the page header (about 10.5rem). -->
+  <div data-stream-player class="aspect-video w-full self-start overflow-hidden rounded-xl bg-muted lg:max-w-[calc((100svh-10.5rem)*16/9)]">
     <div v-if="live" :id="containerId" class="size-full" />
     <div v-else data-stream-offline class="flex size-full items-center justify-center p-4 text-center text-sm text-muted-foreground">
       {{ offlineLabel }}

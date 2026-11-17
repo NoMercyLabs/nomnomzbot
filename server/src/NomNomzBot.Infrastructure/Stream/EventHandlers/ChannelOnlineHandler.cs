@@ -30,13 +30,18 @@ namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 /// Also resets per-session ChannelContext state (chatters, shoutout cooldowns) and runs the
 /// operator's configured <c>stream.online</c> event response through the shared executor.
 /// stream.online EventSub does not include title/game — these are fetched from Helix.
+/// The live state is recorded in every channel, so the moderators of a channel that did not onboard see it live;
+/// the configured response acts, so it runs only in an onboarded channel.
 /// </summary>
-public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
+public sealed class ChannelOnlineHandler
+    : IEventHandler<ChannelOnlineEvent>,
+        IOnboardingExemptHandler
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
     private readonly IActionRequiredChangeNotifier _inbox;
     private readonly IShoutoutQueue _shoutoutQueue;
+    private readonly IChannelOnboardingGate _onboardingGate;
     private readonly ILogger<ChannelOnlineHandler> _logger;
 
     public ChannelOnlineHandler(
@@ -44,6 +49,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         IChannelRegistry registry,
         IActionRequiredChangeNotifier inbox,
         IShoutoutQueue shoutoutQueue,
+        IChannelOnboardingGate onboardingGate,
         ILogger<ChannelOnlineHandler> logger
     )
     {
@@ -51,6 +57,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         _registry = registry;
         _inbox = inbox;
         _shoutoutQueue = shoutoutQueue;
+        _onboardingGate = onboardingGate;
         _logger = logger;
     }
 
@@ -164,6 +171,9 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
             @event.StreamTitle,
             @event.GameName
         );
+
+        if (await _onboardingGate.IsClosedAsync(broadcasterId, cancellationToken))
+            return;
 
         // The operator's configured "stream.online" response (the row the event-responses page edits) —
         // through the shared executor, like every other trigger source.

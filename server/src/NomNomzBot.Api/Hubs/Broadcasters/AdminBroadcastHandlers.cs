@@ -25,7 +25,8 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// platform principals can be connected (the hub's <c>iam:manage</c> handshake gate), so pushes go to all.
 /// </summary>
 public sealed class AdminChannelOnlineBroadcastHandler(IHubContext<AdminHub, IAdminClient> hub)
-    : IEventHandler<ChannelOnlineEvent>
+    : IEventHandler<ChannelOnlineEvent>,
+        IOnboardingExemptHandler
 {
     public Task HandleAsync(ChannelOnlineEvent @event, CancellationToken ct = default) =>
         hub.Clients.All.ReceiveChannelRegistryUpdate(
@@ -42,7 +43,8 @@ public sealed class AdminChannelOnlineBroadcastHandler(IHubContext<AdminHub, IAd
 
 /// <summary>The offline half of the operator registry feed.</summary>
 public sealed class AdminChannelOfflineBroadcastHandler(IHubContext<AdminHub, IAdminClient> hub)
-    : IEventHandler<ChannelOfflineEvent>
+    : IEventHandler<ChannelOfflineEvent>,
+        IOnboardingExemptHandler
 {
     public Task HandleAsync(ChannelOfflineEvent @event, CancellationToken ct = default) =>
         hub.Clients.All.ReceiveChannelRegistryUpdate(

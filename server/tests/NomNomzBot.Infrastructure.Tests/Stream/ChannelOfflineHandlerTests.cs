@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Entities;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Dashboard.Stats;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -71,6 +72,7 @@ public sealed class ChannelOfflineHandlerTests
             Substitute.For<IChannelRegistry>(),
             inbox,
             new ShoutoutQueue(),
+            new ChannelOnboardingGate(provider.GetRequiredService<IServiceScopeFactory>()),
             new FakeTimeProvider(new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero)),
             NullLogger<ChannelOfflineHandler>.Instance
         );
@@ -86,6 +88,64 @@ public sealed class ChannelOfflineHandlerTests
         );
 
         inbox.Calls.Should().Equal((Broadcaster, false));
+    }
+
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 0)]
+    public async Task The_go_offline_response_runs_only_in_an_onboarded_channel_and_the_state_is_saved_in_both(
+        bool onboarded,
+        int responses
+    )
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Broadcaster,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-8",
+                TwitchChannelId = "tw-8",
+                Name = "streamer8",
+                NameNormalized = "streamer8",
+                IsOnboarded = onboarded,
+                IsLive = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.SaveChanges();
+        IEventResponseExecutor executor = Substitute.For<IEventResponseExecutor>();
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(db)
+            .AddSingleton(executor)
+            .BuildServiceProvider();
+        ChannelOfflineHandler sut = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IChannelRegistry>(),
+            new LiveStateCapturingNotifier(db),
+            new ShoutoutQueue(),
+            new ChannelOnboardingGate(provider.GetRequiredService<IServiceScopeFactory>()),
+            new FakeTimeProvider(new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero)),
+            NullLogger<ChannelOfflineHandler>.Instance
+        );
+
+        await sut.HandleAsync(
+            new ChannelOfflineEvent
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Broadcaster,
+                BroadcasterDisplayName = "Streamer8",
+                StreamDuration = TimeSpan.FromHours(1),
+            }
+        );
+
+        db.Channels.Single(c => c.Id == Broadcaster).IsLive.Should().BeFalse();
+        await executor
+            .ReceivedWithAnyArgs(responses)
+            .ExecuteAsync(default, default!, default, default, default!, default);
     }
 
     [Fact]
@@ -149,6 +209,7 @@ public sealed class ChannelOfflineHandlerTests
             registry,
             new LiveStateCapturingNotifier(db),
             new ShoutoutQueue(),
+            new ChannelOnboardingGate(provider.GetRequiredService<IServiceScopeFactory>()),
             clock,
             NullLogger<ChannelOfflineHandler>.Instance
         );
@@ -187,6 +248,7 @@ public sealed class ChannelOfflineHandlerTests
             Substitute.For<IChannelRegistry>(),
             new LiveStateCapturingNotifier(AuthTestBuilder.NewContext()),
             queue,
+            new ChannelOnboardingGate(provider.GetRequiredService<IServiceScopeFactory>()),
             new FakeTimeProvider(new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero)),
             NullLogger<ChannelOfflineHandler>.Instance
         );

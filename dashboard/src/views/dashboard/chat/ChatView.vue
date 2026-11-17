@@ -529,7 +529,7 @@ async function confirmBan(): Promise<void> {
       <!-- With the stream on: the player on top and the chat under it on a narrow screen, the player taking the
            free width and the chat in a side column from lg up, like the Twitch app. -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row">
-        <div v-if="playerShown" class="min-w-0 lg:flex-1">
+        <div v-if="playerShown" class="min-w-0 lg:flex lg:flex-1 lg:justify-center">
           <StreamPlayer
             :key="playerLogin"
             :login="playerLogin"
