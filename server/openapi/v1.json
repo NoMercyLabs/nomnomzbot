@@ -125611,6 +125611,10 @@
           "youTubeMusicCategoryOnly": {
             "type": "boolean",
             "default": true
+          },
+          "bangerTarget": {
+            "type": "string",
+            "default": "default"
           }
         },
         "description": "Music configuration for a channel."
@@ -157934,6 +157938,14 @@
               "boolean"
             ],
             "description": "With no playlist chosen, `!banger` makes one on first use."
+          },
+          "bangerTarget": {
+            "pattern": "^(default|perYear|allTime)$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where `!banger` saves: `default`, or a playlist per requester (`perYear` or `allTime`)."
           },
           "maxRequestsPerRole": {
             "type": [
