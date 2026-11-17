@@ -36,6 +36,7 @@ public sealed class BotShutdownAnnouncementServiceTests
 {
     private readonly ConcurrentBag<(Guid Channel, string Message)> _sent = [];
     private readonly ConcurrentBag<BuiltinResponseRequest> _composed = [];
+    private readonly List<ChannelMembership> _memberships = [];
 
     [Fact]
     public async Task Stop_without_a_successor_posts_the_tone_line_to_every_live_channel_only()
@@ -81,6 +82,41 @@ public sealed class BotShutdownAnnouncementServiceTests
                 r.BuiltinKey == BuiltinResponseSlots.BotStatus.Key
                 && r.Slot == BuiltinResponseSlots.BotStatus.GoingOffline
             );
+    }
+
+    [Fact]
+    public async Task A_live_channel_an_onboarded_user_moderates_hears_the_line_and_a_closed_one_does_not()
+    {
+        Guid moderator = Guid.NewGuid();
+        Guid openByModerator = Guid.NewGuid();
+        Guid modByNobodyOnboarded = Guid.NewGuid();
+        Guid plainClosed = Guid.NewGuid();
+        Channel home = Channel(Guid.NewGuid(), live: false, PersonalityTone.Informative);
+        home.OwnerUserId = moderator;
+        Channel open = Channel(openByModerator, live: true, PersonalityTone.Informative);
+        open.IsOnboarded = false;
+        Channel notOnboardedMod = Channel(
+            modByNobodyOnboarded,
+            live: true,
+            PersonalityTone.Informative
+        );
+        notOnboardedMod.IsOnboarded = false;
+        Channel closed = Channel(plainClosed, live: true, PersonalityTone.Informative);
+        closed.IsOnboarded = false;
+        _memberships.Add(Moderator(openByModerator, moderator));
+        _memberships.Add(Moderator(modByNobodyOnboarded, Guid.NewGuid()));
+        BotShutdownAnnouncementService service = Build(
+            successorWaiting: false,
+            chat: RecordingChat(),
+            home,
+            open,
+            notOnboardedMod,
+            closed
+        );
+
+        await service.StopAsync(CancellationToken.None);
+
+        _sent.Select(s => s.Channel).Should().Equal(openByModerator);
     }
 
     [Fact]
@@ -148,6 +184,7 @@ public sealed class BotShutdownAnnouncementServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.AddRange(channels);
+        db.ChannelMemberships.AddRange(_memberships);
         db.SaveChanges();
 
         IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
@@ -178,6 +215,17 @@ public sealed class BotShutdownAnnouncementServiceTests
             NullLogger<BotShutdownAnnouncementService>.Instance
         );
     }
+
+    private static ChannelMembership Moderator(Guid broadcaster, Guid user) =>
+        new()
+        {
+            BroadcasterId = broadcaster,
+            UserId = user,
+            ManagementRole = ManagementRole.Moderator,
+            LevelValue = ManagementRole.Moderator.ToLevel(),
+            Source = MembershipSource.TwitchBadge,
+            GrantedAt = DateTime.UtcNow,
+        };
 
     private static Channel Channel(
         Guid id,

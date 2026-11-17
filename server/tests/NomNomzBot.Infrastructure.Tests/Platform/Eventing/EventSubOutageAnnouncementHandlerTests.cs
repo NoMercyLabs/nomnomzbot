@@ -40,6 +40,7 @@ public sealed class EventSubOutageAnnouncementHandlerTests
 
     private readonly ConcurrentQueue<(Guid Channel, string Message)> _sent = [];
     private readonly EventSubOutageLedger _ledger = new();
+    private readonly List<ChannelMembership> _memberships = [];
 
     [Fact]
     public async Task Two_quick_failures_post_one_drop_line_and_the_recovery_posts_one_line()
@@ -94,6 +95,35 @@ public sealed class EventSubOutageAnnouncementHandlerTests
             .Select(s => s.Channel)
             .Should()
             .BeEquivalentTo([liveA, liveB]);
+    }
+
+    [Fact]
+    public async Task A_live_channel_an_onboarded_user_moderates_hears_the_drop_and_a_closed_one_does_not()
+    {
+        Guid moderator = Guid.NewGuid();
+        Guid open = Guid.NewGuid();
+        Guid modByNobodyOnboarded = Guid.NewGuid();
+        Guid plainClosed = Guid.NewGuid();
+        Channel home = Channel(Guid.NewGuid(), live: false);
+        home.OwnerUserId = moderator;
+        Channel openRow = Channel(open, live: true);
+        openRow.IsOnboarded = false;
+        Channel notOnboardedModRow = Channel(modByNobodyOnboarded, live: true);
+        notOnboardedModRow.IsOnboarded = false;
+        Channel closedRow = Channel(plainClosed, live: true);
+        closedRow.IsOnboarded = false;
+        _memberships.Add(Moderator(open, moderator));
+        _memberships.Add(Moderator(modByNobodyOnboarded, Guid.NewGuid()));
+        EventSubOutageAnnouncementHandler handler = Build(
+            home,
+            openRow,
+            notOnboardedModRow,
+            closedRow
+        );
+
+        await handler.HandleAsync(Dropped(Guid.Empty), CancellationToken.None);
+
+        _sent.Should().ContainSingle().Which.Should().Be((open, LostText));
     }
 
     [Fact]
@@ -170,6 +200,7 @@ public sealed class EventSubOutageAnnouncementHandlerTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.AddRange(channels);
+        db.ChannelMemberships.AddRange(_memberships);
         db.SaveChanges();
 
         IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
@@ -200,6 +231,17 @@ public sealed class EventSubOutageAnnouncementHandlerTests
             NullLogger<EventSubOutageAnnouncementHandler>.Instance
         );
     }
+
+    private static ChannelMembership Moderator(Guid broadcaster, Guid user) =>
+        new()
+        {
+            BroadcasterId = broadcaster,
+            UserId = user,
+            ManagementRole = ManagementRole.Moderator,
+            LevelValue = ManagementRole.Moderator.ToLevel(),
+            Source = MembershipSource.TwitchBadge,
+            GrantedAt = DateTime.UtcNow,
+        };
 
     private static Channel Channel(
         Guid id,

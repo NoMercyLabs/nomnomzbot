@@ -29,6 +29,7 @@ using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Deployment;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -1400,14 +1401,14 @@ public sealed class AuthService : IAuthService
         bool usesSharedBot = authorization is null;
         if (usesSharedBot)
         {
-            bool served = await _db
-                .Channels.IgnoreQueryFilters()
+            bool served = await ChannelOpenness
+                .OpenChannels(_db)
+                .IgnoreQueryFilters()
                 .AnyAsync(
                     c =>
                         c.Id == broadcasterId
                         && c.DeletedAt == null
                         && c.Enabled
-                        && c.IsOnboarded
                         && c.Status == AuthEnums.ChannelStatus.Active,
                     cancellationToken
                 );

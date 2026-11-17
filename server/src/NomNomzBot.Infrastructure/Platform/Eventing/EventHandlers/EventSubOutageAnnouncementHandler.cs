@@ -101,12 +101,12 @@ public sealed class EventSubOutageAnnouncementHandler(
         CancellationToken ct
     )
     {
-        var rows = await db
-            .Channels.AsNoTracking()
+        var rows = await ChannelOpenness
+            .OpenChannels(db)
+            .AsNoTracking()
             .Where(c =>
                 (ownerId == Guid.Empty || c.Id == ownerId)
                 && c.Enabled
-                && c.IsOnboarded
                 && c.IsLive
                 && c.Status == AuthEnums.ChannelStatus.Active
             )

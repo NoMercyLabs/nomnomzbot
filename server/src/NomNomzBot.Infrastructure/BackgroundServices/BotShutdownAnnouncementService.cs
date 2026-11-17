@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Platform;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
@@ -90,11 +91,10 @@ public sealed class BotShutdownAnnouncementService(
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var rows = await db
-            .Channels.AsNoTracking()
-            .Where(c =>
-                c.Enabled && c.IsOnboarded && c.IsLive && c.Status == AuthEnums.ChannelStatus.Active
-            )
+        var rows = await ChannelOpenness
+            .OpenChannels(db)
+            .AsNoTracking()
+            .Where(c => c.Enabled && c.IsLive && c.Status == AuthEnums.ChannelStatus.Active)
             .Select(c => new { c.Id, c.Personality })
             .ToListAsync(ct);
 

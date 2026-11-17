@@ -124,6 +124,40 @@ public sealed class AuthServiceChannelBotStatusTests
         result.Value.Connected.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task AChannelAnOnboardedUserModerates_ReportsTheSharedBotInChat_AndOneNobodyOnboardedModeratesDoesNot()
+    {
+        (AuthService service, AuthDbContext db, IIntegrationTokenVault vault) = Build();
+        Guid connectionId = SeedSharedBot(db);
+        VaultHasToken(vault, connectionId);
+        Channel home = SeedChannel(db);
+        Channel moderated = SeedChannel(db, onboarded: false);
+        Channel unwatched = SeedChannel(db, onboarded: false);
+        db.ChannelMemberships.AddRange(
+            Moderator(moderated.Id, home.OwnerUserId),
+            Moderator(unwatched.Id, Guid.NewGuid())
+        );
+        db.SaveChanges();
+
+        Result<BotStatusDto> open = await service.GetChannelBotStatusAsync(moderated.Id);
+        Result<BotStatusDto> closed = await service.GetChannelBotStatusAsync(unwatched.Id);
+
+        open.Value.Connected.Should().BeTrue();
+        open.Value.Login.Should().Be("nomz_bot");
+        closed.Value.Connected.Should().BeFalse();
+    }
+
+    private static ChannelMembership Moderator(Guid broadcaster, Guid user) =>
+        new()
+        {
+            BroadcasterId = broadcaster,
+            UserId = user,
+            ManagementRole = ManagementRole.Moderator,
+            LevelValue = ManagementRole.Moderator.ToLevel(),
+            Source = MembershipSource.TwitchBadge,
+            GrantedAt = DateTime.UtcNow,
+        };
+
     private static void VaultHasToken(IIntegrationTokenVault vault, Guid connectionId) =>
         vault
             .GetAccessTokenAsync(connectionId, Arg.Any<CancellationToken>())
