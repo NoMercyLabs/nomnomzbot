@@ -45,6 +45,7 @@ public sealed partial class PlaybackDirector
     /// <summary>Runs after every input and on every deadline tick: first the cut that is due, then a new plan.</summary>
     private async Task DrivePlannedHandOverAsync(CancellationToken ct)
     {
+        await DriveCrossfadeAsync(ct);
         if (_cutPending is not null)
         {
             if (State.Kind == PlaybackStateKind.Starting && _time.GetUtcNow() >= _cutDeadline)
@@ -58,12 +59,18 @@ public sealed partial class PlaybackDirector
 
         int remainingMs = RemainingMs(playing.Report);
         int cutAtMs = playing.LeadMs + HandOverMarginMs;
-        if (remainingMs > cutAtMs + HandOverPrepareMs || !await CanStartOnAsync(head.Engine, ct))
+        int fadeMs = CrossfadeMs(playing.Report.Engine, head.Engine);
+        if (
+            remainingMs > cutAtMs + HandOverPrepareMs + fadeMs
+            || !await CanStartOnAsync(head.Engine, ct)
+        )
             return;
 
         _memory = new(playing.Report.Engine, true);
         if (playing.Report.Engine == EngineKind.Spotify)
             await RememberSpotifyHeldAsync(ct);
+
+        await StartHeadSilentAsync(playing.Report.Engine, head);
 
         await BeginStartAsync(head, PlannedHandOverInput, "planned_handover", null, ct);
         if (State.Kind != PlaybackStateKind.Starting || State.Engine == playing.Report.Engine)
@@ -132,6 +139,7 @@ public sealed partial class PlaybackDirector
         if (movedOn)
             await CommandAsync(engine, inputName, e => e.SeekAsync(0, ct));
 
+        await SettleCrossfadeAsync();
         await MoveAsync(State, inputName, "planned_cut", State.Item?.Id);
     }
 

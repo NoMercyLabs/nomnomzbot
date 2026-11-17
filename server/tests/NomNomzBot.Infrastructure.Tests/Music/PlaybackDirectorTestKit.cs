@@ -143,7 +143,19 @@ public static class PlaybackDirectorTestKit
             Record("Seek", positionMs.ToString());
 
         public Task SetVolumeAsync(int level, CancellationToken ct = default) =>
-            Record("SetVolume", level.ToString());
+            VolumeThrows is not null ? throw VolumeThrows() : Record("SetVolume", level.ToString());
+
+        /// <summary>False by default, so a hand-over test sees today's plain cut; a crossfade test sets it.</summary>
+        public bool CanCrossfade { get; set; }
+
+        /// <summary>When set, <see cref="SetVolumeAsync"/> throws what this returns (Spotify refusing a volume call).</summary>
+        public Func<Exception>? VolumeThrows { get; set; }
+
+        /// <summary>When set, <see cref="FadeVolumeAsync"/> throws what this returns (a page that is not connected).</summary>
+        public Func<Exception>? FadeThrows { get; set; }
+
+        public Task FadeVolumeAsync(int toLevel, int durationMs, CancellationToken ct = default) =>
+            FadeThrows is not null ? throw FadeThrows() : Record("Fade", $"{toLevel}/{durationMs}");
 
         public Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default) =>
             Record("Reattach", pageIsPlaying.ToString());

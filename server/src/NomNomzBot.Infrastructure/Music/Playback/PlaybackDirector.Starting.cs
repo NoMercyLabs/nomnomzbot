@@ -189,7 +189,10 @@ public sealed partial class PlaybackDirector
         {
             case EngineReport { IsPlaying: true } r
                 when r.Engine == item.Engine && r.Uri == item.Uri:
-                // The head is audible: the engine that played until now gives the music up.
+                // The head is audible: the engine that played until now gives the music up, after a crossfade.
+                if (await BeginCrossfadeInAsync(item, input, ct))
+                    break;
+
                 await CutForHandOverAsync(name, movedOn: false, ct);
                 await PlayRowAsync(item, r, "started");
                 break;

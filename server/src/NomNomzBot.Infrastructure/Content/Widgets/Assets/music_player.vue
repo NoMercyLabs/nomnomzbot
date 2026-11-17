@@ -12,7 +12,13 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 //
 // `volume` (0-100) is this page's own level for both players; `muted` silences both. The streamer's !volume level
 // for YouTube is applied on top of it.
-const cfg = reactive<NnzWidgetSettings>({
+const cfg = reactive<NnzWidgetSettings & {
+  volume: number
+  muted: boolean
+  showIndicator: boolean
+  accentColor: string
+  enableAudio: boolean
+}>({
   volume: 100,
   muted: false,
   showIndicator: false,
@@ -81,11 +87,15 @@ let ytPendingSeekSeconds: number | null = null
 let ytPendingPause: boolean = false
 // The volume (0-100) the streamer asked for with !volume; every video that starts plays at it.
 let ytVolume: number = 100
+// A crossfade runs or holds silence: the level (0-100) in place of ytVolume, and the timer that moves it.
+let ytFadeLevel: number | null = null
+let ytFadeTimer: number | undefined
+const YT_FADE_TICK_MS: number = 50
 
 // This page's own level on top of it: YouTube plays at the !volume level scaled by the widget volume (0 while
 // muted); Spotify plays at the widget volume alone (the SDK takes 0-1).
 function ytLevel(): number {
-  return cfg.muted ? 0 : Math.round((ytVolume * cfg.volume) / 100)
+  return cfg.muted ? 0 : Math.round(((ytFadeLevel ?? ytVolume) * cfg.volume) / 100)
 }
 function spotifyLevel(): number {
   return cfg.muted ? 0 : cfg.volume / 100
@@ -213,6 +223,7 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
   ytLoading = true
   ytPendingSeekSeconds = null
   ytPendingPause = false
+  stopYouTubeFade()
   clearYouTubeEnding()
   ytEndingReportedFor = null
   if (ytPlayer) { ytPlayer.loadVideoById({ videoId, startSeconds: ytStartSeconds, endSeconds: ytEndSeconds }); return }
@@ -277,8 +288,39 @@ function onYouTubeSeek(d: NnzWidgetEventMap['youtube.seek'] | null | undefined):
 
 function onYouTubeVolume(d: NnzWidgetEventMap['youtube.volume'] | null | undefined): void {
   if (typeof d?.percent !== 'number') return
-  ytVolume = Math.min(100, Math.max(0, Math.round(d.percent)))
+  const percent: number = Math.min(100, Math.max(0, Math.round(d.percent)))
+  const fadeMs: number = typeof d.fadeMs === 'number' ? Math.max(0, Math.round(d.fadeMs)) : 0
+  if (fadeMs > 0) { fadeYouTube(percent, fadeMs); return }
+  stopYouTubeFade()
+  ytVolume = percent
   ytPlayer?.setVolume(ytLevel())
+}
+
+// A crossfade between Spotify and a video: the bot asks for one ramp and this page runs it, so the video needs no
+// volume call per step. A fade up sets the level the streamer hears from now on; a fade to 0 holds the silence
+// until the next video, a stop or a plain volume change, and leaves the level the streamer set.
+function fadeYouTube(percent: number, fadeMs: number): void {
+  const from: number = ytFadeLevel ?? ytVolume
+  stopYouTubeFade()
+  if (percent > 0) ytVolume = percent
+  const startedAt: number = Date.now()
+  const set = (level: number): void => { ytFadeLevel = level; ytPlayer?.setVolume(ytLevel()) }
+  set(from)
+  ytFadeTimer = window.setInterval(() => {
+    const progress: number = Math.min(1, (Date.now() - startedAt) / fadeMs)
+    set(Math.round(from + (percent - from) * progress))
+    if (progress < 1) return
+    window.clearInterval(ytFadeTimer)
+    ytFadeTimer = undefined
+    // A fade up ends at the level the streamer set; a fade to 0 keeps holding the silence.
+    if (percent > 0) ytFadeLevel = null
+  }, YT_FADE_TICK_MS)
+}
+
+function stopYouTubeFade(): void {
+  if (ytFadeTimer !== undefined) window.clearInterval(ytFadeTimer)
+  ytFadeTimer = undefined
+  ytFadeLevel = null
 }
 
 // stopVideo() emits state 5 (cued), which YT_STATE_NAMES ignores, so the end is reported explicitly.
@@ -289,6 +331,7 @@ function onYouTubeStop(d?: NnzWidgetEventMap['youtube.stop'] | null): void {
   ytLoading = false
   ytPendingSeekSeconds = null
   ytPendingPause = false
+  stopYouTubeFade()
   clearYouTubeEnding()
   if (!ytPlayer) {
     // Stopped before the player was ready: onYouTubeReady stops it, and the bot still hears the end.
@@ -501,6 +544,7 @@ onUnmounted(() => {
   if (typeof NomNomz !== 'undefined') NomNomz.off('youtube.play', onYouTubePlay)
   if (typeof NomNomz !== 'undefined') NomNomz.off('now_playing', onAudioNowPlaying)
   if (musicPoll) window.clearInterval(musicPoll)
+  stopYouTubeFade()
   if (ytHeartbeat) window.clearInterval(ytHeartbeat)
   clearYouTubeEnding()
   disconnectSpotify()

@@ -137,6 +137,9 @@ public sealed class SpotifyPlaybackEngine(
     /// </summary>
     public int? HandOverLeadMs => 3_000;
 
+    /// <summary>The director ramps Spotify's volume in a few steps (one per second at most, for its rate limit).</summary>
+    public bool CanCrossfade => true;
+
     /// <summary>Spotify's own queue plays the item right after the owner's current track.</summary>
     public async Task<EngineStartResult> QueueNextAsync(
         PlaybackItem item,

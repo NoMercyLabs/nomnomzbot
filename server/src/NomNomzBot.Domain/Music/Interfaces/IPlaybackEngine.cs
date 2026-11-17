@@ -87,6 +87,19 @@ public interface IPlaybackEngine
     Task SetVolumeAsync(int level, CancellationToken ct = default);
 
     /// <summary>
+    /// True when the director may crossfade this engine against another one. The Spotify engine takes a few
+    /// stepped volume calls from the director; the YouTube engine ramps in its page (<see cref="FadeVolumeAsync"/>).
+    /// </summary>
+    bool CanCrossfade => false;
+
+    /// <summary>
+    /// Ramps the engine to <paramref name="toLevel"/> over <paramref name="durationMs"/> on its own, in one call.
+    /// An engine that cannot ramp jumps to the level.
+    /// </summary>
+    Task FadeVolumeAsync(int toLevel, int durationMs, CancellationToken ct = default) =>
+        SetVolumeAsync(toLevel, ct);
+
+    /// <summary>
     /// The music widget page came online while this engine holds the track. An engine whose player lives on
     /// the page brings the track back to the new page; <paramref name="pageIsPlaying"/> is true when the page
     /// already plays it. Other engines have nothing to do.

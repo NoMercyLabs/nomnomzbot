@@ -496,9 +496,10 @@ interface NnzYouTubeSeekWidgetPayload {
   positionMs: number;
 }
 
-/** youtube.volume: the overlay player plays at this volume (0-100) from now on, for this video and the ones after it. */
+/** youtube.volume: the overlay player plays at this volume (0-100) from now on, for this video and the ones after it. With fadeMs above 0 the player ramps to it over that time; a fade to 0 holds the silence until the next video and leaves the level the streamer set. */
 interface NnzYouTubeVolumeWidgetPayload {
   percent: number;
+  fadeMs: number;
 }
 
 /** track_saved_changed: the current track was liked or unliked. */

@@ -107,6 +107,22 @@ public sealed class YouTubePlaybackEngine(
     public Task SetVolumeAsync(int level, CancellationToken ct = default) =>
         CommandAsync(lease => lease.Provider.SetVolumeAsync(broadcasterId, level, ct), ct);
 
+    /// <summary>The overlay player ramps its own volume, so one call is enough.</summary>
+    public bool CanCrossfade => true;
+
+    public Task FadeVolumeAsync(int toLevel, int durationMs, CancellationToken ct = default) =>
+        CommandAsync(
+            async lease =>
+                await lease.Dispatcher.FadeVolumeAsync(
+                    broadcasterId,
+                    await lease.Dispatcher.FindPlayersAsync(broadcasterId, ct),
+                    toLevel,
+                    durationMs,
+                    ct
+                ),
+            ct
+        );
+
     public Task<EngineControlResult> SetShuffleAsync(
         bool enabled,
         CancellationToken ct = default

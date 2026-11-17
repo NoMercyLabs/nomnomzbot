@@ -70,6 +70,18 @@ public interface IYouTubePlayerDispatcher
     );
 
     /// <summary>
+    /// Sends <c>youtube.volume</c> with a fade: the page ramps the player to the percent over the time. The default
+    /// is a plain volume change, so a dispatcher that cannot fade still obeys.
+    /// </summary>
+    Task FadeVolumeAsync(
+        Guid broadcasterId,
+        IReadOnlyList<Guid> players,
+        int percent,
+        int fadeMs,
+        CancellationToken cancellationToken = default
+    ) => VolumeAsync(broadcasterId, players, percent, cancellationToken);
+
+    /// <summary>
     /// Hands the next queued request to the owning player, as an ended video does. With no player open the
     /// request stays queued for the next page that attaches; with nothing queued nothing is sent and the
     /// result is false.
@@ -180,14 +192,22 @@ public sealed class YouTubePlayerDispatcher(
             );
     }
 
-    public async Task VolumeAsync(
+    public Task VolumeAsync(
         Guid broadcasterId,
         IReadOnlyList<Guid> players,
         int percent,
         CancellationToken cancellationToken = default
+    ) => FadeVolumeAsync(broadcasterId, players, percent, 0, cancellationToken);
+
+    public async Task FadeVolumeAsync(
+        Guid broadcasterId,
+        IReadOnlyList<Guid> players,
+        int percent,
+        int fadeMs,
+        CancellationToken cancellationToken = default
     )
     {
-        YouTubeVolumeWidgetPayload payload = new(percent);
+        YouTubeVolumeWidgetPayload payload = new(percent, fadeMs);
         foreach (Guid widgetId in players)
             await notifier.SendWidgetEventAsync(
                 broadcasterId,

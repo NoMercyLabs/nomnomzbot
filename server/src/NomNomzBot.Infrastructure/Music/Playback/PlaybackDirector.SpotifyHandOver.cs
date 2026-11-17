@@ -181,6 +181,7 @@ public sealed partial class PlaybackDirector
         }
 
         PlaybackItem? video = State.Item;
+        await BeginCrossfadeOutAsync(ct);
         await ReturnToSpotifyAsync(nameof(TrackEnding), ct);
         _youTubeEnding = video;
     }
