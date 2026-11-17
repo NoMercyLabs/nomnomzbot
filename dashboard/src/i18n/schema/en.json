@@ -58,6 +58,10 @@
           "description": "The music service could not update the bangers playlist.",
           "label": "Banger failed"
         },
+        "held": {
+          "description": "The song is held and saved after the stream to respect the music service's limits.",
+          "label": "Banger held"
+        },
         "noplaylist": {
           "description": "No playlist is chosen and auto-create is off.",
           "label": "No bangers playlist"

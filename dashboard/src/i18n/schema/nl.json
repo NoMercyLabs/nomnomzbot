@@ -58,6 +58,10 @@
           "description": "De muziekdienst kon de bangers-afspeellijst niet bijwerken.",
           "label": "Banger mislukt"
         },
+        "held": {
+          "description": "Het nummer wordt na de stream opgeslagen om binnen de limieten van de muziekdienst te blijven.",
+          "label": "Banger vastgehouden"
+        },
         "noplaylist": {
           "description": "Er is geen afspeellijst gekozen en automatisch aanmaken staat uit.",
           "label": "Geen bangers-afspeellijst"
