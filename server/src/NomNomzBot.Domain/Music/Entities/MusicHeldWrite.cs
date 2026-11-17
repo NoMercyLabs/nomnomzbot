@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Music.Entities;
 
@@ -19,7 +20,7 @@ namespace NomNomzBot.Domain.Music.Entities;
 /// it. Rows are a plain outbox: no soft delete, a sent write leaves nothing to keep. Nav-free; the
 /// tenant is <see cref="BroadcasterId"/>.
 /// </summary>
-public class MusicHeldWrite
+public class MusicHeldWrite : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
 

@@ -97,8 +97,10 @@ public sealed class MusicWriteQueue(
         using (IServiceScope scope = scopes.CreateScope())
         {
             AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            // IgnoreQueryFilters: the startup flush has no ambient tenant and must see every channel.
             broadcasterIds = await db
-                .MusicHeldWrites.Select(r => r.BroadcasterId)
+                .MusicHeldWrites.IgnoreQueryFilters()
+                .Select(r => r.BroadcasterId)
                 .Distinct()
                 .ToListAsync(cancellationToken);
         }
@@ -152,7 +154,8 @@ public sealed class MusicWriteQueue(
         using IServiceScope scope = scopes.CreateScope();
         AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         return await db
-            .MusicHeldWrites.AsNoTracking()
+            .MusicHeldWrites.IgnoreQueryFilters()
+            .AsNoTracking()
             .Where(r => r.BroadcasterId == broadcasterId)
             .OrderBy(r => r.CreatedAt)
             .ThenBy(r => r.Id)
@@ -179,7 +182,10 @@ public sealed class MusicWriteQueue(
 
         using IServiceScope scope = scopes.CreateScope();
         AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.MusicHeldWrites.Where(r => r.Id == row.Id).ExecuteDeleteAsync(ct);
+        await db
+            .MusicHeldWrites.IgnoreQueryFilters()
+            .Where(r => r.Id == row.Id)
+            .ExecuteDeleteAsync(ct);
         return true;
     }
 
