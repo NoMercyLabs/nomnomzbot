@@ -102,7 +102,12 @@ public sealed class FavoriteOnYouTubeItemTests
     {
         IMusicProviderManageApi manageApi = ManageApiWhereSavedIs(false);
         IEventBus eventBus = Substitute.For<IEventBus>();
-        MusicToggleSavedAction action = new(SpotifyActiveYouTubeItem(), manageApi, eventBus);
+        MusicToggleSavedAction action = new(
+            SpotifyActiveYouTubeItem(),
+            manageApi,
+            MusicWriteQueueTestKit.Over(manageApi),
+            eventBus
+        );
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_toggle_saved"));
 
@@ -128,7 +133,12 @@ public sealed class FavoriteOnYouTubeItemTests
     {
         IMusicProviderManageApi manageApi = ManageApiWhereSavedIs(true);
         IEventBus eventBus = Substitute.For<IEventBus>();
-        MusicToggleSavedAction action = new(SpotifyActiveYouTubeItem(), manageApi, eventBus);
+        MusicToggleSavedAction action = new(
+            SpotifyActiveYouTubeItem(),
+            manageApi,
+            MusicWriteQueueTestKit.Over(manageApi),
+            eventBus
+        );
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_toggle_saved"));
 
@@ -155,7 +165,7 @@ public sealed class FavoriteOnYouTubeItemTests
         IMusicProviderManageApi manageApi = ManageApiWhereSavedIs(false);
         MusicSaveTrackAction action = new(
             SpotifyActiveYouTubeItem(),
-            manageApi,
+            MusicWriteQueueTestKit.Over(manageApi),
             Substitute.For<IEventBus>()
         );
 
@@ -178,7 +188,7 @@ public sealed class FavoriteOnYouTubeItemTests
         IMusicProviderManageApi manageApi = ManageApiWhereSavedIs(true);
         MusicUnsaveTrackAction action = new(
             SpotifyActiveYouTubeItem(),
-            manageApi,
+            MusicWriteQueueTestKit.Over(manageApi),
             Substitute.For<IEventBus>()
         );
 

@@ -50,6 +50,8 @@ public sealed class PlaylistAddAction : ICommandAction
 {
     private const string NeutralAdded =
         "@{user} added \"{track.name}\" by {track.artist} to {playlist.name}.";
+    private const string NeutralHeld =
+        "@{user}, \"{track.name}\" by {track.artist} will be added to {playlist.name} after the stream.";
     private const string NeutralAlreadyThere =
         "@{user}, \"{track.name}\" by {track.artist} is already in {playlist.name}.";
     private const string NeutralFailed =
@@ -58,6 +60,7 @@ public sealed class PlaylistAddAction : ICommandAction
 
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _manage;
+    private readonly IMusicWriteQueue _writes;
     private readonly IChatProvider _chat;
     private readonly ITemplateResolver _resolver;
     private readonly IBuiltinResponseComposer _composer;
@@ -104,6 +107,7 @@ public sealed class PlaylistAddAction : ICommandAction
     public PlaylistAddAction(
         IMusicService music,
         IMusicProviderManageApi manage,
+        IMusicWriteQueue writes,
         IChatProvider chat,
         ITemplateResolver resolver,
         IBuiltinResponseComposer composer,
@@ -113,6 +117,7 @@ public sealed class PlaylistAddAction : ICommandAction
     {
         _music = music;
         _manage = manage;
+        _writes = writes;
         _chat = chat;
         _resolver = resolver;
         _composer = composer;
@@ -224,11 +229,8 @@ public sealed class PlaylistAddAction : ICommandAction
             return await SendResolvedAsync(ctx, alreadyTemplate, seed);
         }
 
-        Result added = await _manage.AddPlaylistTracksAsync(
-            ctx.BroadcasterId,
-            provider,
-            playlistId,
-            [trackUri],
+        Result<MusicWriteOutcome> added = await _writes.SubmitAsync(
+            new(ctx.BroadcasterId, provider, MusicWriteKind.PlaylistAdd, [trackUri], playlistId),
             ctx.CancellationToken
         );
         if (added.IsFailure)
@@ -241,6 +243,14 @@ public sealed class PlaylistAddAction : ICommandAction
             );
             return ActionResult.Failure(added.ErrorMessage ?? "failed to add track to playlist");
         }
+
+        if (added.Value == MusicWriteOutcome.Held)
+            return await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Banger.Held,
+                NeutralHeld,
+                slotVariables
+            );
 
         string? addedTemplate = action.GetString("message");
         if (addedTemplate is null)

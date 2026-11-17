@@ -321,6 +321,7 @@ public sealed class ScriptAndPlaylistOptionProviderTests
         PlaylistAddAction action = new(
             Substitute.For<IMusicService>(),
             Substitute.For<IMusicProviderManageApi>(),
+            Substitute.For<IMusicWriteQueue>(),
             Substitute.For<IChatProvider>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IBuiltinResponseComposer>(),

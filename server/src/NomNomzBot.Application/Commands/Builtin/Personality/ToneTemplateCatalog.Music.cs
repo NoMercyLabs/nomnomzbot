@@ -1221,6 +1221,30 @@ public static partial class ToneTemplateCatalog
 
         Add(
             catalog,
+            BuiltinResponseSlots.Banger.Key,
+            BuiltinResponseSlots.Banger.Held,
+            variables: ["user", "track.name", "track.artist", "playlist.name"],
+            informative:
+            [
+                "@{user}, {track.name} by {track.artist} will be added to {playlist.name} after the stream.",
+            ],
+            friendly:
+            [
+                "Nice pick @{user}! {track.name} by {track.artist} gets saved to {playlist.name} after the stream!",
+            ],
+            sassy:
+            [
+                "@{user}, {track.name} by {track.artist} is in line for {playlist.name}. Saved after the stream, patience is a virtue.",
+            ],
+            hype:
+            [
+                "{track.name} BY {track.artist} IS LOCKED IN FOR {playlist.name}, @{user}! SAVED AFTER THE STREAM!",
+            ],
+            chill: ["saved after the stream: {track.name} by {track.artist} to {playlist.name}."]
+        );
+
+        Add(
+            catalog,
             BuiltinResponseSlots.Playlist.Key,
             BuiltinResponseSlots.Playlist.Link,
             variables: ["playlist.url"],

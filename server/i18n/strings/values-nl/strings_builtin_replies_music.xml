@@ -182,6 +182,8 @@
     <string name="builtin_reply_banger_noplaylist_description">Er is geen afspeellijst gekozen en automatisch aanmaken staat uit.</string>
     <string name="builtin_reply_banger_failed_label">Banger mislukt</string>
     <string name="builtin_reply_banger_failed_description">De muziekdienst kon de bangers-afspeellijst niet bijwerken.</string>
+    <string name="builtin_reply_banger_held_label">Banger vastgehouden</string>
+    <string name="builtin_reply_banger_held_description">Het nummer wordt na de stream opgeslagen om binnen de limieten van de muziekdienst te blijven.</string>
     <string name="builtin_reply_playlist_link_label">Afspeellijst-link</string>
     <string name="builtin_reply_playlist_link_description">Iemand vraagt de afspeellijst en er kan een link naar de bangers-afspeellijst worden gemaakt.</string>
     <string name="builtin_reply_playlist_noplaylist_label">Geen bangers-afspeellijst</string>

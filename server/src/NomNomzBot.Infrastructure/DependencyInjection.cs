@@ -443,6 +443,7 @@ public static class DependencyInjection
         >();
         // The Data API quota belongs to the one app key, so its cooldown outlives the scoped provider.
         services.AddSingleton<IYouTubeQuotaCooldown, YouTubeQuotaCooldown>();
+        services.AddSingleton<Application.Music.Services.IMusicWriteQueue, MusicWriteQueue>();
         services.AddSingleton<IYouTubeVideoCache, YouTubeVideoCache>();
         services.AddScoped<IYouTubePlayerDispatcher, YouTubePlayerDispatcher>();
         services.AddScoped<

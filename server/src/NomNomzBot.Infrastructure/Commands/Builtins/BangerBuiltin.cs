@@ -29,6 +29,7 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 public sealed class BangerBuiltin(
     IMusicService music,
     IMusicProviderManageApi playlists,
+    IMusicWriteQueue writes,
     IMusicConfigService config,
     IBuiltinResponseComposer composer,
     ILogger<BangerBuiltin> logger,
@@ -116,24 +117,43 @@ public sealed class BangerBuiltin(
                 ct
             );
 
-        Result added = await playlists.AddPlaylistTracksAsync(
-            context.BroadcasterId,
-            target.Value.Provider,
-            target.Value.PlaylistId,
-            [nowPlaying.TrackUri],
+        Result<MusicWriteOutcome> added = await writes.SubmitAsync(
+            new(
+                context.BroadcasterId,
+                target.Value.Provider,
+                MusicWriteKind.PlaylistAdd,
+                [nowPlaying.TrackUri],
+                target.Value.PlaylistId
+            ),
             ct
         );
         if (added.IsFailure)
             return await FailedAsync(context, "add track", added, variables, ct);
 
-        return await ReplyAsync(
-            context,
-            BuiltinResponseSlots.Banger.Added,
-            "@{user} added \"{track.name}\" by {track.artist} to {playlist.name}.",
-            variables,
-            ct
-        );
+        return await AddedReplyAsync(context, added.Value, variables, ct);
     }
+
+    private Task<Result<string>> AddedReplyAsync(
+        BuiltinCommandContext context,
+        MusicWriteOutcome outcome,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    ) =>
+        outcome == MusicWriteOutcome.Held
+            ? ReplyAsync(
+                context,
+                BuiltinResponseSlots.Banger.Held,
+                "@{user}, \"{track.name}\" by {track.artist} will be added to {playlist.name} after the stream.",
+                variables,
+                ct
+            )
+            : ReplyAsync(
+                context,
+                BuiltinResponseSlots.Banger.Added,
+                "@{user} added \"{track.name}\" by {track.artist} to {playlist.name}.",
+                variables,
+                ct
+            );
 
     private async Task<Result<PlaylistTarget>> ResolveTargetAsync(
         BuiltinCommandContext context,
@@ -161,6 +181,8 @@ public sealed class BangerBuiltin(
         );
         if (created.IsFailure)
             return Result.Failure<PlaylistTarget>(created.ErrorMessage ?? "Create failed.");
+
+        writes.Charge(nowPlaying.Provider, MusicWriteBudget.YouTubeWriteCostUnits);
 
         Result<MusicConfigDto> saved = await config.UpdateConfigAsync(
             context.BroadcasterId.ToString(),
@@ -213,6 +235,8 @@ public sealed class BangerBuiltin(
         if (created.IsFailure)
             return Result.Failure<PlaylistTarget>(created.ErrorMessage ?? "Create failed.");
 
+        writes.Charge(nowPlaying.Provider, MusicWriteBudget.YouTubeWriteCostUnits);
+
         return Result.Success(new PlaylistTarget(nowPlaying.Provider, created.Value.Id, name));
     }
 
@@ -226,22 +250,19 @@ public sealed class BangerBuiltin(
         variables["playlist.name"] =
             nowPlaying.Provider == "spotify" ? "Liked Songs" : "your YouTube likes";
 
-        Result saved = await playlists.SaveTracksAsync(
-            context.BroadcasterId,
-            nowPlaying.Provider,
-            [nowPlaying.TrackUri!],
+        Result<MusicWriteOutcome> saved = await writes.SubmitAsync(
+            new(
+                context.BroadcasterId,
+                nowPlaying.Provider,
+                MusicWriteKind.Save,
+                [nowPlaying.TrackUri!]
+            ),
             ct
         );
         if (saved.IsFailure)
             return await FailedAsync(context, "save to likes", saved, variables, ct);
 
-        return await ReplyAsync(
-            context,
-            BuiltinResponseSlots.Banger.Added,
-            "@{user} added \"{track.name}\" by {track.artist} to {playlist.name}.",
-            variables,
-            ct
-        );
+        return await AddedReplyAsync(context, saved.Value, variables, ct);
     }
 
     private Task<Result<string>> FailedAsync(
