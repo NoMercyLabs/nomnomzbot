@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -77,6 +78,7 @@ public sealed class MembershipService(
                 );
         }
 
+        bool wasClosed = await ChannelOpenness.IsClosedAsync(db, broadcasterId, cancellationToken);
         ChannelMembership? existing = await FindAsync(broadcasterId, userId, cancellationToken);
         ManagementRole? oldRole = existing?.ManagementRole;
         if (existing is null)
@@ -123,6 +125,7 @@ public sealed class MembershipService(
             await db.SaveChangesAsync(cancellationToken);
         }
 
+        await PublishIfOpenedAsync(broadcasterId, wasClosed, cancellationToken);
         await PublishRoleChangedAsync(
             broadcasterId,
             userId,
@@ -135,6 +138,32 @@ public sealed class MembershipService(
 
         string? username = await LookupUsernameAsync(userId, cancellationToken);
         return Result.Success(ToDto(existing, username, false));
+    }
+
+    // A membership that opens a closed channel raises the onboarding event once, so the default content seeds.
+    private async Task PublishIfOpenedAsync(
+        Guid broadcasterId,
+        bool wasClosed,
+        CancellationToken ct
+    )
+    {
+        if (!wasClosed || await ChannelOpenness.IsClosedAsync(db, broadcasterId, ct))
+            return;
+
+        ChannelOnboardedEvent? opened = await db
+            .Channels.IgnoreQueryFilters()
+            .Where(c => c.Id == broadcasterId && c.DeletedAt == null)
+            .Select(c => new ChannelOnboardedEvent
+            {
+                BroadcasterId = c.Id,
+                OwnerUserId = c.OwnerUserId,
+                TwitchChannelId = c.TwitchChannelId ?? "",
+                Name = c.Name,
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (opened is not null)
+            await eventBus.PublishAsync(opened, ct);
     }
 
     private async Task<bool> IsChannelOwnerAsync(
@@ -200,6 +229,7 @@ public sealed class MembershipService(
     )
     {
         DateTime now = clock.GetUtcNow().UtcDateTime;
+        bool wasClosed = await ChannelOpenness.IsClosedAsync(db, broadcasterId, cancellationToken);
         // "IX_ChannelMemberships_BroadcasterId_UserId" allows only ONE active row per (broadcaster, user) —
         // regardless of Source — so the lookup must cover every active row for the broadcaster, not only
         // synced-source ones. A user already holding a non-synced row (Owner / BotGrant) occupies that
@@ -279,6 +309,7 @@ public sealed class MembershipService(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        await PublishIfOpenedAsync(broadcasterId, wasClosed, cancellationToken);
 
         foreach (
             (

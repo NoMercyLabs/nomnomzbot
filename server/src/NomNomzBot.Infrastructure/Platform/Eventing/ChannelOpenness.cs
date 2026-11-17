@@ -9,8 +9,10 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
@@ -28,18 +30,29 @@ public static class ChannelOpenness
         CancellationToken cancellationToken
     )
     {
+        Expression<Func<Channel, bool>> open = OpenPredicate(db);
+        Expression<Func<Channel, bool>> closed = Expression.Lambda<Func<Channel, bool>>(
+            Expression.Not(open.Body),
+            open.Parameters
+        );
+
+        return db.Channels.Where(c => c.Id == broadcasterId).AnyAsync(closed, cancellationToken);
+    }
+
+    /// <summary>Every open channel, by the same rule <see cref="IsClosedAsync"/> uses.</summary>
+    public static IQueryable<Channel> OpenChannels(IApplicationDbContext db) =>
+        db.Channels.Where(OpenPredicate(db));
+
+    private static Expression<Func<Channel, bool>> OpenPredicate(IApplicationDbContext db)
+    {
         int moderator = PermissionLevel.Moderator.ToLevelValue();
 
-        return db.Channels.AnyAsync(
-            c =>
-                c.Id == broadcasterId
-                && !c.IsOnboarded
-                && !db.ChannelMemberships.Any(m =>
-                    m.BroadcasterId == broadcasterId
-                    && m.LevelValue >= moderator
-                    && db.Channels.Any(home => home.OwnerUserId == m.UserId && home.IsOnboarded)
-                ),
-            cancellationToken
-        );
+        return c =>
+            c.IsOnboarded
+            || db.ChannelMemberships.Any(m =>
+                m.BroadcasterId == c.Id
+                && m.LevelValue >= moderator
+                && db.Channels.Any(home => home.OwnerUserId == m.UserId && home.IsOnboarded)
+            );
     }
 }
