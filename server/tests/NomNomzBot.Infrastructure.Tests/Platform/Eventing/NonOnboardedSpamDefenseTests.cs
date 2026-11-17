@@ -11,6 +11,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
@@ -19,6 +20,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -59,6 +61,7 @@ public sealed class NonOnboardedSpamDefenseTests
         services.AddSingleton<EventLogger>();
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(spamDefense);
+        services.AddSingleton<IOutboundSanctionAccessor, OutboundSanctionAccessor>();
         services.AddSingleton<IChannelOnboardingGate, ChannelOnboardingGate>();
         services.AddSingleton<EventBus>();
         services.AddSingleton<IEventHandler<ChatMessageReceivedEvent>, SpamDefenseHandler>();
