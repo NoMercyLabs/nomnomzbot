@@ -165,7 +165,9 @@ public sealed class TwitchGrantGapSource(IApplicationDbContext db) : IActionRequ
         [
             .. refused
                 .Where(s =>
-                    ScopeOf(s.LastError) is null
+                    // A beta topic is refused on every channel: an operator-side gap the streamer cannot fix.
+                    s.Version != "beta"
+                    && ScopeOf(s.LastError) is null
                     && s.LastError!.Contains(
                         MissingAuthorizationMarker,
                         StringComparison.OrdinalIgnoreCase

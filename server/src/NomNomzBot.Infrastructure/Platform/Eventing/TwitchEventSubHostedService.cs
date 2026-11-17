@@ -10,6 +10,8 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,6 +53,10 @@ public sealed class TwitchEventSubHostedService
         IEventSubHandoverReadiness,
         IHostedService
 {
+    // How long a refused topic is remembered before one retry: Twitch refusals with unchanged grants do not
+    // heal by themselves, but Twitch can open a beta topic or change a rule, so it is not remembered forever.
+    private static readonly TimeSpan RefusalBackOff = TimeSpan.FromHours(12);
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEventSubTransport _transport;
     private readonly IEventSubConditionBuilder _conditionBuilder;
@@ -1702,6 +1708,24 @@ public sealed class TwitchEventSubHostedService
         string? missingScope = ExtractMissingScope(created.ErrorDetail);
         bool authorizationFailure =
             missingScope is null && IsMissingAuthorizationMessage(created.ErrorDetail);
+        bool beta = row.Version == EventSubTopicRules.BetaVersion;
+        List<string>? grantedAtFailure = authorizationFailure
+            ? await GetOwnerGrantedScopesAsync(db, broadcasterId, tokenOwner, ct)
+            : null;
+
+        // Twitch's unnamed refusal of a scope-gated topic: when the stored grants lack the scope the topic
+        // needs, record it as that missing scope, so the streamer is told exactly what to grant.
+        if (
+            authorizationFailure
+            && !beta
+            && grantedAtFailure is not null
+            && EventSubTopicRules.RequiredScope(eventType) is { } requiredScope
+            && !grantedAtFailure.Contains(requiredScope, StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            missingScope = requiredScope;
+            authorizationFailure = false;
+        }
         string? previousError = row.LastError;
         row.Status = created.ErrorCode switch
         {
@@ -1718,13 +1742,10 @@ public sealed class TwitchEventSubHostedService
             row.LastError = $"Missing required scope {missingScope}";
         else if (authorizationFailure)
         {
-            List<string>? grantedAtFailure = await GetOwnerGrantedScopesAsync(
-                db,
-                broadcasterId,
-                tokenOwner,
-                ct
-            );
-            row.LastError = $"{created.ErrorDetail} [grants:{GrantFingerprint(grantedAtFailure)}]";
+            // The refusal time starts the back-off; the grant hash tells a re-grant from the same grants.
+            long refusedAt = _clock.GetUtcNow().ToUnixTimeSeconds();
+            row.LastError =
+                $"{created.ErrorDetail} [grants:{GrantHash(grantedAtFailure)}] [at:{refusedAt}]";
         }
         else
             row.LastError = created.ErrorMessage;
@@ -1779,6 +1800,15 @@ public sealed class TwitchEventSubHostedService
             // "subscription missing proper authorization" is Twitch's OTHER terminal 403 for a create —
             // it names no specific scope (unlike the branch above), so it is surfaced as a plain
             // unauthorized re-grant prompt instead of a scope gap. Same one-shot-per-transition rule.
+            else if (authorizationFailure && beta)
+            {
+                // A beta topic is refused on every channel: an operator-side gap, nothing the streamer can fix.
+                _logger.LogInformation(
+                    "EventSub beta topic {EventType} refused by Twitch for {BroadcasterId}; skipped until the back-off ends",
+                    eventType,
+                    broadcasterId
+                );
+            }
             else if (authorizationFailure)
             {
                 _logger.LogWarning(
@@ -2658,7 +2688,7 @@ public sealed class TwitchEventSubHostedService
     /// The error code a failed topic is held under until its owner's grant set changes, or null when it may be
     /// POSTed to Twitch again.
     /// </summary>
-    private static async Task<string?> GrantGateHoldAsync(
+    private async Task<string?> GrantGateHoldAsync(
         IApplicationDbContext db,
         EventSubSubscription row,
         EventSubTokenOwnerKind tokenOwner,
@@ -2696,24 +2726,73 @@ public sealed class TwitchEventSubHostedService
             tokenOwner,
             ct
         );
-        if (granted is null)
-            return null;
 
+        // A named missing scope self-heals the instant that exact scope is granted. An unknown grant set
+        // cannot prove it, so the create is left to attempt (typically NoToken, the truthful "not connected").
         if (blockedScope is not null)
+        {
+            if (granted is null)
+                return null;
             return granted.Contains(blockedScope, StringComparer.OrdinalIgnoreCase)
                 ? null
                 : TwitchErrorCodes.MissingScope;
+        }
 
-        string recordedFingerprint =
-            ExtractAuthorizationGrantFingerprint(row.LastError) ?? "unknown";
-        return string.Equals(
-            recordedFingerprint,
-            GrantFingerprint(granted),
-            StringComparison.Ordinal
-        )
+        // An unnamed authorization refusal is remembered: it is retried when the owner's grant set changes, or
+        // when the back-off ends. A beta topic is refused on every channel whatever the grants are, so only the
+        // back-off applies. An unknown grant set cannot change, so it too waits out the back-off.
+        if (BackOffEnded(row))
+            return null;
+        if (row.Version == EventSubTopicRules.BetaVersion || granted is null)
+            return TwitchErrorCodes.Unauthorized;
+
+        return GrantFingerprintMatches(ExtractAuthorizationGrantFingerprint(row.LastError), granted)
             ? TwitchErrorCodes.Unauthorized
             : null;
     }
+
+    // The refusal time is stamped into LastError ("[at:<unix seconds>]"); a row from before the stamp falls back
+    // to its last update. The clock is the service clock so the back-off is testable without waiting.
+    private bool BackOffEnded(EventSubSubscription row)
+    {
+        DateTimeOffset refusedAt =
+            ExtractRefusalTime(row.LastError)
+            ?? new DateTimeOffset(DateTime.SpecifyKind(row.UpdatedAt, DateTimeKind.Utc));
+        return _clock.GetUtcNow() - refusedAt >= RefusalBackOff;
+    }
+
+    private static DateTimeOffset? ExtractRefusalTime(string? message)
+    {
+        if (message is null)
+            return null;
+        int start = message.IndexOf("[at:", StringComparison.Ordinal);
+        if (start < 0)
+            return null;
+        int contentStart = start + "[at:".Length;
+        int end = message.IndexOf(']', contentStart);
+        return end > contentStart && long.TryParse(message[contentStart..end], out long seconds)
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds)
+            : null;
+    }
+
+    // A stored fingerprint is a short hash ("h:..."); a row from before the hash holds the raw scope list.
+    private static bool GrantFingerprintMatches(string? recorded, List<string> granted) =>
+        recorded is not null
+        && string.Equals(
+            recorded,
+            recorded.StartsWith("h:", StringComparison.Ordinal)
+                ? GrantHash(granted)
+                : GrantFingerprint(granted),
+            StringComparison.Ordinal
+        );
+
+    // The stored form of a grant set: a bounded hash, so a long scope list can never overflow the 1000-char
+    // LastError column and fail the very save that records the refusal.
+    private static string GrantHash(List<string>? scopes) =>
+        "h:"
+        + Convert
+            .ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(GrantFingerprint(scopes))))[..16]
+            .ToLowerInvariant();
 
     /// <summary>
     /// The WebSocket session bucket a topic rides: the broadcaster's own session for its authorized topics,

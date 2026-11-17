@@ -106,6 +106,32 @@ public sealed class TwitchEventSubSessionLifecycleTests
     }
 
     [Fact]
+    public async Task An_owner_whose_only_topic_is_a_refused_beta_one_is_not_kept_open_until_the_back_off_ends()
+    {
+        // Twitch refuses the beta topic on every channel and the token has no connection row (unknown grants).
+        // A session that carries only that topic gets closed by Twitch (4003); reopening it every time is the loop.
+        Harness h = Harness.Build(new ScriptedChannel([Welcome("s1")], holdOpen: true));
+        long refusedAt = h.Clock.GetUtcNow().ToUnixTimeSeconds();
+        h.SeedRow(
+            "channel.guest_star_session.begin",
+            "beta",
+            "failed",
+            lastError: $"subscription missing proper authorization [grants:unknown] [at:{refusedAt}]"
+        );
+
+        (await h.Service.ShouldReconnectAsync(h.Tenant.ToString(), CancellationToken.None))
+            .Should()
+            .BeFalse("every topic this owner has is refused, so its session stays closed");
+
+        h.Clock.Advance(TimeSpan.FromHours(13));
+        (await h.Service.ShouldReconnectAsync(h.Tenant.ToString(), CancellationToken.None))
+            .Should()
+            .BeTrue("the back-off ended, so one retry may open the session again");
+
+        await h.StopAsync();
+    }
+
+    [Fact]
     public async Task The_receive_loop_keeps_reading_frames_while_post_welcome_registration_runs()
     {
         Harness h = Harness.Build(

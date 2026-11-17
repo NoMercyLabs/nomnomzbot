@@ -177,6 +177,32 @@ public sealed class ActionRequiredProducerTests
         (await sut.GetItemsAsync(ChannelId)).Value.Should().ContainSingle(i => i.Id != item.Id);
     }
 
+    [Fact]
+    public async Task ARefusedBetaTopic_IsAnOperatorGap_AndNeverReachesTheStreamerInbox()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db = await NewDbAsync();
+        EventSubSubscription beta = Refused(
+            ChannelId,
+            "channel.guest_star_session.begin",
+            "subscription missing proper authorization [grants:a,b]"
+        );
+        beta.Version = "beta";
+        db.EventSubSubscriptions.Add(beta);
+        db.EventSubSubscriptions.Add(
+            Refused(
+                ChannelId,
+                "channel.ban",
+                "subscription missing proper authorization [grants:a,b]"
+            )
+        );
+        await db.SaveChangesAsync();
+
+        ActionRequiredItemDto item = (await ItemsAsync(db)).Should().ContainSingle().Subject;
+
+        item.Kind.Should().Be("eventsub_unauthorized");
+        item.Parameters.Should().Contain("topics", "channel.ban").And.Contain("count", "1");
+    }
+
     // ─── Widget build failures ───────────────────────────────────────────────
 
     [Fact]

@@ -14,6 +14,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
@@ -61,7 +62,8 @@ public sealed class TwitchEventSubReconnectTests
         IEventSubTransport transport,
         IEventBus? eventBus = null,
         INotificationDispatcher? dispatcher = null,
-        bool scopedContexts = false
+        bool scopedContexts = false,
+        TimeProvider? clock = null
     )
     {
         // scopedContexts: one context per DI scope over one shared database, so two service paths that run at
@@ -110,7 +112,7 @@ public sealed class TwitchEventSubReconnectTests
             transport,
             new EventSubConditionBuilder(),
             eventBus ?? Substitute.For<IEventBus>(),
-            TimeProvider.System,
+            clock ?? TimeProvider.System,
             NullLogger<TwitchEventSubHostedService>.Instance
         );
         // These tests drive the registry directly as the live instance; the lease decision is covered by
@@ -788,26 +790,152 @@ public sealed class TwitchEventSubReconnectTests
         transport.CreatedTypes.Should().ContainSingle();
     }
 
+    private const string AuthorizationRefusal = "subscription missing proper authorization";
+
+    private static Result<TwitchSubscriptionResult> RefuseOnly(
+        Func<string, bool> refused,
+        EventSubSubscriptionRequest request,
+        EventSubTransportHandle handle
+    ) =>
+        refused(request.EventType)
+            ? Result.Failure<TwitchSubscriptionResult>(
+                "Twitch request failed (403).",
+                TwitchErrorCodes.TwitchError,
+                AuthorizationRefusal
+            )
+            : Result.Success(
+                Sub(
+                    $"sub-{request.EventType}-{Guid.NewGuid():N}",
+                    request.EventType,
+                    handle.SessionId,
+                    request.Version
+                )
+            );
+
     [Fact]
-    public async Task An_unknown_grant_set_does_not_silently_block_an_authorization_failure_gate()
+    public async Task A_refused_beta_topic_is_attempted_once_across_reconnects_and_never_prompts_the_streamer()
     {
-        // No IntegrationConnection row at all ⇒ the grant set is unknown, not empty. The gate must not
-        // fabricate a block on unknown knowledge — same convention as the named-scope branch — so the create
-        // is left to attempt and fail truthfully on its own.
+        // Twitch refuses every channel.guest_star_* create (beta, every channel). The loop POSTed it again on
+        // every reconnect. It must be tried once, then skipped, while a permitted topic still subscribes on
+        // every connect — and the streamer must not be asked to re-grant for an operator-side beta gap.
         Guid tenant = Guid.CreateVersion7();
-        RecordingEventSubTransport transport = new();
-        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        IEventBus bus = Substitute.For<IEventBus>();
+        RecordingEventSubTransport transport = new(
+            onCreate: (request, handle) =>
+                RefuseOnly(t => t.StartsWith("channel.guest_star_"), request, handle)
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport, bus);
+        SeedConnection(db, tenant, scopes: ["user:read:email", "bits:read"]);
 
-        Seed(db, tenant, "channel.follow", version: "2", status: "failed");
-        EventSubSubscription seeded = db.EventSubSubscriptions.Single();
-        seeded.LastError = "subscription missing proper authorization [grants:unknown]";
-        db.SaveChanges();
+        for (int connect = 0; connect < 3; connect++)
+        {
+            foreach (
+                EventSubSubscription live in db.EventSubSubscriptions.Where(s =>
+                    s.Status == "enabled"
+                )
+            )
+            {
+                live.Status = "pending";
+                live.TwitchSubscriptionId = null;
+                live.SessionId = null;
+            }
+            db.SaveChanges();
 
-        await service.SubscribeAsync(tenant, "channel.follow");
+            await service.SubscribeAsync(tenant, "channel.guest_star_session.begin");
+            await service.SubscribeAsync(tenant, "channel.cheer");
+        }
 
         transport
+            .CreatedTypes.Count(t => t == "channel.guest_star_session.begin")
+            .Should()
+            .Be(1, "a refused beta topic is remembered, not re-POSTed on every connect");
+        transport.CreatedTypes.Count(t => t == "channel.cheer").Should().Be(3);
+        await bus.DidNotReceive()
+            .PublishAsync(
+                Arg.Any<Domain.Twitch.Events.TwitchHelixReauthRequiredEvent>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task An_unknown_grant_set_holds_a_refused_topic_until_the_back_off_ends()
+    {
+        // No IntegrationConnection row ⇒ the grant set is unknown. A refusal there must still be remembered —
+        // re-POSTing it on every reconcile and reconnect is the loop — and tried again only after the back-off.
+        Guid tenant = Guid.CreateVersion7();
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        RecordingEventSubTransport transport = new(
+            onCreate: (request, handle) => RefuseOnly(_ => true, request, handle)
+        );
+        (TwitchEventSubHostedService service, _) = Build(transport, clock: clock);
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+        await service.SubscribeAsync(tenant, "channel.follow");
+        await service.SubscribeAsync(tenant, "channel.follow");
+        transport.CreatedTypes.Should().ContainSingle("the refusal is remembered");
+
+        clock.Advance(TimeSpan.FromHours(13));
+        await service.SubscribeAsync(tenant, "channel.follow");
+        transport
             .CreatedTypes.Should()
-            .ContainSingle("an unknown grant set must not silently pass the gate");
+            .HaveCount(2, "the 12 hour back-off ended, so it is retried once");
+    }
+
+    [Fact]
+    public async Task A_refusal_with_unchanged_grants_is_retried_only_after_the_back_off()
+    {
+        Guid tenant = Guid.CreateVersion7();
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        RecordingEventSubTransport transport = new(
+            onCreate: (request, handle) => RefuseOnly(_ => true, request, handle)
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(
+            transport,
+            clock: clock
+        );
+        SeedConnection(db, tenant, scopes: ["user:read:email"]);
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+        clock.Advance(TimeSpan.FromHours(11));
+        await service.SubscribeAsync(tenant, "channel.follow");
+        transport.CreatedTypes.Should().ContainSingle("11 hours is inside the back-off");
+
+        clock.Advance(TimeSpan.FromHours(2));
+        await service.SubscribeAsync(tenant, "channel.follow");
+        transport.CreatedTypes.Should().HaveCount(2, "13 hours is past the back-off");
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+        transport.CreatedTypes.Should().HaveCount(2, "the back-off starts again after the retry");
+    }
+
+    [Fact]
+    public async Task An_unnamed_refusal_of_a_scope_gated_topic_records_the_scope_it_needs_once()
+    {
+        // Twitch refuses channel.subscribe with the unnamed "missing proper authorization". The stored grant
+        // set lacks channel:read:subscriptions, so the refusal is recorded under that scope: the inbox can then
+        // tell the streamer exactly what to grant, once.
+        Guid tenant = Guid.CreateVersion7();
+        IEventBus bus = Substitute.For<IEventBus>();
+        RecordingEventSubTransport transport = new(
+            onCreate: (request, handle) => RefuseOnly(_ => true, request, handle)
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport, bus);
+        SeedConnection(db, tenant, scopes: ["user:read:email"]);
+
+        await service.SubscribeAsync(tenant, "channel.subscribe");
+        await service.SubscribeAsync(tenant, "channel.subscribe");
+
+        EventSubSubscription row = await db.EventSubSubscriptions.SingleAsync();
+        row.Status.Should().Be("failed");
+        row.LastError.Should().Be("Missing required scope channel:read:subscriptions");
+        transport.CreatedTypes.Should().ContainSingle();
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<Domain.Twitch.Events.TwitchHelixReauthRequiredEvent>(e =>
+                    e.Reason == "missing_scope" && e.MissingScope == "channel:read:subscriptions"
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
