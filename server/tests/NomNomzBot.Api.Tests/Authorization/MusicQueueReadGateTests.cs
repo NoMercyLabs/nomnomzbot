@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Content.Identity;
 using NSubstitute;
+using IMusicProviderManageApi = NomNomzBot.Application.Contracts.Music.IMusicProviderManageApi;
 
 namespace NomNomzBot.Api.Tests.Authorization;
 
@@ -85,6 +86,7 @@ public sealed class MusicQueueReadGateTests : IAsyncLifetime
                 services.AddSingleton(Substitute.For<ISongRequestPageTokenService>());
                 services.AddSingleton(Substitute.For<IBlockedTrackService>());
                 services.AddSingleton(Substitute.For<ISongRequestIntakeService>());
+                services.AddSingleton(Substitute.For<IMusicProviderManageApi>());
                 services.AddSingleton(playback);
             }
         );

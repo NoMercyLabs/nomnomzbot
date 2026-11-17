@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -60,7 +61,8 @@ public sealed class MusicControllerAddToQueueTests
             Substitute.For<IBlockedTrackService>(),
             Substitute.For<IMusicHistoryReader>(),
             Substitute.For<ISongRequestIntakeService>(),
-            Substitute.For<IPlaybackStateReader>()
+            Substitute.For<IPlaybackStateReader>(),
+            Substitute.For<IMusicProviderManageApi>()
         )
         {
             ControllerContext = new()

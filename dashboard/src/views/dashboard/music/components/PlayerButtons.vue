@@ -14,6 +14,7 @@
 <script setup lang="ts">
 // The buttons under the Now playing card. A press runs the button's action. Someone who may change them
 // drags a button to move it and right-clicks it to edit it; the panel header's Add button adds one.
+import { useQueryClient } from '@tanstack/vue-query';
 import { useSortable } from '@vueuse/integrations/useSortable';
 import type { SortableEvent } from 'sortablejs';
 import { computed, ref, useTemplateRef } from 'vue';
@@ -21,7 +22,7 @@ import { toast } from 'vue-sonner';
 import { useI18n } from 'vue-i18n';
 
 import { useChannelAccess } from '@/api/access';
-import type { NowPlaying } from '@/api/music';
+import { musicQueueKey, type NowPlaying } from '@/api/music';
 import {
   usePlayerButtons,
   useRunAction,
@@ -33,6 +34,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { moveItem } from '@/lib/array';
 import { deckActionFor } from '@/lib/streamDeckActions';
 
+import { liveStateOf } from './liveButtonState';
 import PlayerButtonPicker from './PlayerButtonPicker.vue';
 import { playerIcon } from './playerIcons';
 
@@ -110,6 +112,15 @@ function titleOf(button: PlayerButton): string | undefined {
     : undefined;
 }
 
+// A button with a live state (Favorite, shuffle, repeat, mute, play/pause) shows it, as on the Stream Deck.
+const live = (button: PlayerButton) =>
+  liveStateOf(button.actionType, props.track);
+
+const iconOf = (button: PlayerButton): string =>
+  live(button)?.icon ?? button.icon;
+
+const queries = useQueryClient();
+
 function press(button: PlayerButton): void {
   run.mutate(
     {
@@ -117,7 +128,12 @@ function press(button: PlayerButton): void {
       parameters: button.parameters,
       variables: variables.value,
     },
-    { onError: () => toast.error(t('dashboard.music.now.buttons.failed', { label: nameOf(button) })) },
+    {
+      // The queue read carries the live states, so the button shows the new one.
+      onSuccess: () =>
+        queries.invalidateQueries({ queryKey: musicQueueKey(channelId.value) }),
+      onError: () => toast.error(t('dashboard.music.now.buttons.failed', { label: nameOf(button) })),
+    },
   );
 }
 
@@ -168,14 +184,23 @@ useSortable(strip, buttons, {
       :data-draggable="canEdit || undefined"
       variant="outline"
       :size="button.label === '' ? 'icon' : 'sm'"
-      :class="canEdit && 'cursor-grab active:cursor-grabbing'"
       :aria-label="button.label === '' ? nameOf(button) : undefined"
+      :aria-pressed="live(button)?.pressed"
+      :class="[
+        canEdit && 'cursor-grab active:cursor-grabbing',
+        live(button)?.pressed === true && 'text-primary',
+      ]"
       :title="titleOf(button)"
       :disabled="run.isPending.value"
       @click="press(button)"
       @contextmenu="edit($event, index)"
     >
-      <component :is="playerIcon(button.icon)" class="size-5" aria-hidden="true" />
+      <component
+        :is="playerIcon(iconOf(button))"
+        :data-player-icon="iconOf(button)"
+        class="size-5"
+        aria-hidden="true"
+      />
       {{ button.label }}
     </Button>
   </div>

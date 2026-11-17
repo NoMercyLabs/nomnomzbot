@@ -12881,10 +12881,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Device-initiated pairing, step 2 (stream-deck.md D9): the human-friendly landing page a device's
-         *     verification URL points at. `[AllowAnonymous]` on the class-level JWT auth so a logged-out
-         *     visitor gets a friendly "log in first" page instead of a bare 401 — checks
-         *     `User.Identity.IsAuthenticated` itself rather than relying on the automatic challenge.
+         * Device-initiated pairing, step 2 (stream-deck.md D9): the link a device shows. It opens the dashboard's
+         *     API devices page with the code filled in, where the dashboard's own login and theme apply (Stoney,
+         *     2026-11-17: the old server-rendered page could not see the dashboard login and did not match the theme).
          */
         get: {
             parameters: {
@@ -96756,6 +96755,7 @@ export interface components {
             /** @default false */
             muted: boolean;
             state?: null | string;
+            isSaved?: null | boolean;
         };
         /**
          * @description The wire form of the one now-playing shape (music-playback-determinism.md section 2.1), pushed as the

@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NSubstitute;
+using IMusicProviderManageApi = NomNomzBot.Application.Contracts.Music.IMusicProviderManageApi;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -36,7 +37,8 @@ public sealed class MusicControllerPlayerTests
             Substitute.For<IBlockedTrackService>(),
             Substitute.For<IMusicHistoryReader>(),
             Substitute.For<ISongRequestIntakeService>(),
-            Substitute.For<IPlaybackStateReader>()
+            Substitute.For<IPlaybackStateReader>(),
+            Substitute.For<IMusicProviderManageApi>()
         )
         {
             ControllerContext = new() { HttpContext = new DefaultHttpContext() },

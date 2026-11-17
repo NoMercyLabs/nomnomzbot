@@ -87,7 +87,9 @@ public sealed record NowPlayingDto(
     IReadOnlyList<string>? Artists = null,
     string? AlbumArtUrl = null,
     bool Muted = false,
-    string? State = null
+    string? State = null,
+    // True when the song is in the owner's saved songs (Liked Songs); null when the provider cannot say.
+    bool? IsSaved = null
 )
 {
     /// <summary>Adds the one now-playing shape (music-playback-determinism.md section 2.1) to this read.

@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -64,7 +65,8 @@ public sealed class MusicControllerQueueNumberTests
             Substitute.For<IBlockedTrackService>(),
             history,
             Substitute.For<ISongRequestIntakeService>(),
-            Substitute.For<IPlaybackStateReader>()
+            Substitute.For<IPlaybackStateReader>(),
+            Substitute.For<IMusicProviderManageApi>()
         );
 
         IActionResult result = await controller.GetQueue(ChannelId, CancellationToken.None);

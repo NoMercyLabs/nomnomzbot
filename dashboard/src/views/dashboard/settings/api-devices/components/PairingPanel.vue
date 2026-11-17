@@ -13,6 +13,7 @@
 // You ask the device: name it, make a code, and type that code into the device.
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import {
   useApproveDevice,
@@ -35,7 +36,11 @@ const approve = useApproveDevice(channelId);
 
 const label = ref('');
 const code = ref<PairingCode | undefined>(undefined);
-const userCode = ref('');
+// A device's approval link opens this page with its code (?code=), so the code is already filled in.
+const linkedCode = useRoute().query.code;
+const userCode = ref(typeof linkedCode === 'string'
+  ? linkedCode
+  : '');
 const approved = ref(false);
 const error = ref<string | undefined>(undefined);
 

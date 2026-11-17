@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -70,7 +71,8 @@ public sealed class MusicControllerNowPlayingTests
             Substitute.For<IBlockedTrackService>(),
             Substitute.For<IMusicHistoryReader>(),
             Substitute.For<ISongRequestIntakeService>(),
-            state
+            state,
+            Substitute.For<IMusicProviderManageApi>()
         );
 
         IActionResult result = await controller.GetNowPlaying(Channel.ToString(), default);

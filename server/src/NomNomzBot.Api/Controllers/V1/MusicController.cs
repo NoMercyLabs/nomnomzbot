@@ -22,6 +22,7 @@ using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
+using IMusicProviderManageApi = NomNomzBot.Application.Contracts.Music.IMusicProviderManageApi;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -42,6 +43,7 @@ public class MusicController : BaseController
     private readonly IMusicHistoryReader _history;
     private readonly ISongRequestIntakeService _intake;
     private readonly IPlaybackStateReader _playbackState;
+    private readonly IMusicProviderManageApi _manageApi;
 
     public MusicController(
         IMusicService musicService,
@@ -50,10 +52,12 @@ public class MusicController : BaseController
         IBlockedTrackService blockedTracks,
         IMusicHistoryReader history,
         ISongRequestIntakeService intake,
-        IPlaybackStateReader playbackState
+        IPlaybackStateReader playbackState,
+        IMusicProviderManageApi manageApi
     )
     {
         _playbackState = playbackState;
+        _manageApi = manageApi;
         _history = history;
         _intake = intake;
         _musicService = musicService;
@@ -150,30 +154,11 @@ public class MusicController : BaseController
 
         NowPlayingDto? nowPlaying = queue.CurrentTrack is null
             ? null
-            : new NowPlayingDto(
-                queue.CurrentTrack.TrackName,
-                queue.CurrentTrack.Artist,
-                queue.CurrentTrack.Album,
-                queue.CurrentTrack.ImageUrl,
-                queue.CurrentTrack.DurationMs,
-                queue.CurrentTrack.ProgressMs,
-                queue.CurrentTrack.IsPlaying,
-                queue.CurrentTrack.Volume,
-                queue.CurrentTrack.RequestedBy,
-                queue.CurrentTrack.Provider,
-                queue.CurrentTrack.ShuffleEnabled,
-                // MusicRepeatMode names (Off/Track/Context) are the wire values ("off"/"track"/"context").
-                queue.CurrentTrack.RepeatMode.ToString().ToLowerInvariant(),
-                queue.CurrentTrack.CanSetShuffle,
-                queue.CurrentTrack.CanSetRepeat,
-                queue.CurrentTrack.CanSkipNext,
-                queue.CurrentTrack.CanSkipPrevious,
-                queue.CurrentTrack.CanSeek,
-                queue.CurrentTrack.CanPause,
-                queue.CurrentTrack.CanResume,
-                RequesterOf(requesters, queue.CurrentTrack.RequestedBy)?.UserId,
-                RequesterOf(requesters, queue.CurrentTrack.RequestedBy)?.Color,
-                queue.CurrentTrack.TrackUri
+            : await NowPlayingOfAsync(
+                channelId,
+                queue.CurrentTrack,
+                RequesterOf(requesters, queue.CurrentTrack.RequestedBy),
+                ct
             );
 
         List<QueueItemDto> items =
@@ -701,6 +686,22 @@ public class MusicController : BaseController
             return Ok(new StatusResponseDto<NowPlayingDto> { Data = null, Message = message });
         }
 
+        NowPlayingDto dto = await NowPlayingOfAsync(channelId, track, null, ct);
+
+        return Ok(new StatusResponseDto<NowPlayingDto> { Data = dto });
+    }
+
+    /// <summary>
+    /// The one now-playing read of both the queue and the now-playing endpoints: the provider's fields, the
+    /// director's shape (state, muted) and the live states the player buttons show, as the Stream Deck keys do.
+    /// </summary>
+    private async Task<NowPlayingDto> NowPlayingOfAsync(
+        string channelId,
+        NowPlaying track,
+        RequesterIdentityDto? requester,
+        CancellationToken ct
+    )
+    {
         NowPlayingDto dto = new(
             track.TrackName,
             track.Artist,
@@ -721,29 +722,55 @@ public class MusicController : BaseController
             track.CanSkipPrevious,
             track.CanSeek,
             track.CanPause,
-            track.CanResume
+            track.CanResume,
+            requester?.UserId,
+            requester?.Color,
+            track.TrackUri
         );
 
-        if (Guid.TryParse(channelId, out Guid broadcasterId))
-        {
-            DirectorNowPlaying? shape = DirectorNowPlaying.Build(
-                _playbackState.StateOf(broadcasterId),
-                _playbackState.LevelOf(broadcasterId),
-                track.Provider,
-                track.TrackUri,
-                track.TrackName,
-                track.Artist,
-                track.ImageUrl,
-                track.DurationMs,
-                track.ProgressMs,
-                track.IsPlaying,
-                track.RequestedBy
-            );
-            if (shape is not null)
-                dto = dto.WithShape(NowPlayingShapeDto.From(shape));
-        }
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return dto;
 
-        return Ok(new StatusResponseDto<NowPlayingDto> { Data = dto });
+        DirectorNowPlaying? shape = DirectorNowPlaying.Build(
+            _playbackState.StateOf(broadcasterId),
+            _playbackState.LevelOf(broadcasterId),
+            track.Provider,
+            track.TrackUri,
+            track.TrackName,
+            track.Artist,
+            track.ImageUrl,
+            track.DurationMs,
+            track.ProgressMs,
+            track.IsPlaying,
+            track.RequestedBy
+        );
+        if (shape is not null)
+            dto = dto.WithShape(NowPlayingShapeDto.From(shape));
+
+        return dto with
+        {
+            IsSaved = await IsSavedAsync(broadcasterId, track, ct),
+        };
+    }
+
+    /// <summary>Whether the song is in the owner's saved songs; null when the provider cannot say.</summary>
+    private async Task<bool?> IsSavedAsync(
+        Guid broadcasterId,
+        NowPlaying track,
+        CancellationToken ct
+    )
+    {
+        if (track.TrackUri is not { } trackUri)
+            return null;
+
+        Result<IReadOnlyList<bool>> saved = await _manageApi.AreTracksSavedAsync(
+            broadcasterId,
+            track.Provider,
+            [trackUri],
+            ct
+        );
+
+        return saved is { IsSuccess: true, Value.Count: > 0 } ? saved.Value[0] : null;
     }
 }
 

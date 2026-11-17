@@ -107,13 +107,15 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-async function open(keys: string[]): Promise<VueWrapper> {
+let queryClient = new QueryClient();
+
+async function open(keys: string[], playing: NowPlaying | null = track): Promise<VueWrapper> {
   held.keys = keys;
 
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   mounted = mount(PlayerButtons, {
-    props: { track },
+    props: { track: playing },
     global: { plugins: [i18n, createPinia(), [VueQueryPlugin, { queryClient }]] },
   });
 
@@ -215,6 +217,86 @@ describe('the player buttons under the now playing card', () => {
     await flushPromises();
 
     expect(held.toast).toHaveBeenCalledWith('Next Song did not run.');
+  });
+
+  // Stoney 2026-11-17, on the Favorite button: "this button should be the reactive button as it is on the stream
+  // deck and respond to true or false".
+  describe('a button with a live state, as on the Stream Deck', () => {
+    function oneButton(actionType: string, icon: string): void {
+      held.get.mockResolvedValue({
+        data: { data: [{
+          id: 'live',
+          label: 'Live',
+          icon,
+          actionType,
+          parameters: {},
+        }] },
+        error: undefined,
+        response: { status: 200 },
+      });
+    }
+
+    async function liveButton(
+      actionType: string,
+      icon: string,
+      state: Partial<NowPlaying>,
+    ): Promise<{ pressed: string | undefined; icon: string | undefined }> {
+      oneButton(actionType, icon);
+
+      const view = await open(['music:queue:read'], { ...track, ...state });
+      const button = view.find('[data-player-button]');
+
+      return {
+        pressed: button.attributes('aria-pressed'),
+        icon: button.find('[data-player-icon]').attributes('data-player-icon'),
+      };
+    }
+
+    it.each([
+      ['music_toggle_saved', 'heart-filled', { isSaved: true }, 'true', 'heart-filled'],
+      ['music_toggle_saved', 'heart-filled', { isSaved: false }, 'false', 'heart'],
+      ['music_toggle_shuffle', 'shuffle', { shuffleState: true }, 'true', 'shuffle'],
+      ['music_toggle_shuffle', 'shuffle', { shuffleState: false }, 'false', 'shuffle'],
+      ['music_cycle_repeat', 'repeat-one', { repeatState: 'track' }, 'true', 'repeat-one'],
+      ['music_cycle_repeat', 'repeat-one', { repeatState: 'context' }, 'true', 'repeat'],
+      ['music_cycle_repeat', 'repeat-one', { repeatState: 'off' }, 'false', 'repeat'],
+      ['music_volume_mute', 'volume-muted', { muted: true }, 'true', 'volume-muted'],
+      ['music_volume_mute', 'volume-muted', { muted: false }, 'false', 'volume-two'],
+    ] as const)('%s with %o shows pressed %s and the %s icon', async (actionType, icon, state, pressed, shown) => {
+      const live = await liveButton(actionType, icon, state);
+
+      expect(live).toEqual({ pressed, icon: shown });
+    });
+
+    it('shows play/pause as pause while the song plays and as play while it does not', async () => {
+      expect(await liveButton('music_play_pause', 'play-circle', { isPlaying: true }))
+        .toEqual({ pressed: undefined, icon: 'pause' });
+
+      mounted?.unmount();
+
+      expect(await liveButton('music_play_pause', 'play-circle', { isPlaying: false }))
+        .toEqual({ pressed: undefined, icon: 'play' });
+    });
+
+    it('keeps an ordinary button with no live state unpressed and on its own icon', async () => {
+      const view = await open(['music:queue:read']);
+      const button = view.find('[data-player-button]');
+
+      expect(button.attributes('aria-pressed')).toBeUndefined();
+      expect(button.find('[data-player-icon]').attributes('data-player-icon')).toBe('heart');
+    });
+
+    it('reads the queue again after a press, so the button shows the new state', async () => {
+      oneButton('music_toggle_saved', 'heart-filled');
+
+      const view = await open(['music:queue:read'], { ...track, isSaved: false });
+      const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+      await view.find('[data-player-button]').trigger('click');
+      await flushPromises();
+
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['channels', 'c1', 'music-queue'] });
+    });
   });
 
   it('is hidden without the queue read permission and never asks the API', async () => {

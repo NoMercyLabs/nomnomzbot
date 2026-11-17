@@ -20,6 +20,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Api.Tests.Authentication;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -354,7 +355,8 @@ public sealed class PlayerActionButtonTests : IAsyncLifetime
             Substitute.For<IBlockedTrackService>(),
             history,
             Substitute.For<ISongRequestIntakeService>(),
-            Substitute.For<IPlaybackStateReader>()
+            Substitute.For<IPlaybackStateReader>(),
+            Substitute.For<IMusicProviderManageApi>()
         );
 
         IActionResult result = await controller.GetQueue("c", CancellationToken.None);

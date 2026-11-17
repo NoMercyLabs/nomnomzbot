@@ -125,12 +125,18 @@ async function settle(): Promise<void> {
   await flushPromises();
 }
 
-async function open(): Promise<void> {
+async function open(path = '/app/settings/api-devices'): Promise<void> {
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/app/settings/api-devices', component: { template: '<div />' } }],
+  });
+
+  await router.push(path);
 
   mounted = mount(ApiDevicesView, {
     attachTo: document.body,
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: queries }]] },
+    global: { plugins: [i18n, router, [VueQueryPlugin, { queryClient: queries }]] },
   });
 
   await settle();
@@ -271,6 +277,18 @@ describe('API and devices', () => {
 
     expect(callTo('POST', '/pair/device/approve')?.body).toEqual({ userCode: 'WXYZ-9876' });
     expect(q('[data-approved]')).not.toBeNull();
+  });
+
+  // Stoney 2026-11-17, on the bot's own unthemed approval page: "i am logged in, i can't click that button",
+  // then "the ui is not matching the bot theme". The device's link now opens this page with its code.
+  it('fills in the code from the device link, so one click approves it', async () => {
+    await open('/app/settings/api-devices?code=N5HTW55G');
+
+    expect(q<HTMLInputElement>('[data-field="user-code"]').value).toBe('N5HTW55G');
+
+    await click(q('[data-approve]'));
+
+    expect(callTo('POST', '/pair/device/approve')?.body).toEqual({ userCode: 'N5HTW55G' });
   });
 });
 

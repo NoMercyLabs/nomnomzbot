@@ -14908,7 +14908,7 @@
         "tags": [
           "Automation"
         ],
-        "summary": "Device-initiated pairing, step 2 (stream-deck.md D9): the human-friendly landing page a device's\r\nverification URL points at. `[AllowAnonymous]` on the class-level JWT auth so a logged-out\r\nvisitor gets a friendly \"log in first\" page instead of a bare 401 — checks\r\n`User.Identity.IsAuthenticated` itself rather than relying on the automatic challenge.",
+        "summary": "Device-initiated pairing, step 2 (stream-deck.md D9): the link a device shows. It opens the dashboard's\r\nAPI devices page with the code filled in, where the dashboard's own login and theme apply (Stoney,\r\n2026-11-17: the old server-rendered page could not see the dashboard login and did not match the theme).",
         "parameters": [
           {
             "name": "code",
@@ -126286,6 +126286,12 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "isSaved": {
+            "type": [
+              "null",
+              "boolean"
             ]
           }
         },
