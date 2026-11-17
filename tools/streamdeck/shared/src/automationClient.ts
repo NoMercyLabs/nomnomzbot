@@ -37,6 +37,14 @@ export interface NowPlayingPayload extends JsonObject {
   canResume?: boolean;
 }
 
+/** `GET /automation/v1/info` — the channel a token is paired to. */
+export interface AutomationInfoPayload extends JsonObject {
+  channelId: string;
+  channelName: string;
+  provider: string;
+  apiVersion: string;
+}
+
 export interface DevicePayload extends JsonObject {
   id: string;
   name: string;
@@ -208,6 +216,17 @@ export class AutomationClient {
   /** Fired on every `obs.mute.changed` push (one audio input's mute state). */
   onObsMuteState(listener: (payload: ObsMuteStatePayload) => void): void {
     this.obsMuteListeners.add(listener);
+  }
+
+  /** The channel this token is paired to (`GET /automation/v1/info`). */
+  async getInfo(): Promise<AutomationInfoPayload> {
+    return this.request<AutomationInfoPayload>("GET", "/automation/v1/info");
+  }
+
+  /** Forgets the pairing and closes the live stream; its reconnect finds no pairing and stays down. */
+  async unpair(): Promise<void> {
+    await clearPairingState();
+    this.ws?.close();
   }
 
   /** Fired when pairing is lost (hard expiry / revocation) so keys can revert to "not connected". */

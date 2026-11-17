@@ -12,7 +12,8 @@
 import http, { type Server } from "node:http";
 import streamDeck from "@elgato/streamdeck";
 import open from "open";
-import { DEFAULT_HOST, getHost, setHost, setPairingState } from "./tokenStore.js";
+import { DEFAULT_HOST, getHost, getPairingState, setHost, setPairingState } from "./tokenStore.js";
+import { automationClient } from "./automationClient.js";
 import { initDevicePairing, pollDevicePairing, getLastDeviceFlowError } from "./deviceFlow.js";
 import { setDeviceFlowStatus } from "./deviceFlowState.js";
 
@@ -95,7 +96,16 @@ async function handleRequest(
   if (url.pathname === "/" && req.method === "GET") {
     const host = await getHost();
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderPage(host));
+    res.end(renderPage(host, await pairedChannel()));
+    return;
+  }
+
+  if (url.pathname === "/unpair" && req.method === "POST") {
+    await automationClient.unpair();
+    flow = { phase: "idle" };
+    setDeviceFlowStatus({ paired: false, verificationUri: null, tokenExpiresAt: null, lastError: null });
+    streamDeck.logger.info("Auth window: unpaired.");
+    respondJson(res, 200, { ok: true });
     return;
   }
 
@@ -164,6 +174,20 @@ async function pollUntilPaired(
   flow = { phase: "error", message: "The pairing code expired — click Authorize to try again." };
 }
 
+interface Pairing {
+  channel: string;
+  backendUrl: string;
+}
+
+/** The current pairing, named by its channel; null while unpaired. */
+async function pairedChannel(): Promise<Pairing | null> {
+  const state = await getPairingState();
+  if (!state) return null;
+  const info = await automationClient.getInfo().catch(() => null);
+
+  return { channel: info?.channelName ?? "a channel the bot did not name", backendUrl: state.backendUrl };
+}
+
 function closeServer(): void {
   server?.close();
   server = null;
@@ -186,7 +210,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function renderPage(host: string): string {
+function renderPairing(pairing: Pairing | null): string {
+  if (!pairing) return `<p class="sub">Enter your bot's URL and authorize to pair.</p>`;
+
+  return `<section class="paired">
+    <p>Paired to <b>${escapeHtml(pairing.channel)}</b></p>
+    <p class="sub">on ${escapeHtml(pairing.backendUrl)}</p>
+    <button id="unpair" class="secondary">Unpair</button>
+  </section>
+  <p class="sub">To pair with another bot, enter its URL and authorize.</p>`;
+}
+
+function renderPage(host: string, pairing: Pairing | null): string {
   return `<!doctype html>
 <html>
 <head>
@@ -208,12 +243,17 @@ function renderPage(host: string): string {
   #status.error { color: #ff8080; }
   #status.success { color: #7cff9c; }
   a { color: #7c5cff; }
+  section.paired { background: #1a1a1a; border-radius: 6px; padding: 12px; margin-bottom: 20px; }
+  section.paired p { margin: 0; font-size: 14px; }
+  section.paired p.sub { margin: 2px 0 12px; }
+  button.secondary { width: auto; padding: 8px 12px; background: transparent; border: 1px solid #444;
+                     color: #ff8080; font-weight: 500; }
 </style>
 </head>
 <body>
 <main>
   <h1>Connect your Stream Deck</h1>
-  <p class="sub">Enter your bot's URL and authorize to pair.</p>
+  ${renderPairing(pairing)}
   <label for="host">Bot URL</label>
   <input id="host" value="${escapeHtml(host)}" />
   <button id="authorize">Authorize</button>
@@ -224,6 +264,11 @@ function renderPage(host: string): string {
   const button = document.getElementById("authorize");
   const hostInput = document.getElementById("host");
   let polling = null;
+
+  document.getElementById("unpair")?.addEventListener("click", async () => {
+    const res = await fetch("/unpair", { method: "POST" }).then((r) => r.json()).catch(() => null);
+    if (res && res.ok) location.reload();
+  });
 
   button.addEventListener("click", async () => {
     button.disabled = true;

@@ -56,4 +56,33 @@ describe("a plugin that is already paired", () => {
     expect(await page.text()).toContain('value="https://dev.example.test"');
     expect(openedUrls).toEqual([]);
   });
+
+  // Stoney 2026-11-17: "the account should be listed under accounts in the streamdeck ui too". Stream Deck has
+  // no API for its Accounts tab, so the plugin's own page shows the paired channel and can unpair it.
+  it("shows the channel it is paired to, and unpairing forgets the pairing", async () => {
+    const { authWindowUrl } = await import("../src/authWindow.js");
+    const { getPairingState } = await import("../src/tokenStore.js");
+    const streamDeck = (await import("@elgato/streamdeck")).default;
+    const botCalls: string[] = [];
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", (input: string, init?: RequestInit) => {
+      if (!input.startsWith("https://dev.example.test")) return realFetch(input, init);
+      botCalls.push(`${init?.method ?? "GET"} ${input} ${new Headers(init?.headers).get("Authorization")}`);
+      const data = { channelId: "c1", channelName: "Stoney_Eagle", provider: "twitch", apiVersion: "1" };
+      return Promise.resolve(new Response(JSON.stringify({ status: "ok", data })));
+    });
+    const url = authWindowUrl() as string;
+
+    const page = await (await fetch(url)).text();
+    const unpaired = await fetch(`${url}unpair`, { method: "POST" });
+
+    expect(page).toContain("Paired to <b>Stoney_Eagle</b>");
+    expect(page).toContain('id="unpair"');
+    expect(botCalls).toEqual(["GET https://dev.example.test/automation/v1/info Bearer made-up-token"]);
+    expect(unpaired.status).toBe(200);
+    expect(await getPairingState()).toBeNull();
+    expect(streamDeck.settings.setGlobalSettings).toHaveBeenLastCalledWith({ host: "https://dev.example.test" });
+    expect(await (await fetch(url)).text()).not.toContain("Paired to");
+    vi.unstubAllGlobals();
+  });
 });
