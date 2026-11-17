@@ -96521,6 +96521,8 @@ export interface components {
             perStreamLimit?: null | number | string;
             /** @default true */
             youTubeMusicCategoryOnly: boolean;
+            /** @default default */
+            bangerTarget: string;
         };
         MusicDevice: {
             id: string;
@@ -107493,6 +107495,8 @@ export interface components {
             bangerPlaylistProvider?: null | string;
             /** @description With no playlist chosen, `!banger` makes one on first use. */
             bangerAutoCreate?: null | boolean;
+            /** @description Where `!banger` saves: `default`, or a playlist per requester (`perYear` or `allTime`). */
+            bangerTarget?: null | string;
             /**
              * @description A song request cap per role (`viewer|subscriber|vip|moderator|broadcaster`, 1 to 50). A
              *     requester gets the highest cap among the rungs they reach; a rung with no value uses
