@@ -54,6 +54,7 @@ public sealed class BangerBuiltinRegistrationTests
 
     private sealed class BangerBuiltinKey
     {
-        public string Value => new BangerBuiltin(null!, null!, null!, null!, null!).BuiltinKey;
+        public string Value =>
+            new BangerBuiltin(null!, null!, null!, null!, null!, null!).BuiltinKey;
     }
 }

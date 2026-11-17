@@ -182,6 +182,8 @@
     <string name="builtin_reply_banger_noplaylist_description">No playlist is chosen and auto-create is off.</string>
     <string name="builtin_reply_banger_failed_label">Banger failed</string>
     <string name="builtin_reply_banger_failed_description">The music service could not update the bangers playlist.</string>
+    <string name="builtin_reply_banger_held_label">Banger held</string>
+    <string name="builtin_reply_banger_held_description">The song is held and saved after the stream to respect the music service's limits.</string>
     <string name="builtin_reply_playlist_link_label">Playlist link</string>
     <string name="builtin_reply_playlist_link_description">Someone asks for the playlist and a bangers playlist link can be made.</string>
     <string name="builtin_reply_playlist_noplaylist_label">No bangers playlist</string>

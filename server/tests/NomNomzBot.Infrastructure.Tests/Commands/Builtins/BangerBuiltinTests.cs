@@ -57,6 +57,7 @@ public sealed class BangerBuiltinTests : IDisposable
         new(
             _music,
             _playlists,
+            MusicWriteQueueTestKit.Over(_playlists),
             _config.Service,
             TestBuiltinComposer.Create(),
             NullLogger<BangerBuiltin>.Instance

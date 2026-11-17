@@ -26,6 +26,8 @@
     "builtin.reply.banger.alreadythere.label",
     "builtin.reply.banger.failed.description",
     "builtin.reply.banger.failed.label",
+    "builtin.reply.banger.held.description",
+    "builtin.reply.banger.held.label",
     "builtin.reply.banger.noplaylist.description",
     "builtin.reply.banger.noplaylist.label",
     "builtin.reply.banger.nothing.description",

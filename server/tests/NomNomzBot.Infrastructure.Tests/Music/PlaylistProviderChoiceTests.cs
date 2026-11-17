@@ -113,6 +113,7 @@ public sealed class PlaylistProviderChoiceTests
         new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             Substitute.For<IChatProvider>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IBuiltinResponseComposer>(),
@@ -248,11 +249,11 @@ public sealed class PlaylistProviderChoiceTests
         IMusicProviderManageApi manage = ManageThatAccepts();
         MusicAddToPlaylistAction absent = new(
             MusicWith("youtube", Playing("youtube", "yt-1")),
-            manage
+            MusicWriteQueueTestKit.Over(manage)
         );
         MusicAddToPlaylistAction chosen = new(
             MusicWith("spotify", Playing("youtube", "yt-2")),
-            manage
+            MusicWriteQueueTestKit.Over(manage)
         );
 
         ActionResult first = await absent.ExecuteAsync(
@@ -380,7 +381,10 @@ public sealed class PlaylistProviderChoiceTests
         IEnumerable<ICommandAction> actions =
         [
             NewAdd(MusicWith(null, null), ManageThatAccepts()),
-            new MusicAddToPlaylistAction(MusicWith(null, null), ManageThatAccepts()),
+            new MusicAddToPlaylistAction(
+                MusicWith(null, null),
+                MusicWriteQueueTestKit.Over(ManageThatAccepts())
+            ),
             new MusicRemoveFromPlaylistAction(MusicWith(null, null), ManageThatAccepts()),
         ];
 

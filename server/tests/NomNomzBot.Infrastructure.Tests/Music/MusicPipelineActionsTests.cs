@@ -253,6 +253,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -301,6 +302,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -345,6 +347,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -385,6 +388,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -420,6 +424,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -461,6 +466,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -527,6 +533,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -596,6 +603,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),
@@ -780,6 +788,7 @@ public sealed class MusicPipelineActionsTests
         PlaylistAddAction action = new(
             music,
             manage,
+            MusicWriteQueueTestKit.Over(manage),
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
             TestBuiltinComposer.Create(),

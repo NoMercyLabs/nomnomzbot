@@ -46,6 +46,7 @@ public sealed class BangerTargetTests : IDisposable
         new(
             _music,
             _manage,
+            MusicWriteQueueTestKit.Over(_manage, _clock),
             _config.Service,
             TestBuiltinComposer.Create(),
             NullLogger<BangerBuiltin>.Instance,

@@ -326,7 +326,12 @@ public sealed class MusicControlActionsTests
             )
             .Returns(Result.Success());
         IEventBus eventBus = Substitute.For<IEventBus>();
-        MusicToggleSavedAction action = new(music, manageApi, eventBus);
+        MusicToggleSavedAction action = new(
+            music,
+            manageApi,
+            MusicWriteQueueTestKit.Over(manageApi),
+            eventBus
+        );
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_toggle_saved"));
 
@@ -384,7 +389,12 @@ public sealed class MusicControlActionsTests
             )
             .Returns(Result.Success());
         IEventBus eventBus = Substitute.For<IEventBus>();
-        MusicToggleSavedAction action = new(music, manageApi, eventBus);
+        MusicToggleSavedAction action = new(
+            music,
+            manageApi,
+            MusicWriteQueueTestKit.Over(manageApi),
+            eventBus
+        );
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_toggle_saved"));
 
@@ -417,7 +427,11 @@ public sealed class MusicControlActionsTests
         music
             .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns((string?)null);
-        MusicSaveTrackAction action = new(music, manageApi, Substitute.For<IEventBus>());
+        MusicSaveTrackAction action = new(
+            music,
+            MusicWriteQueueTestKit.Over(manageApi),
+            Substitute.For<IEventBus>()
+        );
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_save_track"));
 
@@ -558,7 +572,7 @@ public sealed class MusicControlActionsTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
-        MusicAddToPlaylistAction action = new(music, manageApi);
+        MusicAddToPlaylistAction action = new(music, MusicWriteQueueTestKit.Over(manageApi));
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(),
@@ -582,7 +596,7 @@ public sealed class MusicControlActionsTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         IMusicProviderManageApi manageApi = Substitute.For<IMusicProviderManageApi>();
-        MusicAddToPlaylistAction action = new(music, manageApi);
+        MusicAddToPlaylistAction action = new(music, MusicWriteQueueTestKit.Over(manageApi));
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_add_to_playlist"));
 

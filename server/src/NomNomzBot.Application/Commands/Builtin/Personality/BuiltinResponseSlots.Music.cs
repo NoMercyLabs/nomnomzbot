@@ -340,6 +340,9 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The provider could not check, create or add; <c>{user}</c> is set.</summary>
         public const string Failed = "failed";
+
+        /// <summary>The save is held until the stream ends to respect the provider's limits; the variables are the same as <see cref="Added"/>.</summary>
+        public const string Held = "held";
     }
 
     /// <summary><c>!volume</c> — usage/error tone slots (S069h).</summary>

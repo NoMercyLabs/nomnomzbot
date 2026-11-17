@@ -119,7 +119,10 @@ public sealed class AccountActionsOnYouTubeItemTests
     public async Task Add_to_playlist_on_a_youtube_item_is_not_supported_and_calls_no_spotify_api()
     {
         IMusicProviderManageApi manageApi = Substitute.For<IMusicProviderManageApi>();
-        MusicAddToPlaylistAction action = new(SpotifyAccountYouTubeItem(), manageApi);
+        MusicAddToPlaylistAction action = new(
+            SpotifyAccountYouTubeItem(),
+            MusicWriteQueueTestKit.Over(manageApi)
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(),

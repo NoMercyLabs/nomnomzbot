@@ -53,6 +53,40 @@ internal static class MusicControlResult
                 result.ErrorCode ?? result.ErrorMessage ?? "music action failed"
             );
 
+    /// <summary>Sends a favorite write through the write queue; a sent write publishes the overlay event, a held
+    /// one succeeds with <paramref name="heldOutput"/> and publishes nothing until it goes out.</summary>
+    public static async Task<ActionResult> FavoriteWriteAsync(
+        IMusicWriteQueue writes,
+        IEventBus eventBus,
+        PipelineExecutionContext ctx,
+        NowPlaying nowPlaying,
+        string provider,
+        MusicWriteKind kind,
+        string sentOutput,
+        string heldOutput
+    )
+    {
+        Result<MusicWriteOutcome> outcome = await writes.SubmitAsync(
+            new(ctx.BroadcasterId, provider, kind, [nowPlaying.TrackUri!]),
+            ctx.CancellationToken
+        );
+        if (outcome.IsFailure)
+            return ActionResult.Failure(
+                outcome.ErrorCode ?? outcome.ErrorMessage ?? "music action failed"
+            );
+        if (outcome.Value == MusicWriteOutcome.Held)
+            return ActionResult.Success(heldOutput);
+
+        await PublishTrackSavedChangedAsync(
+            eventBus,
+            ctx.BroadcasterId,
+            nowPlaying,
+            isSaved: kind == MusicWriteKind.Save,
+            ctx.CancellationToken
+        );
+        return ActionResult.Success(sentOutput);
+    }
+
     /// <summary>Resolves the active provider key, or a typed failure when no provider is connected —
     /// every manage-API action needs this before it can call <see cref="IMusicProviderManageApi"/>.</summary>
     public static async Task<Result<string>> ResolveProviderAsync(
@@ -845,7 +879,7 @@ public sealed class MusicTransferDeviceAction : ICommandAction
 public sealed class MusicSaveTrackAction : ICommandAction
 {
     private readonly IMusicService _music;
-    private readonly IMusicProviderManageApi _manageApi;
+    private readonly IMusicWriteQueue _writes;
     private readonly IEventBus _eventBus;
 
     public string ActionType => "music_save_track";
@@ -854,14 +888,10 @@ public sealed class MusicSaveTrackAction : ICommandAction
 
     public LocalizedText Description => new("pipeline.music_save_track.description");
 
-    public MusicSaveTrackAction(
-        IMusicService music,
-        IMusicProviderManageApi manageApi,
-        IEventBus eventBus
-    )
+    public MusicSaveTrackAction(IMusicService music, IMusicWriteQueue writes, IEventBus eventBus)
     {
         _music = music;
-        _manageApi = manageApi;
+        _writes = writes;
         _eventBus = eventBus;
     }
 
@@ -876,21 +906,16 @@ public sealed class MusicSaveTrackAction : ICommandAction
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
 
-        Result result = await _manageApi.SaveTracksAsync(
-            ctx.BroadcasterId,
+        return await MusicControlResult.FavoriteWriteAsync(
+            _writes,
+            _eventBus,
+            ctx,
+            nowPlaying.Value,
             MusicControlResult.FavoriteProvider(nowPlaying.Value, provider.Value),
-            [nowPlaying.Value.TrackUri],
-            ctx.CancellationToken
+            MusicWriteKind.Save,
+            "track saved",
+            "track saved after the stream"
         );
-        if (result.IsSuccess)
-            await MusicControlResult.PublishTrackSavedChangedAsync(
-                _eventBus,
-                ctx.BroadcasterId,
-                nowPlaying.Value,
-                isSaved: true,
-                ctx.CancellationToken
-            );
-        return MusicControlResult.FromMusicResult(result, "track saved");
     }
 
     internal static async Task<(Result<string>, Result<NowPlaying>)> ResolveAsync(
@@ -914,7 +939,7 @@ public sealed class MusicSaveTrackAction : ICommandAction
 public sealed class MusicUnsaveTrackAction : ICommandAction
 {
     private readonly IMusicService _music;
-    private readonly IMusicProviderManageApi _manageApi;
+    private readonly IMusicWriteQueue _writes;
     private readonly IEventBus _eventBus;
 
     public string ActionType => "music_unsave_track";
@@ -923,14 +948,10 @@ public sealed class MusicUnsaveTrackAction : ICommandAction
 
     public LocalizedText Description => new("pipeline.music_unsave_track.description");
 
-    public MusicUnsaveTrackAction(
-        IMusicService music,
-        IMusicProviderManageApi manageApi,
-        IEventBus eventBus
-    )
+    public MusicUnsaveTrackAction(IMusicService music, IMusicWriteQueue writes, IEventBus eventBus)
     {
         _music = music;
-        _manageApi = manageApi;
+        _writes = writes;
         _eventBus = eventBus;
     }
 
@@ -946,21 +967,16 @@ public sealed class MusicUnsaveTrackAction : ICommandAction
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
 
-        Result result = await _manageApi.RemoveSavedTracksAsync(
-            ctx.BroadcasterId,
+        return await MusicControlResult.FavoriteWriteAsync(
+            _writes,
+            _eventBus,
+            ctx,
+            nowPlaying.Value,
             MusicControlResult.FavoriteProvider(nowPlaying.Value, provider.Value),
-            [nowPlaying.Value.TrackUri],
-            ctx.CancellationToken
+            MusicWriteKind.Unsave,
+            "track removed from saved",
+            "track removed from saved after the stream"
         );
-        if (result.IsSuccess)
-            await MusicControlResult.PublishTrackSavedChangedAsync(
-                _eventBus,
-                ctx.BroadcasterId,
-                nowPlaying.Value,
-                isSaved: false,
-                ctx.CancellationToken
-            );
-        return MusicControlResult.FromMusicResult(result, "track removed from saved");
     }
 }
 
@@ -968,6 +984,7 @@ public sealed class MusicToggleSavedAction : ICommandAction
 {
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _manageApi;
+    private readonly IMusicWriteQueue _writes;
     private readonly IEventBus _eventBus;
 
     public string ActionType => "music_toggle_saved";
@@ -979,11 +996,13 @@ public sealed class MusicToggleSavedAction : ICommandAction
     public MusicToggleSavedAction(
         IMusicService music,
         IMusicProviderManageApi manageApi,
+        IMusicWriteQueue writes,
         IEventBus eventBus
     )
     {
         _music = music;
         _manageApi = manageApi;
+        _writes = writes;
         _eventBus = eventBus;
     }
 
@@ -1014,30 +1033,15 @@ public sealed class MusicToggleSavedAction : ICommandAction
             return ActionResult.Failure(savedCheck.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
 
         bool wasSaved = savedCheck.Value.Count > 0 && savedCheck.Value[0];
-        Result result = wasSaved
-            ? await _manageApi.RemoveSavedTracksAsync(
-                ctx.BroadcasterId,
-                favoriteProvider,
-                [trackUri],
-                ctx.CancellationToken
-            )
-            : await _manageApi.SaveTracksAsync(
-                ctx.BroadcasterId,
-                favoriteProvider,
-                [trackUri],
-                ctx.CancellationToken
-            );
-        if (result.IsSuccess)
-            await MusicControlResult.PublishTrackSavedChangedAsync(
-                _eventBus,
-                ctx.BroadcasterId,
-                nowPlaying.Value,
-                isSaved: !wasSaved,
-                ctx.CancellationToken
-            );
-        return MusicControlResult.FromMusicResult(
-            result,
-            wasSaved ? "track removed from saved" : "track saved"
+        return await MusicControlResult.FavoriteWriteAsync(
+            _writes,
+            _eventBus,
+            ctx,
+            nowPlaying.Value,
+            favoriteProvider,
+            wasSaved ? MusicWriteKind.Unsave : MusicWriteKind.Save,
+            wasSaved ? "track removed from saved" : "track saved",
+            wasSaved ? "track removed from saved after the stream" : "track saved after the stream"
         );
     }
 }
@@ -1047,7 +1051,7 @@ public sealed class MusicToggleSavedAction : ICommandAction
 public sealed class MusicAddToPlaylistAction : ICommandAction
 {
     private readonly IMusicService _music;
-    private readonly IMusicProviderManageApi _manageApi;
+    private readonly IMusicWriteQueue _writes;
 
     public string ActionType => "music_add_to_playlist";
 
@@ -1066,10 +1070,10 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
             PlaylistProviderChoice.Field(),
         ];
 
-    public MusicAddToPlaylistAction(IMusicService music, IMusicProviderManageApi manageApi)
+    public MusicAddToPlaylistAction(IMusicService music, IMusicWriteQueue writes)
     {
         _music = music;
-        _manageApi = manageApi;
+        _writes = writes;
     }
 
     public async Task<ActionResult> ExecuteAsync(
@@ -1094,14 +1098,25 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
         if (target.IsFailure)
             return ActionResult.Failure(target.ErrorMessage!);
 
-        Result result = await _manageApi.AddPlaylistTracksAsync(
-            ctx.BroadcasterId,
-            target.Value.Provider,
-            playlistId,
-            [target.Value.TrackUri],
+        Result<MusicWriteOutcome> result = await _writes.SubmitAsync(
+            new(
+                ctx.BroadcasterId,
+                target.Value.Provider,
+                MusicWriteKind.PlaylistAdd,
+                [target.Value.TrackUri],
+                playlistId
+            ),
             ctx.CancellationToken
         );
-        return MusicControlResult.FromMusicResult(result, $"added to playlist {playlistId}");
+        if (result.IsFailure)
+            return ActionResult.Failure(
+                result.ErrorCode ?? result.ErrorMessage ?? "music action failed"
+            );
+        return ActionResult.Success(
+            result.Value == MusicWriteOutcome.Held
+                ? $"added to playlist {playlistId} after the stream"
+                : $"added to playlist {playlistId}"
+        );
     }
 }
 
