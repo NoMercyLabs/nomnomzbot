@@ -39,6 +39,13 @@ internal static class MusicControlResult
         string.Equals(provider, "spotify", StringComparison.OrdinalIgnoreCase)
         && string.Equals(nowPlaying.Provider, "youtube", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>The provider a Favorite (like or save) writes to: the playing item's own provider, so a
+    /// YouTube video is liked on YouTube even while Spotify is the active provider.</summary>
+    public static string FavoriteProvider(NowPlaying nowPlaying, string activeProvider) =>
+        string.IsNullOrWhiteSpace(nowPlaying.Provider)
+            ? activeProvider
+            : nowPlaying.Provider.ToLowerInvariant();
+
     public static ActionResult FromMusicResult(Result result, string successOutput) =>
         result.IsSuccess
             ? ActionResult.Success(successOutput)
@@ -868,12 +875,10 @@ public sealed class MusicSaveTrackAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
-        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
-            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         Result result = await _manageApi.SaveTracksAsync(
             ctx.BroadcasterId,
-            provider.Value,
+            MusicControlResult.FavoriteProvider(nowPlaying.Value, provider.Value),
             [nowPlaying.Value.TrackUri],
             ctx.CancellationToken
         );
@@ -940,12 +945,10 @@ public sealed class MusicUnsaveTrackAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
-        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
-            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         Result result = await _manageApi.RemoveSavedTracksAsync(
             ctx.BroadcasterId,
-            provider.Value,
+            MusicControlResult.FavoriteProvider(nowPlaying.Value, provider.Value),
             [nowPlaying.Value.TrackUri],
             ctx.CancellationToken
         );
@@ -995,13 +998,15 @@ public sealed class MusicToggleSavedAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
-        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
-            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         string trackUri = nowPlaying.Value.TrackUri;
+        string favoriteProvider = MusicControlResult.FavoriteProvider(
+            nowPlaying.Value,
+            provider.Value
+        );
         Result<IReadOnlyList<bool>> savedCheck = await _manageApi.AreTracksSavedAsync(
             ctx.BroadcasterId,
-            provider.Value,
+            favoriteProvider,
             [trackUri],
             ctx.CancellationToken
         );
@@ -1012,13 +1017,13 @@ public sealed class MusicToggleSavedAction : ICommandAction
         Result result = wasSaved
             ? await _manageApi.RemoveSavedTracksAsync(
                 ctx.BroadcasterId,
-                provider.Value,
+                favoriteProvider,
                 [trackUri],
                 ctx.CancellationToken
             )
             : await _manageApi.SaveTracksAsync(
                 ctx.BroadcasterId,
-                provider.Value,
+                favoriteProvider,
                 [trackUri],
                 ctx.CancellationToken
             );

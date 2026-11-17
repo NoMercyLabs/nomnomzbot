@@ -15,7 +15,6 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
 using NSubstitute;
@@ -23,9 +22,10 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
 /// <summary>
-/// music-playback-determinism.md §3 and §7 row 29: account features with no YouTube counterpart (save track,
-/// follow artist, add to a Spotify playlist) act on the Spotify catalog id of the item. For a YouTube item
-/// they return the typed <c>NotSupportedForEngine</c> result and make no Spotify call.
+/// music-playback-determinism.md §3 and §7 row 29: account features with no YouTube counterpart (follow
+/// artist, add to a Spotify playlist) act on the Spotify catalog id of the item. For a YouTube item
+/// they return the typed <c>NotSupportedForEngine</c> result and make no Spotify call. Favorite (save,
+/// unsave, toggle) is not here: it likes the video on YouTube (see FavoriteOnYouTubeItemTests).
 /// </summary>
 public sealed class AccountActionsOnYouTubeItemTests
 {
@@ -91,51 +91,6 @@ public sealed class AccountActionsOnYouTubeItemTests
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Be(NotSupported);
         manageApi.ReceivedCalls().Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task Save_track_on_a_youtube_item_is_not_supported_and_calls_no_spotify_api()
-    {
-        IMusicProviderManageApi manageApi = Substitute.For<IMusicProviderManageApi>();
-        MusicSaveTrackAction action = new(
-            SpotifyAccountYouTubeItem(),
-            manageApi,
-            Substitute.For<IEventBus>()
-        );
-
-        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_save_track"));
-
-        AssertRefusedWithNoSpotifyCall(result, manageApi);
-    }
-
-    [Fact]
-    public async Task Unsave_track_on_a_youtube_item_is_not_supported_and_calls_no_spotify_api()
-    {
-        IMusicProviderManageApi manageApi = Substitute.For<IMusicProviderManageApi>();
-        MusicUnsaveTrackAction action = new(
-            SpotifyAccountYouTubeItem(),
-            manageApi,
-            Substitute.For<IEventBus>()
-        );
-
-        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_unsave_track"));
-
-        AssertRefusedWithNoSpotifyCall(result, manageApi);
-    }
-
-    [Fact]
-    public async Task Toggle_saved_on_a_youtube_item_is_not_supported_and_calls_no_spotify_api()
-    {
-        IMusicProviderManageApi manageApi = Substitute.For<IMusicProviderManageApi>();
-        MusicToggleSavedAction action = new(
-            SpotifyAccountYouTubeItem(),
-            manageApi,
-            Substitute.For<IEventBus>()
-        );
-
-        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_toggle_saved"));
-
-        AssertRefusedWithNoSpotifyCall(result, manageApi);
     }
 
     [Fact]
