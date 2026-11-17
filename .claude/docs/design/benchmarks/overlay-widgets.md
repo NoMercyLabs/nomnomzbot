@@ -84,7 +84,7 @@ buttons. It is loud and cheeky. It is not the Twitch purple `#9146ff` that 25 of
 | Preview of the whole set before use | Streamlabs, Elgato | https://marketplace.elgato.com/obs/scene-collections | dashboard widget page: test event per widget only | partial | S-OVL-GALLERY |
 | Free to use | OWN3D, StreamElements | https://widgets.streamelements.com/theme/astrology-package | every default widget is free | have | |
 | Edit the piece yourself | StreamElements, Streamlabs | https://widgets.streamelements.com/theme/anime-supertheme | dashboard widget code editor (dashboard/src/api/widgetCode.ts) | have | |
-| An update never overwrites a customized piece | Elgato | https://marketplace.elgato.com/product/planetar-69ed8d56-0593-405b-9a10-bb2edc2fb02b | InstalledWidgetSourceUpgradeSeeder.cs | have | |
+| An update never overwrites a customized piece | Elgato | https://marketplace.elgato.com/product/planetar-69ed8d56-0593-405b-9a10-bb2edc2fb02b | InstalledWidgetSourceUpgradeWorker.cs | have | |
 | A check that keeps new pieces on the brand | none of the five stores | https://www.own3d.pro/store/product/pure | scripts/check-overlay-theme.py, run by .githooks/pre-commit | have | |
 | Stinger transition between scenes | Elgato, Kudos | https://kudos.tv/products/cute-cats | none | not-doing | Reason: a stinger is a video file that OBS plays; it is not a browser widget and we ship no video assets |
 | Twitch profile panels | OWN3D, Streamlabs, Kudos | https://kudos.tv/collections/full-packs?sort_by=best-selling | none | not-doing | Reason: panels are static images for the Twitch profile page, outside the bot |
