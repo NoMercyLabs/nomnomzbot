@@ -376,6 +376,28 @@ public class FairQueueTests
         q.GetSnapshot().Single(e => e.Item == "a3").Rank.Should().Be(2);
     }
 
+    /// <summary>
+    /// Stoney, 2026-11-17, with a queue showing his song first and three of Bamo16's in a row: "what happened to
+    /// the FAIR queueing?". His song was placed while Bamo16's played; when his own song started, it dropped a
+    /// rank but kept its place ahead of Bamo16's first.
+    /// </summary>
+    [Fact]
+    public void When_the_playing_song_changes_owner_the_queue_follows_the_new_ranks()
+    {
+        FairQueue<string> q = new();
+        q.SetNowPlayingOwner("bamo");
+        q.Enqueue("bamo", "b1");
+        q.Enqueue("bamo", "b2");
+        q.Enqueue("stoney", "s1");
+        q.Enqueue("stoney", "s2");
+        q.Enqueue("bamo", "b3");
+
+        q.Dequeue().Should().Be("s1");
+        q.SetNowPlayingOwner("stoney");
+
+        q.GetSnapshot().Select(e => e.Item).Should().Equal("b1", "s2", "b2", "b3");
+    }
+
     [Fact]
     public void NowPlayingOwner_cleared_gives_the_next_request_rank_one_again()
     {

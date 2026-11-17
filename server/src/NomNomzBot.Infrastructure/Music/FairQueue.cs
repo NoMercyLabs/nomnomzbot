@@ -224,6 +224,8 @@ public sealed class FairQueue<T> : IFairQueue<T>
 
             _nowPlayingKey = key;
             RecalculateRanks();
+            // A new song started: queued songs placed under the old owner's share follow the new ranks.
+            SettleAfterPlayedSongsLeave();
         }
     }
 
