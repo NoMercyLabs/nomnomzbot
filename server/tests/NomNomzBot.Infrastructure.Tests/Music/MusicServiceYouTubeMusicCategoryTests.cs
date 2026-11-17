@@ -59,6 +59,37 @@ public sealed class MusicServiceYouTubeMusicCategoryTests
         (await QueuedNames(sut)).Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Stoney, 2026-11-17, after replying !permit to a refused YouTube link and getting "has nothing waiting on a
+    /// permit": "why do i still not have a proper reply to queue the song anyways?!". A moderator can wave a
+    /// not-music refusal through, as with the length rule.
+    /// </summary>
+    [Fact]
+    public async Task A_link_refused_as_not_music_is_queued_for_the_viewer_once_a_moderator_permits_it()
+    {
+        MusicService sut = Build(categoryOnly: true, FanUpload());
+        Result<MusicTrack> refused = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            FanUploadLink,
+            "bamo16",
+            requesterRoleLevel: PermissionLevel.Broadcaster.ToLevelValue(),
+            requesterUserId: "tw-bamo16"
+        );
+        refused.ErrorCode.Should().Be("TRACK_NOT_MUSIC", refused.ErrorMessage);
+
+        Result<MusicTrack> admitted = await sut.AdmitPermittedRequestAsync(
+            ChannelId.ToString(),
+            "bamo16"
+        );
+
+        admitted.IsSuccess.Should().BeTrue(admitted.ErrorCode + " " + admitted.ErrorMessage);
+        admitted.Value.Uri.Should().Be($"https://www.youtube.com/watch?v={FanUploadId}");
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Select(i => (i.TrackName, i.RequestedBy))
+            .Should()
+            .Equal(("Fan upload", "bamo16"));
+    }
+
     [Fact]
     public async Task A_fan_upload_outside_the_music_category_is_queued_when_the_setting_is_off()
     {

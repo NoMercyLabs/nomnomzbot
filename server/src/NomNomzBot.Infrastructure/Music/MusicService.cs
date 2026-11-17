@@ -741,6 +741,16 @@ public sealed class MusicService : IMusicService
                 failure,
                 query
             );
+            // A link refused as not music is kept, so a moderator's !permit can still queue it.
+            if (
+                failure == MusicProviderFailureReason.NotMusic
+                && closest is not null
+                && requestedBy is not null
+            )
+                _refused.Remember(
+                    broadcasterId,
+                    new(requestedBy, requesterUserId, closest, "TRACK_NOT_MUSIC")
+                );
             return ProviderFailureResult<MusicTrack>(provider, tenantId, failure);
         }
         if (trackInfo is null)
@@ -894,7 +904,7 @@ public sealed class MusicService : IMusicService
         if (resolved is not null)
             return YouTubeMusicCategory.Admits(musicCategoryOnly, resolved, input)
                 ? (resolved, MusicProviderFailureReason.None, null)
-                : (null, MusicProviderFailureReason.NotMusic, null);
+                : (null, MusicProviderFailureReason.NotMusic, resolved);
 
         string searchText = input;
         if (IsWebLink(input))
