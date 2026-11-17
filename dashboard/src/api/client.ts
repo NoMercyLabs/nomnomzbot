@@ -20,6 +20,21 @@ import { servedOrigin } from '@/lib/botAddress';
 
 export const client = createClient<paths>({ baseUrl: servedOrigin });
 
+// A path param left empty stays as "{name}" in the URL. Refuse it here, so the bot never gets a request for a
+// channel called "{channelId}"; the query that sent it shows an error instead.
+const unfilledParam = /%7B(\w+)%7D|\{(\w+)\}/u;
+
+client.use({
+  onRequest({ request }) {
+    const unfilled = unfilledParam.exec(new URL(request.url).pathname);
+
+    if (unfilled)
+      throw new Error(`The request path has no value for {${unfilled[1] ?? unfilled[2]}}: ${request.method} ${request.url}`);
+
+    return request;
+  },
+});
+
 // Every call goes to the chosen bot. Registered first, so the sign-in middleware sees the final address.
 client.use({
   async onRequest({ request }) {

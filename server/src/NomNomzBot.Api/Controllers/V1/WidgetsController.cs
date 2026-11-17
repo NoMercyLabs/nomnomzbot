@@ -210,6 +210,15 @@ public class WidgetsController : BaseController
             Decode(widgetId),
             ct
         );
+
+        // A widget that declares no settings is an answer for the settings panel, not an error: no fields.
+        if (result is { IsFailure: true, ErrorCode: "WIDGET_NO_SETTINGS_SCHEMA" })
+            return Ok(
+                new StatusResponseDto<WidgetSettingsSchema>
+                {
+                    Data = new WidgetSettingsSchema(widgetId, string.Empty, [], []),
+                }
+            );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<WidgetSettingsSchema> { Data = result.Value });

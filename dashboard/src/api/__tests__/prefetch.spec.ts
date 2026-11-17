@@ -151,12 +151,20 @@ describe('prefetchProfile', () => {
     queries = new QueryClient();
   });
 
-  it('puts the Emotes tab and the first Chat tab page in the cache', async () => {
+  // Stoney 2026-11-17: the live box logged GET .../community/39863651/emotes -> 404. The route takes the internal
+  // id (the Emotes tab reads it by internalUserId); the hover warmed it with the Twitch id instead.
+  it('puts the Emotes tab and the first Chat tab page in the cache, both under the internal id', async () => {
     await prefetchProfile(queries, 'c1', '42');
 
     const chat = queries.getQueryData<{ pages: unknown[] }>(userChatKey('c1', 'g-42'));
+    const emotePaths = http.GET.mock.calls.filter(([path]) =>
+      path.endsWith('/emotes'));
 
-    expect(cachedStatus(personEmotesKey('c1', '42'))).toBe('success');
+    expect(cachedStatus(personEmotesKey('c1', 'g-42'))).toBe('success');
+
+    expect(emotePaths.map(([, init]) =>
+      (init as { params: { path: { userId: string } } }).params.path.userId)).toEqual(['g-42']);
+
     expect(chat?.pages).toHaveLength(1);
   });
 });

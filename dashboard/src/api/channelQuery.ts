@@ -35,17 +35,22 @@ export function channelOptions<T>(
   } as const satisfies { queryKey: KeyParts; queryFn: () => Promise<T> };
 }
 
-// A query that waits for a channel id and keeps one cache entry per channel.
+// A query that waits for a channel id and keeps one cache entry per channel. Each entry's reader holds the id of
+// its own key: a refetch that runs after the page changed channel still asks for the channel it caches.
 export function channelQuery<T>(
   channelId: MaybeRefOrGetter<string | null>,
   key: (channelId: string | null) => KeyParts,
   fetch: (channelId: string) => Promise<T>,
   refetchInterval?: number,
 ): UseQueryReturnType<T, Error> {
-  return useQuery({
-    queryKey: computed(() => key(toValue(channelId))),
-    queryFn: () => fetch(toValue(channelId) as string),
-    enabled: computed(() => toValue(channelId) !== null),
-    refetchInterval,
-  });
+  return useQuery(computed(() => {
+    const id = toValue(channelId);
+
+    return {
+      queryKey: key(id),
+      queryFn: () => fetch(id as string),
+      enabled: id !== null,
+      refetchInterval,
+    };
+  }));
 }

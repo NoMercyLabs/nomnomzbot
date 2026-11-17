@@ -12,7 +12,7 @@
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
 import { TwitchPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/twitch';
-import { onBeforeUnmount, useId, watch } from 'vue';
+import { onBeforeUnmount, onMounted, useId, watch } from 'vue';
 
 import { servedOrigin } from '@/lib/botAddress';
 
@@ -51,14 +51,19 @@ function dispose(): void {
   player = null;
 }
 
-watch(() =>
-  props.live, (live) => {
+function rebuild(): void {
   dispose();
 
-  if (live) {
+  if (props.live) {
     build();
   }
-}, { immediate: true, flush: 'post' });
+}
+
+// The player needs its element in the page: build after mount, never during setup.
+onMounted(rebuild);
+
+watch(() =>
+  props.live, rebuild, { flush: 'post' });
 
 onBeforeUnmount(dispose);
 </script>

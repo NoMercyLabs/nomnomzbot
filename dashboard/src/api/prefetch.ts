@@ -205,7 +205,6 @@ export async function prefetchProfile(
   userId: string,
 ): Promise<void> {
   const notes = warm(queries, userNotesOptions(channelId, userId));
-  const emotes = warm(queries, personEmotesOptions(channelId, userId));
   const member = communityMemberOptions(channelId, userId);
 
   await warm(queries, member);
@@ -213,9 +212,12 @@ export async function prefetchProfile(
   const person = queries.getQueryData<CommunityMember | null>(member.queryKey);
   const internalId = person?.internalUserId;
 
+  // The Emotes tab reads by the internal id, like the route it calls; the Twitch id would miss it.
   if (internalId) {
-    await warmByInternalId(queries, channelId, internalId);
+    const emotes = personEmotesOptions(channelId, internalId);
+
+    await Promise.all([warmByInternalId(queries, channelId, internalId), warm(queries, emotes)]);
   }
 
-  await Promise.all([notes, emotes]);
+  await notes;
 }

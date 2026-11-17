@@ -39,6 +39,10 @@ const { players } = vi.hoisted(() =>
 
 vi.mock('@nomercy-entertainment/nomercy-video-player', () => ({
   default: (containerId: string) => {
+    // The real player throws core:player/element-missing when its element is not in the page yet.
+    if (document.getElementById(containerId) === null)
+      throw new Error(`core:player/element-missing: No element found with id "${containerId}".`);
+
     const player: FakePlayer = {
       containerId,
       plugins: [],
