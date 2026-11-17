@@ -11,5 +11,13 @@
 
 namespace NomNomzBot.Infrastructure.Music;
 
-/// <summary><c>youtube.play</c>: the overlay player loads and plays this video now.</summary>
-public sealed record YouTubePlayWidgetPayload(string VideoId, string TrackUri);
+/// <summary>
+/// <c>youtube.play</c>: the overlay player loads and plays this video now. Start and end, in seconds, are the
+/// music section of the video; null means the video plays whole.
+/// </summary>
+public sealed record YouTubePlayWidgetPayload(
+    string VideoId,
+    string TrackUri,
+    double? StartSeconds = null,
+    double? EndSeconds = null
+);

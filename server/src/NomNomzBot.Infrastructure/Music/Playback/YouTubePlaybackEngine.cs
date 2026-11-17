@@ -90,9 +90,19 @@ public sealed class YouTubePlaybackEngine(
         await lease.Dispatcher.ReplayCurrentAsync(broadcasterId, pageIsPlaying, ct);
     }
 
-    /// <summary>The overlay player takes whole seconds.</summary>
-    public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
-        CommandAsync(lease => lease.Provider.SeekAsync(broadcasterId, positionMs / 1000, ct), ct);
+    /// <summary>The overlay player takes whole seconds. A position in a trimmed video counts from its music start.</summary>
+    public Task SeekAsync(int positionMs, CancellationToken ct = default)
+    {
+        int startMs =
+            _startedUri is not null && YouTubeVideoId.Extract(_startedUri) is { } videoId
+                ? store.PushedTrack(broadcasterId, videoId)?.StartMs ?? 0
+                : 0;
+
+        return CommandAsync(
+            lease => lease.Provider.SeekAsync(broadcasterId, (positionMs + startMs) / 1000, ct),
+            ct
+        );
+    }
 
     public Task SetVolumeAsync(int level, CancellationToken ct = default) =>
         CommandAsync(lease => lease.Provider.SetVolumeAsync(broadcasterId, level, ct), ct);
@@ -143,15 +153,16 @@ public sealed class YouTubePlaybackEngine(
             return;
         }
 
-        int durationMs = store.PushedTrack(broadcasterId, report.VideoId)?.DurationMs ?? 0;
+        // The director reads progress and length of the music section: the next hand-over follows its end.
+        YouTubeQueuedTrack? known = store.PushedTrack(broadcasterId, report.VideoId);
 
         await _relay.RaiseAsync(
             new EngineReport(
                 EngineKind.YouTube,
                 uri,
                 report.State == YouTubePlayerState.Playing,
-                (int)report.PositionMs,
-                durationMs
+                known?.ProgressOf(report.PositionMs) ?? (int)report.PositionMs,
+                known?.PlayedDurationMs ?? 0
             )
         );
     }

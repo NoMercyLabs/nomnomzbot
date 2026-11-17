@@ -23,8 +23,23 @@ public sealed record YouTubeQueuedTrack(
     string Title,
     string Artist,
     int DurationMs = 0,
-    string? ThumbnailUrl = null
-);
+    string? ThumbnailUrl = null,
+    int StartMs = 0,
+    int EndMs = 0
+)
+{
+    /// <summary>The music section the player is told to play, or null when the video plays whole.</summary>
+    public SponsorBlock.YouTubeMusicSection? Section =>
+        StartMs > 0 || EndMs > 0 ? new(StartMs, EndMs) : null;
+
+    /// <summary>The length that plays: the music section when the video is trimmed, else the whole video.</summary>
+    public int PlayedDurationMs =>
+        DurationMs <= 0 && EndMs <= 0 ? 0 : (EndMs > 0 ? EndMs : DurationMs) - StartMs;
+
+    /// <summary>The position in the played section for a position in the video.</summary>
+    public int ProgressOf(long videoPositionMs) =>
+        (int)Math.Clamp(videoPositionMs - StartMs, 0, int.MaxValue);
+}
 
 /// <summary>
 /// What each channel's overlay YouTube player last said, the video pushed to it, and the one video waiting

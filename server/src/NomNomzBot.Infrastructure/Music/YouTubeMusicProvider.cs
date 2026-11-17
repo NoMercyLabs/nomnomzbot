@@ -19,6 +19,7 @@ using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
+using NomNomzBot.Infrastructure.Music.SponsorBlock;
 using NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -83,6 +84,7 @@ public sealed class YouTubeMusicProvider
     private readonly IYouTubeVideoCache _videos;
     private readonly IYouTubeKeylessResolver _keyless;
     private readonly IYouTubeWebSearch _webSearch;
+    private readonly ISponsorBlockClient _sponsorBlock;
 
     public YouTubeMusicProvider(
         IHttpClientFactory httpClientFactory,
@@ -95,9 +97,11 @@ public sealed class YouTubeMusicProvider
         IYouTubeVideoCache videos,
         IYouTubeKeylessResolver keyless,
         IYouTubeWebSearch webSearch,
+        ISponsorBlockClient sponsorBlock,
         ILogger<YouTubeMusicProvider> logger
     )
     {
+        _sponsorBlock = sponsorBlock;
         _keyless = keyless;
         _webSearch = webSearch;
         _quota = quota;
@@ -189,7 +193,13 @@ public sealed class YouTubeMusicProvider
             return false;
 
         YouTubeQueuedTrack queued = await DescribeAsync(broadcasterId, videoId, cancellationToken);
-        await _players.PlayAsync(broadcasterId, players, videoId, cancellationToken);
+        await _players.PlayAsync(
+            broadcasterId,
+            players,
+            videoId,
+            cancellationToken,
+            queued.Section
+        );
         _playerState.MarkPushed(broadcasterId, queued);
         return true;
     }
@@ -302,15 +312,13 @@ public sealed class YouTubeMusicProvider
                     TrackName = pending.Title,
                     Artist = pending.Artist,
                     Album = string.Empty,
-                    DurationMs = pending.DurationMs,
+                    DurationMs = pending.PlayedDurationMs,
                     AlbumArtUrl = pending.ThumbnailUrl,
                     TrackUri = WatchUrl(pending.VideoId),
                     Provider = ProviderName,
                     ProviderTrackId = pending.VideoId,
                     IsPlaying = true,
-                    ProgressMs = reportIsForPending
-                        ? (int)Math.Clamp(report!.PositionMs, 0, int.MaxValue)
-                        : 0,
+                    ProgressMs = reportIsForPending ? pending.ProgressOf(report!.PositionMs) : 0,
                     CanSkipPrevious = false,
                     CanSetShuffle = false,
                     CanSetRepeat = false,
@@ -328,13 +336,15 @@ public sealed class YouTubeMusicProvider
                 TrackName = known?.Title ?? string.Empty,
                 Artist = known?.Artist ?? string.Empty,
                 Album = string.Empty,
-                DurationMs = known?.DurationMs ?? 0,
+                DurationMs = known?.PlayedDurationMs ?? 0,
                 AlbumArtUrl = known?.ThumbnailUrl,
                 TrackUri = WatchUrl(report.VideoId),
                 Provider = ProviderName,
                 ProviderTrackId = report.VideoId,
                 IsPlaying = report.State == YouTubePlayerState.Playing,
-                ProgressMs = (int)Math.Clamp(report.PositionMs, 0, int.MaxValue),
+                ProgressMs =
+                    known?.ProgressOf(report.PositionMs)
+                    ?? (int)Math.Clamp(report.PositionMs, 0, int.MaxValue),
                 CanSkipPrevious = false,
                 CanSetShuffle = false,
                 CanSetRepeat = false,
@@ -512,7 +522,13 @@ public sealed class YouTubeMusicProvider
             return true;
         }
 
-        await _players.PlayAsync(broadcasterId, players, videoId, cancellationToken);
+        await _players.PlayAsync(
+            broadcasterId,
+            players,
+            videoId,
+            cancellationToken,
+            queued.Section
+        );
         _playerState.MarkPushed(broadcasterId, queued);
         return true;
     }
@@ -525,12 +541,21 @@ public sealed class YouTubeMusicProvider
     )
     {
         (TrackInfo? track, _) = await ResolveTrackAsync(broadcasterId, videoId, cancellationToken);
+        int durationMs = track?.DurationMs ?? 0;
+        // A failed or slow SponsorBlock answers null: the whole video plays as it always did.
+        YouTubeMusicSection? section = await _sponsorBlock.ReadMusicSectionAsync(
+            videoId,
+            durationMs,
+            cancellationToken
+        );
         return new(
             videoId,
             track?.TrackName ?? string.Empty,
             track?.Artist ?? string.Empty,
-            track?.DurationMs ?? 0,
-            track?.AlbumArtUrl
+            durationMs,
+            track?.AlbumArtUrl,
+            section?.StartMs ?? 0,
+            section?.EndMs ?? 0
         );
     }
 

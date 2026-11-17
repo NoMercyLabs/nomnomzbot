@@ -29,7 +29,7 @@ let musicPoll: number | undefined
 // PAUSED and ENDED with the position (ms) back to the bot. The player stays mounted while hidden so audio plays
 // in card mode too.
 interface YouTubePlayerHandle {
-  loadVideoById(videoId: string): void
+  loadVideoById(video: { videoId: string, startSeconds?: number, endSeconds?: number }): void
   pauseVideo(): void
   playVideo(): void
   stopVideo(): void
@@ -70,6 +70,10 @@ let ytApiPromise: Promise<void> | null = null
 // The API is loading or the player is being created; later commands update what it starts with.
 let ytStarting = false
 let ytRequestedVideoId: string | null = null
+// The music section of the requested video (SponsorBlock): YouTube starts and ends the video there, and the
+// ENDING signal counts down to the section end. Undefined means the whole video.
+let ytStartSeconds: number | undefined
+let ytEndSeconds: number | undefined
 // A video was handed over and has not reported PLAYING yet. A seek or pause that arrives meanwhile waits for it:
 // YouTube ignores a pause before playback starts, and a paused song is resumed as play + seek + pause.
 let ytLoading: boolean = false
@@ -152,7 +156,7 @@ function clearYouTubeEnding(): void {
 function armYouTubeEnding(player: YouTubePlayerHandle, positionSeconds: number): void {
   clearYouTubeEnding()
   const videoId: string = player.getVideoData().video_id
-  const durationSeconds: number = player.getDuration()
+  const durationSeconds: number = ytEndSeconds ?? player.getDuration()
   if (!(durationSeconds > 0) || ytEndingReportedFor === videoId) return
   const delayMs: number = Math.max(0, (durationSeconds - positionSeconds - YT_ENDING_LEAD_SECONDS) * 1000)
   ytEndingTimer = window.setTimeout(() => reportYouTubeEnding(player, videoId), delayMs)
@@ -204,12 +208,14 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
   // Without the audio opt-in the page may not load the YouTube player (its CSP forbids it): stay quiet.
   if (!videoId || !cfg.enableAudio) return
   ytRequestedVideoId = videoId
+  ytStartSeconds = typeof d?.startSeconds === 'number' ? d.startSeconds : undefined
+  ytEndSeconds = typeof d?.endSeconds === 'number' ? d.endSeconds : undefined
   ytLoading = true
   ytPendingSeekSeconds = null
   ytPendingPause = false
   clearYouTubeEnding()
   ytEndingReportedFor = null
-  if (ytPlayer) { ytPlayer.loadVideoById(videoId); return }
+  if (ytPlayer) { ytPlayer.loadVideoById({ videoId, startSeconds: ytStartSeconds, endSeconds: ytEndSeconds }); return }
   if (ytStarting) return
   ytStarting = true
   try {
@@ -225,7 +231,12 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
     width: '100%',
     height: '100%',
     videoId: startedWith,
-    playerVars: { autoplay: 1, controls: 0 },
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      ...(ytStartSeconds === undefined ? {} : { start: Math.floor(ytStartSeconds) }),
+      ...(ytEndSeconds === undefined ? {} : { end: Math.ceil(ytEndSeconds) }),
+    },
     events: {
       onReady: (e) => onYouTubeReady(e.target, startedWith),
       onStateChange: (e) => reportYouTubeState(e.target, e.data),
@@ -239,7 +250,8 @@ function onYouTubeReady(player: YouTubePlayerHandle, startedWith: string): void 
   ytPlayer = player
   ytStarting = false
   if (!ytRequestedVideoId) player.stopVideo()
-  else if (ytRequestedVideoId !== startedWith) player.loadVideoById(ytRequestedVideoId)
+  else if (ytRequestedVideoId !== startedWith)
+    player.loadVideoById({ videoId: ytRequestedVideoId, startSeconds: ytStartSeconds, endSeconds: ytEndSeconds })
 }
 
 // The player's own state changes then report PAUSED / PLAYING back to the bot.

@@ -27,12 +27,16 @@ public interface IYouTubePlayerDispatcher
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Sends <c>youtube.play</c> for the video to the given player widgets.</summary>
+    /// <summary>
+    /// Sends <c>youtube.play</c> for the video to the given player widgets, limited to the music section when
+    /// one is given.
+    /// </summary>
     Task PlayAsync(
         Guid broadcasterId,
         IReadOnlyList<Guid> players,
         string videoId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        SponsorBlock.YouTubeMusicSection? section = null
     );
 
     /// <summary>Sends <c>youtube.pause</c> to the given player widgets.</summary>
@@ -126,10 +130,16 @@ public sealed class YouTubePlayerDispatcher(
         Guid broadcasterId,
         IReadOnlyList<Guid> players,
         string videoId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        SponsorBlock.YouTubeMusicSection? section = null
     )
     {
-        YouTubePlayWidgetPayload payload = new(videoId, YouTubeMusicProvider.WatchUrl(videoId));
+        YouTubePlayWidgetPayload payload = new(
+            videoId,
+            YouTubeMusicProvider.WatchUrl(videoId),
+            section is { StartMs: > 0 } ? section.StartMs / 1000.0 : null,
+            section is { EndMs: > 0 } ? section.EndMs / 1000.0 : null
+        );
         foreach (Guid widgetId in players)
             await notifier.SendWidgetEventAsync(
                 broadcasterId,
@@ -204,7 +214,7 @@ public sealed class YouTubePlayerDispatcher(
             return true;
         }
 
-        await PlayAsync(broadcasterId, open, next.VideoId, cancellationToken);
+        await PlayAsync(broadcasterId, open, next.VideoId, cancellationToken, next.Section);
         store.MarkPushed(broadcasterId, next);
         return true;
     }
@@ -230,7 +240,13 @@ public sealed class YouTubePlayerDispatcher(
         if (open.Count == 0)
             return false;
 
-        await PlayAsync(broadcasterId, open, current.VideoId, cancellationToken);
+        await PlayAsync(
+            broadcasterId,
+            open,
+            current.VideoId,
+            cancellationToken,
+            store.PushedTrack(broadcasterId, current.VideoId)?.Section
+        );
         await SeekAsync(broadcasterId, open, current.PositionMs, cancellationToken);
         if (current.State == YouTubePlayerState.Paused)
             await PauseAsync(broadcasterId, open, cancellationToken);

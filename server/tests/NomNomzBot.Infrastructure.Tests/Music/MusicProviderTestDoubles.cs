@@ -483,7 +483,8 @@ internal static class YouTubeProviderFactory
         IYouTubePlayerDispatcher? players = null,
         IYouTubeApiKeyResolver? keyResolver = null,
         TimeProvider? time = null,
-        IPlaybackInputSink? playback = null
+        IPlaybackInputSink? playback = null,
+        NomNomzBot.Infrastructure.Music.SponsorBlock.ISponsorBlockClient? sponsorBlock = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -530,6 +531,11 @@ internal static class YouTubeProviderFactory
                 new YouTubeArtistChannelReader(factory)
             ),
             new YouTubeWebSearch(factory),
+            sponsorBlock
+                ?? new NomNomzBot.Infrastructure.Music.SponsorBlock.SponsorBlockClient(
+                    factory,
+                    time ?? TimeProvider.System
+                ),
             NullLogger<YouTubeMusicProvider>.Instance
         );
     }

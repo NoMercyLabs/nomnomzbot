@@ -479,10 +479,12 @@ interface NnzAdUpcomingWidgetPayload {
   nextAdAt: string;
 }
 
-/** youtube.play: the overlay player loads and plays this video now. */
+/** youtube.play: the overlay player loads and plays this video now. Start and end, in seconds, are the music section of the video; null means the video plays whole. */
 interface NnzYouTubePlayWidgetPayload {
   videoId: string;
   trackUri: string;
+  startSeconds?: number | null;
+  endSeconds?: number | null;
 }
 
 /** youtube.pause / youtube.resume / youtube.stop: the overlay player pauses, resumes or stops (and reports ENDED); no fields. */

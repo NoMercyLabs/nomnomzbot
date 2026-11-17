@@ -1583,6 +1583,16 @@ public static class DependencyInjection
         // (music-sr.md §3.5.2). App-level YouTube:ApiKey — no per-user OAuth (music-sr.md decision #8).
         services.AddHttpClient("youtube");
 
+        // SponsorBlock marks the off-topic intro and outro of a video; a slow answer plays the whole video.
+        services.AddHttpClient(
+            Music.SponsorBlock.SponsorBlockClient.ClientName,
+            client => client.Timeout = TimeSpan.FromSeconds(3)
+        );
+        services.AddSingleton<
+            Music.SponsorBlock.ISponsorBlockClient,
+            Music.SponsorBlock.SponsorBlockClient
+        >();
+
         // Keyless YouTube reads (oEmbed, public player data, web search): song requests work with no
         // API key and no OAuth, and spend none of the owner's Data API quota (decisions/youtube-without-oauth-or-key.md).
         services.AddHttpClient(Music.YouTubeKeyless.YouTubeInnertube.ClientName);
