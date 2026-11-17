@@ -281,7 +281,7 @@ const panels = computed(
             :aria-label="$t('dashboard.tts.voices.loading')"
             aria-busy="true"
           >
-            <Skeleton v-for="line in 3" :key="line" class="h-11 rounded-[12px]" />
+            <Skeleton v-for="line in 3" :key="line" class="h-11 rounded-xl" />
           </div>
           <p
             v-else-if="visible.length === 0"
@@ -353,10 +353,10 @@ const panels = computed(
         <div
           v-if="chosen !== null"
           data-current-voice
-          class="flex items-center gap-3 rounded-[12px] border border-border p-3"
+          class="flex items-center gap-3 rounded-xl border border-border p-3"
         >
           <span
-            class="flex size-10 flex-none items-center justify-center rounded-[8px] bg-muted text-muted-foreground"
+            class="flex size-10 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
           >
             <WaveForm class="size-5" aria-hidden="true" />
           </span>

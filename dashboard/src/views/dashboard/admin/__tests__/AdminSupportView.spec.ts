@@ -250,7 +250,7 @@ describe('AdminSupportView', () => {
     expect(row.tagName).toBe('BUTTON');
     expect(row.dataset.slot).toBe('summary-row-body');
     expect(row.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('Stoney_Eagle');
-    expect(row.closest('.rounded-\\[12px\\]')).not.toBeNull();
+    expect(row.closest('.rounded-xl')).not.toBeNull();
     expect(document.body.querySelector('ul.divide-y')).toBeNull();
   });
 

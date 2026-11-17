@@ -179,7 +179,7 @@ function setSize(next: number[] | undefined): void {
         </div>
         <div
           data-slot="readability-sample"
-          class="rounded-[12px] border border-border bg-background p-4"
+          class="rounded-xl border border-border bg-background p-4"
           aria-live="polite"
         >
           <!-- Dashboard text, not a chat line: the chat feed has its own Display options. -->

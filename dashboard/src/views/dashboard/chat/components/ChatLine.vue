@@ -430,7 +430,7 @@ function pick(event: MouseEvent): void {
       <div
         v-if="!line.removed && hasActions"
         :class="compact ? 'right-1' : 'right-3'"
-        class="absolute bottom-full z-10 translate-y-0.5 flex items-center rounded-[12px] border p-0.5 invisible opacity-0 will-change-[opacity] group-hover/line:visible group-hover/line:opacity-100 group-focus-within/line:visible group-focus-within/line:opacity-100 has-aria-expanded:visible has-aria-expanded:opacity-100"
+        class="absolute bottom-full z-10 translate-y-0.5 flex items-center rounded-xl border p-0.5 invisible opacity-0 will-change-[opacity] group-hover/line:visible group-hover/line:opacity-100 group-focus-within/line:visible group-focus-within/line:opacity-100 has-aria-expanded:visible has-aria-expanded:opacity-100"
         data-tray
         role="group"
         :aria-label="$t('dashboard.chat.line.actions', { name: line.displayName })"

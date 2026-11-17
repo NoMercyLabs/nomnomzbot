@@ -71,7 +71,7 @@ async function runRebuild(): Promise<void> {
     :description="$t('dashboard.settings.eventJournal.readModels.description')"
   >
     <RowGroup>
-      <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+      <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-lg px-3 py-2">
         <p class="min-w-0 flex-1 text-sm text-muted-foreground">
           {{ $t('dashboard.settings.eventJournal.readModels.replayHelp') }}
         </p>
@@ -85,7 +85,7 @@ async function runRebuild(): Promise<void> {
           {{ $t('dashboard.settings.eventJournal.readModels.replay') }}
         </Button>
       </div>
-      <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+      <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-lg px-3 py-2">
         <p class="min-w-0 flex-1 text-sm text-muted-foreground">
           {{ $t('dashboard.settings.eventJournal.readModels.rebuildHelp') }}
         </p>

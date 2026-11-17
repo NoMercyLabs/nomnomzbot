@@ -122,7 +122,7 @@ function removeRule(): void {
       {{ t('dashboard.discord.liveRole.owner') }}
     </p>
 
-    <div class="rounded-[8px] border border-border p-1">
+    <div class="rounded-lg border border-border p-1">
       <SettingRow
         v-model="enabled"
         data-field="live-enabled"

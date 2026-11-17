@@ -224,7 +224,7 @@ describe('AdminEventSubHealthView', () => {
     expect(first.querySelector('[data-slot="summary-row-title"]')!.textContent).toBe('Channel raid');
     expect(first.querySelector('[data-slot="summary-row-meta"]')!.textContent).toContain('token gone');
     expect(first.querySelector('[data-tone="bad"]')).not.toBeNull();
-    expect(first.closest('.rounded-\\[12px\\]')).not.toBeNull();
+    expect(first.closest('.rounded-xl')).not.toBeNull();
     expect(document.body.querySelector('ul.divide-y')).toBeNull();
   });
 

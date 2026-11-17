@@ -194,7 +194,7 @@ const deleted = ref('');
     </ol>
     <div data-catalog-filter-demo class="grid gap-3">
       <!-- 1. The compact filters sit in PageHeader#bar: one control, always visible. -->
-      <div data-catalog-filter-bar class="flex flex-wrap items-center gap-3 rounded-[12px] border border-border px-3 py-1.5">
+      <div data-catalog-filter-bar class="flex flex-wrap items-center gap-3 rounded-xl border border-border px-3 py-1.5">
         <FilterBar v-model="kind" :label="t('dashboard.catalog.guide.filters.kind.label')" :options="kindOptions" />
       </div>
       <!-- 2. The search sits in the list header; 3. the advanced filters fold behind one trigger that counts them. -->
@@ -217,7 +217,7 @@ const deleted = ref('');
           </Collapsible>
         </template>
         <Collapsible v-model:open="advancedOpen">
-          <CollapsibleContent data-catalog-advanced class="mb-2 flex flex-wrap items-center gap-4 rounded-[12px] border border-border p-3">
+          <CollapsibleContent data-catalog-advanced class="mb-2 flex flex-wrap items-center gap-4 rounded-xl border border-border p-3">
             <label class="flex items-center gap-2 text-sm">
               <Switch v-model="onlyEnabled" :aria-label="t('dashboard.catalog.guide.filters.enabled')" />
               {{ t('dashboard.catalog.guide.filters.enabled') }}

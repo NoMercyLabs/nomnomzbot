@@ -468,7 +468,7 @@ describe('AdminTrustSafetyView', () => {
       const row = document.body.querySelector<HTMLElement>(hook)!;
       const body = row.querySelector<HTMLElement>('[data-slot="summary-row-body"]')!;
 
-      expect(row.parentElement!.className).toContain('rounded-[12px]');
+      expect(row.parentElement!.className).toContain('rounded-xl');
       expect(body.querySelector('[data-slot="summary-row-title"]')!.textContent!.trim()).not.toBe('');
     }
 

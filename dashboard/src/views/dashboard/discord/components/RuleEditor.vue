@@ -250,7 +250,7 @@ function removeField(index: number): void {
 
 <template>
   <form class="flex flex-col gap-5" data-rule-editor @submit.prevent="saveRule">
-    <div class="rounded-[8px] border border-border p-1">
+    <div class="rounded-lg border border-border p-1">
       <SettingRow
         v-model="draft.enabled"
         :title="t('dashboard.discord.editor.enabled')"
@@ -309,7 +309,7 @@ function removeField(index: number): void {
       {{ t('dashboard.discord.editor.placeholders', { list: placeholderList }) }}
     </p>
 
-    <fieldset class="flex flex-col gap-3 rounded-[8px] border border-border p-3">
+    <fieldset class="flex flex-col gap-3 rounded-lg border border-border p-3">
       <legend class="px-1 text-sm font-medium">
         {{ t('dashboard.discord.editor.embed') }}
       </legend>
@@ -470,7 +470,7 @@ function removeField(index: number): void {
       </Button>
     </fieldset>
 
-    <section v-if="shown" data-preview class="flex flex-col gap-2 rounded-[8px] bg-muted p-3 text-sm">
+    <section v-if="shown" data-preview class="flex flex-col gap-2 rounded-lg bg-muted p-3 text-sm">
       <p v-if="shown.pingRoleMention" data-preview-ping class="font-medium">
         {{ shown.pingRoleMention }}
       </p>

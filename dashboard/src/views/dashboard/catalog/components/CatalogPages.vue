@@ -68,10 +68,10 @@ const sideOpen = ref(true);
   <section data-catalog="page-body" class="grid gap-4">
     <CatalogWidthFrame :title="t('dashboard.catalog.pages.body')">
       <div class="grid gap-3">
-        <PageBody dense class="rounded-[8px] bg-muted/40">
+        <PageBody dense class="rounded-lg bg-muted/40">
           <PanelCard :title="t('dashboard.catalog.pages.dense')" pad>{{ t('dashboard.catalog.pages.denseText') }}</PanelCard>
         </PageBody>
-        <PageBody class="max-h-40 rounded-[8px] bg-muted/40">
+        <PageBody class="max-h-40 rounded-lg bg-muted/40">
           <PanelCard :title="t('dashboard.catalog.pages.scroll')" pad>{{ t('dashboard.catalog.pages.scrollText') }}</PanelCard>
           <PanelCard :title="t('dashboard.catalog.pages.scroll')" pad>{{ t('dashboard.catalog.pages.scrollText') }}</PanelCard>
         </PageBody>
@@ -86,15 +86,15 @@ const sideOpen = ref(true);
         <h3 class="text-sm font-medium">{{ t(`dashboard.catalog.pages.bodies.${body}.name`) }}</h3>
         <p class="text-sm text-muted-foreground">{{ t(`dashboard.catalog.pages.bodies.${body}.rule`) }}</p>
         <!-- A 12px frame around a 4px gap keeps each example's own 8px corners concentric. -->
-        <div data-body-example class="@container flex h-56 min-w-0 flex-col overflow-hidden rounded-[12px] border border-dashed border-border p-1">
-          <PageBody v-if="body === 'standard'" class="rounded-[8px] bg-muted/40">
+        <div data-body-example class="@container flex h-56 min-w-0 flex-col overflow-hidden rounded-xl border border-dashed border-border p-1">
+          <PageBody v-if="body === 'standard'" class="rounded-lg bg-muted/40">
             <PanelCard :title="t('dashboard.catalog.pages.bodies.standard.panel')" pad />
             <PanelCard :title="t('dashboard.catalog.pages.bodies.standard.panel')" pad />
           </PageBody>
-          <PageBody v-else-if="body === 'dense'" dense class="rounded-[8px] bg-muted/40">
+          <PageBody v-else-if="body === 'dense'" dense class="rounded-lg bg-muted/40">
             <PanelCard :title="t('dashboard.catalog.pages.bodies.dense.panel')" tier="lead" class="min-h-0 flex-1" pad />
           </PageBody>
-          <ListDetail v-else-if="body === 'listDetail'" class="rounded-[8px] bg-muted/40">
+          <ListDetail v-else-if="body === 'listDetail'" class="rounded-lg bg-muted/40">
             <template #list>
               <PanelCard :title="t('dashboard.catalog.pages.bodies.listDetail.list')" pad />
             </template>
@@ -102,7 +102,7 @@ const sideOpen = ref(true);
               <PanelCard :title="t('dashboard.catalog.pages.bodies.listDetail.detail')" tier="lead" pad />
             </template>
           </ListDetail>
-          <BoardGrid v-else-if="body === 'board'" :panels="boardPanels" class="rounded-[8px] bg-muted/40">
+          <BoardGrid v-else-if="body === 'board'" :panels="boardPanels" class="rounded-lg bg-muted/40">
             <BoardCell panel="one" :span="6">
               <PanelCard :title="t('dashboard.catalog.pages.bodies.board.one')" tier="lead" />
             </BoardCell>
@@ -113,14 +113,14 @@ const sideOpen = ref(true);
           <div
             v-else-if="body === 'workspace'"
             data-slot="workspace"
-            class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[8px] bg-muted/40"
+            class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-muted/40"
           >
             <div class="border-b border-border px-3 py-2 text-sm font-medium">
               {{ t('dashboard.catalog.pages.bodies.workspace.toolbar') }}
             </div>
             <p class="flex-1 p-3 text-sm text-muted-foreground">{{ t('dashboard.catalog.pages.bodies.workspace.stage') }}</p>
           </div>
-          <PanelBeside v-else class="rounded-[8px] bg-muted/40">
+          <PanelBeside v-else class="rounded-lg bg-muted/40">
             <PageBody dense>
               <PanelCard :title="t('dashboard.catalog.pages.bodies.beside.panel')" tier="lead" class="min-h-0 flex-1" pad />
             </PageBody>

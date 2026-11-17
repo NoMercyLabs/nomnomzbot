@@ -222,7 +222,7 @@ async function restoreChannel(): Promise<void> {
       :description="$t('dashboard.settings.channelManagement.reset.description')"
     >
       <RowGroup>
-        <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+        <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-lg px-3 py-2">
           <p class="min-w-0 flex-1 text-sm text-muted-foreground">
             {{ $t('dashboard.settings.channelManagement.reset.help') }}
           </p>
@@ -258,7 +258,7 @@ async function restoreChannel(): Promise<void> {
           :busy="busy"
           @restore="restoreListed(gone.id)"
         />
-        <div v-if="deleted === null" class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+        <div v-if="deleted === null" class="flex min-h-11 flex-wrap items-center gap-3 rounded-lg px-3 py-2">
           <p class="min-w-0 flex-1 text-sm text-muted-foreground">
             {{ $t('dashboard.settings.channelManagement.delete.help') }}
           </p>

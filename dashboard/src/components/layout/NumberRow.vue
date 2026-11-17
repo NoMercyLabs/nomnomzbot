@@ -53,7 +53,7 @@ function change(typed: string | number): void {
 </script>
 
 <template>
-  <div data-slot="number-row" class="min-h-11 rounded-[8px] px-3 py-2">
+  <div data-slot="number-row" class="min-h-11 rounded-lg px-3 py-2">
     <div class="flex items-center gap-3">
       <span class="min-w-0 flex-1">
         <RowText :title="title" :title-id="titleId" :description="description" :hint="hint" />

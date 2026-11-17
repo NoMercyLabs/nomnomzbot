@@ -739,7 +739,7 @@ describe('AdminAccessView', () => {
 
     expect(body.dataset.slot).toBe('summary-row-body');
     expect(body.querySelector('[data-slot="summary-row-title"] [data-user="u1"]')).not.toBeNull();
-    expect(row.parentElement!.className).toContain('rounded-[12px]');
+    expect(row.parentElement!.className).toContain('rounded-xl');
 
     const trailing = row.querySelector('[data-slot="summary-row-trailing"]')!;
 

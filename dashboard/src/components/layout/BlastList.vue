@@ -18,10 +18,10 @@ defineProps<{ items: readonly string[] }>();
   <div
     v-if="items.length > 0"
     data-slot="blast-list"
-    class="grid gap-2 rounded-[12px] border border-destructive/35 bg-destructive/8 px-4 py-3 text-sm"
+    class="grid gap-2 rounded-xl border border-destructive/35 bg-destructive/8 px-4 py-3 text-sm"
   >
     <b class="font-medium">{{ $t('common.confirm.whatHappens') }}</b>
-    <ul class="grid list-disc gap-0.5 pl-[18px]">
+    <ul class="grid list-disc gap-0.5 pl-4.5">
       <li v-for="item in items" :key="item">{{ item }}</li>
     </ul>
   </div>

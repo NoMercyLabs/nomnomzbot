@@ -65,7 +65,7 @@ describe('the list panel', () => {
     expect(children[0]!.getAttribute('data-extra')).toBe('');
     expect(children[1]!.getAttribute('data-slot')).toBe('search-field');
     expect(children[1]!.className).toContain('-mr-2');
-    expect(children[1]!.className).toContain('rounded-[12px]');
+    expect(children[1]!.className).toContain('rounded-xl');
   });
 
   it('filters the rows of the slot as the person types', async () => {

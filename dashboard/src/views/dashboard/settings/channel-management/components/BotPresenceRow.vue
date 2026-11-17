@@ -34,7 +34,7 @@ const since = useFormattedTime(() => props.joinedAt, 'dateTime');
 </script>
 
 <template>
-  <div data-slot="bot-presence" class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+  <div data-slot="bot-presence" class="flex min-h-11 flex-wrap items-center gap-3 rounded-lg px-3 py-2">
     <div class="min-w-0 flex-1">
       <StatusBadge
         :tone="joined ? 'ok' : 'off'"

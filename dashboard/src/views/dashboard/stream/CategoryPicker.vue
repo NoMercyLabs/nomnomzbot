@@ -51,7 +51,7 @@ function pickFound(category: Category): void {
     />
     <div
       v-if="asked.trim() !== ''"
-      class="flex flex-col rounded-[12px] border border-border bg-muted p-1"
+      class="flex flex-col rounded-xl border border-border bg-muted p-1"
     >
       <p v-if="searching" class="px-3 py-2 text-sm text-muted-foreground">
         {{ t('dashboard.stream.info.categorySearching') }}
@@ -64,7 +64,7 @@ function pickFound(category: Category): void {
         :key="category.id"
         type="button"
         data-category-result
-        class="min-h-9 rounded-[8px] px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
+        class="min-h-9 rounded-lg px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
         @click="pickFound(category)"
       >
         {{ category.name }}

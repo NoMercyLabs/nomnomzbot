@@ -99,7 +99,7 @@ function toggle(reward: Reward, enabled: boolean): void {
       >
         <template #leading>
           <span
-            class="flex size-9 flex-none items-center justify-center overflow-hidden rounded-[6px] bg-muted text-muted-foreground"
+            class="flex size-9 flex-none items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground"
             :style="
               reward.backgroundColor
                 ? { backgroundColor: reward.backgroundColor }

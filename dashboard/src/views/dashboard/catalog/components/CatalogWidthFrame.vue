@@ -48,7 +48,7 @@ const options = computed(() => [
     <div
       data-catalog-frame-box
       :data-frame-width="width"
-      class="@container min-w-0 overflow-hidden rounded-[12px] border border-dashed border-border p-1"
+      class="@container min-w-0 overflow-hidden rounded-xl border border-dashed border-border p-1"
       :class="FRAME_CLASS[width]"
     >
       <slot />

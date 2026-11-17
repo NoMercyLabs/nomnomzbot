@@ -76,7 +76,7 @@ const timeoutId = useId();
         :max="Number(limits.maxOffenseWindowHours)"
         :error="errors.offenseWindowHours"
       />
-      <div data-field="defaultTimeoutSeconds" class="min-h-11 rounded-[8px] px-3 py-2">
+      <div data-field="defaultTimeoutSeconds" class="min-h-11 rounded-lg px-3 py-2">
         <div class="flex items-center gap-3">
           <span class="min-w-0 flex-1">
             <RowText

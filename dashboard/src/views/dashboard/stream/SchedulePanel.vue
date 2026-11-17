@@ -195,7 +195,7 @@ function toggleCanceled(segment: ScheduleSegment): void {
             v-for="segment in segments"
             :key="segment.id"
             data-segment-row
-            class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2"
+            class="flex min-h-11 flex-wrap items-center gap-3 rounded-lg px-3 py-2"
           >
             <span data-segment-title class="min-w-0 flex-1 max-md:basis-full">
               <span class="block text-sm font-medium wrap-break-word">{{

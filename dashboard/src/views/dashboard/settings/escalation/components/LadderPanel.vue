@@ -105,7 +105,7 @@ function removeStep(index: number): void {
         v-for="(step, index) in draft.ladder"
         :key="index"
         :data-step="index"
-        class="min-h-11 rounded-[8px] px-3 py-2"
+        class="min-h-11 rounded-lg px-3 py-2"
       >
         <div class="flex flex-wrap items-center gap-3">
           <label class="flex items-center gap-2 text-sm font-medium">

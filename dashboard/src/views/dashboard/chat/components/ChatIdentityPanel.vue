@@ -106,7 +106,7 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             :key="`${badge.setId}/${badge.id}`"
             :src="badgeImage(badge.urls)"
             :alt="badge.setId"
-            class="size-[18px]"
+            class="size-4.5"
           />
           <span class="font-semibold" data-test="name" :style="{ color: shownColor }">
             {{ identity.displayName }}</span>
@@ -197,7 +197,7 @@ function badgeImage(urls: Record<string, string>): string | undefined {
             :key="`${badge.setId}/${badge.id}`"
             class="flex items-center gap-2 text-sm"
           >
-            <img :src="badgeImage(badge.urls)" :alt="''" class="size-[18px]" />
+            <img :src="badgeImage(badge.urls)" :alt="''" class="size-4.5" />
             {{ badge.setId.replaceAll('-', ' ') }}
           </li>
         </ul>

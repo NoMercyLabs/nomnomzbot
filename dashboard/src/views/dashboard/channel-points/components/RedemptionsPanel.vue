@@ -213,13 +213,13 @@ function rejectOpen(open: boolean): void {
           type="button"
           :data-redemption-filter="entry.id"
           :aria-pressed="filter === entry.id"
-          class="flex min-h-11 items-center gap-2 rounded-[12px] px-2 py-1 text-left text-sm outline-none
+          class="flex min-h-11 items-center gap-2 rounded-xl px-2 py-1 text-left text-sm outline-none
             hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50
             aria-pressed:bg-accent aria-pressed:font-medium"
           @click="pick(entry.id)"
         >
           <span
-            class="grid size-9 flex-none place-content-center overflow-hidden rounded-[6px] bg-muted text-muted-foreground"
+            class="grid size-9 flex-none place-content-center overflow-hidden rounded-md bg-muted text-muted-foreground"
             :style="entry.reward?.backgroundColor
               ? { backgroundColor: entry.reward.backgroundColor }
               : undefined"
@@ -267,7 +267,7 @@ function rejectOpen(open: boolean): void {
             v-for="row in visible"
             :key="row.redemptionId"
             :data-redemption-item="row.redemptionId"
-            class="flex min-h-14 items-center gap-3 rounded-[8px] px-3 py-2 hover:bg-accent/50"
+            class="flex min-h-14 items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50"
           >
             <Checkbox
               v-if="canDecide"

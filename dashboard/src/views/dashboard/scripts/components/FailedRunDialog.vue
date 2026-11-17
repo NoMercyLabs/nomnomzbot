@@ -48,7 +48,7 @@ const place = computed(() => props.run?.result.errors?.[0]);
         </DialogDescription>
       </div>
       <div class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4 text-sm">
-        <div data-slot="failed-run-error" class="grid gap-1 rounded-[8px] bg-muted p-3">
+        <div data-slot="failed-run-error" class="grid gap-1 rounded-lg bg-muted p-3">
           <b class="wrap-break-word">{{ run.result.error }}</b>
           <span v-if="place" class="font-mono text-xs text-muted-foreground">
             {{
@@ -83,7 +83,7 @@ const place = computed(() => props.run?.result.errors?.[0]);
         </section>
         <section v-if="run.result.console && run.result.console.length > 0" class="grid gap-2">
           <h3 class="font-medium">{{ $t('dashboard.scripts.failed.log') }}</h3>
-          <pre class="overflow-x-auto rounded-[8px] bg-muted p-3 font-mono text-xs">{{
+          <pre class="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">{{
             run.result.console.join('\n')
           }}</pre>
         </section>

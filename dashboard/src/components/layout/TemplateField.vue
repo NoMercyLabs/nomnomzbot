@@ -288,7 +288,7 @@ defineExpose({ insert });
     <div v-if="panel && panelOpen" class="flex flex-col gap-2">
       <div
         data-template-panel
-        class="flex h-64 flex-col rounded-[16px] border border-border p-2"
+        class="flex h-64 flex-col rounded-2xl border border-border p-2"
       >
         <HelperPanel :target="panelTarget" :context="context" :event-type="eventType" />
       </div>

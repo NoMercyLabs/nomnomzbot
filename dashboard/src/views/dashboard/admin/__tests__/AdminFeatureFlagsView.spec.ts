@@ -214,7 +214,7 @@ describe('AdminFeatureFlagsView', () => {
 
     for (const body of [flag, override]) {
       expect(body.dataset.slot).toBe('summary-row-body');
-      expect(body.closest('.rounded-\\[12px\\]')).not.toBeNull();
+      expect(body.closest('.rounded-xl')).not.toBeNull();
     }
 
     expect(flag.querySelector('[data-slot="summary-row-title"]')!.textContent).toBe('beta-widgets');

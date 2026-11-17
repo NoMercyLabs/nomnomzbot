@@ -126,7 +126,8 @@ export default defineConfigWithVueTs(
     files: ['src/**/*.{vue,ts}'],
     ignores: ['src/components/ui/**'],
     plugins: { 'better-tailwindcss': pluginBetterTailwind },
-    settings: { 'better-tailwindcss': { entryPoint: 'src/styles/main.css' } },
+    // Without rootFontSize the canonicalizer cannot map px values to the spacing scale and reports nothing.
+    settings: { 'better-tailwindcss': { entryPoint: 'src/styles/main.css', rootFontSize: 16 } },
     rules: {
       'better-tailwindcss/enforce-canonical-classes': 'error',
       // The canonical fix merges classes (px-2 py-2 -> p-2) and leaves the gap behind; this rule closes it.

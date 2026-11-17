@@ -80,7 +80,7 @@ function pick(value: AcceptableValue): void {
           v-for="choice in choices"
           :key="choice.value"
           :data-tone="choice.value"
-          class="min-h-11 w-full cursor-pointer items-center gap-3 rounded-[8px] px-3 py-2 font-normal hover:bg-foreground/5"
+          class="min-h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 font-normal hover:bg-foreground/5"
         >
           <RadioGroupItem :value="choice.value" />
           <span class="min-w-0 flex-1">

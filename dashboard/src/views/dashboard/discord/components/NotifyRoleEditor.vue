@@ -154,7 +154,7 @@ async function postRoleButton(): Promise<void> {
       <Input v-model="roleName" data-field="role-name" />
     </Field>
 
-    <div class="rounded-[8px] border border-border p-1">
+    <div class="rounded-lg border border-border p-1">
       <SettingRow
         v-model="selfAssignEnabled"
         data-field="self-assign"

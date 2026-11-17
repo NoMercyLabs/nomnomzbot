@@ -232,7 +232,7 @@ async function choose(tier: BillingTier): Promise<void> {
           :key="tier.key"
           :data-tier-card="tier.key"
           :data-current="tier.key === currentKey"
-          class="grid gap-3 rounded-[8px] border p-3"
+          class="grid gap-3 rounded-lg border p-3"
         >
           <div class="grid gap-1">
             <span class="text-sm font-semibold">{{ tier.displayName }}</span>

@@ -359,7 +359,7 @@ describe('AdminPlatformDefaultsView', () => {
 
     for (const each of rows) {
       expect(each.querySelector('[data-slot="summary-row-trailing"] [data-edit]')).not.toBeNull();
-      expect(each.parentElement!.className).toContain('rounded-[12px]');
+      expect(each.parentElement!.className).toContain('rounded-xl');
     }
 
     expect(document.body.querySelector('ul.divide-y')).toBeNull();

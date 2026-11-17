@@ -109,7 +109,7 @@ function remove(): void {
           data-voice-sticker
           :src="row.stickerImageUrl"
           :alt="$t('dashboard.voiceTriggers.editor.stickerAlt', { word: row.word })"
-          class="size-16 flex-none rounded-[8px] object-contain"
+          class="size-16 flex-none rounded-lg object-contain"
         />
         <KeyValueList :items="facts" class="min-w-0 flex-1" />
       </div>

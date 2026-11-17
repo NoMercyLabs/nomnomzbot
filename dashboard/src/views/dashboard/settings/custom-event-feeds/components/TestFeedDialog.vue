@@ -120,7 +120,7 @@ async function fetchNow(): Promise<void> {
         <li
           v-for="path in keyPaths"
           :key="path"
-          class="rounded-[6px] bg-muted px-2 py-0.5 font-mono text-sm"
+          class="rounded-md bg-muted px-2 py-0.5 font-mono text-sm"
         >
           {{ path }}
         </li>

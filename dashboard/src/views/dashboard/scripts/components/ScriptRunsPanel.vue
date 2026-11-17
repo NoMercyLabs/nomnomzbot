@@ -78,7 +78,7 @@ function timeOf(run: SessionRun): string {
         <component
           :is="run.result.success ? 'div' : 'button'"
           :type="run.result.success ? undefined : 'button'"
-          class="flex w-full items-center gap-3 rounded-[8px] px-3 py-2 text-left text-sm"
+          class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm"
           :class="run.result.success ? '' : 'cursor-pointer hover:bg-foreground/5'"
           @click="run.result.success ? undefined : $emit('open', run)"
         >

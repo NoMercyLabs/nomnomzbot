@@ -97,7 +97,7 @@ defineExpose({ focus });
       <Command class="min-h-0 flex-1 bg-transparent">
         <CommandInput :placeholder="$t('dashboard.pipelines.workbench.palette.find')">
           <!-- The same quiet key cap as SearchField, curved to this field (8px minus the 4px inset). -->
-          <Kbd class="rounded-[4px]! border border-border bg-transparent">{{ shortcut.key }}</Kbd>
+          <Kbd class="rounded-sm! border border-border bg-transparent">{{ shortcut.key }}</Kbd>
         </CommandInput>
         <p
           v-if="target"

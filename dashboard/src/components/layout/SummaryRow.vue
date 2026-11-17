@@ -86,7 +86,7 @@ const bodyClass = computed<string>(() => {
       :is="pick ? 'button' : 'div'"
       :type="pick ? 'button' : undefined"
       data-slot="summary-row-body"
-      class="flex min-h-11 min-w-0 items-center gap-3 rounded-[8px] px-3 py-2 text-left [&>[data-variant=ghost]:first-child]:-ml-2.5 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:first-child]:-ml-2 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
+      class="flex min-h-11 min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left [&>[data-variant=ghost]:first-child]:-ml-2.5 [&>[data-variant=ghost]:last-child]:-mr-2.5 [&>[data-variant=ghost][data-size^=icon]:first-child]:-ml-2 [&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2"
       :class="[sizeClass, bodyClass]"
       v-bind="$attrs"
     >

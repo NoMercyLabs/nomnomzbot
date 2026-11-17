@@ -190,7 +190,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
   <PanelCard :title="t('dashboard.home.quick.title')">
     <RowGroup>
       <div v-if="can('live-ops:ads:read')" data-quick-row="ad">
-        <Skeleton v-if="adQuery.isPending.value" class="h-11 rounded-[8px]" />
+        <Skeleton v-if="adQuery.isPending.value" class="h-11 rounded-lg" />
         <SummaryRow
           v-else-if="adQuery.isError.value"
           :title="t('dashboard.home.quick.adTitle')"
@@ -230,7 +230,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
       </div>
 
       <div data-quick-row="music">
-        <Skeleton v-if="queueQuery.isPending.value" class="h-11 rounded-[8px]" />
+        <Skeleton v-if="queueQuery.isPending.value" class="h-11 rounded-lg" />
         <SummaryRow
           v-else-if="queueQuery.isError.value"
           :title="t('dashboard.home.quick.musicTitle')"
@@ -255,7 +255,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
       </div>
 
       <div v-if="can('timers:read')" data-quick-row="timers">
-        <Skeleton v-if="timersQuery.isPending.value" class="h-11 rounded-[8px]" />
+        <Skeleton v-if="timersQuery.isPending.value" class="h-11 rounded-lg" />
         <SummaryRow
           v-else-if="timersQuery.isError.value"
           :title="t('dashboard.home.quick.timersTitle')"
@@ -293,7 +293,7 @@ const musicLinked = computed<boolean>(() => router.hasRoute('dashboard-music'));
         v-if="can('live-ops:polls:read') || can('live-ops:predictions:read')"
         data-quick-row="poll"
       >
-        <Skeleton v-if="pollsPending" class="h-11 rounded-[8px]" />
+        <Skeleton v-if="pollsPending" class="h-11 rounded-lg" />
         <SummaryRow
           v-else-if="running !== null"
           :title="running.title"

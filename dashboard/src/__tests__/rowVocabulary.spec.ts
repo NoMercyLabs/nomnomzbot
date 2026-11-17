@@ -16,22 +16,28 @@ import { describe, expect, it } from 'vitest';
 // P2 "complete the row vocabulary": a row with a title and a control is a SettingRow, SummaryRow or ActionRow
 // inside a RowGroup. A view never writes the row class string (min-h-11 items-center, the 8px px-3 py-2 body, or a
 // divide-y list) by hand: components/layout owns it. A file below keeps its hand rows for one stated reason. The
-// list only shrinks: a clean file must leave it.
-const handRow = /min-h-11[^"]*\bitems-center\b|rounded-\[8px\][^"]*\bpx-3 py-2\b|\bdivide-y\b/;
+// list only shrinks: a clean file must leave it. The 8px corner is written rounded-[8px] or, canonically, rounded-lg.
+const handRow = /min-h-11[^"]*\bitems-center\b|rounded-(?:\[8px\]|lg)[^"]*\bpx-3 py-2\b|\bdivide-y\b/;
 
 const domainRow = 'a domain row that owns behavior (links, selection, its own actions)';
 const formRow = 'a form row with an inline error or a field next to its label';
 const helpOnly = 'a help-only row with no title copy';
+const sectionTrigger = 'a collapsible section trigger, not a row';
+const statusBar = 'a status bar, not a row';
 
 const allowlist = {
   'views/dashboard/admin/components/RunStepTimeline.vue':
     'a run timeline: host calls nest in a step card, where a 12px RowGroup breaks concentric radius',
   'views/dashboard/admin/components/TenantsTable.vue': domainRow,
   'views/dashboard/channel-points/components/RedemptionsPanel.vue': domainRow,
+  'views/dashboard/channel-points/components/RewardEditDialog.vue': sectionTrigger,
+  'views/dashboard/commands/components/CommandEditor.vue': sectionTrigger,
   'views/dashboard/event-responses/components/DefaultLineList.vue': domainRow,
   'views/dashboard/event-responses/components/EventResponseTestResult.vue': domainRow,
   'views/dashboard/games/GamesView.vue': domainRow,
   'views/dashboard/giveaways/GiveawaysView.vue': domainRow,
+  'views/dashboard/obs/components/ObsConnectionBar.vue': statusBar,
+  'views/dashboard/obs/components/ObsStatusBar.vue': statusBar,
   'views/dashboard/obs/components/OutputsPanel.vue': domainRow,
   'views/dashboard/scripts/components/ScriptRunsPanel.vue': domainRow,
   'views/dashboard/settings/PersonalityView.vue': 'radios that own the selection',
@@ -43,11 +49,13 @@ const allowlist = {
   'views/dashboard/settings/event-journal/components/ReadModelsPanel.vue': helpOnly,
   'views/dashboard/settings/federation/components/FederationChoiceRow.vue': domainRow,
   'views/dashboard/settings/federation/components/FederationPeerRow.vue': domainRow,
+  'views/dashboard/settings/webhooks/components/InboundWebhookDialog.vue': sectionTrigger,
   'views/dashboard/settings/webhooks/components/InboundWebhookRow.vue': domainRow,
   'views/dashboard/settings/webhooks/components/OutboundDeliveriesCard.vue': domainRow,
   'views/dashboard/settings/webhooks/components/OutboundWebhookRow.vue': domainRow,
   'views/dashboard/stream/GoLiveChecklist.vue': domainRow,
   'views/dashboard/stream/SchedulePanel.vue': 'lane C schedule editor',
+  'views/dashboard/tts/HistoryPanel.vue': 'a history entry of wrapped text with no title or control',
   'views/dashboard/tts/LexiconPanel.vue': formRow,
 } as const satisfies Record<string, string>;
 
@@ -81,6 +89,7 @@ describe('row vocabulary', () => {
   it('spots a hand-built row, a hand 8px body and a divide-y list', () => {
     expect(handRow.test('<div class="flex min-h-11 flex-wrap items-center gap-3 px-3 py-2">')).toBe(true);
     expect(handRow.test('<div class="rounded-[8px] px-3 py-2">')).toBe(true);
+    expect(handRow.test('<div class="rounded-lg px-3 py-2">')).toBe(true);
     expect(handRow.test('<ul class="divide-y divide-border">')).toBe(true);
     expect(handRow.test('<ActionRow :title="name"><Button /></ActionRow>')).toBe(false);
   });

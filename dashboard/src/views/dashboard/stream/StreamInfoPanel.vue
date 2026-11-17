@@ -173,7 +173,7 @@ function submit(): void {
               v-if="info?.title"
               type="button"
               data-recent-title
-              class="flex min-h-9 w-full flex-col rounded-[8px] px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
+              class="flex min-h-9 w-full flex-col rounded-lg px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
               @click="setTitle(info.title)"
             >
               {{ info.title }}
@@ -186,7 +186,7 @@ function submit(): void {
               :key="title"
               type="button"
               data-recent-title
-              class="flex min-h-9 w-full items-center rounded-[8px] px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
+              class="flex min-h-9 w-full items-center rounded-lg px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
               @click="setTitle(title)"
             >
               {{ title }}

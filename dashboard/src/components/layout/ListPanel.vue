@@ -66,7 +66,7 @@ const search = defineModel<string>({ default: '' });
       <SearchField
         v-if="placeholder !== undefined"
         v-model="search"
-        class="-mr-2 w-52 rounded-[12px]"
+        class="-mr-2 w-52 rounded-xl"
         :placeholder="placeholder"
         @keydown.enter="$emit('enter')"
       />

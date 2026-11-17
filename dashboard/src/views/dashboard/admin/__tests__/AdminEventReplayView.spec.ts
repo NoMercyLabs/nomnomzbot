@@ -425,7 +425,7 @@ describe('AdminEventReplayView', () => {
     for (const row of rows) {
       expect(row.dataset.slot).toBe('summary-row-body');
       expect(row.classList.contains('px-3')).toBe(true);
-      expect(row.closest('.rounded-\\[12px\\]')).not.toBeNull();
+      expect(row.closest('.rounded-xl')).not.toBeNull();
       expect(row.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('chat-history');
     }
 

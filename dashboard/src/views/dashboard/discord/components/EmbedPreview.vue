@@ -38,14 +38,14 @@ const hasFooter = computed<boolean>(() => !!props.embed.footerText || !!props.em
   <div
     data-preview-embed
     :style="stripe"
-    class="flex flex-col gap-2 rounded-[4px] border-l-4 border-l-(--embed-color,var(--border)) bg-card p-3"
+    class="flex flex-col gap-2 rounded-sm border-l-4 border-l-(--embed-color,var(--border)) bg-card p-3"
   >
     <div v-if="embed.thumbnailUrl" class="flex justify-end">
       <img
         :src="embed.thumbnailUrl"
         :alt="t('dashboard.discord.editor.previewThumbnail')"
         data-preview-thumbnail
-        class="size-16 rounded-[2px] object-cover"
+        class="size-16 rounded-xs object-cover"
       >
     </div>
 
@@ -104,7 +104,7 @@ const hasFooter = computed<boolean>(() => !!props.embed.footerText || !!props.em
       :src="embed.imageUrl"
       :alt="t('dashboard.discord.editor.previewImage')"
       data-preview-image
-      class="w-full rounded-[2px] object-cover"
+      class="w-full rounded-xs object-cover"
     >
 
     <p v-if="hasFooter" data-preview-footer class="flex items-center gap-2 text-xs text-muted-foreground">

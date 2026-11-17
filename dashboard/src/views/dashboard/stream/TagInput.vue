@@ -59,12 +59,12 @@ function undo(): void {
       <span
         v-for="(tag, index) in tags"
         :key="tag"
-        class="inline-flex items-center gap-1 rounded-[8px] border border-border bg-muted py-0.5 pr-0.5 pl-2 text-sm"
+        class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted py-0.5 pr-0.5 pl-2 text-sm"
       >
         {{ tag }}
         <button
           type="button"
-          class="relative inline-flex size-6 items-center after:absolute after:-inset-1.5 after:content-[''] justify-center rounded-[6px] text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+          class="relative inline-flex size-6 items-center after:absolute after:-inset-1.5 after:content-[''] justify-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
           :aria-label="t('dashboard.stream.info.tagRemove', { tag })"
           @click="remove(index)"
         >

@@ -43,7 +43,7 @@ const titleId = useId();
   <div
     v-if="readonly"
     data-slot="setting-row"
-    class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+    class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2"
   >
     <span class="min-w-0 flex-1">
       <RowText :title="title" :title-id="titleId" :description="description" :hint="hint" />
@@ -53,7 +53,7 @@ const titleId = useId();
   <label
     v-else
     data-slot="setting-row"
-    class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+    class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2"
     :class="disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-foreground/5'"
   >
     <span class="min-w-0 flex-1">

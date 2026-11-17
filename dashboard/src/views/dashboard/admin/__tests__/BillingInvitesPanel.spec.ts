@@ -330,7 +330,7 @@ describe('BillingInvitesPanel', () => {
     expect(row.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('FRIENDS');
     expect(trailing.querySelector('[data-copy-link]')).not.toBeNull();
     expect(trailing.querySelector('[data-invite-revoke]')).not.toBeNull();
-    expect(row.parentElement!.className).toContain('rounded-[12px]');
+    expect(row.parentElement!.className).toContain('rounded-xl');
     expect(document.body.querySelector('ul.divide-y')).toBeNull();
   });
 

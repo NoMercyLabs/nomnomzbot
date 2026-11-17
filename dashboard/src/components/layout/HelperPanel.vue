@@ -98,7 +98,7 @@ function countText(count: number): string {
       >
         <CollapsibleTrigger
           data-helper-group-trigger
-          class="group flex min-h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-[8px] px-2 text-left text-sm font-medium hover:bg-foreground/5"
+          class="group flex min-h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2 text-left text-sm font-medium hover:bg-foreground/5"
         >
           <span class="truncate">{{ groupLabel(entry.group) }}</span>
           <span class="flex shrink-0 items-center gap-2">
@@ -122,7 +122,7 @@ function countText(count: number): string {
             :key="helper.key"
             type="button"
             :data-helper-row="helper.key"
-            class="flex min-h-11 cursor-pointer flex-col items-start gap-0.5 rounded-[8px] px-2 py-1.5 text-left hover:bg-foreground/5"
+            class="flex min-h-11 cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2 py-1.5 text-left hover:bg-foreground/5"
             @mousedown.prevent
             @click="target?.insert(braced(helper.key))"
           >
@@ -131,7 +131,7 @@ function countText(count: number): string {
                 v-for="(part, index) in splitMatches(braced(helper.key), needle)"
                 :key="index"
               >
-                <mark v-if="part.match" class="rounded-[2px] bg-muted text-foreground">{{
+                <mark v-if="part.match" class="rounded-xs bg-muted text-foreground">{{
                   part.text
                 }}</mark>
                 <template v-else>{{ part.text }}</template>
@@ -142,7 +142,7 @@ function countText(count: number): string {
                 v-for="(part, index) in splitMatches(describe(helper), needle)"
                 :key="index"
               >
-                <mark v-if="part.match" class="rounded-[2px] bg-muted text-foreground">{{
+                <mark v-if="part.match" class="rounded-xs bg-muted text-foreground">{{
                   part.text
                 }}</mark>
                 <template v-else>{{ part.text }}</template>
@@ -156,7 +156,7 @@ function countText(count: number): string {
             v-if="rowsOf(entry.group, entry.helpers).length < entry.helpers.length"
             type="button"
             data-helper-more
-            class="min-h-9 cursor-pointer rounded-[8px] px-2 text-left text-sm text-muted-foreground hover:bg-foreground/5"
+            class="min-h-9 cursor-pointer rounded-lg px-2 text-left text-sm text-muted-foreground hover:bg-foreground/5"
             @mousedown.prevent
             @click="showAll(entry.group)"
           >

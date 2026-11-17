@@ -197,7 +197,7 @@ watch(
         :aria-busy="true"
       >
         <template v-if="skeletonShown">
-          <Skeleton v-for="line in 3" :key="line" class="h-11 rounded-[12px]" />
+          <Skeleton v-for="line in 3" :key="line" class="h-11 rounded-xl" />
         </template>
       </div>
       <slot v-else-if="state === 'empty' && $slots.empty" name="empty" />

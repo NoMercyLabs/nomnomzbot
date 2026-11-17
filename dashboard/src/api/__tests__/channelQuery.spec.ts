@@ -27,7 +27,7 @@ const key = (channelId: string | null): KeyParts => ['probe', channelId];
 describe('a channel query', () => {
   it('asks for the channel in its own key, even when it runs after the page lost its channel', async () => {
     const asked: (string | null)[] = [];
-    const fetcher = vi.fn(async (id: string) => {
+    const fetcher = vi.fn<(id: string) => Promise<string>>(async (id) => {
       asked.push(id);
 
       return id;

@@ -71,7 +71,7 @@ function stepText(step: EventResponseTestResult['pipelineSteps'][number]): strin
       :key="line"
       data-test-warning
       role="status"
-      class="rounded-[8px] border border-border bg-muted px-3 py-2 text-sm font-medium"
+      class="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-medium"
     >
       {{ line }}
     </p>
@@ -79,7 +79,7 @@ function stepText(step: EventResponseTestResult['pipelineSteps'][number]): strin
       v-if="economySteps.length > 0"
       data-test-economy
       role="alert"
-      class="rounded-[8px] border border-destructive px-3 py-2 text-sm font-medium text-destructive"
+      class="rounded-lg border border-destructive px-3 py-2 text-sm font-medium text-destructive"
     >
       {{ $t('dashboard.eventResponses.test.economy', { steps: economySteps.join(', ') }) }}
     </p>
@@ -91,7 +91,7 @@ function stepText(step: EventResponseTestResult['pipelineSteps'][number]): strin
           v-for="(line, index) in chatLines"
           :key="index"
           data-test-chat
-          class="w-fit max-w-full rounded-[8px] bg-muted px-3 py-2 text-sm wrap-break-word"
+          class="w-fit max-w-full rounded-lg bg-muted px-3 py-2 text-sm wrap-break-word"
         >
           {{ line }}
         </p>

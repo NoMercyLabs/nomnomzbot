@@ -196,7 +196,7 @@ describe('AdminContentView', () => {
     expect(definition.tagName).toBe('BUTTON');
     expect(definition.dataset.slot).toBe('summary-row-body');
     expect(definition.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('Hug command');
-    expect(definition.closest('.rounded-\\[12px\\]')).not.toBeNull();
+    expect(definition.closest('.rounded-xl')).not.toBeNull();
 
     definition.click();
     await settle();
@@ -207,7 +207,7 @@ describe('AdminContentView', () => {
 
     for (const version of versions) {
       expect(version.dataset.slot).toBe('summary-row-body');
-      expect(version.closest('.rounded-\\[12px\\]')).not.toBeNull();
+      expect(version.closest('.rounded-xl')).not.toBeNull();
     }
 
     expect(versions[0]!.querySelector('[data-slot="summary-row-title"]')!.textContent).toContain('Version');
