@@ -56,6 +56,18 @@ public sealed partial class PlaybackDirectorTests
         public Task Plays(FakeEngine engine, PlaybackItem item) =>
             engine.EmitAsync(new EngineReport(engine.Kind, item.Uri, true, 1_000, item.DurationMs));
 
+        /// <summary>The engine reports the item 10 s before its end: the next Spotify request lines up now.</summary>
+        public Task NearsEnd(FakeEngine engine, PlaybackItem item) =>
+            engine.EmitAsync(
+                new EngineReport(
+                    engine.Kind,
+                    item.Uri,
+                    true,
+                    item.DurationMs - 10_000,
+                    item.DurationMs
+                )
+            );
+
         public FakeEngine Engine(EngineKind kind) => kind == EngineKind.Spotify ? Spotify : YouTube;
 
         public FakeEngine Other(EngineKind kind) => kind == EngineKind.Spotify ? YouTube : Spotify;
@@ -98,6 +110,7 @@ public sealed partial class PlaybackDirectorTests
             rig.Queue.Enqueue(item);
 
         await rig.Plays(rig.Spotify, items[15]);
+        await rig.NearsEnd(rig.Spotify, items[15]);
 
         rig.QueueIds.Should().Equal(Enumerable.Range(1, 15).Select(n => $"i{n}"));
         rig.Director.State.Kind.Should().Be(PlaybackStateKind.Playing);
@@ -159,6 +172,7 @@ public sealed partial class PlaybackDirectorTests
         rig.Queue.Enqueue(b);
 
         await rig.Plays(rig.Spotify, a);
+        await rig.NearsEnd(rig.Spotify, a);
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, a));
         rig.QueueIds.Should().Equal("b");
@@ -210,6 +224,7 @@ public sealed partial class PlaybackDirectorTests
         await rig.Request(a);
         rig.Queue.Enqueue(b);
         await rig.Plays(rig.Spotify, a);
+        await rig.NearsEnd(rig.Spotify, a);
 
         await rig.OwnerPlays(rig.Spotify, "spotify:track:owner-pick", 500);
 
@@ -247,7 +262,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task PlayingOwnerMusic_ARequest_IsLinedUpAtOnceAndTheOwnerSongPlaysToItsEnd()
+    public async Task PlayingOwnerMusic_ARequest_IsLinedUpNearTheSongsEndAndTheOwnerSongPlaysToItsEnd()
     {
         Rig rig = new();
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 100_000);
@@ -256,12 +271,14 @@ public sealed partial class PlaybackDirectorTests
         await rig.Request(head);
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
-        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
-        rig.Journal.Select(e => e.Reason)
-            .Should()
-            .Equal("owner_music", "waiting_for_track_end", "lined_up");
+        rig.Spotify.Calls.Should().BeEmpty("most of the owner's song is left");
+        rig.Journal.Select(e => e.Reason).Should().Equal("owner_music", "waiting_for_track_end");
 
-        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 185_000);
+        await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 186_000);
+
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
+        rig.Journal.Last().Reason.Should().Be("lined_up");
+
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 199_000);
 
         rig.Spotify.Calls.Should()
@@ -358,6 +375,7 @@ public sealed partial class PlaybackDirectorTests
         rig.QueueIds.Should().Equal("A", "B", "C");
         await rig.Director.HandleAsync(new RequestAdded());
         await rig.Plays(rig.Spotify, a);
+        await rig.NearsEnd(rig.Spotify, a);
 
         rig.Spotify.Calls.Should()
             .Equal(new EngineCall("Start", "A"), new EngineCall("QueueNext", "C"));

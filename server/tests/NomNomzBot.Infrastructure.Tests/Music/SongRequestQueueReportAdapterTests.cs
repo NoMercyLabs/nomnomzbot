@@ -86,8 +86,9 @@ public sealed class SongRequestQueueReportAdapterTests
             rig.Request($"spotify:track:{n}", $"T{n}", $"viewer{n}");
 
         await rig.Report("spotify", "spotify:track:16");
+        await rig.Report("spotify", "spotify:track:16", progressMs: 190_000);
 
-        // Spotify plays, so the first request in fair order is lined up in its own queue.
+        // The song nears its end, so the first request in fair order is lined up in Spotify's own queue.
         rig.Titles.Should().Equal(Enumerable.Range(1, 15).Select(n => $"T{n}"));
         rig.Reasons.Should().Equal("played_out_of_order", "lined_up");
     }
@@ -105,11 +106,12 @@ public sealed class SongRequestQueueReportAdapterTests
         rig.Request(later, "Spotify request", "viewer-s");
         await rig.Report("spotify", owner, progressMs: 60_000);
 
-        // The Spotify request is second, yet it goes into Spotify's own queue now (owner, 2026-10-19).
+        // Most of the owner's track is left: the Spotify request waits in the fair queue (Stoney, 2026-11-17).
         rig.Titles.Should().Equal("YT head", "Spotify request");
-        rig.Reasons.Should().Equal("owner_music", "lined_up");
+        rig.Reasons.Should().Equal("owner_music");
 
-        // The owner's track is in its last seconds: nothing is cut, and nothing has left.
+        // The owner's track is in its last seconds: the Spotify request, though second, goes into Spotify's own
+        // queue (owner, 2026-10-19). Nothing is cut, and nothing has left.
         await rig.Report("spotify", owner, progressMs: 196_000);
         rig.Titles.Should().Equal("YT head", "Spotify request");
         rig.Reasons.Should().Equal("owner_music", "lined_up");

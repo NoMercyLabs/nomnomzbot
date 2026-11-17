@@ -151,7 +151,7 @@ keeps its place in the queue.
 | Idle | EngineReport playing (owner music) | Playing(engine, null) | none |
 | Starting(e, i) | EngineReport e plays i.uri | Playing(e, i) | mark i as played (see 6) |
 | Starting(e, i) | StartTimeout | Blocked("did not start") | keep i at head; show error. When the start paused the owner's music on another engine, that music resumes and the director follows it |
-| Playing(Spotify, *) | any input, a Spotify request waits, none lined up | same | the first Spotify item in fair order (not only the head) goes into Spotify's own queue (`QueueNext`), journal `lined_up`. One at a time. A refused add is retried on a later input |
+| Playing(Spotify, *) | any input or deadline tick, a Spotify request waits, none lined up, 15 s or less left of the song that plays | same | the first Spotify item in fair order (not only the head) goes into Spotify's own queue (`QueueNext`), journal `lined_up`. One at a time. A refused add is retried on a later input or tick |
 | Playing(Spotify, *) | EngineReport Spotify plays the lined-up row, head is not YouTube | Playing(Spotify, row) | the row leaves the queue as played; the next Spotify item is lined up |
 | Playing(Spotify, *) | EngineReport Spotify plays a new uri, head is YouTube | Starting(YouTube, head) | pause Spotify, seek it to 0, remember the pause, start the head. A lined-up row seen there stays in the queue unplayed |
 | Playing(e, null) | RequestAdded | Playing(e, null) | line up as above; no cut of the owner track |
@@ -189,6 +189,13 @@ gone. Exactly one Spotify request sits in Spotify's own queue at a time, lined u
 device. A YouTube head never cuts a Spotify song: it takes over when Spotify reports its next track (pause,
 seek 0, start YouTube). The Music Player page reports `ENDING` once at 3 s left (input `TrackEnding`); Spotify
 resumes then. Only YouTube: no Spotify command is sent. Only Spotify: Spotify's own queue does every song change.
+
+**Changed 2026-11-17.** Stoney: "the fair queue system really needs to enqueue the next song later, almost at the
+end of the current song so that other people can queue their slot without having to do the whole juggling of
+removing it and requeueing the person who got moved down". The line-up waits for the last 15 s of the song that
+plays (Spotify's song, or the video Spotify is held for); the 1 s deadline tick checks it. Until then the request
+stays in the fair queue, where a later request can still rank above it. A song of unknown length lines up at once.
+15 s is above Spotify's longest crossfade (12 s) and the owner hand-over (6 s).
 
 Changed 2026-10-19 evening (qtkitte live: every YouTube request was refused twice and dropped while her OBS had no
 Music Player page open). An engine that cannot take a start (no player page, Spotify not connected, a typed
@@ -293,7 +300,8 @@ device")` with a one-click "Move back" (the existing transferDevice action). It 
 - A new request goes to an engine only as the head in `Idle` or a hand-over, or as the one Spotify line-up.
   This removes the jump in incident 3 (`HandOverAdmittedIfIdleAsync` must route through the director).
 - At most one request waits in Spotify's own queue at a time (the line-up, owner 2026-10-19 night). It is the
-  first Spotify request in fair order, even when YouTube requests are above it.
+  first Spotify request in fair order, even when YouTube requests are above it. It is lined up in the last 15 s
+  of the song that plays (2026-11-17).
 
 ## 6. Rule: only the owner of state changes the queue
 
@@ -317,7 +325,7 @@ Every control test (marked E) runs twice: once with the playing item on Spotify,
 |---|---|---|
 | 1 | 16 items, Spotify reports item 16 playing | 15 rows stay; only row 16 removed; `played_out_of_order` |
 | 2 | Push+skip path: start head | one `PlayNowAsync(head)`; no push, no skip call |
-| 3 | YouTube head waits on owner Spotify music; Spotify request arrives | Spotify request stays #2 and is lined up in Spotify's queue at once; when Spotify reaches it, Spotify pauses on it and the YouTube head starts; the Spotify request leaves only when it plays after the resume; nothing removed early |
+| 3 | YouTube head waits on owner Spotify music; Spotify request arrives | Spotify request stays #2 and is lined up in Spotify's queue in the last 15 s of the owner's song; when Spotify reaches it, Spotify pauses on it and the YouTube head starts; the Spotify request leaves only when it plays after the resume; nothing removed early |
 | 4 | Two widgets have `enableAudio`; one has gallery key `music_player` | music commands only to `music_player` |
 | 5 | YouTube plays; dashboard resume | no Spotify call; YouTube resumes if paused |
 | 6 | Owner Spotify music; YouTube head waits; owner pauses in dashboard | `PausedByOwner`; YouTube not started on 10 poll ticks |
@@ -345,10 +353,10 @@ Every control test (marked E) runs twice: once with the playing item on Spotify,
 | 28 | Spotify device changes to the PC app while the overlay was active | `Blocked("Spotify moved to another device")`; no automatic transfer |
 | 29 | Save-track on a YouTube item | `NotSupportedForEngine`; no Spotify call |
 | 30 | Source-scan guard | fails when a control surface or widget names an engine at a control call |
-| 31 | Spotify plays; queue [yt1, sp1] | sp1 lined up at once; Spotify song plays to its end; next Spotify track: pause + seek 0, yt1 starts, sp1 stays queued; ENDING of yt1: Spotify resumes; Spotify plays sp1, sp1 played |
+| 31 | Spotify plays; queue [yt1, sp1] | sp1 lined up in the song's last 15 s; Spotify song plays to its end; next Spotify track: pause + seek 0, yt1 starts, sp1 stays queued; ENDING of yt1: Spotify resumes; Spotify plays sp1, sp1 played |
 | 32 | Spotify plays; queue [yt1, yt2, yt3, sp1] | sp1 lined up; yt1, yt2, yt3 start at each ENDED with Spotify paused; ENDING of yt3: Spotify resumes |
 | 33 | Spotify plays; queue [sp1, yt1, sp2] | sp1 lined up; Spotify plays sp1 (played); sp2 lined up; Spotify reaches sp2: pause + seek 0, yt1 starts, sp2 stays queued; ENDING: resume; sp2 played |
-| 34 | A Spotify request arrives while YouTube plays (Spotify paused by us) | it is lined up; at ENDING Spotify skips (its paused track is not the request) |
+| 34 | A Spotify request arrives while YouTube plays (Spotify paused by us) | it is lined up in the video's last 15 s; at ENDING Spotify skips (its paused track is not the request) |
 | 35 | Only Spotify, 2 requests | one lined up; after it plays, the second; no pause, skip or start sent |
 | 36 | Only YouTube, 2 requests | yt1 starts, yt2 at ENDED; no Spotify command; empty queue = Idle |
 | 37 | ENDING never arrives | Spotify resumes at ENDED |

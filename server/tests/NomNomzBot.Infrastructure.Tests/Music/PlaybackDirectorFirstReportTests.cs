@@ -35,13 +35,11 @@ public sealed partial class PlaybackDirectorTests
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
         rig.QueueIds.Should().Equal("a");
         rig.Spotify.Calls.Should()
-            .Equal(
-                [new EngineCall("QueueNext", "a")],
-                "lined up, the owner's song is not interrupted"
+            .BeEmpty(
+                "the owner's song is not interrupted, and most of it is left to line up behind"
             );
         rig.YouTube.Calls.Should().BeEmpty();
-        rig.Journal.Select(e => e.Reason).Should().Contain("waiting_for_track_end");
-        rig.Journal.Last().Reason.Should().Be("lined_up");
+        rig.Journal.Last().Reason.Should().Be("waiting_for_track_end");
     }
 
     [Fact]

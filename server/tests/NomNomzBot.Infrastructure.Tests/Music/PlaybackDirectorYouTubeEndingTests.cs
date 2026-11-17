@@ -32,7 +32,7 @@ public sealed partial class PlaybackDirectorTests
         await rig.Request(yt1);
         await rig.Request(sp1);
 
-        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "sp1"));
+        rig.Spotify.Calls.Should().BeEmpty("most of the owner's song is left");
 
         await rig.OwnerPlays(rig.Spotify, OwnTrack, 197_000);
 
@@ -89,6 +89,7 @@ public sealed partial class PlaybackDirectorTests
         PlaybackItem sp1 = Item("sp1");
         foreach (PlaybackItem item in new[] { yt1, yt2, yt3, sp1 })
             await rig.Request(item);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 190_000);
 
         rig.QueueIds.Should().Equal("yt1", "yt2", "yt3", "sp1");
         rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "sp1"));
@@ -145,11 +146,13 @@ public sealed partial class PlaybackDirectorTests
         PlaybackItem sp2 = Item("sp2");
         foreach (PlaybackItem item in new[] { sp1, yt1, sp2 })
             await rig.Request(item);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 190_000);
 
         rig.QueueIds.Should().Equal("sp1", "yt1", "sp2");
         rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "sp1"));
 
         await SpotifyMovesOn(rig, OwnTrack, sp1.Uri);
+        await rig.NearsEnd(rig.Spotify, sp1);
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, sp1));
         rig.QueueIds.Should().Equal("yt1", "sp2");
@@ -200,6 +203,14 @@ public sealed partial class PlaybackDirectorTests
         PlaybackItem sp1 = Item("sp1");
 
         await rig.Request(sp1);
+
+        rig.Spotify.Calls.Should()
+            .Equal(
+                [new EngineCall("Stop"), new EngineCall("Seek", "0")],
+                "most of the video is left"
+            );
+
+        await rig.NearsEnd(rig.YouTube, yt1);
 
         rig.Spotify.Calls.Should()
             .Equal(

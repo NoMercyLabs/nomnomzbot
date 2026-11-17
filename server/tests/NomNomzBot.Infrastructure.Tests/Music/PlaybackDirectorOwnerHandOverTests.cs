@@ -31,7 +31,8 @@ public sealed partial class PlaybackDirectorTests
 
     /// <summary>
     /// The song playing belongs to bob, so bob's next request ranks second, and it is already lined up in
-    /// Spotify's own queue when stoney's first request takes the top of the fair queue.
+    /// Spotify's own queue when stoney's first request takes the top of the fair queue. That can only happen in
+    /// the last seconds of the owner's song, when the next request is lined up.
     /// </summary>
     private static async Task<(
         Rig Rig,
@@ -42,7 +43,7 @@ public sealed partial class PlaybackDirectorTests
         FairQueue<PlaybackItem> fairQueue = new();
         fairQueue.SetNowPlayingOwner("bob");
         Rig rig = new(fairQueue);
-        await rig.OwnerPlays(rig.Spotify, OwnTrack, 10_000);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 190_000);
         PlaybackItem linedUp = Item("bob2", owner: "bob");
         PlaybackItem newHead = Item("stoney1", owner: "stoney");
         await rig.Request(linedUp);
@@ -70,6 +71,7 @@ public sealed partial class PlaybackDirectorTests
         rig.QueueIds.Should().Equal("stoney1", "bob2");
 
         await rig.OwnerPlays(rig.Spotify, newHead.Uri, 1_000);
+        await rig.NearsEnd(rig.Spotify, newHead);
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, newHead));
         rig.QueueIds.Should().Equal("bob2");
@@ -140,9 +142,14 @@ public sealed partial class PlaybackDirectorTests
         await rig.Request(sp1);
         await rig.Request(sp2);
 
+        rig.Spotify.Calls.Should().BeEmpty("most of the owner's song is left");
+
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 190_000);
+
         rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "sp1"));
 
         await SpotifyMovesOn(rig, OwnTrack, sp1.Uri);
+        await rig.NearsEnd(rig.Spotify, sp1);
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, sp1));
         rig.QueueIds.Should().Equal("sp2");

@@ -150,6 +150,7 @@ public sealed partial class PlaybackDirector : IDisposable
         {
             await RaiseDueDeadlinesAsync(ct);
             await DrivePlannedHandOverAsync(ct);
+            await LineUpNextSpotifyAsync(nameof(CheckDeadlinesAsync), ct);
             await ApplyYouTubeOffSwitchAsync(ct);
             await ForgetFinishedHoldAsync(ct);
         }

@@ -39,9 +39,7 @@ public sealed partial class PlaybackDirectorTests
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 10_000);
         await rig.Request(Item("a"));
         int afterRequest = rig.Journal.Count;
-        rig.Journal.Select(e => e.Reason)
-            .Should()
-            .Equal("owner_music", "waiting_for_track_end", "lined_up");
+        rig.Journal.Select(e => e.Reason).Should().Equal("owner_music", "waiting_for_track_end");
 
         await rig.Director.HandleAsync(new RequestAdded());
         await rig.Director.HandleAsync(new RequestAdded());

@@ -34,7 +34,7 @@ public sealed partial class PlaybackDirectorTests
         PlaybackItem video = Item("yt1", EngineKind.YouTube);
         PlaybackItem next = Item("sp1");
         await rig.Spotify.EmitAsync(
-            new EngineReport(EngineKind.Spotify, HeldOwnTrack, true, 10_000, 200_000)
+            new EngineReport(EngineKind.Spotify, HeldOwnTrack, true, 190_000, 200_000)
         );
         await rig.Request(video);
         await rig.Request(next);

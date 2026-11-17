@@ -37,6 +37,7 @@ public sealed partial class PlaybackDirectorTests
         await rig.Request(s2);
 
         await rig.Plays(rig.Spotify, s1);
+        await rig.NearsEnd(rig.Spotify, s1);
         await rig.Director.HandleAsync(new RequestAdded());
 
         rig.QueueIds.Should().Equal("y1", "s2");

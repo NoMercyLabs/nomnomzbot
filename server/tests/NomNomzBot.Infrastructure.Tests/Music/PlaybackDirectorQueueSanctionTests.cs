@@ -51,9 +51,15 @@ public sealed class PlaybackDirectorQueueSanctionTests
             return Task.CompletedTask;
         };
 
-        // The engine's own report (no user behind it) confirms A, and the director lines B up.
+        // The engine's own report (no user behind it) confirms A near its end, and the director lines B up.
         await spotify.EmitAsync(
-            new EngineReport(EngineKind.Spotify, first.Uri, true, 1_000, first.DurationMs)
+            new EngineReport(
+                EngineKind.Spotify,
+                first.Uri,
+                true,
+                first.DurationMs - 10_000,
+                first.DurationMs
+            )
         );
 
         spotify

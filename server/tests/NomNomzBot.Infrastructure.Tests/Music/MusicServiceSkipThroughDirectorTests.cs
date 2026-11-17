@@ -57,7 +57,16 @@ public sealed class MusicServiceSkipThroughDirectorTests
         DirectorRig Rig,
         RecordingEventBus Bus,
         FakeEngine Spotify
-    )> PlayingAsync(params string[] trackIds)
+    )> PlayingAsync(params string[] trackIds) => await PlayingAtAsync(1_000, trackIds);
+
+    /// <summary>As <see cref="PlayingAsync"/>, with the first track reported at <paramref name="progressMs"/> of 200 s.</summary>
+    private static async Task<(
+        MusicService Sut,
+        RecordingHttpHandler Handler,
+        DirectorRig Rig,
+        RecordingEventBus Bus,
+        FakeEngine Spotify
+    )> PlayingAtAsync(int progressMs, params string[] trackIds)
     {
         NowPlayingCache cache = new();
         RecordingEventBus bus = new();
@@ -70,7 +79,7 @@ public sealed class MusicServiceSkipThroughDirectorTests
             (await RequestAsync(sut, handler, id, $"viewer-{id}")).IsSuccess.Should().BeTrue();
 
         await spotify.EmitAsync(
-            new EngineReport(EngineKind.Spotify, FirstUri, true, 1_000, 200_000)
+            new EngineReport(EngineKind.Spotify, FirstUri, true, progressMs, 200_000)
         );
         rig.Registry.StateOf(SpotifyChannel).Kind.Should().Be(PlaybackStateKind.Playing);
         SeedNowPlaying(cache);
@@ -93,7 +102,7 @@ public sealed class MusicServiceSkipThroughDirectorTests
             DirectorRig rig,
             RecordingEventBus bus,
             FakeEngine spotify
-        ) = await PlayingAsync("s1", "s2");
+        ) = await PlayingAtAsync(190_000, "s1", "s2");
 
         Result result = await sut.SkipAsync(SpotifyChannel.ToString(), Skipper);
 
@@ -159,7 +168,8 @@ public sealed class MusicServiceSkipThroughDirectorTests
         RequestRetraction result = await sut.RetractRequestAsync(channel, playing);
 
         result.Should().Be(RequestRetraction.RemovedAndSkippedNow);
-        spotify.Calls.Select(c => c.Name).Should().Contain("Skip");
+        // Nothing is lined up this early in the song, so the next request starts over the retracted one.
+        spotify.Calls.Select(c => c.Name).Should().Equal("Start", "Start");
         (await sut.GetQueueAsync(channel)).Queue.Should().NotContain(i => i.TrackName == "Song s1");
         bus.Published.OfType<SongSkippedEvent>()
             .Should()

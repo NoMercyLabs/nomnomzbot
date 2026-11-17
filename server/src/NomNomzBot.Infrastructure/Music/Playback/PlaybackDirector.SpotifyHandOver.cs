@@ -21,6 +21,12 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// </summary>
 public sealed partial class PlaybackDirector
 {
+    /// <summary>
+    /// Time left on the playing song at which the next request goes into Spotify's queue. Above Spotify's
+    /// longest crossfade (12 s) and the owner's own hand-over (<see cref="NearEndMs"/>).
+    /// </summary>
+    private const int LineUpWindowMs = 15_000;
+
     /// <summary>The one request lined up in Spotify's own queue and not yet seen playing; null when none.</summary>
     private string? _linedUpId;
 
@@ -40,8 +46,9 @@ public sealed partial class PlaybackDirector
     private PlaybackItem? _youTubeEnding;
 
     /// <summary>
-    /// The first Spotify request in fair order goes into Spotify's own queue, one at a time, while Spotify plays
-    /// or is held for YouTube. A refused add is tried again on a later input.
+    /// The first Spotify request in fair order goes into Spotify's own queue, one at a time, in the last
+    /// <see cref="LineUpWindowMs"/> of the song that plays. Until then it waits in the fair queue, where a later
+    /// request can still rank above it (Stoney, 2026-11-17). A refused add is tried again on a later input or tick.
     /// </summary>
     private async Task LineUpNextSpotifyAsync(string inputName, CancellationToken ct)
     {
@@ -49,6 +56,7 @@ public sealed partial class PlaybackDirector
             !_engines.TryGetValue(EngineKind.Spotify, out IPlaybackEngine? spotify)
             || !SpotifyCanTakeALineUp()
             || LinedUpRow() is not null
+            || !PlayingSongNearsItsEnd()
         )
             return;
 
@@ -83,6 +91,19 @@ public sealed partial class PlaybackDirector
             || _reports.TryGetValue(EngineKind.Spotify, out EngineReport? report)
                 && report.IsPlaying
         );
+
+    /// <summary>
+    /// True in the last <see cref="LineUpWindowMs"/> of the song that plays: Spotify's own song, or the video
+    /// Spotify is held for. A song of unknown length lines up at once.
+    /// </summary>
+    private bool PlayingSongNearsItsEnd()
+    {
+        EngineKind playing = _spotifyHeldForYouTube ? EngineKind.YouTube : EngineKind.Spotify;
+        if (!_reports.TryGetValue(playing, out EngineReport? report) || report.DurationMs <= 0)
+            return true;
+
+        return RemainingMs(report) <= LineUpWindowMs;
+    }
 
     /// <summary>The lined-up request while it still waits in the queue.</summary>
     private PlaybackItem? LinedUpRow() =>
