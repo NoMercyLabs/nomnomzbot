@@ -110,6 +110,8 @@ public class MusicConfigService : IMusicConfigService
             current.MaxRequestsPerRole = new(request.MaxRequestsPerRole);
         if (request.BangerAutoCreate.HasValue)
             current.BangerAutoCreate = request.BangerAutoCreate.Value;
+        if (request.BangerTarget is not null)
+            current.BangerTarget = request.BangerTarget;
 
         string json = JsonSerializer.Serialize(current);
 
@@ -192,7 +194,8 @@ public class MusicConfigService : IMusicConfigService
             d.MaxSongSeconds,
             d.AllowExplicit,
             d.PerStreamLimit,
-            d.YouTubeMusicCategoryOnly
+            d.YouTubeMusicCategoryOnly,
+            d.BangerTarget
         );
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
@@ -217,6 +220,7 @@ public class MusicConfigService : IMusicConfigService
         public string? BangerPlaylistId { get; set; }
         public string? BangerPlaylistProvider { get; set; }
         public bool BangerAutoCreate { get; set; } = MusicConfigDefaults.BangerAutoCreate;
+        public string BangerTarget { get; set; } = MusicConfigDefaults.BangerTarget;
         public Dictionary<string, int> MaxRequestsPerRole { get; set; } = new();
     }
 }

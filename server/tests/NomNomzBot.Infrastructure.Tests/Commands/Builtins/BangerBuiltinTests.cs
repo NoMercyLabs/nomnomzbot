@@ -288,14 +288,34 @@ public sealed class BangerBuiltinTests : IDisposable
     }
 
     [Fact]
-    public async Task With_no_playlist_and_auto_create_off_the_provider_is_never_called_and_the_reply_asks_for_a_playlist()
+    public async Task With_no_playlist_and_auto_create_off_the_song_goes_to_the_provider_likes()
     {
         Playing();
+        _playlists
+            .SaveTracksAsync(
+                Broadcaster,
+                "spotify",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         Result<string> reply = await Sut().ExecuteAsync(Context());
 
-        _playlists.ReceivedCalls().Should().BeEmpty();
-        (await TextsAsync(BuiltinResponseSlots.Banger.NoPlaylist)).Should().Contain(reply.Value);
+        await _playlists
+            .Received(1)
+            .SaveTracksAsync(
+                Broadcaster,
+                "spotify",
+                Arg.Is<IReadOnlyList<string>>(u => u.SequenceEqual(new[] { TrackUri })),
+                Arg.Any<CancellationToken>()
+            );
+        await _playlists
+            .DidNotReceiveWithAnyArgs()
+            .AddPlaylistTracksAsync(default, default!, default!, default!, default);
+        (await TextsAsync(BuiltinResponseSlots.Banger.Added, "Liked Songs"))
+            .Should()
+            .Contain(reply.Value);
     }
 
     [Fact]

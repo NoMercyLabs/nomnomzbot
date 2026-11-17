@@ -30,7 +30,8 @@ public sealed record MusicConfigDto(
     int MaxSongSeconds = MusicConfigDefaults.MaxSongSeconds,
     bool AllowExplicit = MusicConfigDefaults.AllowExplicit,
     int? PerStreamLimit = null,
-    bool YouTubeMusicCategoryOnly = MusicConfigDefaults.YouTubeMusicCategoryOnly
+    bool YouTubeMusicCategoryOnly = MusicConfigDefaults.YouTubeMusicCategoryOnly,
+    string BangerTarget = MusicConfigDefaults.BangerTarget
 );
 
 /// <summary>Request to update music configuration.</summary>
@@ -86,6 +87,10 @@ public sealed record UpdateMusicConfigDto
 
     /// <summary>With no playlist chosen, <c>!banger</c> makes one on first use.</summary>
     public bool? BangerAutoCreate { get; init; }
+
+    /// <summary>Where <c>!banger</c> saves: <c>default</c>, or a playlist per requester (<c>perYear</c> or <c>allTime</c>).</summary>
+    [RegularExpression("^(default|perYear|allTime)$")]
+    public string? BangerTarget { get; init; }
 
     /// <summary>
     /// A song request cap per role (<c>viewer|subscriber|vip|moderator|broadcaster</c>, 1 to 50). A

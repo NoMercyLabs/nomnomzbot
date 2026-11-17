@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
@@ -30,9 +31,11 @@ public sealed class BangerBuiltin(
     IMusicProviderManageApi playlists,
     IMusicConfigService config,
     IBuiltinResponseComposer composer,
-    ILogger<BangerBuiltin> logger
+    ILogger<BangerBuiltin> logger,
+    TimeProvider? clock = null
 ) : IBuiltinCommand
 {
+    private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private const string NoPlaylistCode = "NO_PLAYLIST";
     private const string DefaultPlaylistName = "Bangers";
 
@@ -65,25 +68,34 @@ public sealed class BangerBuiltin(
             BangerReplyVariables.FallbackPlaylistName
         );
 
-        Result<PlaylistTarget> target = await ResolveTargetAsync(context, nowPlaying, ct);
-        if (target.IsFailure)
-            return target.ErrorCode == NoPlaylistCode
-                ? await ReplyAsync(
-                    context,
-                    BuiltinResponseSlots.Banger.NoPlaylist,
-                    "No banger playlist is chosen yet. Pick one in the music settings.",
-                    [],
-                    ct
-                )
-                : await FailedAsync(context, "resolve playlist", target, variables, ct);
-
-        variables["playlist.name"] = await BangerReplyVariables.PlaylistNameAsync(
-            playlists,
-            context.BroadcasterId,
-            target.Value.Provider,
-            target.Value.PlaylistId,
+        Result<MusicConfigDto> loaded = await config.GetConfigAsync(
+            context.BroadcasterId.ToString(),
             ct
         );
+        if (loaded.IsFailure)
+            return await FailedAsync(context, "read config", loaded, variables, ct);
+
+        Result<PlaylistTarget> target = await ResolveTargetAsync(
+            context,
+            nowPlaying,
+            loaded.Value,
+            ct
+        );
+        if (target.IsFailure && target.ErrorCode == NoPlaylistCode)
+            return await SaveToLikesAsync(context, nowPlaying, variables, ct);
+
+        if (target.IsFailure)
+            return await FailedAsync(context, "resolve playlist", target, variables, ct);
+
+        variables["playlist.name"] =
+            target.Value.Name
+            ?? await BangerReplyVariables.PlaylistNameAsync(
+                playlists,
+                context.BroadcasterId,
+                target.Value.Provider,
+                target.Value.PlaylistId,
+                ct
+            );
 
         Result<bool> present = await playlists.IsTrackInPlaylistAsync(
             context.BroadcasterId,
@@ -126,17 +138,13 @@ public sealed class BangerBuiltin(
     private async Task<Result<PlaylistTarget>> ResolveTargetAsync(
         BuiltinCommandContext context,
         NowPlaying nowPlaying,
+        MusicConfigDto settings,
         CancellationToken ct
     )
     {
-        Result<MusicConfigDto> loaded = await config.GetConfigAsync(
-            context.BroadcasterId.ToString(),
-            ct
-        );
-        if (loaded.IsFailure)
-            return Result.Failure<PlaylistTarget>(loaded.ErrorMessage ?? "Config unreadable.");
+        if (settings.BangerTarget is BangerTargets.PerYear or BangerTargets.AllTime)
+            return await ResolveRequesterPlaylistAsync(context, nowPlaying, settings, ct);
 
-        MusicConfigDto settings = loaded.Value;
         string provider = settings.BangerPlaylistProvider ?? nowPlaying.Provider;
 
         if (!string.IsNullOrEmpty(settings.BangerPlaylistId))
@@ -167,6 +175,73 @@ public sealed class BangerBuiltin(
             return Result.Failure<PlaylistTarget>(saved.ErrorMessage ?? "Save failed.");
 
         return Result.Success(new PlaylistTarget(nowPlaying.Provider, created.Value.Id));
+    }
+
+    private async Task<Result<PlaylistTarget>> ResolveRequesterPlaylistAsync(
+        BuiltinCommandContext context,
+        NowPlaying nowPlaying,
+        MusicConfigDto settings,
+        CancellationToken ct
+    )
+    {
+        string year = _clock.GetUtcNow().Year.ToString(CultureInfo.InvariantCulture);
+        string name =
+            settings.BangerTarget == BangerTargets.PerYear
+                ? $"{context.TriggeringUserChatName}'s Stream Bangers {year}"
+                : $"{context.TriggeringUserChatName}'s Stream Bangers";
+
+        Result<IReadOnlyList<ContractPlaylist>> listed = await playlists.ListPlaylistsAsync(
+            context.BroadcasterId,
+            nowPlaying.Provider,
+            ct
+        );
+        if (listed.IsFailure)
+            return Result.Failure<PlaylistTarget>(listed.ErrorMessage ?? "List failed.");
+
+        ContractPlaylist? found = listed.Value.FirstOrDefault(p =>
+            string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)
+        );
+        if (found is not null)
+            return Result.Success(new PlaylistTarget(nowPlaying.Provider, found.Id, name));
+
+        Result<ContractPlaylist> created = await playlists.CreatePlaylistAsync(
+            context.BroadcasterId,
+            nowPlaying.Provider,
+            new CreateMusicPlaylistDto { Name = name },
+            ct
+        );
+        if (created.IsFailure)
+            return Result.Failure<PlaylistTarget>(created.ErrorMessage ?? "Create failed.");
+
+        return Result.Success(new PlaylistTarget(nowPlaying.Provider, created.Value.Id, name));
+    }
+
+    private async Task<Result<string>> SaveToLikesAsync(
+        BuiltinCommandContext context,
+        NowPlaying nowPlaying,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    )
+    {
+        variables["playlist.name"] =
+            nowPlaying.Provider == "spotify" ? "Liked Songs" : "your YouTube likes";
+
+        Result saved = await playlists.SaveTracksAsync(
+            context.BroadcasterId,
+            nowPlaying.Provider,
+            [nowPlaying.TrackUri!],
+            ct
+        );
+        if (saved.IsFailure)
+            return await FailedAsync(context, "save to likes", saved, variables, ct);
+
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Banger.Added,
+            "@{user} added \"{track.name}\" by {track.artist} to {playlist.name}.",
+            variables,
+            ct
+        );
     }
 
     private Task<Result<string>> FailedAsync(
@@ -211,5 +286,5 @@ public sealed class BangerBuiltin(
             )
         );
 
-    private sealed record PlaylistTarget(string Provider, string PlaylistId);
+    private sealed record PlaylistTarget(string Provider, string PlaylistId, string? Name = null);
 }
