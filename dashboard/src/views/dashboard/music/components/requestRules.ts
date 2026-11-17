@@ -53,6 +53,7 @@ export type RuleDraft = {
   perStreamLimit: number;
   bangerAutoCreate: boolean;
   bangerPlaylist: string;
+  bangerTarget: string;
   roleCaps: Record<MusicRoleRung, RoleCap>;
 };
 
@@ -74,6 +75,7 @@ export function draftOf(config: MusicConfig) {
     bangerPlaylist: config.bangerPlaylistId
       ? playlistValue(config.bangerPlaylistProvider ?? '', config.bangerPlaylistId)
       : noPlaylist,
+    bangerTarget: config.bangerTarget,
     roleCaps: Object.fromEntries(
       musicRoleRungs.map(
         (rung) =>
@@ -192,6 +194,10 @@ export function changeOf(config: MusicConfig, draft: RuleDraft): MusicConfigChan
 
   if (draft.bangerPlaylist !== saved.bangerPlaylist) {
     Object.assign(result, playlistChange(draft.bangerPlaylist));
+  }
+
+  if (draft.bangerTarget !== saved.bangerTarget) {
+    result.bangerTarget = draft.bangerTarget;
   }
 
   const roleMap = roleMapOf(draft.roleCaps);

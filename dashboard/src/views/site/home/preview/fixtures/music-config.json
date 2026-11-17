@@ -9,6 +9,7 @@
     "allowSpotify": true,
     "minTrustLevel": "everyone",
     "bangerAutoCreate": false,
+    "bangerTarget": "default",
     "requestsOpen": true,
     "maxSongSeconds": 360,
     "allowExplicit": true,

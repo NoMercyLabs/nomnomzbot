@@ -69,6 +69,7 @@ const baseConfig = () =>
     allowSpotify: true,
     minTrustLevel: 'moderators',
     bangerAutoCreate: false,
+    bangerTarget: 'default',
     bangerPlaylistId: null,
     bangerPlaylistProvider: null,
     allowExplicit: true,
@@ -577,6 +578,16 @@ describe('RulesPanel', () => {
     await settle();
 
     expect(puts()[0]!.body).toEqual({ bangerAutoCreate: true });
+  });
+
+  it('saves the banger target the broadcaster picks', async () => {
+    await open();
+
+    await pickPlaylist('A playlist per person, per year', 'banger-target');
+    buttonIn('Save').click();
+    await settle();
+
+    expect(puts()[0]!.body).toEqual({ bangerTarget: 'perYear' });
   });
 
   it('saves the banger playlist with the provider that owns it, and clears it with an empty id', async () => {

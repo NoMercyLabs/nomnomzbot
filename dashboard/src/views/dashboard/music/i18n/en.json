@@ -174,6 +174,10 @@
         "bangerHelp": "The playlist !banger adds to.",
         "bangerAuto": "Choose automatically",
         "bangerAutoCreate": "Make a playlist on first use",
+        "bangerTarget": "Save bangers to",
+        "bangerTargetDefault": "Likes or channel playlist",
+        "bangerTargetPerYear": "A playlist per person, per year",
+        "bangerTargetAllTime": "A playlist per person, all time",
         "perRoleHelp": "Songs per person by role. Leave a box blank to use the cap above.",
         "sameAsPerPerson": "Same",
         "roles": {

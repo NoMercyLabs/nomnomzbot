@@ -39,6 +39,7 @@ const config = {
   allowSpotify: true,
   minTrustLevel: 'everyone',
   bangerAutoCreate: false,
+  bangerTarget: 'default',
 };
 
 vi.mock('@/api/access', () => ({

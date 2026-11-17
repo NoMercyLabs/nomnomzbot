@@ -96,6 +96,7 @@ const config: MusicConfig = {
   allowSpotify: true,
   minTrustLevel: 'everyone',
   bangerAutoCreate: false,
+  bangerTarget: 'default',
   requestsOpen: true,
   maxSongSeconds: 600,
   allowExplicit: true,

@@ -34,6 +34,7 @@ const config = {
   allowSpotify: true,
   minTrustLevel: 'everyone',
   bangerAutoCreate: false,
+  bangerTarget: 'default',
   maxSongSeconds: 270,
 };
 

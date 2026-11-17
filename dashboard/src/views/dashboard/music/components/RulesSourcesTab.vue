@@ -182,6 +182,28 @@ function setSourceRung(actionKey: string, rung: string, source: string): void {
               </SelectContent>
             </Select>
           </RuleRow>
+          <RuleRow :title="$t('dashboard.music.rules.bangerTarget')">
+            <Select v-model="draft.bangerTarget">
+              <SelectTrigger
+                data-setting="banger-target"
+                :aria-label="$t('dashboard.music.rules.bangerTarget')"
+                class="w-44"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">{{
+                  $t("dashboard.music.rules.bangerTargetDefault")
+                }}</SelectItem>
+                <SelectItem value="perYear">{{
+                  $t("dashboard.music.rules.bangerTargetPerYear")
+                }}</SelectItem>
+                <SelectItem value="allTime">{{
+                  $t("dashboard.music.rules.bangerTargetAllTime")
+                }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </RuleRow>
           <RuleRow :title="$t('dashboard.music.rules.bangerAutoCreate')">
             <GatedSwitch
               v-model="draft.bangerAutoCreate"
