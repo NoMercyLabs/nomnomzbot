@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.Chat;
 
@@ -212,16 +213,13 @@ public sealed class ChatPlatformRouter
     }
 
     /// <summary>
-    /// Second guard behind the event bus: the bot never speaks in a channel whose broadcaster did not onboard
-    /// (a timer, pipeline or dashboard send included). Every bot message and reply funnels through the two
+    /// Second guard behind the event bus: the bot never speaks in a closed channel (broadcaster not onboarded
+    /// and no onboarded moderator; see <see cref="ChannelOpenness"/>), timer, pipeline or dashboard send included. Every bot message and reply funnels through the two
     /// <c>Send*ViaAsync</c> methods, so this is the one place that enforces it on the send side.
     /// </summary>
     private async Task<bool> IsSilencedAsync(Guid broadcasterId, CancellationToken ct)
     {
-        bool silenced = await _db.Channels.AnyAsync(
-            c => c.Id == broadcasterId && !c.IsOnboarded,
-            ct
-        );
+        bool silenced = await ChannelOpenness.IsClosedAsync(_db, broadcasterId, ct);
         if (silenced)
             _logger.LogWarning(
                 "Channel {BroadcasterId} is not onboarded - the bot's chat send was refused",

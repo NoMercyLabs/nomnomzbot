@@ -18,7 +18,8 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 public interface IChannelOnboardingGate
 {
     /// <summary>
-    /// True when a channel row exists and its broadcaster has NOT onboarded. A channel with no row (and the
+    /// True when a channel row exists, its broadcaster has NOT onboarded, and no onboarded user holds a
+    /// moderator-or-higher membership in it (an onboarded moderator opens it). A channel with no row (and the
     /// platform sentinel <see cref="Guid.Empty"/>) is not closed: nothing can act in a channel that is unknown.
     /// </summary>
     Task<bool> IsClosedAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
