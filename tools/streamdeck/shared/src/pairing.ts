@@ -11,7 +11,7 @@
 
 import streamDeck from "@elgato/streamdeck";
 import { getPairingState } from "./tokenStore.js";
-import { openAuthWindow } from "./authWindow.js";
+import { openAuthWindow, serveAuthWindow } from "./authWindow.js";
 
 /**
  * Entry point for the device-pairing flow (stream-deck.md D9, revised): the plugin never pairs
@@ -22,7 +22,9 @@ import { openAuthWindow } from "./authWindow.js";
  */
 export async function runDeviceFlowLoop(onPaired: () => void): Promise<void> {
   if (await getPairingState()) {
-    streamDeck.logger.info("Device flow: already paired, nothing to do.");
+    // Paired: no browser opens, but the page still runs so the bot address can be changed there.
+    const url = await serveAuthWindow(onPaired);
+    streamDeck.logger.info(`Device flow: already paired. Change the bot at ${url ?? "(no free port)"}.`);
     return;
   }
   await openAuthWindow(onPaired);

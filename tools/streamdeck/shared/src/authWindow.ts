@@ -24,7 +24,10 @@ import { setDeviceFlowStatus } from "./deviceFlowState.js";
  * polls here until approved, all served from a tiny local HTTP server (no dashboard/app code needed).
  */
 const PORT = 21617;
+/** The music and OBS plugins each serve a page; the second one to start takes the next port. */
+const PORT_TRIES = 4;
 let server: Server | null = null;
+let servedPort: number | null = null;
 
 type FlowState =
   | { phase: "idle" }
@@ -35,8 +38,8 @@ type FlowState =
 let flow: FlowState = { phase: "idle" };
 
 export async function openAuthWindow(onPaired: () => void): Promise<void> {
-  if (!server) startServer(onPaired);
-  const url = `http://127.0.0.1:${PORT}/`;
+  const url = await serveAuthWindow(onPaired);
+  if (!url) return;
   streamDeck.logger.info(`Auth window: opening ${url}`);
   await open(url).catch((error: unknown) => {
     streamDeck.logger.warn(
@@ -45,12 +48,41 @@ export async function openAuthWindow(onPaired: () => void): Promise<void> {
   });
 }
 
-function startServer(onPaired: () => void): void {
-  server = http.createServer((req, res) => {
-    void handleRequest(req, res, onPaired);
+/**
+ * Serves the page without opening a browser. A paired plugin keeps it running too, so the bot address can
+ * change (Stoney, 2026-11-17: move the plugin off the dev server) — Stream Deck shows no plugin settings page.
+ */
+export async function serveAuthWindow(onPaired: () => void): Promise<string | null> {
+  if (!server) await startServer(onPaired);
+
+  return authWindowUrl();
+}
+
+/** The page's address, or null while no port could be taken. */
+export function authWindowUrl(): string | null {
+  return servedPort === null ? null : `http://127.0.0.1:${servedPort}/`;
+}
+
+async function startServer(onPaired: () => void): Promise<void> {
+  for (let port = PORT; port < PORT + PORT_TRIES; port++) {
+    const candidate = http.createServer((req, res) => {
+      void handleRequest(req, res, onPaired);
+    });
+    if (await listens(candidate, port)) {
+      server = candidate;
+      servedPort = port;
+      streamDeck.logger.info(`Auth window: local server listening on 127.0.0.1:${port}`);
+      return;
+    }
+  }
+  streamDeck.logger.warn(`Auth window: ports ${PORT}-${PORT + PORT_TRIES - 1} are all taken; no pairing page.`);
+}
+
+function listens(candidate: Server, port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    candidate.once("error", () => resolve(false));
+    candidate.listen(port, "127.0.0.1", () => resolve(true));
   });
-  server.listen(PORT, "127.0.0.1");
-  streamDeck.logger.info(`Auth window: local server listening on 127.0.0.1:${PORT}`);
 }
 
 async function handleRequest(
