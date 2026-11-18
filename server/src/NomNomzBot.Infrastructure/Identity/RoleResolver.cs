@@ -55,6 +55,7 @@ public sealed class RoleResolver(
     {
         AccessFacts facts = await LoadFactsAsync(userId, broadcasterId, cancellationToken);
         IReadOnlyList<string> heldActionKeys = await ComputeHeldActionKeysAsync(
+            userId,
             broadcasterId,
             facts,
             cancellationToken
@@ -110,6 +111,12 @@ public sealed class RoleResolver(
         if (action is null)
             return Result.Success(false);
 
+        if (
+            !ModeratorViewActions.Allows(action.Plane, actionKey)
+            && await IsModeratorViewOnlyAsync(userId, broadcasterId, cancellationToken)
+        )
+            return Result.Success(false);
+
         DateTime now = clock.GetUtcNow().UtcDateTime;
 
         // A direct capability grant for exactly this action, or for the Bot manager bundle that covers it, is
@@ -140,6 +147,20 @@ public sealed class RoleResolver(
         AccessFacts facts = await LoadFactsAsync(userId, broadcasterId, cancellationToken);
         return Result.Success(facts.EffectiveLevel >= required);
     }
+
+    /// <summary>
+    /// True when the channel never onboarded and the caller is not its owner: only the
+    /// <see cref="ModeratorViewActions"/> work there, because the bot holds no streamer token.
+    /// </summary>
+    private Task<bool> IsModeratorViewOnlyAsync(
+        Guid userId,
+        Guid broadcasterId,
+        CancellationToken ct
+    ) =>
+        db.Channels.AnyAsync(
+            c => c.Id == broadcasterId && !c.IsOnboarded && c.OwnerUserId != userId,
+            ct
+        );
 
     /// <summary>The id of the Bot manager bundle key when the bundle covers <paramref name="actionKey"/>, else none.</summary>
     private async Task<List<Guid?>> BundleActionIdsAsync(string actionKey, CancellationToken ct)
@@ -289,6 +310,7 @@ public sealed class RoleResolver(
     /// MAX/compare per action in memory — no per-action round-trip.
     /// </summary>
     private async Task<IReadOnlyList<string>> ComputeHeldActionKeysAsync(
+        Guid userId,
         Guid broadcasterId,
         AccessFacts facts,
         CancellationToken ct
@@ -302,10 +324,14 @@ public sealed class RoleResolver(
             .ToDictionaryAsync(o => o.ActionDefinitionId, o => o.OverrideLevel, ct);
         HashSet<string> directGrants = new(facts.PermitCapabilities, StringComparer.Ordinal);
         bool holdsBundle = directGrants.Contains(BotManagerBundle.Key);
+        bool moderatorViewOnly = await IsModeratorViewOnlyAsync(userId, broadcasterId, ct);
 
         List<string> held = [];
         foreach (ActionDefinition action in actions)
         {
+            if (moderatorViewOnly && !ModeratorViewActions.Allows(action.Plane, action.ActionKey))
+                continue;
+
             int? overrideLevel = overrides.TryGetValue(action.Id, out int level) ? level : null;
             int required = ActionLevelPolicy.EffectiveRequiredLevel(action, overrideLevel);
             bool viaBundle = holdsBundle && BotManagerBundle.Covers(action.ActionKey);

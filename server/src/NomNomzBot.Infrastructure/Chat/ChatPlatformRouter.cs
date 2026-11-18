@@ -213,8 +213,8 @@ public sealed class ChatPlatformRouter
     }
 
     /// <summary>
-    /// Second guard behind the event bus: the bot never speaks in a closed channel (broadcaster not onboarded
-    /// and no onboarded moderator; see <see cref="ChannelOpenness"/>), timer, pipeline or dashboard send included. Every bot message and reply funnels through the two
+    /// Second guard behind the event bus: the bot never speaks in a closed channel (broadcaster not onboarded;
+    /// see <see cref="ChannelOpenness"/>), timer, pipeline or dashboard send included. Every bot message and reply funnels through the two
     /// <c>Send*ViaAsync</c> methods, so this is the one place that enforces it on the send side.
     /// </summary>
     private async Task<bool> IsSilencedAsync(Guid broadcasterId, CancellationToken ct)

@@ -504,4 +504,65 @@ public sealed class RoleResolverTests
             .Contain(["commands:read", "moderation:ban", "moderation:read"]);
         access.Value.HeldActionKeys.Should().NotContain("roles:manage");
     }
+
+    // Stoney, 2026-11-18: "anything that requires broadcaster permissions should also not be displayed in the
+    // ui for me as a moderator." In a channel that did not onboard, a moderator holds only what their own
+    // Twitch access can do; the server refuses the rest too.
+    [Theory]
+    [InlineData(false, new[] { "chat:read", "moderation:ban" })]
+    [InlineData(
+        true,
+        new[] { "channel:title:write", "chat:read", "commands:read", "moderation:ban" }
+    )]
+    public async Task A_moderator_holds_only_the_moderator_view_in_a_channel_that_did_not_onboard(
+        bool onboarded,
+        string[] expectedHeld
+    )
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        SeedChannelOwnedBy(db, Actor, onboarded);
+        SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
+        SeedAction(db, "channel:title:write", defaultLevel: 10, floor: 10);
+        SeedAction(db, "chat:read", defaultLevel: 10, floor: 4);
+        SeedAction(db, "moderation:ban", defaultLevel: 10, floor: 10);
+        SeedModerator(db);
+        await db.SaveChangesAsync();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+        Result<bool> commands = await sut.HasCapabilityAsync(User, Channel, "commands:read");
+        Result<bool> ban = await sut.HasCapabilityAsync(User, Channel, "moderation:ban");
+
+        access.Value.HeldActionKeys.Should().Equal(expectedHeld);
+        commands.Value.Should().Be(onboarded);
+        ban.Value.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task The_owner_keeps_every_key_on_their_own_channel_before_it_onboards()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        SeedChannelOwnedBy(db, User, onboarded: false);
+        SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
+        SeedAction(db, "moderation:ban", defaultLevel: 10, floor: 10);
+        await db.SaveChangesAsync();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        access.Value.HeldActionKeys.Should().Equal("commands:read", "moderation:ban");
+    }
+
+    private static void SeedChannelOwnedBy(AuthDbContext db, Guid ownerUserId, bool onboarded) =>
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                OwnerUserId = ownerUserId,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "modded-ext",
+                Name = "modded",
+                NameNormalized = "modded",
+                Status = AuthEnums.ChannelStatus.Active,
+                IsOnboarded = onboarded,
+            }
+        );
 }
