@@ -272,4 +272,18 @@ describe('RequiredOverlaysPanel', () => {
     expect(bridgeButton()?.disabled).toBe(true);
     expect(row?.textContent).toContain(en.dashboard.obs.required.bridge.locked);
   });
+
+  // Mirrors SystemSurfaceNaturalKeys on the server: a key without words shows its raw i18n path.
+  it.each(['tts_caption', 'stage', 'audio', 'music_player', 'alerts', 'media_share'])(
+    'names the %s surface in English and Dutch',
+    (key) => {
+      for (const locale of [en, nl]) {
+        const surfaces: Record<string, { name?: string; detail?: string }> =
+          locale.dashboard.obs.required.surfaces;
+
+        expect(surfaces[key]?.name).toBeTruthy();
+        expect(surfaces[key]?.detail).toBeTruthy();
+      }
+    },
+  );
 });

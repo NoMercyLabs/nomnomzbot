@@ -61,6 +61,10 @@
             "name": "TTS-ondertitel",
             "detail": "Toont wie er spreekt en de woorden, en speelt het uitgesproken bericht af. Houd Audio via OBS regelen aan."
           },
+          "stage": {
+            "name": "Podium",
+            "detail": "Speelt effecten over het hele scherm af die een commando of pipeline start, zoals confetti, een schok of een flits."
+          },
           "raid_recap": {
             "name": "Raid-terugblik",
             "detail": "Toont de terugblik op de stream als slotscène van een raid."

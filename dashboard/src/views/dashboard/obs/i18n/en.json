@@ -61,6 +61,10 @@
             "name": "TTS caption",
             "detail": "Shows who is speaking and the words, and plays the spoken message. Keep Control audio via OBS on."
           },
+          "stage": {
+            "name": "Stage",
+            "detail": "Plays full-screen effects a command or pipeline starts, such as confetti, a shake or a flash."
+          },
           "raid_recap": {
             "name": "Raid recap",
             "detail": "Shows the stream recap as the closing scene of a raid."
