@@ -300,6 +300,7 @@ public sealed class ShoutoutAction : ICommandAction
             ),
             ctx.CancellationToken
         );
+        ctx.RepliedToChat |= sent.Succeeded && !string.IsNullOrEmpty(immediateAnnouncement);
         if (!sent.Retryable)
             return sent;
 

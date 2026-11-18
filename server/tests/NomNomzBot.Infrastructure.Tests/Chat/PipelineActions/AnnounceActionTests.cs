@@ -104,6 +104,18 @@ public sealed class AnnounceActionTests
     }
 
     [Fact]
+    public async Task A_posted_announcement_counts_as_the_commands_chat_reply()
+    {
+        (AnnounceAction action, _, _) = Build();
+        PipelineExecutionContext ctx = BuildContext();
+
+        ActionResult result = await action.ExecuteAsync(ctx, Announce("gg {user.name}!"));
+
+        result.Succeeded.Should().BeTrue();
+        ctx.RepliedToChat.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_MissingMessage_FailsWithoutCallingHelix()
     {
         (AnnounceAction action, ITwitchChatApi chat, _) = Build();

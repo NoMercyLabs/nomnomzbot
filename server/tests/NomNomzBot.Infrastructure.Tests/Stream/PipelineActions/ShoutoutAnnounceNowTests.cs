@@ -226,6 +226,18 @@ public sealed class ShoutoutAnnounceNowTests
         };
 
     [Fact]
+    public async Task A_posted_announcement_counts_as_the_commands_chat_reply()
+    {
+        Rig rig = await BuildAsync();
+        PipelineExecutionContext ctx = Manual();
+
+        ActionResult result = await rig.Action.ExecuteAsync(ctx, Step());
+
+        result.Succeeded.Should().BeTrue();
+        ctx.RepliedToChat.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task A_live_target_fills_game_title_status_and_live_state_from_one_streams_lookup()
     {
         Rig rig = await BuildAsync(Live("Chess", "Rated blitz"), Info("Old category", "Old title"));

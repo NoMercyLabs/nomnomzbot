@@ -104,6 +104,7 @@ public sealed class AnnounceAction : ICommandAction
             color,
             ctx.CancellationToken
         );
+        ctx.RepliedToChat |= result.IsSuccess;
         return result.IsSuccess
             ? ActionResult.Success(resolved)
             : ActionResult.Failure($"announce could not be delivered: {result.ErrorMessage}");
