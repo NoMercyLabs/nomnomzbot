@@ -214,8 +214,11 @@ public sealed class NonOnboardedChannelSilenceTests
         acting.Commands.Should().Equal("!hug");
     }
 
+    // Stoney, 2026-11-18, after the bot greeted and answered commands in a moderated channel that never
+    // onboarded: "you were to monitor channels for spam that are not onboarded". An onboarded moderator no
+    // longer opens the channel; only the onboarding-exempt spam watch runs there.
     [Fact]
-    public async Task A_non_onboarded_channel_moderated_by_an_onboarded_user_reaches_every_handler_and_the_bot_sends()
+    public async Task A_non_onboarded_channel_moderated_by_an_onboarded_user_stays_silent()
     {
         object[] seed = [OnboardedModeratorHome(), Membership(ClosedTenant, ModUser)];
 
@@ -226,13 +229,15 @@ public sealed class NonOnboardedChannelSilenceTests
         );
 
         storing.Stored.Should().Equal("m-1");
-        acting.Commands.Should().Equal("!hug");
-        message.Should().BeTrue();
-        reply.Should().BeTrue();
-        asBroadcaster.Should().BeTrue();
+        acting
+            .Commands.Should()
+            .BeEmpty("the bot answers no command in a channel that did not onboard");
+        (message || reply || asBroadcaster)
+            .Should()
+            .BeFalse("the bot never speaks in a channel that did not onboard");
         await twitch
-            .Received(1)
-            .SendMessageAsync(ClosedTenant, Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]

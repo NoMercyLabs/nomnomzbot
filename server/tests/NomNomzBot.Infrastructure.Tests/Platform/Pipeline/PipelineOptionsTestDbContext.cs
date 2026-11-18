@@ -97,6 +97,10 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
 
         b.Entity<ChannelMembership>(e => e.HasKey(m => m.Id));
 
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn>(e =>
+            e.HasKey(o => o.Id)
+        );
+
         b.Entity<ChannelAudioMix>(e => e.HasKey(m => m.Id));
 
         b.Entity<PickList>(e =>
@@ -183,6 +187,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         typeof(Channel),
         typeof(OutboundWebhookEndpoint),
         typeof(EventResponse),
+        typeof(NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =

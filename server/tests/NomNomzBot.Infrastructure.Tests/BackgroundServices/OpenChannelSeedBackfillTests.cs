@@ -53,21 +53,36 @@ public sealed class OpenChannelSeedBackfillTests
     private static readonly Guid StrangerUser = Guid.Parse("0192a000-0000-7000-8000-00000000e004");
     private static readonly Guid ClosedChannel = Guid.Parse("0192a000-0000-7000-8000-00000000e005");
 
+    // Stoney, 2026-11-18: a channel that did not onboard gets no commands or responses, even when an onboarded
+    // user moderates it; the bot only watches it for spam.
     [Fact]
-    public async Task Open_non_onboarded_channel_gets_default_commands_and_event_responses()
+    public async Task A_non_onboarded_channel_an_onboarded_user_moderates_gets_no_rows()
+    {
+        AuthDbContext db = await BuildWorldAsync();
+
+        await RunBackfillAsync(db);
+
+        (await db.ChannelBuiltinCommands.CountAsync(c => c.BroadcasterId == OpenChannel))
+            .Should()
+            .Be(0);
+        (await db.EventResponses.CountAsync(e => e.BroadcasterId == OpenChannel)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task An_onboarded_channel_gets_default_commands_and_event_responses()
     {
         AuthDbContext db = await BuildWorldAsync();
 
         await RunBackfillAsync(db);
 
         List<ChannelBuiltinCommand> commands = await db
-            .ChannelBuiltinCommands.Where(c => c.BroadcasterId == OpenChannel)
+            .ChannelBuiltinCommands.Where(c => c.BroadcasterId == ModeratorHome)
             .ToListAsync();
         commands.Select(c => c.BuiltinKey).Should().BeEquivalentTo(DefaultCommandKeys);
         commands.Should().OnlyContain(c => c.IsEnabled);
 
         List<EventResponse> responses = await db
-            .EventResponses.Where(e => e.BroadcasterId == OpenChannel)
+            .EventResponses.Where(e => e.BroadcasterId == ModeratorHome)
             .ToListAsync();
         responses
             .Select(e => e.EventType)
@@ -93,7 +108,7 @@ public sealed class OpenChannelSeedBackfillTests
         await RunBackfillAsync(db);
         int commandsBefore = await db.ChannelBuiltinCommands.CountAsync();
         int responsesBefore = await db.EventResponses.CountAsync();
-        (await db.ChannelBuiltinCommands.CountAsync(c => c.BroadcasterId == OpenChannel))
+        (await db.ChannelBuiltinCommands.CountAsync(c => c.BroadcasterId == ModeratorHome))
             .Should()
             .Be(DefaultCommandKeys.Length);
 

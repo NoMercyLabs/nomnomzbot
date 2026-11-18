@@ -124,27 +124,25 @@ public sealed class AuthServiceChannelBotStatusTests
         result.Value.Connected.Should().BeFalse();
     }
 
+    // Stoney, 2026-11-18: the shared bot is not in the chat of a channel that did not onboard, even one an
+    // onboarded user moderates; only the moderator's own reader watches it for spam.
     [Fact]
-    public async Task AChannelAnOnboardedUserModerates_ReportsTheSharedBotInChat_AndOneNobodyOnboardedModeratesDoesNot()
+    public async Task AChannelThatDidNotOnboard_ReportsNoSharedBotInChat_EvenWhenAnOnboardedUserModeratesIt()
     {
         (AuthService service, AuthDbContext db, IIntegrationTokenVault vault) = Build();
         Guid connectionId = SeedSharedBot(db);
         VaultHasToken(vault, connectionId);
         Channel home = SeedChannel(db);
         Channel moderated = SeedChannel(db, onboarded: false);
-        Channel unwatched = SeedChannel(db, onboarded: false);
-        db.ChannelMemberships.AddRange(
-            Moderator(moderated.Id, home.OwnerUserId),
-            Moderator(unwatched.Id, Guid.NewGuid())
-        );
+        db.ChannelMemberships.Add(Moderator(moderated.Id, home.OwnerUserId));
         db.SaveChanges();
 
-        Result<BotStatusDto> open = await service.GetChannelBotStatusAsync(moderated.Id);
-        Result<BotStatusDto> closed = await service.GetChannelBotStatusAsync(unwatched.Id);
+        Result<BotStatusDto> served = await service.GetChannelBotStatusAsync(home.Id);
+        Result<BotStatusDto> moderatedStatus = await service.GetChannelBotStatusAsync(moderated.Id);
 
-        open.Value.Connected.Should().BeTrue();
-        open.Value.Login.Should().Be("nomz_bot");
-        closed.Value.Connected.Should().BeFalse();
+        served.Value.Connected.Should().BeTrue();
+        served.Value.Login.Should().Be("nomz_bot");
+        moderatedStatus.Value.Connected.Should().BeFalse();
     }
 
     private static ChannelMembership Moderator(Guid broadcaster, Guid user) =>

@@ -61,8 +61,10 @@ public sealed class MembershipOpensChannelSeedTests
         return (sut, db, bus);
     }
 
+    // Stoney, 2026-11-18: an onboarded moderator no longer opens a channel that did not onboard, so the bot
+    // seeds nothing there ("you were to monitor channels for spam that are not onboarded").
     [Fact]
-    public async Task Moderator_grant_by_an_onboarded_user_raises_one_onboarding_event_for_the_channel()
+    public async Task Moderator_grant_by_an_onboarded_user_raises_no_onboarding_event()
     {
         (MembershipService sut, _, RecordingEventBus bus) = Build(targetOnboarded: false);
 
@@ -81,18 +83,11 @@ public sealed class MembershipOpensChannelSeedTests
             grantedByUserId: null
         );
 
-        ChannelOnboardedEvent raised = bus
-            .Published.OfType<ChannelOnboardedEvent>()
-            .Should()
-            .ContainSingle()
-            .Subject;
-        raised.BroadcasterId.Should().Be(Target);
-        raised.TwitchChannelId.Should().Be("tw-target");
-        raised.Name.Should().Be("targetchan");
+        bus.Published.OfType<ChannelOnboardedEvent>().Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Twitch_sync_that_adds_an_onboarded_moderator_raises_one_onboarding_event()
+    public async Task Twitch_sync_that_adds_an_onboarded_moderator_raises_no_onboarding_event()
     {
         (MembershipService sut, _, RecordingEventBus bus) = Build(targetOnboarded: false);
 
@@ -109,9 +104,7 @@ public sealed class MembershipOpensChannelSeedTests
             new HashSet<MembershipSource> { MembershipSource.TwitchBadge }
         );
 
-        bus.Published.OfType<ChannelOnboardedEvent>()
-            .Should()
-            .ContainSingle(e => e.BroadcasterId == Target);
+        bus.Published.OfType<ChannelOnboardedEvent>().Should().BeEmpty();
     }
 
     [Fact]

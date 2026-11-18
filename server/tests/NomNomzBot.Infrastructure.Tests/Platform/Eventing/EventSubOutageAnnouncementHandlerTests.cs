@@ -98,32 +98,35 @@ public sealed class EventSubOutageAnnouncementHandlerTests
     }
 
     [Fact]
-    public async Task A_live_channel_an_onboarded_user_moderates_hears_the_drop_and_a_closed_one_does_not()
+    public async Task Only_an_onboarded_live_channel_hears_the_drop_even_when_an_onboarded_user_moderates_another()
     {
         Guid moderator = Guid.NewGuid();
-        Guid open = Guid.NewGuid();
+        Guid moderated = Guid.NewGuid();
         Guid modByNobodyOnboarded = Guid.NewGuid();
         Guid plainClosed = Guid.NewGuid();
+        Guid onboarded = Guid.NewGuid();
         Channel home = Channel(Guid.NewGuid(), live: false);
         home.OwnerUserId = moderator;
-        Channel openRow = Channel(open, live: true);
-        openRow.IsOnboarded = false;
+        Channel moderatedRow = Channel(moderated, live: true);
+        moderatedRow.IsOnboarded = false;
         Channel notOnboardedModRow = Channel(modByNobodyOnboarded, live: true);
         notOnboardedModRow.IsOnboarded = false;
         Channel closedRow = Channel(plainClosed, live: true);
         closedRow.IsOnboarded = false;
-        _memberships.Add(Moderator(open, moderator));
+        _memberships.Add(Moderator(moderated, moderator));
         _memberships.Add(Moderator(modByNobodyOnboarded, Guid.NewGuid()));
         EventSubOutageAnnouncementHandler handler = Build(
             home,
-            openRow,
+            moderatedRow,
             notOnboardedModRow,
-            closedRow
+            closedRow,
+            Channel(onboarded, live: true)
         );
 
         await handler.HandleAsync(Dropped(Guid.Empty), CancellationToken.None);
 
-        _sent.Should().ContainSingle().Which.Should().Be((open, LostText));
+        // Stoney, 2026-11-18: the bot never speaks in a channel that did not onboard.
+        _sent.Should().ContainSingle().Which.Should().Be((onboarded, LostText));
     }
 
     [Fact]

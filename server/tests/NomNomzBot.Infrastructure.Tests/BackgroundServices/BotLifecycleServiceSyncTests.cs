@@ -21,6 +21,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Content;
@@ -162,11 +163,14 @@ public sealed class BotLifecycleServiceSyncTests
         await deployment.StopAsync();
     }
 
+    // Stoney, 2026-11-18: "Remove yourself from all channels that have not onboarded and ... watch only for
+    // spam". The moderator's own chat reader watches those chats; the bot account holds no subscription there.
     [Fact]
-    public async Task A_channel_that_is_not_onboarded_gets_only_the_moderator_authorizable_topics()
+    public async Task The_bot_leaves_a_channel_that_is_not_onboarded_and_subscribes_nothing_there()
     {
         string database = Guid.NewGuid().ToString();
         Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
+        SeedSubscription(database, channel, "channel.chat.message");
         IEventSubActingModeratorSelector selector =
             Substitute.For<IEventSubActingModeratorSelector>();
         selector
@@ -177,48 +181,7 @@ public sealed class BotLifecycleServiceSyncTests
         await Build(database, eventSub, selector: selector)
             .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
 
-        IReadOnlyCollection<string> topics =
-            (IReadOnlyCollection<string>)
-                eventSub
-                    .ReceivedCalls()
-                    .Single(call =>
-                        call.GetMethodInfo().Name
-                            == nameof(ITwitchEventSubService.EnsureSubscribedAsync)
-                        && (Guid)call.GetArguments()[0]! == channel
-                    )
-                    .GetArguments()[1]!;
-        topics.Should().BeEquivalentTo(BotLifecycleService.ModeratedChannelEventTypes);
-        topics
-            .Should()
-            .Contain([
-                "channel.follow",
-                "channel.moderate",
-                "automod.message.hold",
-                "stream.online",
-            ]);
-        topics
-            .Should()
-            .NotContain(
-                ["channel.subscribe", "channel.channel_points_custom_reward_redemption.add"],
-                "those need the broadcaster's own grant"
-            );
-    }
-
-    [Fact]
-    public async Task A_channel_that_is_not_onboarded_and_has_no_connected_moderator_is_left_alone()
-    {
-        string database = Guid.NewGuid().ToString();
-        Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
-        IEventSubActingModeratorSelector selector =
-            Substitute.For<IEventSubActingModeratorSelector>();
-        selector
-            .SelectAsync(channel, Arg.Any<CancellationToken>())
-            .Returns((EventSubActingModerator?)null);
-        ITwitchEventSubService eventSub = SubscribingEventSub();
-
-        await Build(database, eventSub, selector: selector)
-            .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
-
+        await eventSub.Received(1).UnsubscribeAllAsync(channel, Arg.Any<CancellationToken>());
         await eventSub
             .DidNotReceive()
             .EnsureSubscribedAsync(
@@ -226,6 +189,45 @@ public sealed class BotLifecycleServiceSyncTests
                 Arg.Any<IReadOnlyCollection<string>>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_channel_that_is_not_onboarded_and_holds_no_bot_subscription_is_left_alone()
+    {
+        string database = Guid.NewGuid().ToString();
+        Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
+        ITwitchEventSubService eventSub = SubscribingEventSub();
+
+        await Build(database, eventSub)
+            .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+
+        await eventSub.DidNotReceive().UnsubscribeAllAsync(channel, Arg.Any<CancellationToken>());
+        await eventSub
+            .DidNotReceive()
+            .EnsureSubscribedAsync(
+                channel,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    private static void SeedSubscription(string database, Guid channel, string eventType)
+    {
+        using SeedTestDbContext db = SeedTestDbContext.New(database);
+        db.EventSubSubscriptions.Add(
+            new EventSubSubscription
+            {
+                BroadcasterId = channel,
+                Provider = "twitch",
+                EventType = eventType,
+                Version = "1",
+                Condition = [],
+                Transport = "websocket",
+                Status = "enabled",
+                Enabled = true,
+            }
+        );
+        db.SaveChanges();
     }
 
     [Fact]

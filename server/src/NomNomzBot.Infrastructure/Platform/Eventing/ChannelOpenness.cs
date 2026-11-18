@@ -9,18 +9,18 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
 
 /// <summary>
 /// The one rule for "may the bot act in this channel?", shared by the event bus gate and the chat router.
-/// A channel is open when it is onboarded, or when an onboarded user (one who owns an onboarded channel)
-/// holds a moderator-or-higher management membership in it. Every <c>ManagementRole</c> is that level.
+/// A channel is open only when its broadcaster onboarded. In a channel that did not onboard, the bot only
+/// watches for spam through the onboarding-exempt handlers; it never speaks, greets or answers commands there,
+/// even when an onboarded user moderates it (Stoney, 2026-11-18: "you were to monitor channels for spam that are
+/// not onboarded").
 /// </summary>
 public static class ChannelOpenness
 {
@@ -28,31 +28,9 @@ public static class ChannelOpenness
         IApplicationDbContext db,
         Guid broadcasterId,
         CancellationToken cancellationToken
-    )
-    {
-        Expression<Func<Channel, bool>> open = OpenPredicate(db);
-        Expression<Func<Channel, bool>> closed = Expression.Lambda<Func<Channel, bool>>(
-            Expression.Not(open.Body),
-            open.Parameters
-        );
-
-        return db.Channels.Where(c => c.Id == broadcasterId).AnyAsync(closed, cancellationToken);
-    }
+    ) => db.Channels.AnyAsync(c => c.Id == broadcasterId && !c.IsOnboarded, cancellationToken);
 
     /// <summary>Every open channel, by the same rule <see cref="IsClosedAsync"/> uses.</summary>
     public static IQueryable<Channel> OpenChannels(IApplicationDbContext db) =>
-        db.Channels.Where(OpenPredicate(db));
-
-    private static Expression<Func<Channel, bool>> OpenPredicate(IApplicationDbContext db)
-    {
-        int moderator = PermissionLevel.Moderator.ToLevelValue();
-
-        return c =>
-            c.IsOnboarded
-            || db.ChannelMemberships.Any(m =>
-                m.BroadcasterId == c.Id
-                && m.LevelValue >= moderator
-                && db.Channels.Any(home => home.OwnerUserId == m.UserId && home.IsOnboarded)
-            );
-    }
+        db.Channels.Where(c => c.IsOnboarded);
 }

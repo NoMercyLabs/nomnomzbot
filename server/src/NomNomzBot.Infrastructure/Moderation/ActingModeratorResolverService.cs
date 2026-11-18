@@ -41,6 +41,10 @@ public sealed record ActingModerator(Guid OperatorUserId, string BroadcasterTwit
 /// the fix: when there is no owner token, act as whichever signed-in moderator is actually live on the
 /// channel's chat right now (<see cref="IModeratorChatReaders"/> already tracks exactly that, for the
 /// dashboard's own "moderate a channel the bot never joined" feature).</para>
+///
+/// <para><b>Opt-in (Stoney, 2026-11-18):</b> "EVERYTHING IS OPT-IN". An automatic action with nobody asking
+/// signs as a reading moderator only when the streamer's yes is on record for that moderator
+/// (<c>ModeratorMassBanOptIn</c>); otherwise it fails with <c>NOT_OPTED_IN</c>.</para>
 /// </summary>
 public interface IActingModeratorResolverService
 {
@@ -87,25 +91,45 @@ public sealed class ActingModeratorResolverService(
         if (await SignedInModeratorAsync(broadcasterId, ct) is { } asking)
             return Result.Success(new ActingModerator(asking, channel.TwitchChannelId));
 
-        // Otherwise act as whoever is actually live-moderating this channel's chat right now, on their own
-        // token — never silently do nothing.
-        ModeratorChatReaderStatus? reading = moderatorChatReaders
-            .Snapshot()
-            .FirstOrDefault(status =>
-                status.State == ModeratorChatReaderState.Reading
-                && string.Equals(
-                    status.TwitchBroadcasterId,
-                    channel.TwitchChannelId,
-                    StringComparison.OrdinalIgnoreCase
+        // Otherwise act as a moderator who is reading this channel's chat right now, on their own token, but
+        // only when the streamer's yes is on record for that moderator (Stoney, 2026-11-18: "EVERYTHING IS
+        // OPT-IN"). A streamer who never said yes gets no automatic action in anyone's name.
+        List<Guid> reading =
+        [
+            .. moderatorChatReaders
+                .Snapshot()
+                .Where(status =>
+                    status.State == ModeratorChatReaderState.Reading
+                    && status.ModeratorUserId is not null
+                    && string.Equals(
+                        status.TwitchBroadcasterId,
+                        channel.TwitchChannelId,
+                        StringComparison.OrdinalIgnoreCase
+                    )
                 )
-            );
-
-        return reading?.ModeratorUserId is { } moderatorUserId
-            ? Result.Success(new ActingModerator(moderatorUserId, channel.TwitchChannelId))
-            : Result.Failure<ActingModerator>(
+                .Select(status => status.ModeratorUserId!.Value),
+        ];
+        if (reading.Count == 0)
+            return Result.Failure<ActingModerator>(
                 "This channel is not onboarded and no signed-in moderator is currently reading its "
                     + "chat, so there is no identity to moderate as.",
                 "NO_ACTING_IDENTITY"
+            );
+
+        Guid? optedIn = await db
+            .ModeratorMassBanOptIns.Where(o =>
+                o.BroadcasterTwitchId == channel.TwitchChannelId
+                && reading.Contains(o.OperatorUserId)
+            )
+            .Select(o => (Guid?)o.OperatorUserId)
+            .FirstOrDefaultAsync(ct);
+
+        return optedIn is { } moderatorUserId
+            ? Result.Success(new ActingModerator(moderatorUserId, channel.TwitchChannelId))
+            : Result.Failure<ActingModerator>(
+                "This channel is not onboarded and its streamer has not opted in, so the bot takes "
+                    + "no automatic action there in a moderator's name.",
+                "NOT_OPTED_IN"
             );
     }
 

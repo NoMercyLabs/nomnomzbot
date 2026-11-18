@@ -118,6 +118,7 @@ public class SpamEnforcementExecutorTests : IDisposable
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
 
     private bool _channelSeeded;
+    private Guid? _optedInModerator;
 
     private void SeedChannelIfNeeded()
     {
@@ -141,6 +142,17 @@ public class SpamEnforcementExecutorTests : IDisposable
                 NameNormalized = "chan",
             }
         );
+        if (_optedInModerator is { } optedIn)
+            db.ModeratorMassBanOptIns.Add(
+                new()
+                {
+                    OperatorUserId = optedIn,
+                    BroadcasterTwitchId = BroadcasterTwitchId,
+                    BroadcasterLogin = "chan",
+                    Note = "streamer said yes",
+                    RecordedAt = DateTime.UtcNow,
+                }
+            );
         db.SaveChanges();
     }
 
@@ -706,7 +718,9 @@ public class SpamEnforcementExecutorTests : IDisposable
         // gets automated protection — acting as whichever signed-in moderator is actually live on its
         // chat right now, never silently nothing. Before the fix this handler resolved only
         // Channel.OwnerUserId with no fallback, so a non-onboarded channel's spam timeout always failed.
+        // Stoney, 2026-11-18: only once the streamer's yes is on record for that moderator.
         _isOnboarded = false;
+        _optedInModerator = LiveModerator;
         _readers
             .Snapshot()
             .Returns(_ =>
@@ -756,6 +770,35 @@ public class SpamEnforcementExecutorTests : IDisposable
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    // Stoney, 2026-11-18: "EVERYTHING IS OPT-IN". A streamer who never said yes gets no automatic delete or
+    // timeout in a moderator's name, even with that moderator live on the chat.
+    [Fact]
+    public async Task WhenNotOnboardedAndNotOptedIn_NothingIsActioned_EvenWithALiveModerator()
+    {
+        _isOnboarded = false;
+        _readers
+            .Snapshot()
+            .Returns(_ =>
+                [
+                    new ModeratorChatReaderStatus(
+                        BroadcasterTwitchId,
+                        ModeratorChatReaderState.Reading,
+                        LiveModerator,
+                        null
+                    ),
+                ]
+            );
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false)
+        );
+
+        outcome.DeletedMessage.Should().BeFalse();
+        outcome.TimedOutAccount.Should().BeFalse();
+        await AssertNoDeleteIssued();
+        await AssertNoTimeoutIssued();
     }
 
     [Fact]

@@ -458,7 +458,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<WidgetVersion>();
         modelBuilder.Ignore<WidgetGalleryItem>();
         modelBuilder.Ignore<WidgetGallerySubmissionEvent>();
-        modelBuilder.Ignore<EventSubSubscription>();
+        modelBuilder.ApplyConfiguration(new EventSubSubscriptionConfiguration());
         modelBuilder.Ignore<EventSubConduit>();
         modelBuilder.Ignore<EventSubConduitShard>();
         modelBuilder.Ignore<IdempotencyKey>();

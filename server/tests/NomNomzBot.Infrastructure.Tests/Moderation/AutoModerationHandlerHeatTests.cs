@@ -53,10 +53,22 @@ public sealed class AutoModerationHandlerHeatTests
         int? durationSeconds = null,
         bool withOwner = true,
         IViolationEscalationService? escalation = null,
-        IReadOnlyList<ModeratorChatReaderStatus>? liveModerators = null
+        IReadOnlyList<ModeratorChatReaderStatus>? liveModerators = null,
+        Guid? optedInModerator = null
     )
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        if (optedInModerator is { } optedIn)
+            db.ModeratorMassBanOptIns.Add(
+                new()
+                {
+                    OperatorUserId = optedIn,
+                    BroadcasterTwitchId = "700777",
+                    BroadcasterLogin = "c",
+                    Note = "streamer said yes",
+                    RecordedAt = DateTime.UtcNow,
+                }
+            );
         db.Channels.Add(
             new()
             {
@@ -443,10 +455,11 @@ public sealed class AutoModerationHandlerHeatTests
     }
 
     [Fact]
-    public async Task AChannelThatIsNotOnboardedButHasALiveModerator_ActsInTheModeratorsName()
+    public async Task AChannelThatIsNotOnboardedButOptedInWithALiveModerator_ActsInTheModeratorsName()
     {
         // Stoney, 2026-11-05: a channel with no owner token on file still gets automated protection —
-        // signed as whichever signed-in moderator is actually live on its chat right now.
+        // signed as whichever signed-in moderator is actually live on its chat right now. Stoney,
+        // 2026-11-18: only once the streamer's yes is on record for that moderator.
         Guid liveModerator = Guid.Parse("0192d000-0000-7000-8000-0000000000a9");
         (AutoModerationHandler handler, IModerationService moderation, _) = await BuildAsync(
             "timeout",
@@ -460,7 +473,8 @@ public sealed class AutoModerationHandlerHeatTests
                     liveModerator,
                     null
                 ),
-            ]
+            ],
+            optedInModerator: liveModerator
         );
 
         await handler.HandleAsync(LinkMessage(), CancellationToken.None);

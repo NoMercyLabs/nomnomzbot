@@ -61,11 +61,23 @@ public sealed class ActingModeratorResolverServiceTests
 
     private static ActingModeratorResolverService Resolver(
         PipelineOptionsTestDbContext db,
-        Guid? signedInUser
+        Guid? signedInUser,
+        Guid? readingModerator = null
     )
     {
         IModeratorChatReaders readers = Substitute.For<IModeratorChatReaders>();
-        readers.Snapshot().Returns(_ => []);
+        List<ModeratorChatReaderStatus> reading = readingModerator is { } reader
+            ?
+            [
+                new ModeratorChatReaderStatus(
+                    "170805317",
+                    ModeratorChatReaderState.Reading,
+                    reader,
+                    null
+                ),
+            ]
+            : [];
+        readers.Snapshot().Returns(_ => reading);
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(signedInUser?.ToString());
         currentUser.IsAuthenticated.Returns(signedInUser is not null);
@@ -92,6 +104,43 @@ public sealed class ActingModeratorResolverServiceTests
         Result<ActingModerator> acting = await Resolver(db, Moderator).ResolveAsync(Channel);
 
         acting.Value.OperatorUserId.Should().Be(Owner);
+    }
+
+    // Stoney, 2026-11-18: "EVERYTHING IS OPT-IN". With no person asking, the bot acts in a moderator's name
+    // on a channel that did not onboard only when that streamer's yes is on record for that moderator.
+    [Fact]
+    public async Task An_automatic_action_on_a_channel_that_did_not_opt_in_is_refused()
+    {
+        PipelineOptionsTestDbContext db = Seed(onboarded: false, ManagementRole.Moderator);
+
+        Result<ActingModerator> acting = await Resolver(db, signedInUser: null, Moderator)
+            .ResolveAsync(Channel);
+
+        acting.IsFailure.Should().BeTrue();
+        acting.ErrorCode.Should().Be("NOT_OPTED_IN");
+    }
+
+    [Fact]
+    public async Task An_automatic_action_signs_as_the_reading_moderator_once_the_streamer_opted_in()
+    {
+        PipelineOptionsTestDbContext db = Seed(onboarded: false, ManagementRole.Moderator);
+        db.ModeratorMassBanOptIns.Add(
+            new()
+            {
+                OperatorUserId = Moderator,
+                BroadcasterTwitchId = "170805317",
+                BroadcasterLogin = "kenku",
+                Note = "asked in Discord",
+                RecordedAt = DateTime.UtcNow,
+            }
+        );
+        db.SaveChanges();
+
+        Result<ActingModerator> acting = await Resolver(db, signedInUser: null, Moderator)
+            .ResolveAsync(Channel);
+
+        acting.IsSuccess.Should().BeTrue(acting.ErrorMessage);
+        acting.Value.OperatorUserId.Should().Be(Moderator);
     }
 
     [Fact]

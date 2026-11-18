@@ -85,10 +85,11 @@ public sealed class BotShutdownAnnouncementServiceTests
     }
 
     [Fact]
-    public async Task A_live_channel_an_onboarded_user_moderates_hears_the_line_and_a_closed_one_does_not()
+    public async Task Only_an_onboarded_live_channel_hears_the_line_even_when_an_onboarded_user_moderates_another()
     {
         Guid moderator = Guid.NewGuid();
         Guid openByModerator = Guid.NewGuid();
+        Guid onboarded = Guid.NewGuid();
         Guid modByNobodyOnboarded = Guid.NewGuid();
         Guid plainClosed = Guid.NewGuid();
         Channel home = Channel(Guid.NewGuid(), live: false, PersonalityTone.Informative);
@@ -111,12 +112,14 @@ public sealed class BotShutdownAnnouncementServiceTests
             home,
             open,
             notOnboardedMod,
-            closed
+            closed,
+            Channel(onboarded, live: true, PersonalityTone.Informative)
         );
 
         await service.StopAsync(CancellationToken.None);
 
-        _sent.Select(s => s.Channel).Should().Equal(openByModerator);
+        // Stoney, 2026-11-18: the bot never speaks in a channel that did not onboard.
+        _sent.Select(s => s.Channel).Should().Equal(onboarded);
     }
 
     [Fact]
