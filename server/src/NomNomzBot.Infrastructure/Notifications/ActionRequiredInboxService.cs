@@ -46,8 +46,17 @@ public sealed class ActionRequiredInboxService(
     )
     {
         HashSet<string> dismissedKeys = await LoadDismissedKeysAsync(channelId, cancellationToken);
+        // A channel that did not onboard shows only what its moderators can act on (Stoney, 2026-11-18).
+        bool notOnboarded = await db.Channels.AnyAsync(
+            c => c.Id == channelId && !c.IsOnboarded,
+            cancellationToken
+        );
         List<ActionRequiredItemDto> items = [];
-        foreach (IActionRequiredSource source in _sources)
+        foreach (
+            IActionRequiredSource source in _sources.Where(s =>
+                !notOnboarded || s.ConcernsModeration
+            )
+        )
         {
             Result<List<ActionRequiredItemDto>> produced = await source.GetItemsAsync(
                 channelId,

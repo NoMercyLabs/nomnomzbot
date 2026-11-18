@@ -40,6 +40,8 @@ public sealed class ChatFilterActionFailureSource(IApplicationDbContext db, Time
 
     public string SourceKey => "chat_filter_action_failures";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

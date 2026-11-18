@@ -32,6 +32,8 @@ public sealed class ViewerReportSource(IApplicationDbContext db) : IActionRequir
 
     public string SourceKey => "viewer_reports";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

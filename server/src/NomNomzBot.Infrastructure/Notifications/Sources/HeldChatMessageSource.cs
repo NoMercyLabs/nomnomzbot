@@ -32,6 +32,8 @@ public sealed class HeldChatMessageSource(IApplicationDbContext db) : IActionReq
 
     public string SourceKey => "held_messages";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [HeldKeyPrefix, HeldUserKeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

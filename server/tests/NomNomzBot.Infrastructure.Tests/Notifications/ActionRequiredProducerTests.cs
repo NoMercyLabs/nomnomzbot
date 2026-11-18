@@ -542,6 +542,7 @@ public sealed class ActionRequiredProducerTests
             Id = id,
             Name = name,
             NameNormalized = name,
+            IsOnboarded = true,
         };
 
     private static EventSubSubscription Refused(

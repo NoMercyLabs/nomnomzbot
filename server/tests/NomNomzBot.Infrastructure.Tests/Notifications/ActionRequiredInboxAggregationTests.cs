@@ -196,6 +196,86 @@ public sealed class ActionRequiredInboxAggregationTests
         public override DateTimeOffset GetUtcNow() => new(UtcNow, TimeSpan.Zero);
     }
 
+    // Stoney, 2026-11-18: "anything broadcaster related should not be shown as issues when the broadcaster
+    // never onboarded". Only what a moderator can act on stays.
+    [Theory]
+    [InlineData(false, new[] { "moderation" })]
+    [InlineData(true, new[] { "moderation", "owner_setup" })]
+    public async Task GetItemsAsync_ShowsOnlyModerationItems_InAChannelThatDidNotOnboard(
+        bool onboarded,
+        string[] expectedKinds
+    )
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        db.Channels.Add(
+            new()
+            {
+                Id = ChannelId,
+                OwnerUserId = Guid.NewGuid(),
+                Name = "modded",
+                NameNormalized = "modded",
+                IsOnboarded = onboarded,
+            }
+        );
+        await db.SaveChangesAsync();
+        ActionRequiredInboxService sut = new(
+            [
+                new KindSource("owner_setup", concernsModeration: false),
+                new KindSource("moderation", concernsModeration: true),
+            ],
+            db,
+            TimeProvider.System,
+            new RecordingChangeNotifier(),
+            NullLogger<ActionRequiredInboxService>.Instance
+        );
+
+        Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
+
+        result.Value.Select(i => i.Kind).Should().BeEquivalentTo(expectedKinds);
+    }
+
+    private sealed class KindSource(string kind, bool concernsModeration) : IActionRequiredSource
+    {
+        public string SourceKey => kind;
+
+        public bool ConcernsModeration => concernsModeration;
+
+        public IReadOnlyCollection<string> KeyPrefixes { get; } = [$"{kind}:"];
+
+        public IReadOnlyCollection<string> InvalidatingEventTypes { get; } = [];
+
+        public Task<Result<List<ActionRequiredItemDto>>> GetItemsAsync(
+            Guid channelId,
+            IReadOnlySet<string> dismissedKeys,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult(
+                Result.Success<List<ActionRequiredItemDto>>([
+                    new(
+                        Id: $"{kind}:1",
+                        Kind: kind,
+                        Severity: "warning",
+                        TitleKey: "t",
+                        MessageKey: "m",
+                        Parameters: [],
+                        DetectedAt: DateTime.UtcNow,
+                        DeepLinkRoute: "integrations",
+                        SourceUserId: null,
+                        SourceUserName: null,
+                        Count: 1,
+                        QueueItemIds: []
+                    ),
+                ])
+            );
+
+        public Task<Result<List<string>>> ResolveDismissalKeysAsync(
+            Guid channelId,
+            string itemId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success<List<string>>([itemId]));
+    }
+
     private sealed class FailingSource : IActionRequiredSource
     {
         public string SourceKey => "failing_checks";

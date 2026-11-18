@@ -40,6 +40,8 @@ public sealed class SharedBanNotAppliedSource(IApplicationDbContext db, TimeProv
 
     public string SourceKey => "shared_bans";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

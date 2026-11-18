@@ -34,6 +34,13 @@ public interface IActionRequiredSource
     string SourceKey { get; }
 
     /// <summary>
+    /// True when a moderator can act on what this source reports (unban requests, held messages, failed
+    /// moderation). Only these show in a channel that did not onboard: its broadcaster set nothing up, so an
+    /// owner-setup issue there is noise (Stoney, 2026-11-18).
+    /// </summary>
+    bool ConcernsModeration => false;
+
+    /// <summary>
     /// The id prefixes this source mints (e.g. <c>token:</c>). The dismiss endpoint routes a requested id to the
     /// source whose prefix it carries, and rejects an id no source owns.
     /// </summary>

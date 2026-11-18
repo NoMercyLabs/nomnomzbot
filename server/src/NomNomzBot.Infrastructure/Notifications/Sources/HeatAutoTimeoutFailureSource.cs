@@ -37,6 +37,8 @@ public sealed class HeatAutoTimeoutFailureSource(IApplicationDbContext db, TimeP
 
     public string SourceKey => "heat_timeouts";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

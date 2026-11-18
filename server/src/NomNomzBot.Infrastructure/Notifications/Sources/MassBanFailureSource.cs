@@ -29,6 +29,8 @@ public sealed class MassBanFailureSource(IApplicationDbContext db) : IActionRequ
 
     public string SourceKey => "mass_bans";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     // A batch finishing is not a journaled domain event; the inbox is read when the dashboard loads.

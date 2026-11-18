@@ -35,6 +35,8 @@ public sealed class UnbanRequestSource(
 
     public string SourceKey => "unban_requests";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

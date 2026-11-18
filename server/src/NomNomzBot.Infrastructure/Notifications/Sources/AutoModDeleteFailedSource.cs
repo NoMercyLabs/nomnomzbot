@@ -39,6 +39,8 @@ public sealed class AutoModDeleteFailedSource(IApplicationDbContext db, TimeProv
 
     public string SourceKey => "automod_deletes";
 
+    public bool ConcernsModeration => true;
+
     public IReadOnlyCollection<string> KeyPrefixes { get; } = [KeyPrefix];
 
     public IReadOnlyCollection<string> InvalidatingEventTypes { get; } =

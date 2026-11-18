@@ -96,6 +96,7 @@ public sealed class BotSendRefusedSourceTests
                 Name = "ModdedStreamer",
                 NameNormalized = "moddedstreamer",
                 TwitchChannelId = "100",
+                IsOnboarded = true,
             }
         );
         db.EventJournals.AddRange(rows);

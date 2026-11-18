@@ -293,6 +293,7 @@ public sealed class BotNotModeratorTests
                     Name = "streamer",
                     NameNormalized = "streamer",
                     TwitchChannelId = BroadcasterTwitchId,
+                    IsOnboarded = true,
                     BotIsModerator = botIsModerator,
                     BotModeratorStatusBotUserId = botIsModerator is null ? null : BotTwitchId,
                     BotModeratorStatusChangedAt = botIsModerator is null ? null : SeededChangedAt,
