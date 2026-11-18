@@ -39,7 +39,8 @@
 param(
     [int]$ReadyTimeoutSec = 120,
     [int]$DrainSec = 35, # >= the app's ~30s /health/ready drain window (see Program.cs shutdown).
-    [switch]$Build # force a local rebuild instead of pulling, regardless of API_IMAGE
+    [switch]$Build, # force a local rebuild instead of pulling, regardless of API_IMAGE
+    [int]$MinFreeGb = 5 # remote host only: refuse to start the new colour with less free disk than this
 )
 
 $ErrorActionPreference = "Stop"
@@ -139,6 +140,24 @@ $liveColor = if ($greenUp) { "green" } elseif ($blueUp) { "blue" } else { "blue"
 $idleColor = if ($liveColor -eq "blue") { "green" } else { "blue" }
 Write-Host "SWITCHOVER: live = api-$liveColor, deploying to idle = api-$idleColor"
 
+# -- 1b. Free disk: a full disk cannot unpack the new image (incidents 2026-11-10 and 2026-11-19) -----
+# `docker image prune -a` only drops images no container uses, so the live and the idle colour keep theirs.
+function Get-FreeGb {
+    [int]((Invoke-Target "df -BG --output=avail / | tail -1") -replace '[^0-9]', '')
+}
+if ($remoteMode) {
+    $freeGb = Get-FreeGb
+    if ($freeGb -lt $MinFreeGb) {
+        Write-Host "SWITCHOVER: only ${freeGb}G free (need ${MinFreeGb}G) - pruning unused images and build cache" -ForegroundColor Yellow
+        Invoke-Target "docker image prune -af >/dev/null && docker builder prune -af >/dev/null" | Out-Null
+        $freeGb = Get-FreeGb
+    }
+    if ($freeGb -lt $MinFreeGb) {
+        Fail "only ${freeGb}G free on the host after pruning (need ${MinFreeGb}G) - nothing was changed, api-$liveColor keeps serving"
+    }
+    Write-Host "SWITCHOVER: ${freeGb}G free on the host"
+}
+
 # -- 2. Acquire the new image, start the idle colour alongside the live one ---
 # API_IMAGE selects the path: a registry ref (e.g. ghcr.io/nomercylabs/nomnomzbot:latest, used on
 # the Proxmox box) is PULLED - a real pull failure (network down, bad creds, tag missing) must
@@ -187,6 +206,12 @@ Write-Host "SWITCHOVER: api-$idleColor is ready"
 # while in-flight requests it already accepted get up to $DrainSec to finish.
 Invoke-Target "docker compose stop -t $DrainSec api-$liveColor"
 Write-Host "SWITCHOVER: api-$liveColor stopped (drained, up to ${DrainSec}s)"
+
+# Old images pile up one per deploy; drop every one no container uses so the next deploy has room.
+if ($remoteMode) {
+    Invoke-TargetSoft "docker image prune -af >/dev/null" | Out-Null
+    Write-Host "SWITCHOVER: unused images pruned, $(Get-FreeGb)G free"
+}
 
 Write-Host ""
 Write-Host "SWITCHOVER: DONE - api-$idleColor is now live, api-$liveColor is idle" -ForegroundColor Green
