@@ -950,6 +950,31 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         await service.StopAsync(CancellationToken.None);
     }
 
+    // A moderator who lost the role (made VIP) and got it back has the same grant set, so only time can tell
+    // the refusal is over. Stoney, 2026-11-18: geennoob's moderator feeds stayed off until a restart.
+    [Fact]
+    public async Task A_refused_topic_is_posted_to_the_conduit_again_once_the_retry_interval_ends()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            ConduitRefusesRestAccepts,
+            serviceClock: clock
+        );
+        await StartAsync(service);
+        await service.SubscribeAsync(Channel, ChatTopic);
+
+        clock.Advance(TwitchEventSubHostedService.ConduitRefusalRetry - TimeSpan.FromMinutes(1));
+        await service.SubscribeAsync(Channel, ChatTopic);
+        wire.Steps.Count(s => s.Contains("on conduit")).Should().Be(1);
+
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await service.SubscribeAsync(Channel, ChatTopic);
+
+        wire.Steps.Count(s => s.Contains("on conduit")).Should().Be(2);
+        await service.StopAsync(CancellationToken.None);
+    }
+
     /// <summary>
     /// A transport that behaves like the real one where it matters here: the shard session "welcomes" on open
     /// (which triggers the hosted service's shard claim), and closing a session is Twitch seeing the socket go —

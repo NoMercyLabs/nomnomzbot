@@ -88,7 +88,10 @@ public sealed class TwitchEventSubHostedService
 
     // (broadcaster, event type) -> the grant fingerprint the conduit refused it under. In-process on purpose: a
     // restart forgets it, which costs exactly one retry per topic per boot and needs no column or migration.
-    private readonly ConcurrentDictionary<(Guid, string), string> _conduitRefusals = new();
+    private readonly ConcurrentDictionary<
+        (Guid, string),
+        (string Fingerprint, DateTimeOffset RefusedAt)
+    > _conduitRefusals = new();
 
     // Post-welcome work runs off the receive loop, chained per owner so one owner's welcomes are handled in
     // arrival order while other owners proceed independently. Each entry is that owner's newest queued run.
@@ -140,6 +143,10 @@ public sealed class TwitchEventSubHostedService
 
     /// <summary>How often the active instance re-reads the conduit for shards nobody holds.</summary>
     internal static readonly TimeSpan ShardRecheckInterval = TimeSpan.FromSeconds(60);
+
+    // A conduit refusal is retried after this, even under the same grant set: a moderator who lost the role
+    // and got it back has the same grants, so only time can show the refusal is over.
+    internal static readonly TimeSpan ConduitRefusalRetry = TimeSpan.FromMinutes(30);
 
     private Task? _shardRecheckLoop;
 
@@ -1905,8 +1912,12 @@ public sealed class TwitchEventSubHostedService
             + $"|moderator:{actingModeratorTwitchUserId}";
         if (
             row is { ConduitId: null }
-            && _conduitRefusals.TryGetValue((broadcasterId, eventType), out string? refusedUnder)
-            && refusedUnder == grantFingerprint
+            && _conduitRefusals.TryGetValue(
+                (broadcasterId, eventType),
+                out (string Fingerprint, DateTimeOffset RefusedAt) refusal
+            )
+            && refusal.Fingerprint == grantFingerprint
+            && _clock.GetUtcNow() - refusal.RefusedAt < ConduitRefusalRetry
         )
             return (null, row);
 
@@ -1994,7 +2005,10 @@ public sealed class TwitchEventSubHostedService
         {
             if (IsConduitRefusal(created))
             {
-                _conduitRefusals[(broadcasterId, eventType)] = grantFingerprint;
+                _conduitRefusals[(broadcasterId, eventType)] = (
+                    grantFingerprint,
+                    _clock.GetUtcNow()
+                );
                 _logger.LogInformation(
                     "EventSub: conduit refused {EventType} for {BroadcasterId} ({Detail}) — it rides the owner's WebSocket session instead",
                     eventType,
