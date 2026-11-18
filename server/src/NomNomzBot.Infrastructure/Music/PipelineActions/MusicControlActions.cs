@@ -836,7 +836,7 @@ public sealed class MusicTransferDeviceAction : ICommandAction
             new(
                 "deviceId",
                 PipelineActionFieldKind.MusicDevice,
-                Required: true,
+                Required: false,
                 Description: new("pipeline.music_transfer_device.deviceId.help")
             ),
         ];
@@ -850,7 +850,11 @@ public sealed class MusicTransferDeviceAction : ICommandAction
     {
         string deviceId = ResolveStringParam(action, "deviceId", ctx.Variables);
         if (string.IsNullOrWhiteSpace(deviceId))
-            return ActionResult.Failure("music_transfer_device requires a non-empty 'deviceId'");
+            deviceId = await OpenAppDeviceIdAsync(ctx) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(deviceId))
+            return ActionResult.Failure(
+                "No Spotify app is open. Open Spotify on your computer or phone, then try again."
+            );
 
         Result result = await _music.TransferPlaybackAsync(
             ctx.BroadcasterId.ToString(),
@@ -859,6 +863,20 @@ public sealed class MusicTransferDeviceAction : ICommandAction
             ctx.CancellationToken
         );
         return MusicControlResult.FromMusicResult(result, $"transferred to device {deviceId}");
+    }
+
+    // No device chosen (a Stream Deck key left on its default): the open desktop app, else any open app.
+    private async Task<string?> OpenAppDeviceIdAsync(PipelineExecutionContext ctx)
+    {
+        IReadOnlyList<MusicDeviceDto> devices = await _music.GetDevicesAsync(
+            ctx.BroadcasterId.ToString(),
+            ctx.CancellationToken
+        );
+        MusicDeviceDto? pick =
+            devices.FirstOrDefault(d =>
+                string.Equals(d.Type, "Computer", StringComparison.OrdinalIgnoreCase)
+            ) ?? devices.FirstOrDefault();
+        return pick?.Id;
     }
 
     internal static string ResolveStringParam(

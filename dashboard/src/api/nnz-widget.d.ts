@@ -1630,7 +1630,7 @@ interface NnzActionParams {
   'music_toggle_shuffle': {
   };
   'music_transfer_device': {
-    deviceId: string;
+    deviceId?: string;
   };
   'music_unfollow_artist': {
   };

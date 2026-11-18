@@ -2084,13 +2084,14 @@ public sealed class SpotifyMusicProvider
             throw new PremiumRequiredException("Spotify");
         }
 
-        // Nothing is selected as the active Spotify device (e.g. the streamer closed every client) — retry
-        // once against the last device we ever saw active for this channel, rather than surfacing a failure
-        // for something the streamer never had to think about with a phone or desktop app.
+        // Nothing is selected as the active Spotify device (e.g. the app sat paused until Spotify dropped it) —
+        // retry once against the last device we saw active for this channel, or, when a restart forgot it, an
+        // open Spotify app from the account's own device list.
         if (
             response.StatusCode == HttpStatusCode.NotFound
             && await IsNoActiveDeviceAsync(response, cancellationToken)
-            && _lastActiveDevice.TryGet(broadcasterId, out string? rememberedDeviceId)
+            && await RecoveryDeviceIdAsync(broadcasterId, cancellationToken)
+                is { } rememberedDeviceId
         )
         {
             HttpResponseMessage? transfer = await SendGatedAsync(
@@ -2133,6 +2134,27 @@ public sealed class SpotifyMusicProvider
         await ClassifyAuthAsync(response, broadcasterId, cancellationToken);
 
         return response;
+    }
+
+    // The remembered device first; otherwise an open app from Spotify's device list, the desktop app before any
+    // other, because that is where a streamer's music plays. Null when no Spotify app is open at all.
+    private async Task<string?> RecoveryDeviceIdAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (_lastActiveDevice.TryGet(broadcasterId, out string? remembered))
+            return remembered;
+
+        IReadOnlyList<MusicDeviceInfo> devices = await GetDevicesAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        MusicDeviceInfo? pick =
+            devices.FirstOrDefault(d =>
+                string.Equals(d.Type, "Computer", StringComparison.OrdinalIgnoreCase)
+            ) ?? devices.FirstOrDefault();
+        return string.IsNullOrEmpty(pick?.Id) ? null : pick.Id;
     }
 
     private static Task<bool> IsNoActiveDeviceAsync(

@@ -80,6 +80,59 @@ public sealed class MusicPipelineActionsTests
         string name = "Current Song"
     ) => new(name, "Artist", "Album", null, 200_000, 10_000, true, 100, null, "spotify", uri);
 
+    // ─── music_transfer_device ────────────────────────────────────────────────
+
+    // A Stream Deck transfer key with no device chosen sends an empty deviceId (Stoney, 2026-11-18: "spotify is
+    // active ... on my desktop application so this should just work"): it moves playback to the open app.
+    [Fact]
+    public async Task Transfer_device_without_a_device_moves_playback_to_the_open_desktop_app()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns([
+                new MusicDeviceDto("phone-id", "Phone", "Smartphone", false, 50),
+                new MusicDeviceDto("desktop-id", "EAGLE", "Computer", false, 80),
+            ]);
+        music
+            .TransferPlaybackAsync(
+                ChannelId.ToString(),
+                "desktop-id",
+                true,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        MusicTransferDeviceAction action = new(music);
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_transfer_device"));
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await music
+            .Received(1)
+            .TransferPlaybackAsync(
+                ChannelId.ToString(),
+                "desktop-id",
+                true,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Transfer_device_without_a_device_and_no_open_spotify_app_says_so()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music.GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>()).Returns([]);
+        MusicTransferDeviceAction action = new(music);
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_transfer_device"));
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("No Spotify app is open");
+        await music
+            .DidNotReceiveWithAnyArgs()
+            .TransferPlaybackAsync(default!, default!, default, default);
+    }
+
     // ─── song_pause / song_resume / song_previous ─────────────────────────────
 
     [Fact]

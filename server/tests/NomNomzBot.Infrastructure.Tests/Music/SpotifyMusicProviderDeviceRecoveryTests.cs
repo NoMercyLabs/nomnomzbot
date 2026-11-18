@@ -141,11 +141,74 @@ public sealed class SpotifyMusicProviderDeviceRecoveryTests
         handler.RequestBodies[transferIndex].Should().Contain("remembered-device-id");
     }
 
+    // Stoney, 2026-11-18: "spotify is active and has a state on my desktop application so this should just
+    // work". The remembered device lives in memory, so every restart forgot it; Spotify's own device list
+    // still knows the open desktop app.
     [Fact]
-    public async Task Play_with_no_active_device_and_nothing_remembered_just_fails()
+    public async Task Play_with_no_active_device_and_nothing_remembered_transfers_to_the_open_desktop_app()
+    {
+        int playAttempts = 0;
+        (SpotifyMusicProvider sut, RecordingHttpHandler handler, _) = Build();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/devices",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.OK,
+            """
+            {"devices":[
+              {"id":"phone-id","is_active":false,"name":"Phone","type":"Smartphone","volume_percent":50},
+              {"id":"desktop-id","is_active":false,"name":"EAGLE","type":"Computer","volume_percent":80}
+            ]}
+            """
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Put
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.NoContent
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Put
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal)
+                && playAttempts++ == 0,
+            HttpStatusCode.NotFound,
+            NoActiveDeviceJson
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Put
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal),
+            HttpStatusCode.NoContent
+        );
+
+        await sut.PlayAsync(ChannelId);
+
+        playAttempts.Should().Be(2, "the play call is retried once after the transfer");
+        int transferIndex = handler.RequestUrls.FindIndex(u =>
+            u == "PUT https://api.spotify.com/v1/me/player"
+        );
+        transferIndex.Should().BeGreaterThanOrEqualTo(0);
+        handler.RequestBodies[transferIndex].Should().Contain("desktop-id");
+    }
+
+    [Fact]
+    public async Task Play_with_no_active_device_and_no_open_spotify_app_fails_without_a_transfer()
     {
         (SpotifyMusicProvider sut, RecordingHttpHandler handler, _) = Build();
-
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/devices",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.OK,
+            """{"devices":[]}"""
+        );
         handler.RespondWhen(
             r =>
                 r.Method == HttpMethod.Put
@@ -158,7 +221,8 @@ public sealed class SpotifyMusicProviderDeviceRecoveryTests
 
         handler
             .RequestUrls.Should()
-            .ContainSingle(u => u.EndsWith("/me/player/play"), "no transfer attempted, no retry");
+            .ContainSingle(u => u.EndsWith("/me/player/play"), "no device to move to, no retry");
+        handler.RequestUrls.Should().NotContain("PUT https://api.spotify.com/v1/me/player");
     }
 
     private static (
