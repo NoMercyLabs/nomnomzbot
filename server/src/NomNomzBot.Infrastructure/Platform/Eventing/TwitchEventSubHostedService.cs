@@ -977,8 +977,14 @@ public sealed class TwitchEventSubHostedService
             return true;
 
         foreach (EventSubSubscription row in owned)
-            if (await GrantGateHoldAsync(db, row, TokenOwnerFor(row.EventType), ct) is null)
+        {
+            EventSubTokenOwnerKind tokenOwner = TokenOwnerFor(row.EventType);
+            if (
+                await GrantGateHoldAsync(db, row, tokenOwner, ct) is null
+                && !await LacksBroadcasterTokenAsync(db, row.BroadcasterId, tokenOwner, ct)
+            )
                 return true;
+        }
 
         // Parked. The next welcome for this owner comes from a subscribe that passed the grant gate, and that
         // caller registers its topics itself — treating the welcome as a reconnect would double-POST them.
@@ -1545,6 +1551,18 @@ public sealed class TwitchEventSubHostedService
         // its token owner's session: bot-owned topics (chat-read) ride the bot's session; a broadcaster's
         // authorized topics ride that broadcaster's OWN session — Twitch rejects subs from different users on one
         // session ("websocket transport cannot have subscriptions created by different users").
+        // A topic that already failed for want of the broadcaster's token stays off the wire until the broadcaster
+        // connects Twitch. Opening its session again leaves it empty: Twitch closes it (4003) and rate-limits the
+        // reconnects (429).
+        if (
+            row?.LastError?.StartsWith(NoTokenMessage, StringComparison.Ordinal) == true
+            && await LacksBroadcasterTokenAsync(db, broadcasterId, tokenOwner, ct)
+        )
+            return Result.Failure<EventSubSubscriptionDto>(
+                NoTokenMessage,
+                TwitchErrorCodes.NoToken
+            );
+
         string ownerKey = OwnerKeyFor(broadcasterId, eventType);
         Result<EventSubTransportHandle> session = await _transport.EnsureSessionAsync(ownerKey, ct);
         if (session.IsFailure)
@@ -3050,6 +3068,22 @@ public sealed class TwitchEventSubHostedService
     /// connection row exists (unknown → the caller falls through to the create, the pre-gate never blocks
     /// on missing knowledge).
     /// </summary>
+    // TwitchTokenResolver's failure text for a broadcaster that never connected Twitch.
+    private const string NoTokenMessage = "No Twitch token for this broadcaster.";
+
+    // True when the topic needs the broadcaster's own token and the broadcaster has no Twitch connection.
+    private static async Task<bool> LacksBroadcasterTokenAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        EventSubTokenOwnerKind tokenOwner,
+        CancellationToken ct
+    ) =>
+        tokenOwner == EventSubTokenOwnerKind.Broadcaster
+        && !await db.IntegrationConnections.AnyAsync(
+            c => c.Provider == "twitch" && c.BroadcasterId == broadcasterId,
+            ct
+        );
+
     private static async Task<List<string>?> GetOwnerGrantedScopesAsync(
         IApplicationDbContext db,
         Guid broadcasterId,

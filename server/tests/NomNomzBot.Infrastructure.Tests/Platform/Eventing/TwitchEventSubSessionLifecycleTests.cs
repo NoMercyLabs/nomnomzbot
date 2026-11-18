@@ -106,11 +106,46 @@ public sealed class TwitchEventSubSessionLifecycleTests
     }
 
     [Fact]
+    public async Task A_channel_without_a_broadcaster_token_opens_no_session_until_it_connects()
+    {
+        // A moderated, never-onboarded channel: its rows exist, but the broadcaster never connected Twitch.
+        // Opening its session carried nothing, Twitch closed it (4003), and every reconnect hit a 429.
+        Harness h = Harness.Build(new ScriptedChannel([Welcome("s1")], holdOpen: true));
+        Guid tenant = h.Tenant;
+        h.SeedRow("channel.ban", "1", "failed", lastError: "No Twitch token for this broadcaster.");
+        h.SeedRow("channel.guest_star_session.begin", "beta", "pending");
+
+        (await h.Service.ShouldReconnectAsync(tenant.ToString(), CancellationToken.None))
+            .Should()
+            .BeFalse("no topic of a channel without a token can ride its session");
+
+        Result refused = await h.Service.EnsureSubscribedAsync(tenant, ["channel.ban"]);
+
+        refused.IsFailure.Should().BeTrue();
+        h.Factory.Connections.Should().Be(0, "no session is opened for a channel without a token");
+        h.Helix.Creates.Should().BeEmpty();
+
+        // The broadcaster connects: the same topic now opens one session and is created on it.
+        h.SeedConnection(["channel:moderate", "moderator:manage:banned_users"]);
+        Result subscribed = await h.Service.EnsureSubscribedAsync(tenant, ["channel.ban"]);
+
+        subscribed.IsSuccess.Should().BeTrue(subscribed.ErrorMessage);
+        h.Factory.Connections.Should().Be(1);
+        h.Helix.Creates.Should().ContainSingle().Which.Should().Be("s1");
+        (await h.Service.ShouldReconnectAsync(tenant.ToString(), CancellationToken.None))
+            .Should()
+            .BeTrue("a connected channel's live topic keeps its session");
+
+        await h.StopAsync();
+    }
+
+    [Fact]
     public async Task An_owner_whose_only_topic_is_a_refused_beta_one_is_not_kept_open_until_the_back_off_ends()
     {
-        // Twitch refuses the beta topic on every channel and the token has no connection row (unknown grants).
-        // A session that carries only that topic gets closed by Twitch (4003); reopening it every time is the loop.
+        // Twitch refuses the beta topic on every channel, whatever the grants are. A session that carries only that
+        // topic gets closed by Twitch (4003); reopening it every time is the loop.
         Harness h = Harness.Build(new ScriptedChannel([Welcome("s1")], holdOpen: true));
+        h.SeedConnection(["user:read:email"]);
         long refusedAt = h.Clock.GetUtcNow().ToUnixTimeSeconds();
         h.SeedRow(
             "channel.guest_star_session.begin",
