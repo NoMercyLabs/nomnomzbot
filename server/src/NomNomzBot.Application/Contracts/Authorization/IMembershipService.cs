@@ -46,6 +46,17 @@ public interface IMembershipService
     );
 
     /// <summary>
+    /// Removes the user's Twitch-sourced moderator role in every channel that did not onboard and is missing from
+    /// <paramref name="stillModeratedTwitchIds"/>, the user's complete moderated-channel list from Twitch. Onboarded
+    /// channels are left to the management-role reconcile; manual grants are never touched.
+    /// </summary>
+    Task<Result> RemoveLostTwitchModerationAsync(
+        Guid userId,
+        IReadOnlySet<string> stillModeratedTwitchIds,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Reconciles the <c>TwitchBadge</c>- + <c>HelixEditors</c>-sourced memberships from a freshly-fetched
     /// snapshot: idempotent upsert + prune of stale synced rows (BotGrant/Owner rows untouched), sets
     /// <c>LastSyncedAt</c>, and emits a <c>ManagementRoleChangedEvent</c> per delta.

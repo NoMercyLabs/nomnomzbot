@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -118,7 +119,7 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
 
         Result<IReadOnlyList<TwitchModeratedChannel>> listed = await services
             .GetRequiredService<IOperatorModeratedChannelResolver>()
-            .ResolveAsync(userId, ct);
+            .ResolveCompleteAsync(userId, ct);
         if (listed.IsFailure)
         {
             if (listed.ErrorCode == TwitchErrorCodes.NoToken)
@@ -159,6 +160,7 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
         }
 
         await ReleaseLostAsync(userId, candidates);
+        await RemoveLostRolesAsync(userId, listed.Value, services, ct);
         foreach (TwitchModeratedChannel channel in candidates)
             await ReadChannelAsync(userId, moderatorTwitchId, channel, services, ct);
 
@@ -308,6 +310,33 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
         string reason = state == ModeratorChatReaderState.Unmodded ? UnmoddedReason : NoTokenReason;
         SetStatus(userId, channel, state, reason);
         return Task.CompletedTask;
+    }
+
+    // Twitch's complete list is the truth for a channel that did not onboard: a moderator demoted there (made VIP,
+    // unmodded) loses the role in the bot too (Stoney, 2026-11-18).
+    private async Task RemoveLostRolesAsync(
+        Guid userId,
+        IReadOnlyList<TwitchModeratedChannel> listed,
+        IServiceProvider services,
+        CancellationToken ct
+    )
+    {
+        IMembershipService? memberships = services.GetService<IMembershipService>();
+        if (memberships is null)
+            return;
+
+        HashSet<string> stillModerated = [.. listed.Select(c => c.BroadcasterId)];
+        Result removed = await memberships.RemoveLostTwitchModerationAsync(
+            userId,
+            stillModerated,
+            ct
+        );
+        if (removed.IsFailure)
+            _logger.LogWarning(
+                "Moderator chat: removing lost moderator roles of {UserId} failed: {Error}",
+                userId,
+                removed.ErrorMessage
+            );
     }
 
     private async Task ReleaseLostAsync(Guid userId, List<TwitchModeratedChannel> candidates)

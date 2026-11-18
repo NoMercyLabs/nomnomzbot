@@ -29,4 +29,13 @@ public interface IOperatorModeratedChannelResolver
         Guid operatorUserId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The same set, but a failure on ANY page fails the whole call. For callers that act on a channel being
+    /// absent (releasing a reader, removing a role), where a cut-short list would read as lost moderation.
+    /// </summary>
+    Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveCompleteAsync(
+        Guid operatorUserId,
+        CancellationToken ct = default
+    );
 }

@@ -36,9 +36,20 @@ public sealed class OperatorModeratedChannelResolver : IOperatorModeratedChannel
         _db = db;
     }
 
-    public async Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveAsync(
+    public Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveAsync(
         Guid operatorUserId,
         CancellationToken ct = default
+    ) => ResolveCoreAsync(operatorUserId, requireComplete: false, ct);
+
+    public Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveCompleteAsync(
+        Guid operatorUserId,
+        CancellationToken ct = default
+    ) => ResolveCoreAsync(operatorUserId, requireComplete: true, ct);
+
+    private async Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveCoreAsync(
+        Guid operatorUserId,
+        bool requireComplete,
+        CancellationToken ct
     )
     {
         Guid operatorChannelId = await _channelAccess.ResolveOwnChannelAsync(
@@ -49,7 +60,7 @@ public sealed class OperatorModeratedChannelResolver : IOperatorModeratedChannel
             return Result.Success<IReadOnlyList<TwitchModeratedChannel>>([]);
 
         Result<IReadOnlyList<TwitchModeratedChannel>> moderated =
-            await ResolveModeratedChannelsAsync(operatorChannelId, ct);
+            await ResolveModeratedChannelsAsync(operatorChannelId, requireComplete, ct);
         if (moderated.IsFailure)
             return moderated;
 
@@ -67,9 +78,11 @@ public sealed class OperatorModeratedChannelResolver : IOperatorModeratedChannel
     }
 
     // Pages through every channel Twitch says the operator moderates. A first-page failure surfaces (e.g. the operator
-    // token is missing user:read:moderated_channels); a later-page failure keeps what was already gathered.
+    // token is missing user:read:moderated_channels); a later-page failure keeps what was already gathered, unless
+    // the caller needs the complete list.
     private async Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveModeratedChannelsAsync(
         Guid operatorChannelId,
+        bool requireComplete,
         CancellationToken ct
     )
     {
@@ -85,7 +98,7 @@ public sealed class OperatorModeratedChannelResolver : IOperatorModeratedChannel
                 );
             if (page.IsFailure)
             {
-                if (channels.Count == 0)
+                if (channels.Count == 0 || requireComplete)
                     return page.WithValue<IReadOnlyList<TwitchModeratedChannel>>(default!);
                 break;
             }

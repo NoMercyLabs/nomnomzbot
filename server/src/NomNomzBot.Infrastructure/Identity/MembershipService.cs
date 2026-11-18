@@ -221,6 +221,44 @@ public sealed class MembershipService(
         return Result.Success();
     }
 
+    public async Task<Result> RemoveLostTwitchModerationAsync(
+        Guid userId,
+        IReadOnlySet<string> stillModeratedTwitchIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // IgnoreQueryFilters: the memberships belong to other tenants than the request's; DeletedAt is explicit.
+        List<Guid> lost = await db
+            .ChannelMemberships.IgnoreQueryFilters()
+            .Where(m =>
+                m.UserId == userId
+                && m.DeletedAt == null
+                && m.Source == MembershipSource.TwitchBadge
+                && db.Channels.Any(c =>
+                    c.Id == m.BroadcasterId
+                    && !c.IsOnboarded
+                    && c.TwitchChannelId != null
+                    && !stillModeratedTwitchIds.Contains(c.TwitchChannelId)
+                )
+            )
+            .Select(m => m.BroadcasterId)
+            .ToListAsync(cancellationToken);
+
+        foreach (Guid broadcasterId in lost)
+        {
+            Result removed = await RemoveManagementRoleAsync(
+                broadcasterId,
+                userId,
+                removedByUserId: null,
+                cancellationToken
+            );
+            if (removed.IsFailure)
+                return removed;
+        }
+
+        return Result.Success();
+    }
+
     public async Task<Result> SyncManagementFromTwitchAsync(
         Guid broadcasterId,
         IReadOnlyList<TwitchManagementMember> snapshot,

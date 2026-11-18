@@ -18,6 +18,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -58,6 +59,7 @@ public sealed class ModeratorChatCoordinatorTests
     private readonly HashSet<string> _onboarded = [];
     private readonly IChannelService _channels = Substitute.For<IChannelService>();
     private readonly IUserService _users = Substitute.For<IUserService>();
+    private readonly IMembershipService _memberships = Substitute.For<IMembershipService>();
     private readonly List<(string TwitchId, Guid OwnerUserId)> _ensured = [];
     private readonly Dictionary<string, ProvisionStep> _provisionFailures = [];
 
@@ -93,9 +95,16 @@ public sealed class ModeratorChatCoordinatorTests
                 .HasUserScopeAsync(userId, TwitchScopes.UserReadChat, Arg.Any<CancellationToken>())
                 .Returns(_ => mod.HasScope);
             moderated
-                .ResolveAsync(userId, Arg.Any<CancellationToken>())
+                .ResolveCompleteAsync(userId, Arg.Any<CancellationToken>())
                 .Returns(_ => Task.FromResult(ListFor(mod)));
         }
+        _memberships
+            .RemoveLostTwitchModerationAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlySet<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         _users
             .GetOrCreateAsync(
@@ -134,6 +143,7 @@ public sealed class ModeratorChatCoordinatorTests
             .AddScoped(_ => moderated)
             .AddScoped(_ => _users)
             .AddScoped(_ => _channels)
+            .AddScoped(_ => _memberships)
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
         return new(
@@ -406,6 +416,39 @@ public sealed class ModeratorChatCoordinatorTests
             .ContainSingle()
             .Which.Should()
             .Be(EventSubOwnerKeys.Moderator(alice));
+    }
+
+    // Stoney, 2026-11-18: made VIP on geennoob, the bot kept him a moderator there.
+    [Fact]
+    public async Task A_channel_the_moderator_lost_has_its_role_removed_from_the_complete_twitch_list()
+    {
+        Guid alice = AddModerator("alice-tw", "ch-1", "ch-2");
+        ModeratorChatCoordinator coordinator = NewCoordinator();
+
+        _moderators[alice].Channels = ["ch-2"];
+        await coordinator.SyncUserAsync(alice);
+
+        await _memberships
+            .Received(1)
+            .RemoveLostTwitchModerationAsync(
+                alice,
+                Arg.Is<IReadOnlySet<string>>(set => set.SetEquals(new[] { "alice-tw", "ch-2" })),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_failed_moderated_channel_list_removes_no_role()
+    {
+        Guid alice = AddModerator("alice-tw", "ch-1");
+        _moderators[alice].ListErrorCode = "TWITCH_ERROR";
+        ModeratorChatCoordinator coordinator = NewCoordinator();
+
+        await coordinator.SyncUserAsync(alice);
+
+        await _memberships
+            .DidNotReceiveWithAnyArgs()
+            .RemoveLostTwitchModerationAsync(default, default!, default);
     }
 
     [Fact]

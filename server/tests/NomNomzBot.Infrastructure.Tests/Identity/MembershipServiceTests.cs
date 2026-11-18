@@ -72,6 +72,70 @@ public sealed class MembershipServiceTests
             }
         );
 
+    // Stoney, 2026-11-18: geennoob made him VIP, which removed his moderator role, and the bot kept him as a
+    // moderator there. For a channel that did not onboard, Twitch's own moderated-channel list is the truth.
+    [Fact]
+    public async Task A_lost_twitch_moderator_role_in_a_channel_that_did_not_onboard_is_removed()
+    {
+        (MembershipService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        Guid stillListed = Guid.NewGuid();
+        Guid dropped = Guid.NewGuid();
+        Guid onboarded = Guid.NewGuid();
+        Guid manualGrant = Guid.NewGuid();
+        db.Channels.AddRange(
+            ModeratedChannel(stillListed, "tw-listed", isOnboarded: false),
+            ModeratedChannel(dropped, "tw-dropped", isOnboarded: false),
+            ModeratedChannel(onboarded, "tw-onboarded", isOnboarded: true),
+            ModeratedChannel(manualGrant, "tw-manual", isOnboarded: false)
+        );
+        db.ChannelMemberships.AddRange(
+            Membership(stillListed, MembershipSource.TwitchBadge),
+            Membership(dropped, MembershipSource.TwitchBadge),
+            Membership(onboarded, MembershipSource.TwitchBadge),
+            Membership(manualGrant, MembershipSource.BotGrant)
+        );
+        await db.SaveChangesAsync();
+
+        Result result = await sut.RemoveLostTwitchModerationAsync(
+            Target,
+            new HashSet<string> { "tw-listed" }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        List<Guid> active = await db
+            .ChannelMemberships.IgnoreQueryFilters()
+            .Where(m => m.UserId == Target && m.DeletedAt == null)
+            .Select(m => m.BroadcasterId)
+            .ToListAsync();
+        active.Should().BeEquivalentTo([stillListed, onboarded, manualGrant]);
+        bus.Published.OfType<ManagementRoleChangedEvent>()
+            .Should()
+            .ContainSingle(e => e.BroadcasterId == dropped && e.NewRole == null);
+    }
+
+    private static Channel ModeratedChannel(Guid id, string twitchId, bool isOnboarded) =>
+        new()
+        {
+            Id = id,
+            OwnerUserId = Guid.NewGuid(),
+            Name = twitchId,
+            NameNormalized = twitchId,
+            TwitchChannelId = twitchId,
+            IsOnboarded = isOnboarded,
+            Enabled = true,
+        };
+
+    private static ChannelMembership Membership(Guid channel, MembershipSource source) =>
+        new()
+        {
+            BroadcasterId = channel,
+            UserId = Target,
+            ManagementRole = ManagementRole.Moderator,
+            LevelValue = ManagementRole.Moderator.ToLevel(),
+            Source = source,
+            GrantedAt = Now.UtcDateTime,
+        };
+
     [Fact]
     public async Task Set_creates_membership_recomputes_level_and_emits_event()
     {
