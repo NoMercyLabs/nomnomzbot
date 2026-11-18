@@ -381,6 +381,18 @@ public sealed class ViolationEscalationServiceTests : IDisposable
                     DefaultTimeoutSeconds = 600,
                 }
             );
+            // Stoney, 2026-11-18: "EVERYTHING IS OPT-IN". The ladder acts in the moderator's name only
+            // once the streamer's yes is on record for that moderator.
+            seed.ModeratorMassBanOptIns.Add(
+                new()
+                {
+                    OperatorUserId = liveModerator,
+                    BroadcasterTwitchId = notOnboardedTwitchId,
+                    BroadcasterLogin = "chan2",
+                    Note = "streamer said yes",
+                    RecordedAt = DateTime.UtcNow,
+                }
+            );
             seed.SaveChanges();
         }
         _readers

@@ -166,11 +166,32 @@ public sealed class BotLifecycleServiceSyncTests
     // Stoney, 2026-11-18: "Remove yourself from all channels that have not onboarded and ... watch only for
     // spam". The moderator's own chat reader watches those chats; the bot account holds no subscription there.
     [Fact]
-    public async Task The_bot_leaves_a_channel_that_is_not_onboarded_and_subscribes_nothing_there()
+    public async Task The_bot_leaves_the_chat_of_a_channel_that_is_not_onboarded_but_keeps_the_moderator_feeds()
     {
         string database = Guid.NewGuid().ToString();
         Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
-        SeedSubscription(database, channel, "channel.chat.message");
+        Guid chatRow = SeedSubscription(database, channel, "channel.chat.message");
+        Guid moderateRow = SeedSubscription(database, channel, "channel.moderate");
+        ITwitchEventSubService eventSub = SubscribingEventSub();
+
+        await Build(database, eventSub)
+            .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+
+        await eventSub.Received(1).UnsubscribeAsync(chatRow, Arg.Any<CancellationToken>());
+        await eventSub.DidNotReceive().UnsubscribeAsync(moderateRow, Arg.Any<CancellationToken>());
+        await eventSub
+            .DidNotReceiveWithAnyArgs()
+            .UnsubscribeAllAsync(default, Arg.Any<CancellationToken>());
+    }
+
+    // Stoney, 2026-11-18: "i still want the dashboard available to me as a mod with everything i have
+    // permission for as a moderator". The moderator feeds ride the moderator's own grant; none of them is a
+    // chat-read topic, so none puts the bot account in the chat.
+    [Fact]
+    public async Task A_channel_that_is_not_onboarded_gets_only_the_moderator_feeds_and_no_chat_topic()
+    {
+        string database = Guid.NewGuid().ToString();
+        Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
         IEventSubActingModeratorSelector selector =
             Substitute.For<IEventSubActingModeratorSelector>();
         selector
@@ -181,27 +202,41 @@ public sealed class BotLifecycleServiceSyncTests
         await Build(database, eventSub, selector: selector)
             .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
 
-        await eventSub.Received(1).UnsubscribeAllAsync(channel, Arg.Any<CancellationToken>());
-        await eventSub
-            .DidNotReceive()
-            .EnsureSubscribedAsync(
-                channel,
-                Arg.Any<IReadOnlyCollection<string>>(),
-                Arg.Any<CancellationToken>()
+        IReadOnlyCollection<string> topics =
+            (IReadOnlyCollection<string>)
+                eventSub
+                    .ReceivedCalls()
+                    .Single(call =>
+                        call.GetMethodInfo().Name
+                            == nameof(ITwitchEventSubService.EnsureSubscribedAsync)
+                        && (Guid)call.GetArguments()[0]! == channel
+                    )
+                    .GetArguments()[1]!;
+        topics.Should().BeEquivalentTo(BotLifecycleService.ModeratedChannelEventTypes);
+        topics.Should().Contain(["channel.moderate", "automod.message.hold", "channel.follow"]);
+        topics
+            .Should()
+            .NotContain(
+                ["channel.chat.message", "channel.chat.notification", "channel.subscribe"],
+                "a chat-read topic puts the bot account in the chat, and the rest need the broadcaster's grant"
             );
     }
 
     [Fact]
-    public async Task A_channel_that_is_not_onboarded_and_holds_no_bot_subscription_is_left_alone()
+    public async Task A_channel_that_is_not_onboarded_and_has_no_connected_moderator_is_left_alone()
     {
         string database = Guid.NewGuid().ToString();
         Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
+        IEventSubActingModeratorSelector selector =
+            Substitute.For<IEventSubActingModeratorSelector>();
+        selector
+            .SelectAsync(channel, Arg.Any<CancellationToken>())
+            .Returns((EventSubActingModerator?)null);
         ITwitchEventSubService eventSub = SubscribingEventSub();
 
-        await Build(database, eventSub)
+        await Build(database, eventSub, selector: selector)
             .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
 
-        await eventSub.DidNotReceive().UnsubscribeAllAsync(channel, Arg.Any<CancellationToken>());
         await eventSub
             .DidNotReceive()
             .EnsureSubscribedAsync(
@@ -211,23 +246,23 @@ public sealed class BotLifecycleServiceSyncTests
             );
     }
 
-    private static void SeedSubscription(string database, Guid channel, string eventType)
+    private static Guid SeedSubscription(string database, Guid channel, string eventType)
     {
         using SeedTestDbContext db = SeedTestDbContext.New(database);
-        db.EventSubSubscriptions.Add(
-            new EventSubSubscription
-            {
-                BroadcasterId = channel,
-                Provider = "twitch",
-                EventType = eventType,
-                Version = "1",
-                Condition = [],
-                Transport = "websocket",
-                Status = "enabled",
-                Enabled = true,
-            }
-        );
+        EventSubSubscription row = new()
+        {
+            BroadcasterId = channel,
+            Provider = "twitch",
+            EventType = eventType,
+            Version = "1",
+            Condition = [],
+            Transport = "websocket",
+            Status = "enabled",
+            Enabled = true,
+        };
+        db.EventSubSubscriptions.Add(row);
         db.SaveChanges();
+        return row.Id;
     }
 
     [Fact]

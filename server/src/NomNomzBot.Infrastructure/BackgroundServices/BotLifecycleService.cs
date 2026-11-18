@@ -21,6 +21,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Stream;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
@@ -152,6 +153,30 @@ public sealed class BotLifecycleService : BackgroundService
         "channel.guest_star_session.end",
         "channel.guest_star_guest.update",
         "channel.guest_star_settings.update",
+    ];
+
+    // Topics Twitch needs no user authorization for ("No authorization required" in the EventSub reference).
+    private static readonly string[] PublicEventTypes =
+    [
+        "stream.online",
+        "stream.offline",
+        "channel.update",
+        "channel.raid",
+        "channel.raid.outgoing",
+    ];
+
+    private static readonly EventSubConditionBuilder ModeratorPlane = new();
+
+    // The moderator feeds of a channel whose broadcaster has not signed up: every topic a moderator's own grant
+    // can authorize, plus the public ones, so the moderator's dashboard shows what their role allows. No
+    // chat-read topic is in it: those carry the bot's own user id and put the bot account in the chat (Stoney,
+    // 2026-11-18). (Declared after the fields it reads: static initializers run in textual order.)
+    internal static readonly string[] ModeratedChannelEventTypes =
+    [
+        .. ChannelEventTypes.Where(type =>
+            (PublicEventTypes.Contains(type) || ModeratorPlane.IsModeratorPlaneTopic(type))
+            && !EventSubConditionBuilder.ChatReadEvents.Contains(type)
+        ),
     ];
 
     // Platform-plane topics — owned by the bot identity itself, subscribed ONCE (tenant Guid.Empty), not per
@@ -287,7 +312,29 @@ public sealed class BotLifecycleService : BackgroundService
                 )
         );
 
-        await LeaveChannelsThatDidNotOnboardAsync(db, eventSub, ct);
+        await LeaveChatsThatDidNotOnboardAsync(db, eventSub, ct);
+
+        // Channels whose broadcaster has not signed up: the moderator feeds ride a moderator's own grant, so
+        // the moderator's dashboard works there (Stoney, 2026-11-06 and 2026-11-18). The bot never joins the chat.
+        List<ActiveChannel> moderatedChannels = await db
+            .Channels.Where(c =>
+                c.Enabled
+                && !c.IsOnboarded
+                && c.Status == Domain.Identity.Enums.AuthEnums.ChannelStatus.Active
+            )
+            .OrderByDescending(c => c.IsLive)
+            .ThenBy(c => c.Name)
+            .Select(c => new ActiveChannel(c.Id, c.Name))
+            .ToListAsync(ct);
+        await Parallel.ForEachAsync(
+            moderatedChannels,
+            new ParallelOptions
+            {
+                MaxDegreeOfParallelism = MaxConcurrentChannelSyncs,
+                CancellationToken = ct,
+            },
+            (channel, token) => new ValueTask(SyncModeratedChannelAsync(channel, token))
+        );
 
         await readersTask;
 
@@ -356,44 +403,81 @@ public sealed class BotLifecycleService : BackgroundService
         }
     }
 
-    // The bot account holds no subscription in a channel that did not onboard: there the moderator's own chat
-    // reader feeds the spam watch, and the bot stays out of the chat (Stoney, 2026-11-18: "Remove yourself from
-    // all channels that have not onboarded and ... watch only for spam").
-    private async Task LeaveChannelsThatDidNotOnboardAsync(
+    // The bot account holds no chat-read subscription in a channel that did not onboard: those topics carry the
+    // bot's own user id and put it in the chat. The moderator's own chat reader feeds the spam watch there
+    // (Stoney, 2026-11-18: "Remove yourself from all channels that have not onboarded and ... watch only for
+    // spam"). The moderator feeds stay, so the moderator's dashboard keeps working.
+    private async Task LeaveChatsThatDidNotOnboardAsync(
         IApplicationDbContext db,
         ITwitchEventSubService eventSub,
         CancellationToken ct
     )
     {
+        string[] chatTopics = [.. EventSubConditionBuilder.ChatReadEvents];
+
         // IgnoreQueryFilters: the sweep has no ambient tenant and must see every channel's rows.
-        List<Guid> joined = await db
+        List<Guid> chatRows = await db
             .EventSubSubscriptions.IgnoreQueryFilters()
             .Where(s =>
                 s.DeletedAt == null
+                && chatTopics.Contains(s.EventType)
                 && db.Channels.Any(c => c.Id == s.BroadcasterId && !c.IsOnboarded)
             )
-            .Select(s => s.BroadcasterId)
-            .Distinct()
+            .Select(s => s.Id)
             .ToListAsync(ct);
 
-        foreach (Guid channelId in joined)
+        foreach (Guid rowId in chatRows)
         {
             try
             {
-                await eventSub.UnsubscribeAllAsync(channelId, ct);
-                _logger.LogInformation(
-                    "BotLifecycleService: Left channel {ChannelId}, which did not onboard",
-                    channelId
-                );
+                Result left = await eventSub.UnsubscribeAsync(rowId, ct);
+                if (left.IsFailure)
+                    _logger.LogWarning(
+                        "BotLifecycleService: Could not drop chat subscription {RowId} of a channel that did not onboard: {Error}",
+                        rowId,
+                        left.ErrorMessage
+                    );
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,
-                    "BotLifecycleService: Failed to leave channel {ChannelId}",
-                    channelId
+                    "BotLifecycleService: Failed to drop chat subscription {RowId}",
+                    rowId
                 );
             }
+        }
+
+        if (chatRows.Count > 0)
+            _logger.LogInformation(
+                "BotLifecycleService: Left {Count} chat subscription(s) in channels that did not onboard",
+                chatRows.Count
+            );
+    }
+
+    // A channel with no broadcaster token gets the moderator feeds when a team member holds their own live
+    // Twitch connection; with none connected there is nothing to authorize and no call is made.
+    private async Task SyncModeratedChannelAsync(ActiveChannel channel, CancellationToken ct)
+    {
+        try
+        {
+            using IServiceScope scope = _serviceProvider.CreateScope();
+            IEventSubActingModeratorSelector? selector =
+                scope.ServiceProvider.GetService<IEventSubActingModeratorSelector>();
+            if (selector is null || await selector.SelectAsync(channel.Id, ct) is null)
+                return;
+
+            ITwitchEventSubService eventSub =
+                scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
+            await eventSub.EnsureSubscribedAsync(channel.Id, ModeratedChannelEventTypes, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "BotLifecycleService: Failed to sync moderated channel {ChannelId}",
+                channel.Id
+            );
         }
     }
 
