@@ -54,6 +54,11 @@ const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, s
 let mounted: VueWrapper | null = null;
 let held: string[] = [];
 const ownClientId = 'spotify-client-9f2a';
+const spotifyGuide = [
+  'Create an app at https://developer.spotify.com/dashboard.',
+  'Add the Redirect URI: https://bot.example/api/v1/integrations/spotify/callback',
+  'Copy the Client ID and Client Secret.',
+];
 let spotifyConnected = true;
 let withObs = false;
 let youtubeGranted = ['youtube.manage'];
@@ -115,6 +120,9 @@ beforeEach(() => {
 
     if (path === `${base}/spotify/credentials`)
       return ok(spotifyStored);
+
+    if (path === '/api/v{version}/system/setup/wizard')
+      return ok({ steps: [{ key: 'spotify', instructions: spotifyGuide }] });
 
     if (path === `${base}/{integrationId}/blast-radius`) {
       return ok({
@@ -604,6 +612,18 @@ describe('Spotify own app', () => {
     expect(field('clientSecret')?.value).toBe('');
     expect(field('clientSecret')?.placeholder).toBe(words.secretKept);
     expect((document.body.querySelector('[data-form-action]') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('guides the setup in the dialog: the numbered steps and the exact redirect address', async () => {
+    await open();
+    await click(panel().querySelector('[data-action="edit-credentials"]'));
+
+    const steps = [...(dialog()?.querySelectorAll('[data-slot="setup-guide"] li') ?? [])];
+
+    expect(steps).toHaveLength(3);
+    expect(steps[0]?.querySelector('a')?.getAttribute('href')).toBe('https://developer.spotify.com/dashboard');
+    expect(steps[1]?.textContent).toContain('https://bot.example/api/v1/integrations/spotify/callback');
+    expect(steps[2]?.textContent).toContain('Copy the Client ID and Client Secret.');
   });
 
   it('saves both values with a PUT, closes the dialog and empties the secret', async () => {

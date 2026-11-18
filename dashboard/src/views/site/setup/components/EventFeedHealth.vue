@@ -12,7 +12,7 @@
 // Whether Twitch events (follows, raids, subs) reach the bot, in plain words, with the one fix that applies.
 // Needs a signed-in streamer; on a fresh install the check waits until after the first sign-in.
 import { useQuery } from '@tanstack/vue-query';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useSignedIn } from '@/api/auth';
 import { myChannelsQuery } from '@/api/channels';
@@ -20,18 +20,15 @@ import {
   eventFeedFactsQuery,
   judgeEventFeed,
   useReconcileEventSub,
-  useRegrantApproval,
-  useStartRegrant,
   type EventFeedVerdict,
 } from '@/api/twitchHealth';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import RegrantStatus from '@/components/layout/RegrantStatus.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import TwitchRegrantDialog from '@/components/layout/TwitchRegrantDialog.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
 import PublicWait from '../../components/PublicWait.vue';
-import SetupAddress from './SetupAddress.vue';
 
 const signedIn = useSignedIn();
 const channels = useQuery({ ...myChannelsQuery, enabled: signedIn });
@@ -45,8 +42,16 @@ const verdict = computed<EventFeedVerdict | null>(() =>
     ? judgeEventFeed(facts.data.value)
     : null);
 const reconcile = useReconcileEventSub(channelId);
-const regrant = useStartRegrant();
-const { state: regrantState, showCode, offerStart } = useRegrantApproval(() => regrant.data.value);
+const guiding = ref(false);
+const feedScopes = computed(() =>
+  verdict.value?.state === 'missingScopes'
+    ? verdict.value.scopes.map((scope) => ({
+        scope,
+        features: [],
+        detectedAtRuntime: false,
+        chatNotified: false,
+      }))
+    : []);
 
 const tone = computed(() =>
   verdict.value?.state === 'ok'
@@ -68,23 +73,14 @@ const tone = computed(() =>
     <template v-else>
       <StatusBadge :tone="tone" :label="$t(`site.setup.feed.${verdict.state}`, verdict)" />
 
-      <div v-if="verdict.state === 'missingScopes'" class="flex flex-col gap-2">
-        <p class="text-sm text-muted-foreground">{{ verdict.scopes.join(', ') }}</p>
-        <div v-if="regrant.data.value && showCode" class="flex flex-col gap-2 text-sm">
-          {{ $t('site.setup.feed.regrantCode', { code: regrant.data.value.userCode }) }}
-          <SetupAddress :url="regrant.data.value.verificationUri" use="both" />
-        </div>
-        <RegrantStatus :state="regrantState" />
-        <div class="flex gap-2">
-          <Button v-if="offerStart" variant="outline" :disabled="regrant.isPending.value" @click="regrant.mutate()">
-            <Spinner v-if="regrant.isPending.value" />
-            {{ $t('site.setup.feed.regrant') }}
-          </Button>
-          <Button v-if="regrant.data.value && regrantState !== 'approved'" variant="ghost" @click="facts.refetch()">
-            {{ $t('site.setup.feed.recheck') }}
-          </Button>
-        </div>
-      </div>
+      <Button v-if="verdict.state === 'missingScopes'"
+              variant="outline"
+              class="self-start"
+              data-action="feed-regrant"
+              @click="guiding = true"
+      >
+        {{ $t('site.setup.feed.regrant') }}
+      </Button>
 
       <div v-else-if="verdict.state !== 'ok'">
         <Button variant="outline" :disabled="reconcile.isPending.value" @click="reconcile.mutate()">
@@ -96,5 +92,7 @@ const tone = computed(() =>
         </InlineNotice>
       </div>
     </template>
+    <!-- Outside the verdict branch: on approval the verdict turns ok, and the dialog stays to say so. -->
+    <TwitchRegrantDialog v-if="signedIn" v-model:open="guiding" :scopes="feedScopes" />
   </section>
 </template>

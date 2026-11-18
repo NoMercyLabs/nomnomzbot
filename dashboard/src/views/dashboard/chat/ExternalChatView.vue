@@ -18,13 +18,11 @@ import { useRoute } from 'vue-router';
 
 import { useCurrentUser } from '@/api/auth';
 import { chatMessageMaxLength, type ChatLine as ChatLineData } from '@/api/chat';
-import { useStartScopeRegrant } from '@/api/chatIdentity';
 import { signInUrl } from '@/api/signIn';
-import { useRegrantApproval } from '@/api/twitchHealth';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import RegrantStatus from '@/components/layout/RegrantStatus.vue';
+import TwitchRegrantDialog from '@/components/layout/TwitchRegrantDialog.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,9 +70,16 @@ function allowReading(): void {
 }
 
 // The same additive re-consent the chat identity panel uses: nothing is signed out.
-const regrant = useStartScopeRegrant();
-const regrantCode = computed(() => regrant.data.value ?? null);
-const { state: regrantState, showCode, offerStart } = useRegrantApproval(regrantCode);
+const guiding = ref(false);
+const sendScopes = computed(() =>
+  chat.missingScope.value
+    ? [{
+        scope: chat.missingScope.value,
+        features: ['chat_send'],
+        detectedAtRuntime: false,
+        chatNotified: false,
+      }]
+    : []);
 </script>
 
 <template>
@@ -120,23 +125,16 @@ const { state: regrantState, showCode, offerStart } = useRegrantApproval(regrant
           <Button v-if="needsReadScope" class="self-start" data-test="allow-read" @click="allowReading">
             {{ $t('dashboard.chat.external.allowReading') }}
           </Button>
-          <p v-if="!needsReadScope && regrantCode && showCode" class="text-sm" data-test="regrant-code">
-            {{ $t('dashboard.chat.identity.enterCode', { code: regrantCode.userCode }) }}
-            <a :href="regrantCode.verificationUri" target="_blank" rel="noopener" class="underline">
-              {{ regrantCode.verificationUri }}
-            </a>
-          </p>
-          <RegrantStatus v-if="!needsReadScope" :state="regrantState" data-test="regrant-status" />
-          <Button
-            v-if="!needsReadScope && offerStart"
-            class="self-start"
-            :disabled="regrant.isPending.value"
-            data-test="regrant"
-            @click="regrant.mutate()"
-          >
+          <Button v-if="!needsReadScope" class="self-start" data-test="regrant" @click="guiding = true">
             {{ $t('dashboard.chat.identity.regrant') }}
           </Button>
         </div>
+        <!-- Outside the scope block: on approval the block goes, and the dialog stays to say so. -->
+        <TwitchRegrantDialog
+          v-model:open="guiding"
+          :scopes="sendScopes"
+          @approved="chat.missingScope.value = null"
+        />
         <form class="flex items-center gap-2" @submit.prevent="submit">
           <Input
             v-model="text"

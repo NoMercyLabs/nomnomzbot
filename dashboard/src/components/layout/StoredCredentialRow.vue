@@ -140,6 +140,7 @@ function submit(): void {
     :error="error"
     @submit="submit"
   >
+    <slot name="guide" />
     <Field v-for="field in fields" :key="field.name">
       <FieldLabel :for="`${formId}-${field.name}`">
         {{ field.label }}

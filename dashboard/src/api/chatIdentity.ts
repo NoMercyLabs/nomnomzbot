@@ -23,7 +23,6 @@ import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
 export type ChatIdentity = components['schemas']['ChatIdentity'];
-export type ScopeRegrant = components['schemas']['ScopeRegrantStart'];
 
 const version = '1';
 
@@ -77,24 +76,6 @@ export function useSetChatColor(channelId: MaybeRefOrGetter<string | null>) {
       const key = chatIdentityKey(toValue(channelId));
 
       queries.setQueryData(key, identity);
-    },
-  });
-}
-
-// Starts the additive re-consent: Twitch asks for the scopes the bot lacks on top of the ones it has,
-// so nothing is signed out. The caller shows the code and polls the device approval.
-export function useStartScopeRegrant() {
-  return useMutation<ScopeRegrant | null, ApiError>({
-    mutationFn: async (): Promise<ScopeRegrant | null> => {
-      const { data, error, response } = await client.POST(
-        '/api/v{version}/twitch/diagnostics/regrant',
-        { params: { path: { version } } },
-      );
-
-      if (!response.ok)
-        throw failed('scope regrant', response.status, error);
-
-      return data?.data ?? null;
     },
   });
 }

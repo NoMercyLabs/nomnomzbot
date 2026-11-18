@@ -15,6 +15,7 @@
 // values; clearing falls back to the shared Spotify app only when the server reports one (hasSharedApp), and
 // otherwise just removes the channel's own app. The dialog opens by itself only when Spotify is not connected,
 // no shared app exists and no own app is stored: then nothing else can make Spotify work.
+import { useQuery } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
@@ -25,12 +26,14 @@ import {
   useSaveSpotifyCredentials,
   useSpotifyCredentials,
 } from '@/api/integrations';
+import { setupWizardQuery } from '@/api/setup';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import StoredCredentialRow, { type CredentialField } from '@/components/layout/StoredCredentialRow.vue';
 import { Button } from '@/components/ui/button';
 import type { PanelState } from '@/composables/usePanelState';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
+import InstructionLine from '@/views/site/setup/components/InstructionLine.vue';
 
 const lastCharacters = 4;
 
@@ -42,6 +45,11 @@ const save = useSaveSpotifyCredentials(channelId);
 const clear = useClearSpotifyCredentials(channelId);
 
 const open = ref(false);
+
+// The same setup steps first-run setup shows, with this bot's exact redirect address, from the bot itself.
+const wizard = useQuery({ ...setupWizardQuery, enabled: open });
+const guide = computed(() =>
+  wizard.data.value?.steps.find((step) => step.key === 'spotify')?.instructions ?? []);
 const error = ref<string | undefined>(undefined);
 
 const stored = computed(() => credentials.data.value ?? null);
@@ -187,5 +195,14 @@ async function remove(): Promise<void> {
     remove-action="clear-spotify"
     @submit="submit"
     @remove="remove"
-  />
+  >
+    <template #guide>
+      <ol v-if="guide.length > 0"
+          data-slot="setup-guide"
+          class="m-0 flex list-decimal flex-col gap-1 pl-5 text-sm text-muted-foreground"
+      >
+        <li v-for="line in guide" :key="line"><InstructionLine :line="line" /></li>
+      </ol>
+    </template>
+  </StoredCredentialRow>
 </template>

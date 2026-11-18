@@ -10,9 +10,9 @@
 // -----------------------------------------------------------------------------
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
-import { flushPromises, mount } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { signInUrl } from '@/api/signIn';
@@ -123,6 +123,9 @@ async function open() {
   return wrapper;
 }
 
+// Each test starts on an empty page: a dialog left from the test before is not this test's dialog.
+enableAutoUnmount(afterEach);
+
 describe('ExternalChatView', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -229,7 +232,7 @@ describe('ExternalChatView', () => {
   });
 
   it.each([
-    ['authorized', appWords.common.regrant.approved],
+    ['authorized', appWords.common.regrantDialog.doneTitle],
     ['expired', appWords.common.regrant.expired],
     ['denied', appWords.common.regrant.denied],
   ])('ends the send re-consent on %s: the code goes and the status line says so', async (status, text) => {
@@ -263,17 +266,21 @@ describe('ExternalChatView', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
     await wrapper.find('[data-test="regrant"]').trigger('click');
+    await flushPromises();
+    document.body.querySelector<HTMLElement>('[data-action="regrant-start"]')?.click();
     await vi.advanceTimersByTimeAsync(0);
     await flushPromises();
 
-    expect(wrapper.find('[data-test="regrant-code"]').text()).toContain('ABCD-EFGH');
+    const dialog = () => document.body.querySelector('[data-slot="regrant-dialog"]');
+
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')?.textContent).toContain('ABCD-EFGH');
 
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
     vi.useRealTimers();
 
-    expect(wrapper.find('[data-test="regrant-code"]').exists()).toBe(false);
-    expect(wrapper.get('[data-test="regrant-status"]').text()).toContain(text);
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')).toBeNull();
+    expect(dialog()?.textContent).toContain(text);
     expect(wrapper.find('[data-test="regrant"]').exists()).toBe(status !== 'authorized');
   });
 

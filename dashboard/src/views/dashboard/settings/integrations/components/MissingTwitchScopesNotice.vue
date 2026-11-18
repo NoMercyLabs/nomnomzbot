@@ -10,15 +10,15 @@
 -->
 <script setup lang="ts">
 // The Twitch permissions the product needs and the connection lacks (for example the ads and charity
-// reads, which first-run setup does not ask for). The one button starts the additive re-grant: Twitch
-// shows a code the streamer approves, and the grant widens to the missing permissions. Only a person who
-// may read the Twitch diagnostics sees it. When the list cannot load, nothing shows and the page works as before.
+// reads, which first-run setup does not ask for). The one button opens the guided re-grant dialog.
+// Only a person who may read the Twitch diagnostics sees it. When the list cannot load, nothing shows
+// and the page works as before.
 import { useQuery } from '@tanstack/vue-query';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
-import { missingScopesQuery, useRegrantApproval, useStartRegrant } from '@/api/twitchHealth';
+import { missingScopesQuery } from '@/api/twitchHealth';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
-import RegrantStatus from '@/components/layout/RegrantStatus.vue';
+import TwitchRegrantDialog from '@/components/layout/TwitchRegrantDialog.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -32,56 +32,25 @@ const missing = useQuery(computed(() => ({
   enabled: allowed.value,
 })));
 
-const regrant = useStartRegrant();
-
 const scopes = computed(() => missing.data.value?.scopes ?? []);
-const code = computed(() => regrant.data.value ?? null);
-const { state, showCode, offerStart } = useRegrantApproval(code);
-// The list empties once the grant lands; the notice stays to say so instead of vanishing.
-const approved = computed(() => state.value === 'approved');
+const guiding = ref(false);
 </script>
 
 <template>
   <InlineNotice
-    v-if="allowed && (scopes.length > 0 || approved)"
-    :tone="approved
-      ? 'success'
-      : 'warning'"
+    v-if="allowed && scopes.length > 0"
+    tone="warning"
     data-slot="missing-scopes"
-    :title="approved
-      ? $t('common.regrant.approved')
-      : $t('dashboard.settings.integrations.missingScopes.title', { count: scopes.length })"
+    :title="$t('dashboard.settings.integrations.missingScopes.title', { count: scopes.length })"
   >
     <p class="m-0 text-muted-foreground">
       {{ $t('dashboard.settings.integrations.missingScopes.description') }}
     </p>
-    <ul class="m-0 mt-2 flex list-none flex-wrap gap-x-3 gap-y-1 p-0" data-slot="missing-scopes-list">
-      <li v-for="item in scopes" :key="item.scope">
-        <code class="font-mono text-xs">{{ item.scope }}</code>
-      </li>
-    </ul>
-    <p v-if="code && showCode" class="m-0 mt-2" data-slot="missing-scopes-code">
-      {{ $t('dashboard.settings.integrations.missingScopes.enterCode', { code: code.userCode }) }}
-      <a
-        :href="code.verificationUri"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="break-all underline underline-offset-4"
-      >{{ code.verificationUri }}</a>
-    </p>
-    <RegrantStatus v-if="!approved" :state="state" class="mt-2" />
-    <InlineNotice v-if="regrant.isError.value" tone="error" compact class="mt-2">
-      {{ $t('dashboard.settings.integrations.missingScopes.regrantFailed') }}
-    </InlineNotice>
-    <template v-if="offerStart" #action>
-      <Button
-        variant="default"
-        data-action="grant-scopes"
-        :disabled="regrant.isPending.value"
-        @click="regrant.mutate()"
-      >
+    <template #action>
+      <Button variant="default" data-action="grant-scopes" @click="guiding = true">
         {{ $t('dashboard.settings.integrations.missingScopes.grant') }}
       </Button>
     </template>
   </InlineNotice>
+  <TwitchRegrantDialog v-if="allowed" v-model:open="guiding" :scopes="scopes" />
 </template>

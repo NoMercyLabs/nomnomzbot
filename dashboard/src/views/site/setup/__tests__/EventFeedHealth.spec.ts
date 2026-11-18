@@ -110,18 +110,24 @@ async function grant(view: VueWrapper): Promise<void> {
   const button = view.findAll('button').find((item) => item.text().includes(feed.regrant));
 
   await button?.trigger('click');
+  await flushPromises();
+  document.body.querySelector<HTMLElement>('[data-action="regrant-start"]')?.click();
   await vi.advanceTimersByTimeAsync(0);
   await flushPromises();
 }
 
+const dialog = (): HTMLElement | null =>
+  document.body.querySelector<HTMLElement>('[data-slot="regrant-dialog"]');
+
 describe('Event feed health: the permission re-grant', () => {
-  it('shows the code and a waiting line while the approval is open', async () => {
+  it('guides the grant in a dialog: the code and a waiting line while the approval is open', async () => {
     const view = await open();
 
     await grant(view);
 
-    expect(view.text()).toContain('ABCD-EFGH');
-    expect(view.get('[data-slot="regrant-status"]').text()).toBe(words.waiting);
+    expect(view.text()).not.toContain('ABCD-EFGH');
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')?.textContent).toContain('ABCD-EFGH');
+    expect(dialog()?.textContent).toContain(common.common.regrantDialog.stepApprove);
   });
 
   it('reads the event feed again on approval and shows the new real state', async () => {
@@ -136,7 +142,7 @@ describe('Event feed health: the permission re-grant', () => {
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
 
-    expect(view.text()).not.toContain('ABCD-EFGH');
+    expect(dialog()?.textContent).toContain(common.common.regrantDialog.doneTitle);
     expect(view.text()).not.toContain(feed.missingScopes);
     expect(view.text()).toContain('(1 active)');
   });
@@ -153,8 +159,9 @@ describe('Event feed health: the permission re-grant', () => {
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
 
-    expect(view.get('[data-slot="regrant-status"]').text()).toBe(text);
-    expect(view.text()).not.toContain('ABCD-EFGH');
+    expect(dialog()?.querySelector('[data-slot="regrant-status"]')?.textContent?.trim()).toBe(text);
+    expect(dialog()?.querySelector('[data-action="regrant-retry"]')).not.toBeNull();
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')).toBeNull();
     expect(view.findAll('button').some((item) => item.text().includes(feed.regrant))).toBe(true);
   });
 });

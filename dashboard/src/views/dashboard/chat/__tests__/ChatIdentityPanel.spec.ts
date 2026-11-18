@@ -138,10 +138,10 @@ describe('Chat identity panel', () => {
   });
 
   it.each([
-    ['authorized', common.common.regrant.approved],
+    ['authorized', common.common.regrantDialog.doneTitle],
     ['expired', common.common.regrant.expired],
     ['denied', common.common.regrant.denied],
-  ])('ends the re-consent on %s: says so, and an approval reads the identity again', async (status, text) => {
+  ])('ends the guided re-consent on %s: the dialog says so, and an approval reads the identity again', async (status, text) => {
     vi.useFakeTimers();
     i18n.global.mergeLocaleMessage('en', common);
 
@@ -167,11 +167,21 @@ describe('Chat identity panel', () => {
     const before = reads();
 
     await view.get('[data-test="regrant"]').trigger('click');
+    await flushPromises();
+    document.body.querySelector<HTMLElement>('[data-action="regrant-start"]')?.click();
+    await flushPromises();
+
+    const dialog = () => document.body.querySelector('[data-slot="regrant-dialog"]');
+
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')?.textContent).toContain('ABCD-EFGH');
+
+    // Twitch now holds the scope: only an approval reads that again.
+    http.GET.mockResolvedValue({ data: { data: identity }, response: ok });
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
 
-    expect(view.get('[data-test="regrant-status"]').text()).toContain(text);
-    expect(view.find('[data-test="regrant-code"]').exists()).toBe(false);
+    expect(dialog()?.textContent).toContain(text);
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')).toBeNull();
 
     expect(reads() - before).toBe(status === 'authorized'
       ? 1

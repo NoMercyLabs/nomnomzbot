@@ -18,13 +18,11 @@ import { useChannelAccess } from '@/api/access';
 import {
   useChatIdentity,
   useSetChatColor,
-  useStartScopeRegrant,
 } from '@/api/chatIdentity';
-import { useRegrantApproval } from '@/api/twitchHealth';
 import EmptyState from '@/components/layout/EmptyState.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import RegrantStatus from '@/components/layout/RegrantStatus.vue';
+import TwitchRegrantDialog from '@/components/layout/TwitchRegrantDialog.vue';
 import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -39,7 +37,7 @@ const identityQuery = useChatIdentity(() =>
     ? channelId.value
     : null);
 const setColor = useSetChatColor(channelId);
-const regrant = useStartScopeRegrant();
+const guiding = ref(false);
 
 const badgePickerUrl = computed<string | null>(() =>
   current.value
@@ -54,8 +52,15 @@ const refusal = computed(() => {
   return error?.detail ?? error?.message ?? null;
 });
 
-const regrantCode = computed(() => regrant.data.value ?? null);
-const { state: regrantState, showCode, offerStart } = useRegrantApproval(regrantCode);
+const colorScopes = computed(() =>
+  identity.value
+    ? [{
+        scope: identity.value.colorScope,
+        features: ['chat_color'],
+        detectedAtRuntime: false,
+        chatNotified: false,
+      }]
+    : []);
 
 function isCurrent(colorHex: string): boolean {
   return identity.value?.color?.toUpperCase() === colorHex.toUpperCase();
@@ -122,29 +127,12 @@ function badgeImage(urls: Record<string, string>): string | undefined {
           <p class="text-sm">
             {{ $t('dashboard.chat.identity.needsScope', { scope: identity.colorScope }) }}
           </p>
-          <p v-if="regrantCode && showCode" class="text-sm" data-test="regrant-code">
-            {{ $t('dashboard.chat.identity.enterCode', { code: regrantCode.userCode }) }}
-            <a
-              :href="regrantCode.verificationUri"
-              target="_blank"
-              rel="noopener"
-              class="underline"
-            >{{ regrantCode.verificationUri }}</a>
-          </p>
-          <RegrantStatus :state="regrantState" data-test="regrant-status" />
-          <InlineNotice v-if="regrant.isError.value" tone="error" compact>
-            {{ regrant.error.value?.detail ?? $t('dashboard.chat.identity.regrantFailed') }}
-          </InlineNotice>
-          <Button
-            v-if="offerStart && canRegrant"
-            class="self-start"
-            :disabled="regrant.isPending.value"
-            data-test="regrant"
-            @click="regrant.mutate()"
-          >
+          <Button v-if="canRegrant" class="self-start" data-test="regrant" @click="guiding = true">
             {{ $t('dashboard.chat.identity.regrant') }}
           </Button>
         </div>
+        <!-- Outside the scope block: on approval the block goes, and the dialog stays to say so. -->
+        <TwitchRegrantDialog v-if="canRegrant" v-model:open="guiding" :scopes="colorScopes" />
 
         <div class="flex flex-wrap gap-2" role="radiogroup" :aria-label="$t('dashboard.chat.identity.color')">
           <button

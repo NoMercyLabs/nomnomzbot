@@ -46,6 +46,7 @@ const regrantPath = '/api/v{version}/twitch/diagnostics/regrant';
 const pollPath = '/api/v{version}/auth/{provider}/device/poll';
 const words = en.dashboard.settings.integrations.missingScopes;
 const regrantWords = common.common.regrant;
+const dialogWords = common.common.regrantDialog;
 const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, status: 200 } });
 
 const missing = (...names: string[]) =>
@@ -53,7 +54,7 @@ const missing = (...names: string[]) =>
     connectionStatus: 'connected',
     scopes: names.map((scope) => ({
       scope,
-      features: ['ads'],
+      features: ['polls'],
       detectedAtRuntime: false,
       chatNotified: false,
     })),
@@ -133,53 +134,72 @@ const notice = (): HTMLElement | null =>
   document.body.querySelector<HTMLElement>('[data-slot="missing-scopes"]');
 const grant = (): HTMLButtonElement | null =>
   document.body.querySelector<HTMLButtonElement>('[data-action="grant-scopes"]');
+const dialog = (): HTMLElement | null =>
+  document.body.querySelector<HTMLElement>('[data-slot="regrant-dialog"]');
+const action = (name: string): HTMLElement | null =>
+  document.body.querySelector<HTMLElement>(`[data-action="${name}"]`);
+
+// Opens the guided dialog and continues to Twitch: the code step.
+async function startOnTwitch(): Promise<void> {
+  grant()?.click();
+  await settle();
+  action('regrant-start')?.click();
+  await settle();
+}
 
 describe('Missing Twitch permissions notice', () => {
-  it('lists every missing scope by name and offers one grant button', async () => {
+  it('shows a short notice with one button and no raw scope names or code', async () => {
     await open();
 
-    expect(notice()?.textContent).toContain('channel:read:ads');
-    expect(notice()?.textContent).toContain('channel:read:charity');
+    expect(notice()?.textContent).not.toContain('channel:read:ads');
+    expect(notice()?.textContent).not.toContain('ABCD-EFGH');
     expect(grant()?.textContent?.trim()).toBe(words.grant);
     expect(document.body.querySelectorAll('button')).toHaveLength(1);
     expect(grant()?.getAttribute('data-variant')).toBe('default');
+    expect(dialog()).toBeNull();
   });
 
-  it('starts the additive re-grant on click and shows the device code and the verification address', async () => {
+  it('opens a guided dialog that says in plain words what the bot gains, before anything starts', async () => {
     await open();
     grant()?.click();
     await settle();
 
+    expect(dialog()?.textContent).toContain(dialogWords.title);
+    expect(dialog()?.textContent).toContain(dialogWords.features.polls);
+    expect(action('regrant-start')?.textContent?.trim()).toBe(dialogWords.start);
+    expect(http.POST).not.toHaveBeenCalled();
+  });
+
+  it('starts the additive re-grant from the dialog and guides the person through the code step', async () => {
+    await open();
+    await startOnTwitch();
+
     expect(http.POST).toHaveBeenCalledTimes(1);
     expect(http.POST.mock.calls[0]?.[0]).toBe(regrantPath);
-
-    const code = document.body.querySelector('[data-slot="missing-scopes-code"]');
-
-    expect(code?.textContent).toContain('ABCD-EFGH');
-    expect(code?.querySelector('a')?.getAttribute('href')).toBe('https://www.twitch.tv/activate');
-    expect(grant()).toBeNull();
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')?.textContent).toContain('ABCD-EFGH');
+    expect(action('regrant-open-twitch')?.getAttribute('href')).toBe('https://www.twitch.tv/activate');
+    expect(action('regrant-start')).toBeNull();
+    expect(notice()?.textContent).not.toContain('ABCD-EFGH');
   });
 
   it('polls the device approval after the code shows, and says it is waiting', async () => {
     vi.useFakeTimers();
     await open();
-    grant()?.click();
-    await settle();
+    await startOnTwitch();
     await vi.advanceTimersByTimeAsync(5000);
 
     const polled = http.POST.mock.calls.filter(([path]) => path === pollPath);
 
     expect(polled).toHaveLength(1);
     expect(polled[0]?.[1]).toMatchObject({ body: { deviceCode: 'dev-1' } });
-    expect(document.body.querySelector('[data-slot="regrant-status"]')?.textContent).toContain(regrantWords.waiting);
+    expect(dialog()?.textContent).toContain(dialogWords.stepApprove);
   });
 
-  it('reads the missing scopes again on approval and replaces the code with the success text', async () => {
+  it('reads the missing scopes again on approval, says so in the dialog, and Done closes it', async () => {
     vi.useFakeTimers();
     polls = ['authorized'];
     await open();
-    grant()?.click();
-    await settle();
+    await startOnTwitch();
     missingAnswer = missing();
     await vi.advanceTimersByTimeAsync(5000);
     await settle();
@@ -187,35 +207,43 @@ describe('Missing Twitch permissions notice', () => {
     const missingReads = http.GET.mock.calls.filter(([path]) => path === missingPath);
 
     expect(missingReads).toHaveLength(2);
-    expect(document.body.querySelector('[data-slot="missing-scopes-code"]')).toBeNull();
-    expect(notice()?.textContent).toContain(regrantWords.approved);
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')).toBeNull();
+    expect(dialog()?.textContent).toContain(dialogWords.doneTitle);
+
+    action('regrant-done')?.click();
+    await settle();
+
+    expect(dialog()).toBeNull();
+    expect(notice()).toBeNull();
   });
 
   it.each([
     ['expired', regrantWords.expired],
     ['denied', regrantWords.denied],
-  ])('says the code %s and offers the grant button again', async (status, text) => {
+  ])('says the code %s and offers to try again with a new code', async (status, text) => {
     vi.useFakeTimers();
     polls = [status];
     await open();
-    grant()?.click();
-    await settle();
+    await startOnTwitch();
     await vi.advanceTimersByTimeAsync(5000);
     await settle();
 
-    expect(document.body.querySelector('[data-slot="regrant-status"]')?.textContent).toContain(text);
-    expect(document.body.querySelector('[data-slot="missing-scopes-code"]')).toBeNull();
-    expect(grant()).not.toBeNull();
-  });
+    expect(dialog()?.querySelector('[data-slot="regrant-status"]')?.textContent).toContain(text);
+    expect(dialog()?.querySelector('[data-slot="regrant-code"]')).toBeNull();
 
-  it('shows the error text, and keeps the button, when the re-grant fails', async () => {
-    await open();
-    http.POST.mockResolvedValueOnce({ error: {}, response: { ok: false, status: 500 } });
-    grant()?.click();
+    action('regrant-retry')?.click();
     await settle();
 
-    expect(notice()?.textContent).toContain(words.regrantFailed);
-    expect(grant()).not.toBeNull();
+    expect(http.POST.mock.calls.filter(([path]) => path === regrantPath)).toHaveLength(2);
+  });
+
+  it('shows the error text in the dialog, and offers to try again, when the re-grant cannot start', async () => {
+    await open();
+    http.POST.mockResolvedValueOnce({ error: {}, response: { ok: false, status: 500 } });
+    await startOnTwitch();
+
+    expect(dialog()?.textContent).toContain(dialogWords.failed);
+    expect(action('regrant-retry')).not.toBeNull();
   });
 
   it('renders nothing when no scope is missing', async () => {
