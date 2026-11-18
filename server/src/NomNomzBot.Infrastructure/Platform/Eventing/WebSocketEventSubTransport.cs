@@ -840,9 +840,10 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport, IViewerEven
                 {
                     reason = ex.GetType().Name;
                     _logger.LogWarning(
-                        "EventSub WS ({Owner}) dropped ({Reason}); reconnecting in {Backoff:g}",
+                        "EventSub WS ({Owner}) dropped ({Reason}: {Detail}); reconnecting in {Backoff:g}",
                         _ownerKey,
                         reason,
+                        ex.InnerException?.Message ?? ex.Message,
                         backoff
                     );
                 }
