@@ -38,12 +38,17 @@ public static class ModeratorViewActions
     // The bot's own chat color: a bot setting, not a moderator power.
     private const string BotChatColor = "moderation:chatcolor:write";
 
+    // The channel economy runs on the bot, and the bot does not run in a channel that did not onboard.
+    private const string EconomyPrefix = "economy:";
+
     /// <summary>
-    /// True when the action stays held in a channel that did not onboard. The limit covers management powers
-    /// only; a viewer's community actions are untouched.
+    /// True when the action stays held in a channel that did not onboard. Management powers keep only the
+    /// moderator view; community actions stay, except the economy, which has no bot to run it there.
     /// </summary>
     public static bool Allows(AuthPlane plane, string actionKey) =>
-        plane != AuthPlane.Management || Covers(actionKey);
+        plane == AuthPlane.Management
+            ? Covers(actionKey)
+            : !actionKey.StartsWith(EconomyPrefix, StringComparison.Ordinal);
 
     /// <summary>True when <paramref name="actionKey"/> works without the streamer's own token.</summary>
     public static bool Covers(string actionKey)

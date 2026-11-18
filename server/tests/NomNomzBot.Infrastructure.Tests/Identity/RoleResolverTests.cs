@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
@@ -536,6 +537,20 @@ public sealed class RoleResolverTests
         commands.Value.Should().Be(onboarded);
         ban.Value.Should().BeTrue();
     }
+
+    // The economy runs on the bot, so in a channel that did not onboard no one holds it, on either plane.
+    [Theory]
+    [InlineData(AuthPlane.Community, "economy:catalog:read", false)]
+    [InlineData(AuthPlane.Community, "economy:games:play", false)]
+    [InlineData(AuthPlane.Management, "economy:config:read", false)]
+    [InlineData(AuthPlane.Community, "chat:send-command", true)]
+    [InlineData(AuthPlane.Management, "moderation:ban", true)]
+    [InlineData(AuthPlane.Management, "moderation:chatcolor:write", false)]
+    public void The_moderator_view_drops_the_economy_in_a_channel_that_did_not_onboard(
+        AuthPlane plane,
+        string actionKey,
+        bool allowed
+    ) => ModeratorViewActions.Allows(plane, actionKey).Should().Be(allowed);
 
     [Fact]
     public async Task The_owner_keeps_every_key_on_their_own_channel_before_it_onboards()
