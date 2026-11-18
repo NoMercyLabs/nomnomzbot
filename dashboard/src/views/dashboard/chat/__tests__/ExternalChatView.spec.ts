@@ -48,6 +48,23 @@ const hub = vi.hoisted(() => ({
   ),
 }));
 
+type Answer = {
+  data?: unknown;
+  error?: unknown;
+  response: { ok: boolean; status: number };
+};
+
+const http = vi.hoisted(() => ({
+  GET: vi.fn<(path: string, init: unknown) => Promise<Answer>>(
+    async () => ({ error: {}, response: { ok: false, status: 404 } }),
+  ),
+  POST: vi.fn<(path: string, init: unknown) => Promise<Answer>>(
+    async () => ({ error: {}, response: { ok: false, status: 404 } }),
+  ),
+  use: vi.fn<() => void>(),
+}));
+
+vi.mock('@/api/client', () => ({ client: http }));
 vi.mock('@/realtime/dashboardHub', () => hub);
 
 const broadcasterId = '4242';
@@ -209,6 +226,55 @@ describe('ExternalChatView', () => {
     expect(prompt.exists()).toBe(true);
     expect(prompt.text()).toContain('user:write:chat');
     expect(wrapper.find('[data-test="regrant"]').exists()).toBe(true);
+  });
+
+  it.each([
+    ['authorized', appWords.common.regrant.approved],
+    ['expired', appWords.common.regrant.expired],
+    ['denied', appWords.common.regrant.denied],
+  ])('ends the send re-consent on %s: the code goes and the status line says so', async (status, text) => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'setTimeout'] });
+
+    hub.sendTwitchChat.mockResolvedValue({
+      success: false,
+      error: 'Missing required scope \'user:write:chat\'.',
+      errorCode: 'missing_scope',
+      missingScope: 'user:write:chat',
+    });
+
+    http.POST.mockImplementation(async (path) => {
+      const data = path.endsWith('/device/poll')
+        ? { status, auth: null }
+        : {
+            deviceCode: 'dev-1',
+            userCode: 'ABCD-EFGH',
+            verificationUri: 'https://www.twitch.tv/activate',
+            interval: 5,
+            expiresIn: 600,
+            requestedScopes: ['user:write:chat'],
+          };
+
+      return { data: { data }, response: { ok: true, status: 200 } };
+    });
+
+    const wrapper = await open();
+
+    await wrapper.find('input[data-external-chat-input]').setValue('hi');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    await wrapper.find('[data-test="regrant"]').trigger('click');
+    await vi.advanceTimersByTimeAsync(0);
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="regrant-code"]').text()).toContain('ABCD-EFGH');
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await flushPromises();
+    vi.useRealTimers();
+
+    expect(wrapper.find('[data-test="regrant-code"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="regrant-status"]').text()).toContain(text);
+    expect(wrapper.find('[data-test="regrant"]').exists()).toBe(status !== 'authorized');
   });
 
   it('offers one allow-reading button when the join lacks user:read:chat, and it signs in as a moderator', async () => {

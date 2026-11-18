@@ -12,19 +12,19 @@
 // Chat identity: how the owner looks in Twitch chat. The name color can be set here; Twitch gives
 // everyone 15 named colors and only Turbo or Prime members any hex. Badges show as worn: the Twitch
 // API (checked 2026-10-20) cannot list a user's badges or set the worn one, so the choice links to Twitch chat.
-import { useQuery } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 
 import { useChannelAccess } from '@/api/access';
-import { deviceApprovalQuery } from '@/api/signIn';
 import {
   useChatIdentity,
   useSetChatColor,
   useStartScopeRegrant,
 } from '@/api/chatIdentity';
+import { useRegrantApproval } from '@/api/twitchHealth';
 import EmptyState from '@/components/layout/EmptyState.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RegrantStatus from '@/components/layout/RegrantStatus.vue';
 import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -55,8 +55,7 @@ const refusal = computed(() => {
 });
 
 const regrantCode = computed(() => regrant.data.value ?? null);
-const approval = useQuery(computed(() => deviceApprovalQuery('twitch', regrantCode.value)));
-const approved = computed(() => approval.data.value?.status === 'authorized');
+const { state: regrantState, showCode, offerStart } = useRegrantApproval(regrantCode);
 
 function isCurrent(colorHex: string): boolean {
   return identity.value?.color?.toUpperCase() === colorHex.toUpperCase();
@@ -123,7 +122,7 @@ function badgeImage(urls: Record<string, string>): string | undefined {
           <p class="text-sm">
             {{ $t('dashboard.chat.identity.needsScope', { scope: identity.colorScope }) }}
           </p>
-          <p v-if="regrantCode && !approved" class="text-sm" data-test="regrant-code">
+          <p v-if="regrantCode && showCode" class="text-sm" data-test="regrant-code">
             {{ $t('dashboard.chat.identity.enterCode', { code: regrantCode.userCode }) }}
             <a
               :href="regrantCode.verificationUri"
@@ -132,12 +131,12 @@ function badgeImage(urls: Record<string, string>): string | undefined {
               class="underline"
             >{{ regrantCode.verificationUri }}</a>
           </p>
-          <p v-if="approved" class="text-sm">{{ $t('dashboard.chat.identity.approved') }}</p>
+          <RegrantStatus :state="regrantState" data-test="regrant-status" />
           <InlineNotice v-if="regrant.isError.value" tone="error" compact>
             {{ regrant.error.value?.detail ?? $t('dashboard.chat.identity.regrantFailed') }}
           </InlineNotice>
           <Button
-            v-if="!regrantCode && canRegrant"
+            v-if="offerStart && canRegrant"
             class="self-start"
             :disabled="regrant.isPending.value"
             data-test="regrant"

@@ -16,6 +16,7 @@ import { computed } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { i18n } from '@/i18n';
+import common from '@/i18n/locales/en.json';
 
 import { answerHeldKeys } from '../../__tests__/heldKeys';
 import MissingTwitchScopesNotice from '../components/MissingTwitchScopesNotice.vue';
@@ -42,7 +43,9 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 
 const missingPath = '/api/v{version}/twitch/diagnostics/missing-scopes';
 const regrantPath = '/api/v{version}/twitch/diagnostics/regrant';
+const pollPath = '/api/v{version}/auth/{provider}/device/poll';
 const words = en.dashboard.settings.integrations.missingScopes;
+const regrantWords = common.common.regrant;
 const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, status: 200 } });
 
 const missing = (...names: string[]) =>
@@ -59,6 +62,7 @@ const missing = (...names: string[]) =>
 let mounted: VueWrapper | null = null;
 let held: string[] = [];
 let missingAnswer: Answer = missing();
+let polls: string[] = [];
 
 beforeEach(() => {
   http.GET.mockReset();
@@ -73,8 +77,13 @@ beforeEach(() => {
 
   answerHeldKeys(http.GET, () => held);
 
-  http.POST.mockImplementation(async (path) =>
-    path === regrantPath
+  polls = [];
+
+  http.POST.mockImplementation(async (path) => {
+    if (path === pollPath)
+      return ok({ status: polls.shift() ?? 'pending', auth: null });
+
+    return path === regrantPath
       ? ok({
           deviceCode: 'dev-1',
           userCode: 'ABCD-EFGH',
@@ -83,12 +92,15 @@ beforeEach(() => {
           expiresIn: 600,
           requestedScopes: ['channel:read:ads'],
         })
-      : { error: {}, response: { ok: false, status: 404 } });
+      : { error: {}, response: { ok: false, status: 404 } };
+  });
 
   i18n.global.mergeLocaleMessage('en', en);
+  i18n.global.mergeLocaleMessage('en', common);
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   mounted?.unmount();
   mounted = null;
   document.body.innerHTML = '';
@@ -96,7 +108,13 @@ afterEach(() => {
 
 async function settle(): Promise<void> {
   await flushPromises();
-  await new Promise((done) => setTimeout(done, 0));
+
+  if (vi.isFakeTimers()) {
+    await vi.advanceTimersByTimeAsync(0);
+  } else {
+    await new Promise((done) => setTimeout(done, 0));
+  }
+
   await flushPromises();
 }
 
@@ -140,6 +158,54 @@ describe('Missing Twitch permissions notice', () => {
     expect(code?.textContent).toContain('ABCD-EFGH');
     expect(code?.querySelector('a')?.getAttribute('href')).toBe('https://www.twitch.tv/activate');
     expect(grant()).toBeNull();
+  });
+
+  it('polls the device approval after the code shows, and says it is waiting', async () => {
+    vi.useFakeTimers();
+    await open();
+    grant()?.click();
+    await settle();
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const polled = http.POST.mock.calls.filter(([path]) => path === pollPath);
+
+    expect(polled).toHaveLength(1);
+    expect(polled[0]?.[1]).toMatchObject({ body: { deviceCode: 'dev-1' } });
+    expect(document.body.querySelector('[data-slot="regrant-status"]')?.textContent).toContain(regrantWords.waiting);
+  });
+
+  it('reads the missing scopes again on approval and replaces the code with the success text', async () => {
+    vi.useFakeTimers();
+    polls = ['authorized'];
+    await open();
+    grant()?.click();
+    await settle();
+    missingAnswer = missing();
+    await vi.advanceTimersByTimeAsync(5000);
+    await settle();
+
+    const missingReads = http.GET.mock.calls.filter(([path]) => path === missingPath);
+
+    expect(missingReads).toHaveLength(2);
+    expect(document.body.querySelector('[data-slot="missing-scopes-code"]')).toBeNull();
+    expect(notice()?.textContent).toContain(regrantWords.approved);
+  });
+
+  it.each([
+    ['expired', regrantWords.expired],
+    ['denied', regrantWords.denied],
+  ])('says the code %s and offers the grant button again', async (status, text) => {
+    vi.useFakeTimers();
+    polls = [status];
+    await open();
+    grant()?.click();
+    await settle();
+    await vi.advanceTimersByTimeAsync(5000);
+    await settle();
+
+    expect(document.body.querySelector('[data-slot="regrant-status"]')?.textContent).toContain(text);
+    expect(document.body.querySelector('[data-slot="missing-scopes-code"]')).toBeNull();
+    expect(grant()).not.toBeNull();
   });
 
   it('shows the error text, and keeps the button, when the re-grant fails', async () => {

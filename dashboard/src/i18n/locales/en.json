@@ -44,6 +44,13 @@
       "on": "On",
       "off": "Off"
     },
+    "regrant": {
+      "waiting": "Waiting for you to approve on Twitch. This page updates by itself.",
+      "approved": "Permissions granted. Twitch now lets the bot use them.",
+      "expired": "The code ran out before it was used. Grant the permissions again for a new code.",
+      "denied": "Twitch did not get your approval. Grant the permissions again to try once more.",
+      "error": "The approval could not be checked. Grant the permissions again to try once more."
+    },
     "shortcuts": {
       "title": "Keyboard shortcuts",
       "description": "The keys this page answers to. Press ? again to close.",

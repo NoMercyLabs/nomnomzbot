@@ -16,6 +16,7 @@ import { computed } from 'vue';
 
 import type { ChatIdentity } from '@/api/chatIdentity';
 import { i18n } from '@/i18n';
+import common from '@/i18n/locales/en.json';
 
 import en from '../i18n/en.json';
 import ChatIdentityPanel from '../components/ChatIdentityPanel.vue';
@@ -134,6 +135,50 @@ describe('Chat identity panel', () => {
 
     expect(view.find('[data-test="regrant"]').exists()).toBe(true);
     expect(view.get('[data-test="swatch-blue"]').attributes('disabled')).toBeDefined();
+  });
+
+  it.each([
+    ['authorized', common.common.regrant.approved],
+    ['expired', common.common.regrant.expired],
+    ['denied', common.common.regrant.denied],
+  ])('ends the re-consent on %s: says so, and an approval reads the identity again', async (status, text) => {
+    vi.useFakeTimers();
+    i18n.global.mergeLocaleMessage('en', common);
+
+    http.POST.mockImplementation(async (path) =>
+      path.endsWith('/device/poll')
+        ? { data: { data: { status, auth: null } }, response: ok }
+        : {
+            data: {
+              data: {
+                deviceCode: 'dev-1',
+                userCode: 'ABCD-EFGH',
+                verificationUri: 'https://www.twitch.tv/activate',
+                interval: 5,
+                expiresIn: 600,
+                requestedScopes: ['user:manage:chat_color'],
+              },
+            },
+            response: ok,
+          });
+
+    const view = await open({ ...identity, canManageColor: false });
+    const reads = () => http.GET.mock.calls.length;
+    const before = reads();
+
+    await view.get('[data-test="regrant"]').trigger('click');
+    await vi.advanceTimersByTimeAsync(5000);
+    await flushPromises();
+
+    expect(view.get('[data-test="regrant-status"]').text()).toContain(text);
+    expect(view.find('[data-test="regrant-code"]').exists()).toBe(false);
+
+    expect(reads() - before).toBe(status === 'authorized'
+      ? 1
+      : 0);
+
+    expect(view.find('[data-test="regrant"]').exists()).toBe(status !== 'authorized');
+    vi.useRealTimers();
   });
 
   it('says badges are chosen on Twitch and links to the channel chat popout', async () => {

@@ -20,10 +20,12 @@ import {
   eventFeedFactsQuery,
   judgeEventFeed,
   useReconcileEventSub,
+  useRegrantApproval,
   useStartRegrant,
   type EventFeedVerdict,
 } from '@/api/twitchHealth';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
+import RegrantStatus from '@/components/layout/RegrantStatus.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -44,6 +46,7 @@ const verdict = computed<EventFeedVerdict | null>(() =>
     : null);
 const reconcile = useReconcileEventSub(channelId);
 const regrant = useStartRegrant();
+const { state: regrantState, showCode, offerStart } = useRegrantApproval(() => regrant.data.value);
 
 const tone = computed(() =>
   verdict.value?.state === 'ok'
@@ -67,16 +70,17 @@ const tone = computed(() =>
 
       <div v-if="verdict.state === 'missingScopes'" class="flex flex-col gap-2">
         <p class="text-sm text-muted-foreground">{{ verdict.scopes.join(', ') }}</p>
-        <div v-if="regrant.data.value" class="flex flex-col gap-2 text-sm">
+        <div v-if="regrant.data.value && showCode" class="flex flex-col gap-2 text-sm">
           {{ $t('site.setup.feed.regrantCode', { code: regrant.data.value.userCode }) }}
           <SetupAddress :url="regrant.data.value.verificationUri" use="both" />
         </div>
+        <RegrantStatus :state="regrantState" />
         <div class="flex gap-2">
-          <Button variant="outline" :disabled="regrant.isPending.value" @click="regrant.mutate()">
+          <Button v-if="offerStart" variant="outline" :disabled="regrant.isPending.value" @click="regrant.mutate()">
             <Spinner v-if="regrant.isPending.value" />
             {{ $t('site.setup.feed.regrant') }}
           </Button>
-          <Button v-if="regrant.data.value" variant="ghost" @click="facts.refetch()">
+          <Button v-if="regrant.data.value && regrantState !== 'approved'" variant="ghost" @click="facts.refetch()">
             {{ $t('site.setup.feed.recheck') }}
           </Button>
         </div>

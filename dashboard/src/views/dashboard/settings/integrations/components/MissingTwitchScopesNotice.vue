@@ -16,8 +16,9 @@
 import { useQuery } from '@tanstack/vue-query';
 import { computed } from 'vue';
 
-import { missingScopesQuery, useStartRegrant } from '@/api/twitchHealth';
+import { missingScopesQuery, useRegrantApproval, useStartRegrant } from '@/api/twitchHealth';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
+import RegrantStatus from '@/components/layout/RegrantStatus.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -35,14 +36,21 @@ const regrant = useStartRegrant();
 
 const scopes = computed(() => missing.data.value?.scopes ?? []);
 const code = computed(() => regrant.data.value ?? null);
+const { state, showCode, offerStart } = useRegrantApproval(code);
+// The list empties once the grant lands; the notice stays to say so instead of vanishing.
+const approved = computed(() => state.value === 'approved');
 </script>
 
 <template>
   <InlineNotice
-    v-if="allowed && scopes.length > 0"
-    tone="warning"
+    v-if="allowed && (scopes.length > 0 || approved)"
+    :tone="approved
+      ? 'success'
+      : 'warning'"
     data-slot="missing-scopes"
-    :title="$t('dashboard.settings.integrations.missingScopes.title', { count: scopes.length })"
+    :title="approved
+      ? $t('common.regrant.approved')
+      : $t('dashboard.settings.integrations.missingScopes.title', { count: scopes.length })"
   >
     <p class="m-0 text-muted-foreground">
       {{ $t('dashboard.settings.integrations.missingScopes.description') }}
@@ -52,7 +60,7 @@ const code = computed(() => regrant.data.value ?? null);
         <code class="font-mono text-xs">{{ item.scope }}</code>
       </li>
     </ul>
-    <p v-if="code" class="m-0 mt-2" data-slot="missing-scopes-code">
+    <p v-if="code && showCode" class="m-0 mt-2" data-slot="missing-scopes-code">
       {{ $t('dashboard.settings.integrations.missingScopes.enterCode', { code: code.userCode }) }}
       <a
         :href="code.verificationUri"
@@ -61,10 +69,11 @@ const code = computed(() => regrant.data.value ?? null);
         class="break-all underline underline-offset-4"
       >{{ code.verificationUri }}</a>
     </p>
+    <RegrantStatus v-if="!approved" :state="state" class="mt-2" />
     <InlineNotice v-if="regrant.isError.value" tone="error" compact class="mt-2">
       {{ $t('dashboard.settings.integrations.missingScopes.regrantFailed') }}
     </InlineNotice>
-    <template v-if="!code" #action>
+    <template v-if="offerStart" #action>
       <Button
         variant="default"
         data-action="grant-scopes"

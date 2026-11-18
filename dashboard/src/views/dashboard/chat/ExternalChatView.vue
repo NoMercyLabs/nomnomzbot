@@ -13,17 +13,18 @@
 // The channel is named by its login in the address and found by its Twitch id in `?id=`. It reads the live
 // lines the hub pushes on the viewer's own token and sends on that token. There is no history and no
 // moderation here. Send is the one primary action; a missing Twitch permission shows the grant prompt.
-import { useQuery } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { useCurrentUser } from '@/api/auth';
 import { chatMessageMaxLength, type ChatLine as ChatLineData } from '@/api/chat';
 import { useStartScopeRegrant } from '@/api/chatIdentity';
-import { deviceApprovalQuery, signInUrl } from '@/api/signIn';
+import { signInUrl } from '@/api/signIn';
+import { useRegrantApproval } from '@/api/twitchHealth';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RegrantStatus from '@/components/layout/RegrantStatus.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,8 +74,7 @@ function allowReading(): void {
 // The same additive re-consent the chat identity panel uses: nothing is signed out.
 const regrant = useStartScopeRegrant();
 const regrantCode = computed(() => regrant.data.value ?? null);
-const approval = useQuery(computed(() => deviceApprovalQuery('twitch', regrantCode.value)));
-const approved = computed(() => approval.data.value?.status === 'authorized');
+const { state: regrantState, showCode, offerStart } = useRegrantApproval(regrantCode);
 </script>
 
 <template>
@@ -120,15 +120,15 @@ const approved = computed(() => approval.data.value?.status === 'authorized');
           <Button v-if="needsReadScope" class="self-start" data-test="allow-read" @click="allowReading">
             {{ $t('dashboard.chat.external.allowReading') }}
           </Button>
-          <p v-if="!needsReadScope && regrantCode && !approved" class="text-sm" data-test="regrant-code">
+          <p v-if="!needsReadScope && regrantCode && showCode" class="text-sm" data-test="regrant-code">
             {{ $t('dashboard.chat.identity.enterCode', { code: regrantCode.userCode }) }}
             <a :href="regrantCode.verificationUri" target="_blank" rel="noopener" class="underline">
               {{ regrantCode.verificationUri }}
             </a>
           </p>
-          <p v-if="!needsReadScope && approved" class="text-sm">{{ $t('dashboard.chat.identity.approved') }}</p>
+          <RegrantStatus v-if="!needsReadScope" :state="regrantState" data-test="regrant-status" />
           <Button
-            v-if="!needsReadScope && !regrantCode"
+            v-if="!needsReadScope && offerStart"
             class="self-start"
             :disabled="regrant.isPending.value"
             data-test="regrant"

@@ -9,12 +9,13 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/vue-query';
-import { toValue, type MaybeRefOrGetter } from 'vue';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { computed, toValue, watch, type MaybeRefOrGetter } from 'vue';
 
 import { client } from './client';
 import { failed } from './errors';
-import { merge } from '@/lib/array';
+import { deviceApprovalQuery, type DeviceOutcome } from './signIn';
+import { lookup, merge } from '@/lib/array';
 import type { components } from './schema';
 
 export type ScopeDiagnostics = components['schemas']['TwitchScopeDiagnostics'];
@@ -147,6 +148,49 @@ export function useReconcileEventSub(channelId: MaybeRefOrGetter<string>) {
     },
     onSuccess: () => queries.invalidateQueries({ queryKey: twitchHealthKey(toValue(channelId)) }),
   });
+}
+
+export type RegrantState = 'idle' | 'waiting' | 'approved' | 'expired' | 'denied' | 'error';
+
+// The device poll ends in one of these; pending and slow_down keep waiting.
+const outcomeStates = {
+  authorized: 'approved',
+  expired: 'expired',
+  denied: 'denied',
+  error: 'error',
+} as const satisfies Record<DeviceOutcome, RegrantState>;
+
+// Query keys that hold what a widened grant changes: the scope list, the event-feed health and the chat identity.
+const grantDependentKeys: ReadonlySet<string | null> = new Set(['twitch-health', 'chat-identity']);
+
+// Polls the device approval for a shown regrant code. On approval the server has already widened the grant,
+// so the health and chat identity reads are fetched again and the screens show the new real state.
+export function useRegrantApproval(code: MaybeRefOrGetter<ScopeRegrant | null | undefined>) {
+  const queries = useQueryClient();
+  const approval = useQuery(computed(() => deviceApprovalQuery('twitch', toValue(code) ?? null)));
+
+  const state = computed<RegrantState>(() => {
+    if (!toValue(code))
+      return 'idle';
+
+    return lookup(outcomeStates, approval.data.value?.status) ?? 'waiting';
+  });
+  const showCode = computed(() => state.value === 'waiting');
+  const offerStart = computed(() => state.value !== 'waiting' && state.value !== 'approved');
+
+  watch(state, (now) => {
+    if (now !== 'approved') return;
+
+    queries.invalidateQueries({
+      predicate: (query) => query.queryKey.some((part) => grantDependentKeys.has(String(part))),
+    });
+  });
+
+  return {
+    state,
+    showCode,
+    offerStart,
+  };
 }
 
 // Fix for the scopes: Twitch shows a code the person approves; the grant then widens to the missing scopes.

@@ -44,6 +44,13 @@
       "on": "Aan",
       "off": "Uit"
     },
+    "regrant": {
+      "waiting": "Wachten tot je goedkeurt op Twitch. Deze pagina werkt zichzelf bij.",
+      "approved": "Rechten gegeven. Twitch laat de bot ze nu gebruiken.",
+      "expired": "De code is verlopen voordat hij werd gebruikt. Geef de rechten opnieuw voor een nieuwe code.",
+      "denied": "Twitch kreeg je goedkeuring niet. Geef de rechten opnieuw om het nog eens te proberen.",
+      "error": "De goedkeuring kon niet worden gecontroleerd. Geef de rechten opnieuw om het nog eens te proberen."
+    },
     "shortcuts": {
       "title": "Sneltoetsen",
       "description": "De toetsen waar deze pagina op reageert. Druk nogmaals op ? om te sluiten.",
