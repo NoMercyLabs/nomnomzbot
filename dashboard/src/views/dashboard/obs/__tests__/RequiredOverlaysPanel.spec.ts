@@ -108,11 +108,18 @@ function open(overlays: RequiredOverlay[]): void {
 }
 
 const rows = (): HTMLElement[] => Array.from(document.querySelectorAll('[data-required-overlay]'));
+// A row's button sits beside its body (SummaryRow's trailing slot), so it is found in the row's parent.
+const setupButton = (body: Element | null): HTMLButtonElement | null =>
+  body?.parentElement?.querySelector<HTMLButtonElement>('[data-obs-setup-open]') ?? null;
+
 const buttons = (): HTMLButtonElement[] =>
-  Array.from(document.querySelectorAll<HTMLButtonElement>('[data-obs-setup-open]'));
+  rows().map(setupButton).filter((button) => button !== null);
 
 const bridgeButton = (): HTMLButtonElement | null =>
-  buttons().at(-1) ?? null;
+  setupButton(document.querySelector('[data-required-bridge]'));
+
+const isPrimary = (button: HTMLButtonElement | null): boolean =>
+  button?.className.includes('rounded-full') === true;
 
 async function copyFromDialog(): Promise<void> {
   document.querySelector<HTMLButtonElement>('[data-obs-setup-copy]')!.click();
@@ -192,7 +199,7 @@ describe('RequiredOverlaysPanel', () => {
     expect(facts).toContain('Control audio via OBS');
   });
 
-  it('gives only the first surface that is not open in OBS the primary button', () => {
+  it('once OBS control is open, gives only the first surface that is not open in OBS the primary button', async () => {
     open([
       surface('audio', { isAttached: true }),
       surface('alerts'),
@@ -200,9 +207,22 @@ describe('RequiredOverlaysPanel', () => {
       surface('raid_recap', { isEnabled: false }),
     ]);
 
-    const primary = buttons().map((button) => button.className.includes('rounded-full'));
+    await flushPromises();
 
-    expect(primary).toEqual([false, true, false, false, false]);
+    expect(buttons().map(isPrimary)).toEqual([false, true, false, false]);
+    expect(isPrimary(bridgeButton())).toBe(false);
+  });
+
+  it('puts OBS control first and makes it the one primary step while it is not open in OBS', async () => {
+    held.bridgeOpen = 0;
+    open([surface('audio'), surface('alerts')]);
+    await flushPromises();
+
+    const first = document.querySelector('[data-required-overlays] [data-required-bridge], [data-required-overlays] [data-required-overlay]');
+
+    expect(first?.hasAttribute('data-required-bridge')).toBe(true);
+    expect(isPrimary(bridgeButton())).toBe(true);
+    expect(buttons().map(isPrimary)).toEqual([false, false]);
   });
 
   it('copies nothing for a surface that has no address yet', async () => {

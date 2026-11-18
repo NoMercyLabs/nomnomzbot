@@ -76,9 +76,12 @@ const bridgeMeta = computed<string>(() => {
     ? 'dashboard.obs.sources.loaded'
     : 'dashboard.obs.sources.notLoaded';
 });
-const bridgeIsNext = computed<boolean>(
-  () => nextKey.value === null && !bridgeOpen.value && canCopyBridge.value,
-);
+// The bridge comes first: without it the dashboard cannot drive OBS at all, so it is set up before any overlay.
+const bridgeIsNext = computed<boolean>(() => !bridgeOpen.value && canCopyBridge.value);
+const overlayNextKey = computed<string | null>(() =>
+  bridgeIsNext.value
+    ? null
+    : nextKey.value);
 
 async function bridgeAddress(): Promise<string | null | undefined> {
   if (!channelId.value)
@@ -101,6 +104,26 @@ async function bridgeAddress(): Promise<string | null | undefined> {
   >
     <div class="px-1 py-0.5">
       <SummaryRow
+        data-required-bridge
+        :title="$t('dashboard.obs.required.bridge.name')"
+        :detail="$t('dashboard.obs.required.bridge.detail')"
+        :meta="$t(bridgeMeta)"
+      >
+        <template #leading>
+          <span data-obs-dot="required" class="dot" :class="bridgeDot" aria-hidden="true" />
+        </template>
+        <template #trailing>
+          <ObsSetupAction
+            :title="$t('dashboard.obs.required.bridge.name')"
+            :setup="BRIDGE_SETUP"
+            :connected="bridgeOpen"
+            :primary="bridgeIsNext"
+            :disabled="!canCopyBridge"
+            :resolve-address="bridgeAddress"
+          />
+        </template>
+      </SummaryRow>
+      <SummaryRow
         v-for="overlay in overlays"
         :key="overlay.key"
         :data-required-overlay="overlay.key"
@@ -118,28 +141,8 @@ async function bridgeAddress(): Promise<string | null | undefined> {
             :setup="overlay.widget.obsSetup"
             :connected="overlay.widget.isAttached"
             :expected="overlay.widget.isEnabled"
-            :primary="overlay.key === nextKey"
+            :primary="overlay.key === overlayNextKey"
             :resolve-address="async () => overlay.widget.overlayUrl"
-          />
-        </template>
-      </SummaryRow>
-      <SummaryRow
-        data-required-bridge
-        :title="$t('dashboard.obs.required.bridge.name')"
-        :detail="$t('dashboard.obs.required.bridge.detail')"
-        :meta="$t(bridgeMeta)"
-      >
-        <template #leading>
-          <span data-obs-dot="required" class="dot" :class="bridgeDot" aria-hidden="true" />
-        </template>
-        <template #trailing>
-          <ObsSetupAction
-            :title="$t('dashboard.obs.required.bridge.name')"
-            :setup="BRIDGE_SETUP"
-            :connected="bridgeOpen"
-            :primary="bridgeIsNext"
-            :disabled="!canCopyBridge"
-            :resolve-address="bridgeAddress"
           />
         </template>
       </SummaryRow>

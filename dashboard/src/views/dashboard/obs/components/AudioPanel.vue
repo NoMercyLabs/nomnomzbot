@@ -24,7 +24,6 @@ import {
 } from '@/api/obs';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -134,40 +133,45 @@ function decibels(value: number): string {
     :error-text="$t('dashboard.obs.audio.loadError')"
     @retry="inputs.refetch()"
   >
-    <div class="px-1 py-0.5">
-      <div v-for="input in mixer" :key="input.name" :data-obs-input="input.name">
-        <SummaryRow :title="input.name">
-          <template #leading>
-            <Button
-              variant="ghost"
-              size="icon"
-              :data-obs-mute="input.name"
-              :aria-pressed="input.muted === true"
-              :aria-label="$t(input.muted === true
-                ? 'dashboard.obs.audio.unmute'
-                : 'dashboard.obs.audio.mute', { name: input.name })"
-              @click="toggleMute(input)"
-            >
-              <Muted v-if="input.muted === true" class="size-5 text-destructive" />
-              <Loud v-else class="size-5" />
-            </Button>
-          </template>
-          <template #trailing>
-            <Slider
-              class="w-40"
-              :model-value="[level(input)]"
-              :min="minDb"
-              :max="maxDb"
-              :step="0.5"
-              :disabled="input.muted === true"
-              :aria-label="$t('dashboard.obs.audio.level', { name: input.name })"
-              @update:model-value="moveSlider(input, $event)"
-            />
-            <span class="w-20 text-right text-sm tabular-nums text-muted-foreground">
-              {{ $t('dashboard.obs.audio.decibels', { value: decibels(level(input)) }) }}
-            </span>
-          </template>
-        </SummaryRow>
+    <!-- Name on its own line, the slider full width beneath: a narrow panel never squeezes the name. -->
+    <div class="flex flex-col gap-3 px-1 py-0.5">
+      <div
+        v-for="input in mixer"
+        :key="input.name"
+        :data-obs-input="input.name"
+        class="flex min-w-0 flex-col gap-1"
+      >
+        <div class="flex min-w-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            :data-obs-mute="input.name"
+            :aria-pressed="input.muted === true"
+            :aria-label="$t(input.muted === true
+              ? 'dashboard.obs.audio.unmute'
+              : 'dashboard.obs.audio.mute', { name: input.name })"
+            @click="toggleMute(input)"
+          >
+            <Muted v-if="input.muted === true" class="size-5 text-destructive" />
+            <Loud v-else class="size-5" />
+          </Button>
+          <span data-slot="obs-input-name" class="min-w-0 flex-1 truncate text-sm font-medium" :title="input.name">
+            {{ input.name }}
+          </span>
+          <span class="shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+            {{ $t('dashboard.obs.audio.decibels', { value: decibels(level(input)) }) }}
+          </span>
+        </div>
+        <Slider
+          class="w-full"
+          :model-value="[level(input)]"
+          :min="minDb"
+          :max="maxDb"
+          :step="0.5"
+          :disabled="input.muted === true"
+          :aria-label="$t('dashboard.obs.audio.level', { name: input.name })"
+          @update:model-value="moveSlider(input, $event)"
+        />
       </div>
     </div>
   </PanelCard>

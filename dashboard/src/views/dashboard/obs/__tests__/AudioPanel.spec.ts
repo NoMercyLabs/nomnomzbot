@@ -122,6 +122,18 @@ describe('AudioPanel', () => {
     expect(rows[0]?.textContent).toContain('-6.0 dB');
   });
 
+  it('gives the name its own shrinkable line and puts the slider beneath it, so a narrow panel never stacks the letters', async () => {
+    await show();
+
+    const row = document.body.querySelector('[data-obs-input="Mic"]');
+    const name = row?.querySelector('[data-slot="obs-input-name"]');
+    const slider = row?.querySelector('[role="slider"]')?.closest('[data-slot="slider"]') ?? row?.querySelector('[role="slider"]');
+
+    expect(name?.textContent?.trim()).toBe('Mic');
+    expect(name?.classList.contains('truncate')).toBe(true);
+    expect(name?.parentElement?.contains(slider ?? null)).toBe(false);
+  });
+
   it('shows the offline text while the OBS link is off', async () => {
     mounted = mount(AudioPanel, {
       attachTo: document.body,
