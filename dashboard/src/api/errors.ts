@@ -541,6 +541,8 @@ export const apiOperations = {
   'save widget settings': 'widgets',
   'create widget': 'widgets',
   'duplicate widget': 'widgets',
+  'widget gallery': 'widgets',
+  'install widget': 'widgets',
   'widget blast radius': 'widgets',
   'delete widget': 'widgets',
   'personality settings': 'settings',

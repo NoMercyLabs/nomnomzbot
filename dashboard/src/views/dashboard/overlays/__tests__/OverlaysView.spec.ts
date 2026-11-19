@@ -47,6 +47,27 @@ let widgets: Record<string, unknown>[] = [];
 let required: Record<string, unknown>[] = [];
 let listFails: boolean = false;
 
+const gallery = [
+  {
+    id: 'g1',
+    name: 'Chat Box',
+    description: 'Shows chat on stream.',
+    framework: 'vue',
+    trustTier: 'first_party',
+    installCount: 4,
+    availableInSaaS: true,
+  },
+  {
+    id: 'g2',
+    name: 'Goal Bar',
+    description: 'Fills up toward a goal.',
+    framework: 'vue',
+    trustTier: 'first_party',
+    installCount: 2,
+    availableInSaaS: true,
+  },
+];
+
 const widget = (
   id: string,
   name: string,
@@ -128,6 +149,17 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/overlays/required'))
         return { data: { data: required }, response: { status: 200, ok: true } };
 
+      if (path.endsWith('/widget-gallery')) {
+        return {
+          data: {
+            data: gallery,
+            hasMore: false,
+            nextPage: null,
+          },
+          response: { status: 200, ok: true },
+        };
+      }
+
       return {
         data: {
           data: widgets,
@@ -180,6 +212,18 @@ vi.mock('@/api/client', () => ({
         widgets = [...widgets, copy];
 
         return { data: { data: copy }, response: { status: 201, ok: true } };
+      }
+
+      if (path.endsWith('/widgets/install/{galleryItemId}')) {
+        const item = gallery.find((row) => row.id === options?.params?.path?.galleryItemId);
+        const installed = widget('w7', String(item?.name), {
+          source: 'first_party',
+          galleryItemId: item?.id,
+        });
+
+        widgets = [...widgets, installed];
+
+        return { data: { data: installed }, response: { status: 201, ok: true } };
       }
 
       const body = options?.body as { name: string; framework: string };
@@ -629,6 +673,33 @@ describe('OverlaysView', () => {
 
     expect(rowNames()).toContain('Goal bar');
     expect(router.currentRoute.value.query.id).toBe('w9');
+  });
+
+  it('installs a ready-made overlay picked from the gallery, lists it and opens it', async () => {
+    await open();
+
+    button('New overlay').click();
+    await settle();
+
+    expect(text()).toContain('Chat Box');
+    expect(text()).toContain('Fills up toward a goal.');
+
+    const pick = document.body.querySelector('#new-overlay-gallery-g2') as HTMLElement;
+
+    pick.click();
+    await settle();
+
+    expect(document.body.querySelector('#new-overlay-name')).toBeNull();
+
+    button('Add overlay').click();
+    await settle();
+
+    const posts = calls.filter((call) => call.method === 'POST');
+
+    expect(posts).toHaveLength(1);
+    expect(posts[0]!.path).toBe('/api/v{version}/channels/{channelId}/widgets/install/{galleryItemId}');
+    expect(rowNames()).toContain('Goal Bar');
+    expect(router.currentRoute.value.query.id).toBe('w7');
   });
 
   it('duplicates the open overlay with its code and opens the copy', async () => {

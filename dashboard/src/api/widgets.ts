@@ -274,6 +274,70 @@ export function useCreateWidget(
   });
 }
 
+export type GalleryItem = components['schemas']['GalleryItemSummary'];
+
+async function readGallery(): Promise<GalleryItem[]> {
+  const items: GalleryItem[] = [];
+  let page: number | null = firstPage;
+
+  while (page !== null) {
+    const current: number = page;
+    const { data, error, response } = await client.GET('/api/v{version}/widget-gallery', {
+      params: { path: { version }, query: { Page: current, PageSize: pageSize } },
+    });
+
+    if (error !== undefined)
+      throw failed('widget gallery', response.status, error);
+
+    items.push(...(data?.data ?? []));
+
+    page = data?.hasMore
+      ? (numberOrNull(data.nextPage) ?? current + 1)
+      : null;
+  }
+
+  return items;
+}
+
+// The ready-made overlays a channel can add. Read only while the new-overlay dialog is open.
+export function useWidgetGallery(
+  enabled: MaybeRefOrGetter<boolean>,
+): UseQueryReturnType<GalleryItem[], Error> {
+  return useQuery({
+    queryKey: ['widget-gallery'],
+    queryFn: readGallery,
+    enabled: computed(() => toValue(enabled)),
+  });
+}
+
+// An installed gallery overlay keeps its gallery link, so its settings form and updates come with it.
+export function useInstallWidget(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<string | null, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<string | null, Error, string, undefined>({
+    mutationFn: async (galleryItemId: string): Promise<string | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/widgets/install/{galleryItemId}',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          galleryItemId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('install widget', error, response.status);
+
+      return data?.data?.id ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: widgetsKey(toValue(channelId)) });
+    },
+  });
+}
+
 // A copy of an overlay the channel owns, code included. Resolves to the copy's id so the page can open it.
 export function useDuplicateWidget(
   channelId: MaybeRefOrGetter<string | null>,
