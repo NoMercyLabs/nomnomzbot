@@ -135,6 +135,47 @@ describe('the dashboard navigation', () => {
     expect(moderator.groups.value.map((group) => group.key)).toEqual(['home', 'live']);
   });
 
+  it('shows the settings door to a moderator who may read a moderation settings page, and hides it from one who may read none', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        {
+          name: 'dashboard-home',
+          path: '/dashboard-home',
+          component: page,
+        },
+        {
+          name: 'dashboard-settings',
+          path: '/dashboard-settings',
+          component: page,
+          meta: { navMode: 'settings', open: true },
+        },
+        {
+          name: 'dashboard-settings-automod',
+          path: '/dashboard-settings-automod',
+          component: page,
+          meta: { navMode: 'settings', action: 'moderation:automod:read' },
+        },
+        {
+          name: 'dashboard-settings-billing',
+          path: '/dashboard-settings-billing',
+          component: page,
+          meta: { navMode: 'settings', action: 'billing:read' },
+        },
+      ],
+    });
+
+    held.keys = ['dashboard:read', 'moderation:automod:read'];
+    const moderator = await open(router, '/dashboard-home');
+
+    expect(moderator.entries.value.map((entry) => entry.route)).toContain('dashboard-settings');
+
+    held.keys = ['dashboard:read'];
+    const viewer = await open(router, '/dashboard-home');
+
+    expect(viewer.entries.value.map((entry) => entry.route)).not.toContain('dashboard-settings');
+  });
+
   it('hides an admin entry whose platform key the person does not hold', async () => {
     const adminPages = ['dashboard-admin-tenants', 'dashboard-admin-billing', 'dashboard-admin-audit-log'];
     const router = createRouter({

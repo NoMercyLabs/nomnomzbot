@@ -961,6 +961,7 @@
         "automod": "AutoMod-filters",
         "blockedTerms": "Geblokkeerde termen",
         "banned": "Verbannen mensen",
+        "unbanRequests": "Unban-verzoeken",
         "reports": "Meldingen van kijkers",
         "resourceLimits": "Gebruikslimieten",
         "billing": "Facturatie",

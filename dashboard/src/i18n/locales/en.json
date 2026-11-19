@@ -961,6 +961,7 @@
         "automod": "AutoMod filters",
         "blockedTerms": "Blocked terms",
         "banned": "Banned people",
+        "unbanRequests": "Unban requests",
         "reports": "Viewer reports",
         "resourceLimits": "Resource limits",
         "billing": "Billing",

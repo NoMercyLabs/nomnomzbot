@@ -381,6 +381,8 @@ export const apiOperations = {
   'cancel raid': 'liveOps',
   bans: 'moderation',
   'unban from list': 'moderation',
+  'unban requests': 'moderation',
+  'resolve unban request': 'moderation',
   'chat filters': 'moderation',
   'save chat filter': 'moderation',
   'delete chat filter': 'moderation',

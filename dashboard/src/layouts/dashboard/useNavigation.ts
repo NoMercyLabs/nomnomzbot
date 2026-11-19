@@ -74,10 +74,23 @@ export function useNavigation() {
     if (entry.unless !== undefined && access.can(entry.unless))
       return false;
 
+    if (entry.opens !== undefined)
+      return navByMode[entry.opens].some((group) => group.entries.some(gatedReadable));
+
     // The entry names its own action, else it takes the one its route names: one key for entry and route.
     const needed = entry.action ?? router.resolve({ name: entry.route }).meta.action;
 
     return needed === undefined || access.can(needed);
+  }
+
+  // A built page behind a key the person holds; an open page alone is no reason to open its sidebar.
+  function gatedReadable(entry: NavEntry): boolean {
+    if (entry.back === true || !router.hasRoute(entry.route))
+      return false;
+
+    const needed = entry.action ?? router.resolve({ name: entry.route }).meta.action;
+
+    return needed !== undefined && access.can(needed);
   }
 
   // A page that is not built yet has no route, so it has no entry (pages appear as they land).

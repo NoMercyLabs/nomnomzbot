@@ -1,0 +1,17 @@
+{
+  "dashboard": {
+    "settings": {
+      "unbanRequests": {
+        "crumb": "Moderation",
+        "explain": "People who are banned can ask Twitch to be unbanned. Their requests wait here. Deny keeps the ban. Approve lifts it.",
+        "listTitle": "Unban requests",
+        "empty": "No unban request is waiting.",
+        "loadError": "The unban requests could not be loaded.",
+        "approve": "Approve",
+        "confirm": "Yes, unban",
+        "deny": "Deny",
+        "error": "The request from {name} could not be settled."
+      }
+    }
+  }
+}

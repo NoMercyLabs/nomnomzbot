@@ -174,6 +174,6 @@ describe('the settings authoring contract and the sidebar review', () => {
 
     const counted = rows.reduce((sum, row) => sum + Number(row.attributes('data-count')), 0);
 
-    expect(counted).toBe(28);
+    expect(counted).toBe(29);
   });
 });

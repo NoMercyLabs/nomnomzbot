@@ -1,0 +1,17 @@
+{
+  "dashboard": {
+    "settings": {
+      "unbanRequests": {
+        "crumb": "Moderatie",
+        "explain": "Mensen die verbannen zijn, kunnen Twitch vragen om een unban. Hun verzoeken wachten hier. Weigeren houdt de ban. Goedkeuren heft hem op.",
+        "listTitle": "Unban-verzoeken",
+        "empty": "Er wacht geen unban-verzoek.",
+        "loadError": "De unban-verzoeken konden niet worden geladen.",
+        "approve": "Goedkeuren",
+        "confirm": "Ja, unban",
+        "deny": "Weigeren",
+        "error": "Het verzoek van {name} kon niet worden afgehandeld."
+      }
+    }
+  }
+}

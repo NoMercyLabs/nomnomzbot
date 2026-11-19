@@ -62,6 +62,8 @@ export type NavEntry = {
   unless?: string;
   // The way back out of a sidebar: it never hides, and leads to the first page the person may open.
   back?: boolean;
+  // The entry opens another sidebar: it shows when the person may read a gated page there.
+  opens?: NavMode;
 };
 
 export type NavGroup = {
@@ -287,7 +289,7 @@ export const dashboardNav: readonly NavGroup[] = [
         route: 'dashboard-settings',
         label: 'settings',
         icon: Settings,
-        action: 'setup:write',
+        opens: 'settings',
       },
     ],
   },

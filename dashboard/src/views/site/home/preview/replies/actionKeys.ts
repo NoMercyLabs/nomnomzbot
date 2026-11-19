@@ -118,6 +118,8 @@ export const ownerActionKeys = [
   'moderation:shoutout',
   'moderation:suspicioususer:write',
   'moderation:unban',
+  'moderation:unbanrequest:read',
+  'moderation:unbanrequest:resolve',
   'moderation:usercontext:read',
   'moderation:vip',
   'moderation:warn',

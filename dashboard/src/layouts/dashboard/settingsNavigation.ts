@@ -17,6 +17,7 @@ import ChatBubble from '~icons/nnz/chat-bubble';
 import ChatDisabled from '~icons/nnz/chat-disabled';
 import ChatLove from '~icons/nnz/chat-love';
 import CreditCard from '~icons/nnz/credit-card-front';
+import EmailReceived from '~icons/nnz/email-received';
 import Flag from '~icons/nnz/flag';
 import Hammer from '~icons/nnz/hammer';
 import Handshake from '~icons/nnz/handshake';
@@ -90,6 +91,7 @@ export const settingsNav: readonly NavGroup[] = [
       navEntry('dashboard-settings-chat-filters', 'settingsPages.chatFilters', MessageRemove),
       navEntry('dashboard-settings-blocked-terms', 'settingsPages.blockedTerms', ChatDisabled),
       navEntry('dashboard-settings-banned', 'settingsPages.banned', Hammer),
+      navEntry('dashboard-settings-unban-requests', 'settingsPages.unbanRequests', EmailReceived),
       navEntry('dashboard-settings-reports', 'settingsPages.reports', Flag),
       navEntry('dashboard-settings-event-journal', 'settingsPages.eventJournal', PaperScroll),
     ],
