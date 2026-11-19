@@ -65,6 +65,12 @@ watch(() => settings.data.value, (held) => {
 const layoutChoices = computed<Choice[]>(() =>
   layouts.map((layout) => ({ value: layout, label: t(`dashboard.settings.guestStar.settings.layouts.${layout}`) })));
 
+const layoutLabel = computed(() => {
+  const match = layoutChoices.value.find((choice) => choice.value === draft.groupLayout);
+
+  return match?.label ?? draft.groupLayout;
+});
+
 const dirty = computed<boolean>(() => {
   const held = settings.data.value;
 
@@ -118,23 +124,25 @@ function submit(): void {
         :description="$t('dashboard.settings.guestStar.settings.slotCountHelp')"
       >
         <Input
+          v-if="canWrite"
           type="number"
           min="1"
           class="w-28 text-end"
           data-setting="slotCount"
           :aria-label="$t('dashboard.settings.guestStar.settings.slotCount')"
           :model-value="draft.slotCount"
-          :disabled="!canWrite"
           @update:model-value="draft.slotCount = Number($event)"
         />
+        <span v-else class="text-sm tabular-nums" data-setting="slotCount">{{ draft.slotCount }}</span>
       </ActionRow>
       <ActionRow :title="$t('dashboard.settings.guestStar.settings.groupLayout')">
         <OptionSelect
+          v-if="canWrite"
           v-model="draft.groupLayout"
           data-setting="groupLayout"
           :options="layoutChoices"
-          :disabled="!canWrite"
         />
+        <span v-else class="text-sm" data-setting="groupLayout">{{ layoutLabel }}</span>
       </ActionRow>
       <ActionRow
         :title="$t('dashboard.settings.guestStar.settings.regenerate')"

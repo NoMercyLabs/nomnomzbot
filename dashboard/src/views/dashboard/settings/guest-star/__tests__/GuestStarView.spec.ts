@@ -578,4 +578,20 @@ describe('the guest star page for a person who may only read', () => {
 
     expect(writeControls.filter(exists)).toEqual([]);
   });
+
+  it('shows held values as text, never as a disabled field with no reason', async () => {
+    access.write = false;
+    world.session = { id: 's1', guests: [guest('1', '3003', 'Alice')] };
+
+    await mountView();
+
+    expect(document.querySelectorAll('input:disabled, button:disabled[role="combobox"]')).toHaveLength(0);
+    expect(q('[data-setting="slotCount"]').textContent?.trim()).toBe('6');
+
+    expect(q('[data-setting="groupLayout"]').textContent?.trim()).toBe(
+      i18n.global.t('dashboard.settings.guestStar.settings.layouts.TILED_LAYOUT'),
+    );
+
+    expect(q('[data-guest-volume="1"]').textContent?.trim()).toBe('50');
+  });
 });

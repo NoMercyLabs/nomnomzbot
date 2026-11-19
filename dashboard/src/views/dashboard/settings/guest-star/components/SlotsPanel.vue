@@ -162,15 +162,16 @@ function confirmRemove(): void {
           <label class="flex items-center gap-1.5 text-sm">
             {{ $t("dashboard.settings.guestStar.slots.volume") }}
             <Input
+              v-if="canWrite"
               type="number"
               min="0"
               max="100"
               class="w-20 text-end"
               :data-guest-volume="guest.slotId"
               :model-value="guest.volume"
-              :disabled="!canWrite"
               @change="setVolume(guest, ($event.target as HTMLInputElement).value)"
             />
+            <span v-else class="tabular-nums" :data-guest-volume="guest.slotId">{{ guest.volume }}</span>
           </label>
           <template v-if="canWrite">
             <Button variant="outline" size="sm" :data-guest-move="guest.slotId" @click="moving = guest">
