@@ -1690,12 +1690,6 @@ Decision proposed to the owner: remove `youtubepartner` and `youtube.upload` fro
   Google project, ask Google for access to `members.list`, run each shot once on dev, record the film and
   submit it. Done-when: Google's Data Access page shows the 5 scopes as verified. A shot that does not run as
   written is a defect in the page it shows: fix the page, then the script.
-- **S-DEPLOY-DIRECT-GUARD** Incident 2026-11-10: 36 old `nomnomzbot-api:direct-*` images filled the dev box
-  disk (59G, 269M left), the next image could not unpack, the switch rolled back, and the session's deploy
-  script still printed SHIPPED. It happened again on 2026-11-19. `scripts/switchover.ps1` now holds the
-  disk guard (free-disk check with prune, refusal under `-MinFreeGb`, prune after a good switch; proven by a
-  run that refused at 100G). Left: add a disk-space check to the health signals the owner sees (a warning
-  under 10G free). Done-when: the low-disk warning shows in the dashboard's health panel.
 
 ## OWNER REQUEST 2026-11-10 — the admin section authors the platform's stream content
 
