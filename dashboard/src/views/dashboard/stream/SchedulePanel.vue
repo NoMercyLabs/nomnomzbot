@@ -165,19 +165,6 @@ function toggleCanceled(segment: ScheduleSegment): void {
             <Input id="vacation-end" v-model="vacationEnd" type="datetime-local" />
           </Field>
         </div>
-        <div v-if="vacationDirty" class="flex items-center justify-end gap-3">
-          <span v-if="!vacationValid" class="min-w-0 text-sm text-muted-foreground">
-            {{ t('dashboard.stream.schedule.vacationInvalid') }}
-          </span>
-          <Button
-            variant="outline"
-            data-vacation-save
-            :disabled="!vacationValid || saveSettings.isPending.value"
-            @click="saveVacation"
-          >
-            {{ t('dashboard.stream.schedule.saveVacation') }}
-          </Button>
-        </div>
       </div>
 
       <div class="flex flex-col gap-2">
@@ -248,6 +235,24 @@ function toggleCanceled(segment: ScheduleSegment): void {
         </RowGroup>
       </div>
     </div>
+    <template v-if="canEdit && vacationDirty" #footer>
+      <span
+        v-if="!vacationValid"
+        class="min-w-0 flex-1 text-sm text-muted-foreground"
+        role="status"
+      >
+        {{ t('dashboard.stream.schedule.vacationInvalid') }}
+      </span>
+      <Button
+        class="ml-auto"
+        variant="default"
+        data-vacation-save
+        :disabled="!vacationValid || saveSettings.isPending.value"
+        @click="saveVacation"
+      >
+        {{ t('dashboard.stream.schedule.saveVacation') }}
+      </Button>
+    </template>
   </PanelCard>
   <SegmentDialog v-if="canEdit" v-model:open="dialogOpen" :segment="editing" />
   <ConfirmDialog

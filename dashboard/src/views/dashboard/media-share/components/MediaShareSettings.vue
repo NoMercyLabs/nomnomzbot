@@ -144,14 +144,21 @@ function submit(): void {
           </SummaryRow>
         </label>
       </RowGroup>
-      <div v-if="can('media:write')" class="flex justify-end gap-2">
+    </div>
+    <template v-if="draft && can('media:write')" #footer>
+      <div class="flex w-full justify-end gap-2">
         <Button variant="ghost" :disabled="!dirty" data-action="discard" @click="discard">
           {{ $t("dashboard.mediaShare.config.discard") }}
         </Button>
-        <Button :disabled="!dirty || save.isPending.value" data-action="save" @click="submit">
+        <Button
+          :variant="dirty ? 'default' : 'outline'"
+          :disabled="!dirty || save.isPending.value"
+          data-action="save"
+          @click="submit"
+        >
           {{ $t("dashboard.mediaShare.config.save") }}
         </Button>
       </div>
-    </div>
+    </template>
   </PanelCard>
 </template>

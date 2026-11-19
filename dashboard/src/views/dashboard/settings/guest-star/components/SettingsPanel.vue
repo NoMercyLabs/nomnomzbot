@@ -164,7 +164,12 @@ function submit(): void {
       </ActionRow>
     </RowGroup>
     <template v-if="canWrite" #footer>
-      <Button data-save-settings :disabled="!dirty || save.isPending.value" @click="submit">
+      <Button
+        data-save-settings
+        :variant="dirty ? 'default' : 'outline'"
+        :disabled="!dirty || save.isPending.value"
+        @click="submit"
+      >
         {{ $t("dashboard.settings.guestStar.settings.save") }}
       </Button>
     </template>

@@ -371,7 +371,12 @@ function discard(): void {
         <Button variant="ghost" size="sm" :disabled="!dirty || save.isPending.value" @click="discard">
           {{ $t('dashboard.settings.basics.discard') }}
         </Button>
-        <Button size="sm" :disabled="!canSave" @click="submit">
+        <Button
+          size="sm"
+          :variant="dirty ? 'default' : 'outline'"
+          :disabled="!canSave"
+          @click="submit"
+        >
           {{ $t('dashboard.settings.basics.save') }}
         </Button>
       </div>

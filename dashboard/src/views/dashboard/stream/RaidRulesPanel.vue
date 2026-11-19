@@ -382,11 +382,17 @@ function submit(): void {
         </Field>
       </section>
 
-      <div v-if="canEdit" class="flex justify-end">
-        <Button data-raid-rules-save :disabled="!dirty || save.isPending.value" @click="submit">
-          {{ t("dashboard.stream.raids.save") }}
-        </Button>
-      </div>
     </div>
+    <template v-if="draft && canEdit" #footer>
+      <Button
+        data-raid-rules-save
+        class="ml-auto"
+        :variant="dirty ? 'default' : 'outline'"
+        :disabled="!dirty || save.isPending.value"
+        @click="submit"
+      >
+        {{ t("dashboard.stream.raids.save") }}
+      </Button>
+    </template>
   </PanelCard>
 </template>

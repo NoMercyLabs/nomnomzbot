@@ -111,6 +111,20 @@ describe('ShoutoutsView', () => {
     expect(page.get('[data-action="save"]').attributes('disabled')).toBeDefined();
   });
 
+  // Owner 2026-11-19: Save sticks to the bottom of the scroll area and is primary only while a change waits.
+  it('keeps Save in a sticky footer and turns it primary only while the message changed', async () => {
+    const page = await open();
+    const footer = page.get('[data-action="save"]').element.closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(page.get('[data-action="save"]').attributes('data-variant')).toBe('outline');
+
+    await page.get('[data-field="shoutoutTemplate"]').setValue('Hey {target.displayname}');
+
+    expect(page.get('[data-action="save"]').attributes('data-variant')).toBe('default');
+  });
+
   it('saves the edited message trimmed and shows the stored value after the refetch', async () => {
     const page = await open();
 

@@ -250,6 +250,19 @@ describe('the schedule panel', () => {
     expect(calls.filter((call) => call.method === 'GET').length).toBeGreaterThan(readsBefore);
   });
 
+  // Owner 2026-11-19: Save stays in view. Save vacation shows only while a change waits, so it is primary at once.
+  it('keeps Save vacation in a sticky footer, primary while the vacation change waits', async () => {
+    await show(SchedulePanel);
+    await press('[data-slot="setting-row"] button[role="switch"]');
+
+    const save = pick<HTMLButtonElement>('[data-vacation-save]');
+    const footer = save.closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(save.dataset.variant).toBe('default');
+  });
+
   // Stoney 2026-10-21 (his phone): the title got one word per line beside Weekly, Edit and Cancel.
   it('gives a segment title its own full-width line below md, with Edit and Cancel in one group under it', async () => {
     await show(SchedulePanel);
@@ -271,6 +284,21 @@ describe('the raid rules panel', () => {
 
     expect(panel.querySelector('header')!.classList.contains('px-4')).toBe(true);
     expect(panel.querySelector('header + div')!.classList.contains('p-4')).toBe(true);
+  });
+
+  // Owner 2026-11-19: Save sticks to the bottom of the scroll area and is primary only while a change waits.
+  it('keeps Save in a sticky footer and turns it primary only while a change waits', async () => {
+    await show(RaidRulesPanel);
+
+    const footer = pick<HTMLButtonElement>('[data-raid-rules-save]').closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(pick<HTMLButtonElement>('[data-raid-rules-save]').dataset.variant).toBe('outline');
+
+    await typeInto('#followed', '9');
+
+    expect(pick<HTMLButtonElement>('[data-raid-rules-save]').dataset.variant).toBe('default');
   });
 
   it('saves the whole rule set with the edited weight and keeps Save off until a change', async () => {

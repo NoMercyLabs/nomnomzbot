@@ -178,6 +178,32 @@ describe('AutomodView', () => {
     expect(shown.find(([category]) => category === 'swearing')?.[1]).toContain('Off');
   });
 
+  // Owner 2026-11-19: Save stays in view (fixed page header) and is primary only while a change waits.
+  it('turns Save primary once a filter changed, and keeps it in the fixed header', async () => {
+    const page = await open();
+
+    expect(page.get('[data-action="save"]').attributes('data-variant')).toBe('outline');
+    expect(page.get('[data-action="save"]').element.closest('[data-slot="page-body"]')).toBeNull();
+
+    await page.get('[data-field="phrases"]').setValue('a new phrase');
+
+    expect(page.get('[data-action="save"]').attributes('data-variant')).toBe('default');
+  });
+
+  it('keeps Save Twitch levels in a sticky footer and primary only while a level waits', async () => {
+    const page = await open();
+    const footer = page.get('[data-action="save-twitch"]').element.closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(page.get('[data-action="save-twitch"]').attributes('data-variant')).toBe('outline');
+
+    page.get('[data-category="swearing"]').findComponent(OptionSelect).vm.$emit('update:modelValue', '3');
+    await flushPromises();
+
+    expect(page.get('[data-action="save-twitch"]').attributes('data-variant')).toBe('default');
+  });
+
   it('keeps Save Twitch levels off until a level changes and sends all eight categories', async () => {
     const page = await open();
 

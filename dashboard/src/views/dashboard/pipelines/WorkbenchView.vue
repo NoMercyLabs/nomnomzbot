@@ -660,6 +660,7 @@ const leaveOpen = computed<boolean>({
           data-workbench-save
           type="button"
           size="sm"
+          :variant="dirty ? 'default' : 'outline'"
           :disabled="!canWrite || !dirty || saving.isPending.value"
           @click="save"
         >

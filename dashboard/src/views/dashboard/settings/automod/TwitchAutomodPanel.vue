@@ -130,16 +130,16 @@ function submit(): void {
         </template>
       </SummaryRow>
     </RowGroup>
-    <div v-if="canManage" class="pt-3">
+    <template v-if="canManage && state === 'ready'" #footer>
       <Button
-        variant="outline"
         size="sm"
         data-action="save-twitch"
+        :variant="dirty ? 'default' : 'outline'"
         :disabled="!dirty || save.isPending.value"
         @click="submit"
       >
         {{ $t("dashboard.settings.automod.twitch.save") }}
       </Button>
-    </div>
+    </template>
   </PanelCard>
 </template>

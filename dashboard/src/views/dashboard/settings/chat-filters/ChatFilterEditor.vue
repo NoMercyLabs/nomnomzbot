@@ -52,6 +52,8 @@ const save = useSaveChatFilter(channelId);
 const tester = useTestChatFilter(channelId);
 
 const draft = reactive<ChatFilterDraft>(toDraft(props.filter));
+const opened = JSON.stringify(draft);
+const dirty = computed<boolean>(() => JSON.stringify(draft) !== opened);
 const tried = ref(false);
 const sample = ref('');
 const verdict = ref<ChatFilterTest | null>(null);
@@ -253,8 +255,14 @@ const verdictText = computed<string | null>(() => {
       </div>
     </PanelCard>
 
-    <div class="flex flex-wrap gap-2">
-      <Button size="sm" data-action="save" :disabled="save.isPending.value" @click="submit">
+    <div class="sticky bottom-0 z-10 flex flex-wrap gap-2 border-t border-border bg-background py-3">
+      <Button
+        size="sm"
+        data-action="save"
+        :variant="dirty ? 'default' : 'outline'"
+        :disabled="save.isPending.value"
+        @click="submit"
+      >
         {{ $t("dashboard.settings.chatFilters.save") }}
       </Button>
       <Button variant="outline" size="sm" data-action="cancel" @click="emit('close')">

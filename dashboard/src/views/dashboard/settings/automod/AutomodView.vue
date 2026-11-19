@@ -95,6 +95,7 @@ function submit(): void {
       <Button
         size="sm"
         data-action="save"
+        :variant="dirty ? 'default' : 'outline'"
         :disabled="!dirty || invalid || save.isPending.value"
         @click="submit"
       >

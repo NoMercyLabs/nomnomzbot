@@ -281,6 +281,41 @@ describe('AdminFeatureFlagsView', () => {
     });
   });
 
+  // Owner 2026-11-19: Save sticks to the bottom of the scroll area and is primary only while a change waits.
+  it('keeps the flag Save in a sticky footer and primary only while the definition changed', async () => {
+    await open();
+    await click('[data-flag="beta-widgets"] ~ [data-slot="summary-row-trailing"] [data-edit]');
+
+    const footer = one('[data-review]').closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(one('[data-review]').dataset.variant).toBe('outline');
+
+    await type('[data-field="rolloutPercentage"]', '50');
+
+    expect(one('[data-review]').dataset.variant).toBe('default');
+
+    await type('[data-field="rolloutPercentage"]', '25');
+
+    expect(one('[data-review]').dataset.variant).toBe('outline');
+  });
+
+  it('keeps the override Save in a sticky footer and primary only once an override is typed', async () => {
+    await open();
+    await click('[data-flag="dark-launch"] ~ [data-slot="summary-row-trailing"] [data-edit]');
+
+    const footer = one('[data-override-save]').closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(one('[data-override-save]').dataset.variant).toBe('outline');
+
+    await type('[data-field="overrideChannel"]', '01J0000000000000000000000B');
+
+    expect(one('[data-override-save]').dataset.variant).toBe('default');
+  });
+
   it('refuses a rollout outside 0 to 100 and a flag with no key', async () => {
     await open();
     await click('[data-new]');

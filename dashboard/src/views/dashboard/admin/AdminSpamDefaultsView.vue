@@ -68,6 +68,7 @@ function submit(): void {
       <Button
         v-if="can('featureflag:write')"
         data-save
+        :variant="form?.dirty ? 'default' : 'outline'"
         :disabled="!form?.dirty || form.invalid || save.isPending.value"
         @click="submit"
       >

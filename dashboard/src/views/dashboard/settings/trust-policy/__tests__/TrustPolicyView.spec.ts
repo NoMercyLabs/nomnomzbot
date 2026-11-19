@@ -172,6 +172,17 @@ describe('Trust policy page', () => {
     expect(row('banPenalty').querySelector('[data-row-hint]')?.textContent).toContain('9');
   });
 
+  // Owner 2026-11-19: Save stays in view (fixed page header) and is primary only while a change waits.
+  it('keeps Save in the fixed header and turns it primary only while a change waits', async () => {
+    await open();
+    expect(save().dataset.variant).toBe('outline');
+    expect(save().closest('[data-slot="page-body"]')).toBeNull();
+
+    await type('banPenalty', '12');
+
+    expect(save().dataset.variant).toBe('default');
+  });
+
   it('keeps Save off until a field changes, then sends all fields and refetches the policy', async () => {
     await open();
 

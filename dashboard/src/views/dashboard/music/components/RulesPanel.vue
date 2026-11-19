@@ -179,7 +179,12 @@ function discard(): void {
       <Button variant="outline" size="sm" :disabled="!dirty" @click="discard">{{
         $t("dashboard.music.rules.discard")
       }}</Button>
-      <Button size="sm" :disabled="!dirty" @click="saveRules">{{
+      <Button
+        size="sm"
+        :variant="dirty ? 'default' : 'outline'"
+        :disabled="!dirty"
+        @click="saveRules"
+      >{{
         $t("dashboard.music.rules.save")
       }}</Button>
     </template>

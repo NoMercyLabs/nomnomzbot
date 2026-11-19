@@ -127,26 +127,27 @@ function useDefault(): void {
           :rows="4"
           :disabled="!canEdit"
         />
-        <div v-if="canEdit" class="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            data-action="save"
-            :disabled="!dirty || saveTemplate.isPending.value"
-            @click="submit(text.trim())"
-          >
-            {{ $t("dashboard.settings.shoutouts.message.save") }}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            data-action="use-default"
-            :disabled="stored === '' || saveTemplate.isPending.value"
-            @click="useDefault"
-          >
-            {{ $t("dashboard.settings.shoutouts.message.useDefault") }}
-          </Button>
-        </div>
       </div>
+      <template v-if="canEdit && templateState === 'ready'" #footer>
+        <Button
+          size="sm"
+          data-action="save"
+          :variant="dirty ? 'default' : 'outline'"
+          :disabled="!dirty || saveTemplate.isPending.value"
+          @click="submit(text.trim())"
+        >
+          {{ $t("dashboard.settings.shoutouts.message.save") }}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          data-action="use-default"
+          :disabled="stored === '' || saveTemplate.isPending.value"
+          @click="useDefault"
+        >
+          {{ $t("dashboard.settings.shoutouts.message.useDefault") }}
+        </Button>
+      </template>
     </PanelCard>
   </SettingsPageFrame>
 </template>

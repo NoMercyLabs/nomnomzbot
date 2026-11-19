@@ -259,6 +259,22 @@ describe('BuiltinEditor', () => {
     expect(writes()).toEqual([]);
   });
 
+  // Owner 2026-11-19: Save sticks to the bottom of the scroll area and is primary only while a change waits.
+  it('keeps Save in a sticky footer and turns it primary only while a change waits', async () => {
+    await open();
+    await click(button('Customize'));
+
+    const footer = button('Save changes').closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(button('Save changes').dataset.variant).toBe('outline');
+
+    await type(input('Chat cooldown (seconds)'), '30');
+
+    expect(button('Save changes').dataset.variant).toBe('default');
+  });
+
   it('saves the exact settings, reply and read-aloud bodies, and the cache follows', async () => {
     await open();
     await click(button('Customize'));

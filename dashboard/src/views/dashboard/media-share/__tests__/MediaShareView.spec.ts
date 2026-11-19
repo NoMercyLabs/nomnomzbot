@@ -480,6 +480,28 @@ describe('Media share page', () => {
     expect(labelText).toContain(en.dashboard.mediaShare.config.maxQueueLength);
   });
 
+  // Owner 2026-11-19: Save sticks to the bottom of the scroll area and is primary only while a change waits.
+  it('keeps the settings Save in a sticky footer and primary only while a change waits', async () => {
+    await open();
+    await openSettings();
+
+    const save = (): HTMLButtonElement =>
+      document.body.querySelector<HTMLButtonElement>('[data-action="save"]')!;
+    const footer = save().closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(save().dataset.variant).toBe('outline');
+
+    const field = document.body.querySelector<HTMLInputElement>('[data-field="maxQueueLength"]');
+
+    field!.value = '25';
+    field!.dispatchEvent(new Event('input'));
+    await flushPromises();
+
+    expect(save().dataset.variant).toBe('default');
+  });
+
   it('saves the whole config with the changed value', async () => {
     await open();
     await openSettings();

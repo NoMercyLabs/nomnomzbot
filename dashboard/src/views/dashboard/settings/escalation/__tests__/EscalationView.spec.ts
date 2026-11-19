@@ -177,6 +177,17 @@ describe('Escalation policy page', () => {
     expect(stepInput(1, 'timeoutSeconds').value).toBe('5:00');
   });
 
+  // Owner 2026-11-19: Save stays in view (fixed page header) and is primary only while a change waits.
+  it('keeps Save in the fixed header and turns it primary only while a change waits', async () => {
+    await open();
+    expect(action('save').dataset.variant).toBe('outline');
+    expect(action('save').closest('[data-slot="page-body"]')).toBeNull();
+
+    await typeInto(field('offenseWindowHours').querySelector('input')!, '72');
+
+    expect(action('save').dataset.variant).toBe('default');
+  });
+
   it('sends the whole policy to the escalation route on Save', async () => {
     await open();
     await typeInto(field('offenseWindowHours').querySelector('input')!, '72');

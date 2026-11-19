@@ -329,6 +329,21 @@ describe('RulesPanel', () => {
     expect(radio('everyone')).toBeNull();
   });
 
+  // Owner 2026-11-19: Save sticks to the bottom of the scroll area and is primary only while a change waits.
+  it('keeps Save in a sticky footer and turns it primary only while a change waits', async () => {
+    await open();
+
+    const footer = buttonIn('Save').closest('footer');
+
+    expect(footer?.classList.contains('sticky')).toBe(true);
+    expect(footer?.classList.contains('bottom-0')).toBe(true);
+    expect(buttonIn('Save').dataset.variant).toBe('outline');
+
+    await typeInto('songs-per-person', '3');
+
+    expect(buttonIn('Save').dataset.variant).toBe('default');
+  });
+
   it('saves only the fields that changed and never sends the old floor', async () => {
     await open();
 

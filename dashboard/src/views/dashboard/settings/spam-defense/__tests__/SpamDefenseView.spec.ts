@@ -171,6 +171,18 @@ describe('SpamDefenseView', () => {
     });
   });
 
+  // Owner 2026-11-19: Save stays in view (the fixed page header, outside the scrolling body) and is the primary
+  // button only while a change waits.
+  it('keeps Save in view and turns it primary only while a change waits', async () => {
+    await open();
+    expect(save().dataset.variant).toBe('outline');
+    expect(save().closest('[data-slot="page-body"]')).toBeNull();
+
+    await type('accountAgeGateDays', '14');
+
+    expect(save().dataset.variant).toBe('default');
+  });
+
   it('blocks Save and names the range for a value outside the catalogue limits', async () => {
     await open();
     await type('accountAgeGateDays', '999');

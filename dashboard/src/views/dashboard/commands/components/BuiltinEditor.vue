@@ -534,6 +534,7 @@ const unsaved = computed<string>(() =>
         <Button
           type="button"
           size="sm"
+          :variant="dirtyCount > 0 ? 'default' : 'outline'"
           :disabled="dirtyCount === 0 || pending || locked"
           @click="save"
         >

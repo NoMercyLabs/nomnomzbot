@@ -227,6 +227,18 @@ describe('AdminSpamDefaultsView', () => {
     });
   });
 
+  // Owner 2026-11-19: Save stays in view (it sits in the fixed page header, outside the scrolling body) and is the
+  // primary button only while a change waits.
+  it('keeps Save in view and turns it primary only while a change waits', async () => {
+    await open();
+    expect(saveButton().dataset.variant).toBe('outline');
+    expect(saveButton().closest('[data-slot="page-body"]')).toBeNull();
+
+    await type('accountAgeGateDays', '14');
+
+    expect(saveButton().dataset.variant).toBe('default');
+  });
+
   it('refuses a value outside the range the bot reported and names the range', async () => {
     await open();
     await type('accountAgeGateDays', '999');

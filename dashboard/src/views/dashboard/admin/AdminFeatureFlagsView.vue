@@ -83,6 +83,10 @@ const editing = ref<string | null>(null);
 const editorOpen = ref(false);
 const confirming = ref(false);
 
+// What the editor held when it opened: Save turns primary only while the draft differs from it.
+const opened = ref(JSON.stringify(draft.value));
+const dirty = computed<boolean>(() => JSON.stringify(draft.value) !== opened.value);
+
 // The editor and its review open over the list in place, so each takes a history step; Back closes the review first.
 const editorShown = computed<boolean>(() => editorOpen.value && can('featureflag:write'));
 
@@ -133,6 +137,7 @@ const text = (value: string | null | undefined): string => value ?? '';
 
 function startNew(): void {
   draft.value = blankDraft();
+  opened.value = JSON.stringify(draft.value);
   editing.value = null;
   editorOpen.value = true;
   confirming.value = false;
@@ -149,6 +154,7 @@ function startEdit(flag: FeatureFlag): void {
     deploymentMode: text(flag.deploymentMode),
   };
 
+  opened.value = JSON.stringify(draft.value);
   editing.value = flag.key;
   editorOpen.value = true;
   confirming.value = false;
@@ -177,6 +183,7 @@ function commit(): void {
     onSuccess: () => {
       toast.success(copy('saved'));
       confirming.value = false;
+      opened.value = JSON.stringify(draft.value);
       editing.value = draft.value.key.trim();
     },
     onError: (error: Error) => toast.error(copy('saveError', { reason: error.message })),
@@ -199,6 +206,13 @@ const blastNames = computed<string>(() => (blast.data.value?.sampleChannelNames 
 
 const canSaveOverride = computed<boolean>(
   () => editing.value !== null && overrideChannel.value.trim() !== '' && !setOverride.isPending.value,
+);
+
+const overrideDirty = computed<boolean>(
+  () => overrideChannel.value.trim() !== '' ||
+    overrideReason.value.trim() !== '' ||
+    overrideExpiresAt.value !== '' ||
+    overrideEnabled.value,
 );
 
 function submitOverride(): void {
@@ -358,7 +372,9 @@ const whenOf = (entry: FeatureFlagOverride): string =>
             </p>
           </div>
         </div>
-        <div class="flex justify-end gap-2">
+      </div>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
           <Button v-if="confirming" variant="ghost" @click="confirming = false">
             {{ $t('dashboard.admin.featureFlags.back') }}
           </Button>
@@ -370,11 +386,17 @@ const whenOf = (entry: FeatureFlagOverride): string =>
           >
             {{ save.isPending.value ? $t('dashboard.admin.featureFlags.saving') : $t('dashboard.admin.featureFlags.confirm') }}
           </Button>
-          <Button v-else data-review :disabled="!canReview" @click="review">
+          <Button
+            v-else
+            data-review
+            :variant="dirty ? 'default' : 'outline'"
+            :disabled="!canReview"
+            @click="review"
+          >
             {{ isNew ? $t('dashboard.admin.featureFlags.save') : $t('dashboard.admin.featureFlags.review') }}
           </Button>
         </div>
-      </div>
+      </template>
     </PanelCard>
     <PanelCard
       tier="quiet"
@@ -406,13 +428,19 @@ const whenOf = (entry: FeatureFlagOverride): string =>
               data-field="overrideExpiresAt"
             />
           </Field>
-          <div class="flex justify-end">
-            <Button data-override-save variant="outline" :disabled="!canSaveOverride" @click="submitOverride">
-              {{ $t('dashboard.admin.featureFlags.overrideSave') }}
-            </Button>
-          </div>
         </template>
       </div>
+      <template v-if="editing !== null && can('featureflag:write')" #footer>
+        <Button
+          class="ml-auto"
+          data-override-save
+          :variant="overrideDirty ? 'default' : 'outline'"
+          :disabled="!canSaveOverride"
+          @click="submitOverride"
+        >
+          {{ $t('dashboard.admin.featureFlags.overrideSave') }}
+        </Button>
+      </template>
       <InlineNotice v-if="overridesState === 'error'" tone="error" compact class="px-4 pb-3">
         {{ $t('dashboard.admin.featureFlags.overridesError') }}
       </InlineNotice>

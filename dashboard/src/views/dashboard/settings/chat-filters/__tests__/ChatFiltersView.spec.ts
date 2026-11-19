@@ -273,6 +273,23 @@ describe('ChatFiltersView', () => {
     });
   });
 
+  // Owner 2026-11-19: the editor's Save sticks to the bottom of the scroll area and is primary only while a change waits.
+  it('keeps the editor Save in a sticky bar and turns it primary only while a change waits', async () => {
+    const page = await open();
+
+    await page.get('[data-filter-edit="f2"]').trigger('click');
+
+    const bar = page.get('[data-action="save"]').element.parentElement;
+
+    expect(bar?.classList.contains('sticky')).toBe(true);
+    expect(bar?.classList.contains('bottom-0')).toBe(true);
+    expect(page.get('[data-action="save"]').attributes('data-variant')).toBe('outline');
+
+    await page.get('[data-field="pattern"]').setValue('y+');
+
+    expect(page.get('[data-action="save"]').attributes('data-variant')).toBe('default');
+  });
+
   it('opens a filter for editing with its stored values and saves it by id', async () => {
     const page = await open();
 

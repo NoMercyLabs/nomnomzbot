@@ -60,6 +60,7 @@ function submit(): void {
     <template v-if="canManage" #actions>
       <Button
         data-save
+        :variant="form?.dirty ? 'default' : 'outline'"
         :disabled="!form?.dirty || form.invalid || save.isPending.value"
         @click="submit"
       >

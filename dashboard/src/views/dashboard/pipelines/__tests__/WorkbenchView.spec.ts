@@ -816,6 +816,17 @@ const numbers = (): (string | undefined)[] =>
   cards().map((item) => item.dataset.stepNumber);
 
 describe('changing the steps', () => {
+  // Owner 2026-11-19: Save stays in view (the fixed page header) and is primary only while a change waits.
+  it('keeps Save in the fixed header and turns it primary only while a change waits', async () => {
+    await open();
+    expect(saveButton().dataset.variant).toBe('outline');
+    expect(saveButton().closest('header')).not.toBeNull();
+
+    await press('[data-input-add]');
+
+    expect(saveButton().dataset.variant).toBe('default');
+  });
+
   it('saves a declared input with its type and description', async () => {
     await open();
     await press('[data-input-add]');
