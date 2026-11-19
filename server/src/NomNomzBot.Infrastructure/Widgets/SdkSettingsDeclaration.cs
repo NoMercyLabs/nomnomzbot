@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using Acornima;
+using Acornima.Ast;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -17,17 +19,18 @@ namespace NomNomzBot.Infrastructure.Widgets;
 
 /// <summary>
 /// Reads the settings form a widget declares from its own code with <c>nnz.defineSettings({ fields: [...] })</c>.
-/// The server never runs overlay code: the first call in the project's files is read as a static object literal and
-/// handed to <see cref="CustomWidgetSettingsDeclaration.Parse"/>, the same parser <c>settings.json</c> uses.
+/// The server never runs overlay code: Acornima parses the project's JavaScript, the first call is found in the
+/// syntax tree, and its object literal is converted to JSON for <see cref="CustomWidgetSettingsDeclaration.Parse"/>,
+/// the same parser <c>settings.json</c> uses.
 /// </summary>
 internal static class SdkSettingsDeclaration
 {
     public const string CallName = "defineSettings";
 
-    /// <summary>Where a project calls <c>defineSettings</c>: the file, its text and the index of the call name.</summary>
-    public readonly record struct Call(string Path, string Content, int NameIndex)
+    /// <summary>Where a project calls <c>defineSettings</c>: the file and the call node.</summary>
+    public readonly record struct Call(string Path, CallExpression Node)
     {
-        public int Line => LineOf(Content, NameIndex);
+        public int Line => Node.Location.Start.Line;
     }
 
     public static Call? Find(IReadOnlyDictionary<string, string> files)
@@ -37,9 +40,9 @@ internal static class SdkSettingsDeclaration
             if (path == CustomWidgetSettingsDeclaration.FileName)
                 continue;
 
-            int index = FindCallName(content);
-            if (index >= 0)
-                return new(path, content, index);
+            CallExpression? node = FirstCall(path, content);
+            if (node is not null)
+                return new(path, node);
         }
 
         return null;
@@ -47,39 +50,36 @@ internal static class SdkSettingsDeclaration
 
     public static Result<IReadOnlyList<WidgetSettingsField>> Read(Call call)
     {
-        int open = call.Content.IndexOf('(', call.NameIndex + CallName.Length);
-        int argument = open + 1;
-        while (argument < call.Content.Length && char.IsWhiteSpace(call.Content[argument]))
-            argument++;
-
-        if (argument >= call.Content.Length || call.Content[argument] != '{')
+        if (
+            call.Node.Arguments.Count == 0
+            || call.Node.Arguments[0] is not ObjectExpression literal
+        )
             return Fail(
                 call,
-                argument,
+                call.Node.Arguments.Count == 0 ? call.Node : call.Node.Arguments[0],
                 "defineSettings needs an object literal ({ fields: [...] }) written right in the call, not a variable or a call."
             );
 
-        (string? json, ObjectLiteralJson.Problem? problem) = ObjectLiteralJson.Convert(
-            call.Content,
-            argument
+        (string? json, ObjectExpressionJson.Problem? problem) = ObjectExpressionJson.Convert(
+            literal
         );
         if (problem is { } found)
-            return Fail(call, found.Index, found.Message);
+            return Fail(call, found.Node, found.Message);
 
         Result<IReadOnlyList<WidgetSettingsField>> parsed = CustomWidgetSettingsDeclaration.Parse(
             json!
         );
-        return parsed.IsFailure ? Fail(call, call.NameIndex, parsed.ErrorMessage!) : parsed;
+        return parsed.IsFailure ? Fail(call, call.Node, parsed.ErrorMessage!) : parsed;
     }
 
     private static Result<IReadOnlyList<WidgetSettingsField>> Fail(
         Call call,
-        int index,
+        Node at,
         string message
     )
     {
-        int line = LineOf(call.Content, index);
-        string located = $"{call.Path}:{line}: {message}";
+        Position start = at.Location.Start;
+        string located = $"{call.Path}:{start.Line}: {message}";
         return Result.Failure<IReadOnlyList<WidgetSettingsField>>(
             located,
             CustomWidgetSettingsDeclaration.InvalidCode,
@@ -88,66 +88,71 @@ internal static class SdkSettingsDeclaration
                     CustomWidgetSettingsDeclaration.InvalidCode,
                     message,
                     call.Path,
-                    line,
-                    ColumnOf(call.Content, index)
+                    start.Line,
+                    start.Column + 1
                 ),
             ])
         );
     }
 
-    // The first `defineSettings(` that is a call, not part of a longer name or a comment line.
-    private static int FindCallName(string content)
+    // A file that is not JavaScript the parser reads (TypeScript, a syntax error) holds no declaration here; the
+    // build reports its own syntax errors.
+    private static CallExpression? FirstCall(string path, string content)
     {
-        int from = 0;
-        while (from < content.Length)
-        {
-            int index = content.IndexOf(CallName, from, StringComparison.Ordinal);
-            if (index < 0)
-                return -1;
+        if (!content.Contains(CallName, StringComparison.Ordinal))
+            return null;
 
-            from = index + CallName.Length;
-            bool startsName = index == 0 || !IsNameChar(content[index - 1]);
-            if (startsName && IsCallOpen(content, from) && !InComment(content, index))
-                return index;
+        string? script = ProjectScriptSource.Extract(path, content);
+        if (script is null)
+            return null;
+
+        Node? tree = ParseScriptOrModule(script);
+        return tree is null ? null : FindCall(tree);
+    }
+
+    // Classic scripts first (inline <script>); a file with import/export only parses as a module.
+    private static Node? ParseScriptOrModule(string script)
+    {
+        Parser parser = new();
+        try
+        {
+            return parser.ParseScript(script);
+        }
+        catch (ParseErrorException)
+        {
+            try
+            {
+                return parser.ParseModule(script);
+            }
+            catch (ParseErrorException)
+            {
+                return null;
+            }
+        }
+    }
+
+    // Source order, depth first: the first `defineSettings(...)` or `x.defineSettings(...)` call.
+    private static CallExpression? FindCall(Node node)
+    {
+        if (node is CallExpression call && IsDefineSettings(call.Callee))
+            return call;
+
+        foreach (Node child in node.ChildNodes)
+        {
+            CallExpression? found = FindCall(child);
+            if (found is not null)
+                return found;
         }
 
-        return -1;
+        return null;
     }
 
-    private static bool IsNameChar(char c) => char.IsAsciiLetterOrDigit(c) || c is '_' or '$';
-
-    private static bool IsCallOpen(string content, int from)
-    {
-        int i = from;
-        while (i < content.Length && char.IsWhiteSpace(content[i]))
-            i++;
-        return i < content.Length && content[i] == '(';
-    }
-
-    private static bool InComment(string content, int index)
-    {
-        int lineStart = content.LastIndexOf('\n', index) + 1;
-        string before = content[lineStart..index];
-        string trimmed = before.TrimStart();
-        return before.Contains("//", StringComparison.Ordinal)
-            || trimmed.StartsWith("/*", StringComparison.Ordinal)
-            || trimmed.StartsWith('*');
-    }
-
-    private static int LineOf(string content, int index)
-    {
-        int line = 1;
-        int limit = Math.Min(index, content.Length);
-        for (int i = 0; i < limit; i++)
-            if (content[i] == '\n')
-                line++;
-        return line;
-    }
-
-    private static int ColumnOf(string content, int index)
-    {
-        int clamped = Math.Min(index, content.Length);
-        int lineStart = clamped == 0 ? 0 : content.LastIndexOf('\n', clamped - 1) + 1;
-        return clamped - lineStart + 1;
-    }
+    private static bool IsDefineSettings(Node callee) =>
+        callee switch
+        {
+            Identifier identifier => identifier.Name == CallName,
+            MemberExpression { Computed: false, Property: Identifier property } => property.Name
+                == CallName,
+            _ => false,
+        };
 }

@@ -227,6 +227,34 @@ public sealed class WidgetDefineSettingsTests : IClassFixture<VueSfcCompilerFixt
     }
 
     [Fact]
+    public void FromProject_NegativeNumberAndPlainTemplate_ReadAsLiterals()
+    {
+        ProjectDto project = Project(
+            "<script>\nnnz.defineSettings({ fields: [\n{ key: 'a', label: `A`, type: 'number', default: -5 } ] });\n</script>"
+        );
+
+        IReadOnlyList<WidgetSettingsField> fields = CustomWidgetSettingsDeclaration
+            .FromProject(project.Files)!
+            .Value;
+
+        fields.Select(f => (f.Key, f.Default, f.Label.Text)).Should().Equal(("a", -5d, "A"));
+    }
+
+    [Fact]
+    public async Task Build_DefineSettingsWithTemplateExpression_FailsNamingTheLine()
+    {
+        ProjectDto project = Project(
+            "<script>\nconst x = 'a';\nnnz.defineSettings({ fields: [\n{ key: `${x}`, label: 'A', type: 'bool', default: true } ] });\n</script>"
+        );
+
+        Result<WidgetBuildOutput> build = await NewBuildService()
+            .BuildAsync(new(project.Manifest.ToManifest(), project.Files));
+
+        build.IsFailure.Should().BeTrue();
+        ((ProjectBuildFailure)build.ErrorData!).Errors.Single().Line.Should().Be(4);
+    }
+
+    [Fact]
     public async Task Build_SettingsJsonAndDefineSettingsTogether_FailsNamingBoth()
     {
         ProjectDto project = Project(Declared, SettingsJson);
