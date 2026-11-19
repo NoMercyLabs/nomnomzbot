@@ -156,6 +156,58 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             .Be(PlayableCopy, "Spotify plays, and so reports, the relinked copy");
     }
 
+    /// <summary>Live 2026-11-19: market=from_token needs user-read-private. A channel that never granted it
+    /// got 403 "Insufficient client scope" on every !sr search; the bot now asks again without the market.</summary>
+    [Fact]
+    public async Task A_search_refused_for_missing_scope_is_asked_again_without_the_market()
+    {
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
+        handler.RespondWhen(
+            r => r.RequestUri!.Query.Contains("market=from_token", StringComparison.Ordinal),
+            HttpStatusCode.Forbidden,
+            """{"error":{"status":403,"message":"Insufficient client scope"}}"""
+        );
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            "{\"tracks\":{\"items\":[" + TrackJson + "]}}"
+        );
+
+        (IReadOnlyList<TrackInfo> tracks, MusicProviderFailureReason failure) =
+            await provider.SearchAsync(ChannelId, "never gonna give you up");
+
+        failure.Should().Be(MusicProviderFailureReason.None);
+        tracks.Should().ContainSingle().Which.TrackName.Should().Be("Never Gonna Give You Up");
+        handler.RequestUrls.Should().HaveCount(2);
+        handler.RequestUrls[1].Should().NotContain("market=");
+    }
+
+    [Fact]
+    public async Task A_resolve_refused_for_missing_scope_is_asked_again_without_the_market()
+    {
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
+        handler.RespondWhen(
+            r => r.RequestUri!.Query.Contains("market=from_token", StringComparison.Ordinal),
+            HttpStatusCode.Forbidden,
+            """{"error":{"status":403,"message":"Insufficient client scope"}}"""
+        );
+        handler.RespondWhen(
+            r =>
+                r.RequestUri!.AbsolutePath.EndsWith($"/tracks/{TrackId}", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            TrackJson
+        );
+
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            $"spotify:track:{TrackId}"
+        );
+
+        failure.Should().Be(MusicProviderFailureReason.None);
+        track!.ProviderTrackId.Should().Be(TrackId);
+        handler.RequestUrls[^1].Should().NotContain("market=");
+    }
+
     [Fact]
     public async Task Unknown_track_id_resolves_to_null()
     {

@@ -379,10 +379,9 @@ public sealed class SpotifyMusicProvider
         // player would silently skip (live 2026-10-01).
         int limit = Math.Min(maxResults, 10);
         string url =
-            $"{SpotifyApiBase}/search?q={Uri.EscapeDataString(query)}&type=track&limit={limit}&market={StreamerMarket}";
+            $"{SpotifyApiBase}/search?q={Uri.EscapeDataString(query)}&type=track&limit={limit}";
 
-        HttpResponseMessage? response = await SendAsync(
-            HttpMethod.Get,
+        HttpResponseMessage? response = await SendInStreamerMarketAsync(
             url,
             token,
             broadcasterId,
@@ -434,6 +433,35 @@ public sealed class SpotifyMusicProvider
         );
     }
 
+    /// <summary>Reads in the streamer's own market. market=from_token needs user-read-private, which a
+    /// playback-only grant lacks; Spotify then answers 403 "Insufficient client scope", so the read is
+    /// asked again without a market (live 2026-11-19).</summary>
+    private async Task<HttpResponseMessage?> SendInStreamerMarketAsync(
+        string url,
+        string token,
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        string separator = url.Contains('?') ? "&" : "?";
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            $"{url}{separator}market={StreamerMarket}",
+            token,
+            broadcasterId,
+            cancellationToken
+        );
+        if (response?.StatusCode != HttpStatusCode.Forbidden)
+            return response;
+
+        string body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!body.Contains("Insufficient client scope", StringComparison.OrdinalIgnoreCase))
+            return response;
+
+        response.Dispose();
+        return await SendAsync(HttpMethod.Get, url, token, broadcasterId, cancellationToken);
+    }
+
     /// <summary>Spotify's plain search can leave a song out of its first page when it ranks the artist's other
     /// songs higher; its field filters find it (live 2026-11-08).</summary>
     public IReadOnlyList<string> ExactSearchQueries(string title, string artist) =>
@@ -470,9 +498,8 @@ public sealed class SpotifyMusicProvider
         // Read in the streamer's own market: Spotify then relinks the id to the copy that plays there and
         // says whether any copy does. Without it a region-locked track is accepted into Spotify's queue,
         // skipped without a word, and the request is lost (live 2026-10-01).
-        HttpResponseMessage? response = await SendAsync(
-            HttpMethod.Get,
-            $"{SpotifyApiBase}/tracks/{Uri.EscapeDataString(trackId)}?market={StreamerMarket}",
+        HttpResponseMessage? response = await SendInStreamerMarketAsync(
+            $"{SpotifyApiBase}/tracks/{Uri.EscapeDataString(trackId)}",
             token,
             broadcasterId,
             cancellationToken
