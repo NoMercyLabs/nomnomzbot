@@ -28,6 +28,7 @@ export const permissionAllowlist = [
     files: {
       'admin/AdminAccessView.vue': 1,
       'admin/AdminPlatformDefaultsView.vue': 1,
+      'overlays/components/NewOverlayDialog.vue': 2,
       'admin/components/AdminPager.vue': 2,
       'admin/components/AuditFilterPicker.vue': 2,
       'admin/components/AuditFilters.vue': 1,

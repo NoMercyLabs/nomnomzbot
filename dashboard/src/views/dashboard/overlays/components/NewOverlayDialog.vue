@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateWidget, useInstallWidget, useWidgetGallery } from '@/api/widgets';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import SearchField from '@/components/layout/SearchField.vue';
+import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel, FieldTitle } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -42,13 +44,33 @@ const name = ref('');
 const framework = ref<Framework>('vue');
 const error = ref<string | undefined>(undefined);
 
-const isBlank = computed(() => start.value === BLANK);
+// The catalog is its own step, so the first view stays a short blank-overlay form.
+const browsing = ref(false);
+const search = ref('');
+
+const isBlank = computed(() => !browsing.value);
+
+const shown = computed(() => {
+  const term = search.value.trim().toLowerCase();
+  const items = gallery.data.value ?? [];
+
+  return term === ''
+    ? items
+    : items.filter((item) => `${item.name} ${item.description ?? ''}`.toLowerCase().includes(term));
+});
+
+function leaveCatalog(): void {
+  browsing.value = false;
+  start.value = BLANK;
+  search.value = '';
+}
+
 const pending = computed(() => create.isPending.value || install.isPending.value);
 
 watch(open, (isOpen: boolean): void => {
   if (!isOpen) return;
 
-  start.value = BLANK;
+  leaveCatalog();
   name.value = '';
   framework.value = 'vue';
   error.value = undefined;
@@ -57,6 +79,12 @@ watch(open, (isOpen: boolean): void => {
 async function submit(): Promise<void> {
   if (isBlank.value) {
     await submitBlank();
+
+    return;
+  }
+
+  if (start.value === BLANK) {
+    error.value = t('dashboard.overlays.create.pickOne');
 
     return;
   }
@@ -111,28 +139,39 @@ async function submitBlank(): Promise<void> {
     :error="error"
     @submit="submit"
   >
-    <Field>
-      <FieldTitle>{{ $t("dashboard.overlays.create.start") }}</FieldTitle>
-      <RadioGroup v-model="start" class="grid max-h-64 gap-1 overflow-y-auto">
-        <div class="flex items-start gap-2 rounded-md p-2">
-          <RadioGroupItem :id="`new-overlay-${BLANK}`" :value="BLANK" class="mt-0.5" />
-          <FieldLabel :for="`new-overlay-${BLANK}`" class="grid gap-0.5 font-normal">
-            <span class="font-medium">{{ $t("dashboard.overlays.create.blank") }}</span>
-            <span class="text-muted-foreground text-xs">{{ $t("dashboard.overlays.create.blankHelp") }}</span>
-          </FieldLabel>
+    <template v-if="browsing">
+      <Field>
+        <div class="flex items-center gap-2">
+          <Button variant="ghost" size="sm" type="button" @click="leaveCatalog">
+            {{ $t("dashboard.overlays.create.back") }}
+          </Button>
+          <SearchField v-model="search" :placeholder="$t('dashboard.overlays.create.search')" />
         </div>
-        <div v-for="item in gallery.data.value ?? []" :key="item.id" class="flex items-start gap-2 rounded-md p-2">
-          <RadioGroupItem :id="`new-overlay-gallery-${item.id}`" :value="item.id" class="mt-0.5" />
-          <FieldLabel :for="`new-overlay-gallery-${item.id}`" class="grid gap-0.5 font-normal">
-            <span class="font-medium">{{ item.name }}</span>
-            <span v-if="item.description" class="text-muted-foreground text-xs">{{ item.description }}</span>
-            <span v-if="item.trustTier !== 'first_party'" class="text-muted-foreground text-xs">
-              {{ $t("dashboard.overlays.create.community") }}
-            </span>
-          </FieldLabel>
-        </div>
-      </RadioGroup>
-      <FieldInfo v-if="gallery.isError.value">{{ $t("dashboard.overlays.create.galleryFailed") }}</FieldInfo>
+        <RadioGroup v-model="start" class="grid max-h-80 gap-1 overflow-y-auto">
+          <div v-for="item in shown" :key="item.id" class="flex items-start gap-2 rounded-md p-2">
+            <RadioGroupItem :id="`new-overlay-gallery-${item.id}`" :value="item.id" class="mt-0.5" />
+            <FieldLabel :for="`new-overlay-gallery-${item.id}`" class="grid gap-0.5 font-normal">
+              <span class="font-medium">{{ item.name }}</span>
+              <span v-if="item.description" class="text-muted-foreground line-clamp-1 text-xs" :title="item.description">
+                {{ item.description }}
+              </span>
+              <span v-if="item.trustTier !== 'first_party'" class="text-muted-foreground text-xs">
+                {{ $t("dashboard.overlays.create.community") }}
+              </span>
+            </FieldLabel>
+          </div>
+        </RadioGroup>
+        <FieldInfo v-if="shown.length === 0 && !gallery.isError.value">
+          {{ $t("dashboard.overlays.create.noMatch") }}
+        </FieldInfo>
+        <FieldInfo v-if="gallery.isError.value">{{ $t("dashboard.overlays.create.galleryFailed") }}</FieldInfo>
+      </Field>
+    </template>
+    <Field v-if="!browsing">
+      <Button variant="outline" type="button" class="justify-self-start" @click="browsing = true">
+        {{ $t("dashboard.overlays.create.catalog") }}
+      </Button>
+      <FieldInfo>{{ $t("dashboard.overlays.create.catalogHelp") }}</FieldInfo>
     </Field>
     <Field v-if="isBlank">
       <FieldLabel for="new-overlay-name">{{ $t("dashboard.overlays.create.name") }}</FieldLabel>

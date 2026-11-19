@@ -323,6 +323,7 @@ async function open(url: string = '/app/overlays'): Promise<void> {
 }
 
 const text = (): string => document.body.textContent ?? '';
+const dialogText = (): string => document.body.querySelector('[role="dialog"]')?.textContent ?? '';
 const rowNames = (): string[] =>
   [...document.body.querySelectorAll<HTMLElement>('[data-overlay-row]')].map(
     (row) => row.querySelector('span.font-medium')?.textContent?.trim() ?? '',
@@ -681,8 +682,31 @@ describe('OverlaysView', () => {
     button('New overlay').click();
     await settle();
 
-    expect(text()).toContain('Chat Box');
-    expect(text()).toContain('Fills up toward a goal.');
+    // The first step stays short: the catalog is one step further, never a long list up front.
+    expect(dialogText()).not.toContain('Chat Box');
+
+    button('Choose from the catalog').click();
+    await settle();
+
+    expect(dialogText()).toContain('Chat Box');
+    expect(dialogText()).toContain('Fills up toward a goal.');
+
+    const search = document.body.querySelector('[role="dialog"] input[type="search"]') as HTMLInputElement;
+
+    search.value = 'goal';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+
+    expect(dialogText()).not.toContain('Chat Box');
+    expect(dialogText()).toContain('Goal Bar');
+
+    button('Back').click();
+    await settle();
+
+    expect(document.body.querySelector('#new-overlay-name')).not.toBeNull();
+
+    button('Choose from the catalog').click();
+    await settle();
 
     const pick = document.body.querySelector('#new-overlay-gallery-g2') as HTMLElement;
 
