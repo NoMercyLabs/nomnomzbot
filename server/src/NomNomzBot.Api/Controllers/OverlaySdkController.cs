@@ -107,6 +107,8 @@ public sealed class OverlaySdkController : ControllerBase
             if (typeof fn === "function") { settingsHandlers.push(fn); run(fn, currentSettings); }
             return api;
           }
+          // The form itself is read from this call's source at build time; at runtime it only returns the settings.
+          function defineSettings() { return currentSettings; }
           // The event types this page registered, sent to the hub as one Subscribe call so it routes exactly those
           // ("*" = onAny). The set only grows inside one page session (off() does not remove), so a late handler is
           // added, never lost. An empty set is never sent: a page that has registered nothing yet must not wipe its
@@ -603,6 +605,7 @@ public sealed class OverlaySdkController : ControllerBase
             off: off,
             onAny: onAny,
             onSettings: onSettings,
+            defineSettings: defineSettings,
             reportError: report,
             actions: {
               invoke: invokeAction,

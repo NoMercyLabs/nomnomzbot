@@ -764,18 +764,15 @@ public class WidgetService : IWidgetService
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
         Dictionary<string, string>? files = ProjectJson.DeserializeFiles(filesJson);
-        if (
-            files is null
-            || !files.TryGetValue(CustomWidgetSettingsDeclaration.FileName, out string? declaration)
-        )
+        Result<IReadOnlyList<WidgetSettingsField>>? fields = files is null
+            ? null
+            : CustomWidgetSettingsDeclaration.FromProject(files);
+        if (fields is null)
             return Result.Failure<WidgetSettingsSchema>(
-                "This widget has no typed settings schema — add a settings.json to its project to declare one.",
+                "This widget has no typed settings schema — call nnz.defineSettings({...}) in its code, or add a settings.json, to declare one.",
                 "WIDGET_NO_SETTINGS_SCHEMA"
             );
 
-        Result<IReadOnlyList<WidgetSettingsField>> fields = CustomWidgetSettingsDeclaration.Parse(
-            declaration
-        );
         if (fields.IsFailure)
             return Result.Failure<WidgetSettingsSchema>(fields.ErrorMessage, fields.ErrorCode);
 
@@ -828,18 +825,13 @@ public class WidgetService : IWidgetService
     {
         Dictionary<string, object> effective = [];
         Dictionary<string, string>? files = ProjectJson.DeserializeFiles(filesJson);
-        if (
-            files is not null
-            && files.TryGetValue(CustomWidgetSettingsDeclaration.FileName, out string? declaration)
-        )
-        {
-            Result<IReadOnlyList<WidgetSettingsField>> fields =
-                CustomWidgetSettingsDeclaration.Parse(declaration);
-            if (fields.IsSuccess)
-                foreach (WidgetSettingsField field in fields.Value)
-                    if (field.Default is not null)
-                        effective[field.Key] = field.Default;
-        }
+        Result<IReadOnlyList<WidgetSettingsField>>? fields = files is null
+            ? null
+            : CustomWidgetSettingsDeclaration.FromProject(files);
+        if (fields is { IsSuccess: true })
+            foreach (WidgetSettingsField field in fields.Value)
+                if (field.Default is not null)
+                    effective[field.Key] = field.Default;
 
         foreach (KeyValuePair<string, object> entry in saved)
             effective[entry.Key] = entry.Value;
@@ -1006,22 +998,14 @@ public class WidgetService : IWidgetService
         if (widget is null)
             return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
 
-        if (
-            project.Files.TryGetValue(
-                CustomWidgetSettingsDeclaration.FileName,
-                out string? declaration
-            )
-        )
-        {
-            Result<IReadOnlyList<WidgetSettingsField>> parsed =
-                CustomWidgetSettingsDeclaration.Parse(declaration);
-            if (parsed.IsFailure)
-                return Result.Failure<WidgetVersionDetail>(
-                    parsed.ErrorMessage,
-                    parsed.ErrorCode,
-                    errorData: parsed.ErrorData
-                );
-        }
+        Result<IReadOnlyList<WidgetSettingsField>>? declared =
+            CustomWidgetSettingsDeclaration.FromProject(project.Files);
+        if (declared is { IsFailure: true })
+            return Result.Failure<WidgetVersionDetail>(
+                declared.ErrorMessage,
+                declared.ErrorCode,
+                errorData: declared.ErrorData
+            );
 
         Result samples = WidgetEventSampleFiles.Validate(project.Files);
         if (samples.IsFailure)

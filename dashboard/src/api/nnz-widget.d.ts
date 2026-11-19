@@ -2132,6 +2132,47 @@ interface NnzEventMeta {
   test?: boolean;
 }
 
+/** One option of a select or multiselect field. */
+interface NnzSettingOption {
+  value: string;
+  label?: string;
+}
+
+/** One field of the settings form. Every field needs a key, a type and a default. */
+interface NnzSettingField {
+  key: string;
+  type: 'bool' | 'number' | 'text' | 'color' | 'select' | 'multiselect' | 'json' | 'list' | 'group';
+  default: unknown;
+  label?: string;
+  help?: string;
+  group?: string;
+  /** Required for select and multiselect. */
+  options?: readonly NnzSettingOption[];
+  min?: number;
+  max?: number;
+  step?: number;
+  /** A resource picker kind; allowed on text fields only. */
+  picker?: string;
+}
+
+/** What nnz.defineSettings takes: the settings form of this widget. */
+interface NnzSettingsDeclaration {
+  fields: readonly NnzSettingField[];
+}
+
+/** The value type one declared field holds. */
+type NnzSettingValue<F extends NnzSettingField> =
+  F extends { type: 'bool' } ? boolean
+  : F extends { type: 'number' } ? number
+  : F extends { type: 'text' | 'color' } ? string
+  : F extends { type: 'select'; options: readonly { value: infer V }[] } ? V
+  : F extends { type: 'multiselect'; options: readonly { value: infer V }[] } ? V[]
+  : F extends { type: 'list' } ? string[]
+  : unknown;
+
+/** The settings of a widget, typed from the form it declares. */
+type NnzDeclaredSettings<D extends NnzSettingsDeclaration> = { [F in D['fields'][number] as F['key']]: NnzSettingValue<F> };
+
 interface NnzOverlaySdk {
   on<K extends keyof NnzWidgetEventMap>(eventType: K, handler: (data: NnzWidgetEventMap[K], eventType: K, meta?: NnzEventMeta) => void): NnzOverlaySdk;
   on(eventType: `custom.${string}`, handler: (data: NnzCustomDataWidgetPayload, eventType: string, meta?: NnzEventMeta) => void): NnzOverlaySdk;
@@ -2143,6 +2184,10 @@ interface NnzOverlaySdk {
   onAny(handler: (...event: NnzWidgetAnyEvent) => void): NnzOverlaySdk;
   /** Fires immediately with the injected settings, then again on every dashboard change. */
   onSettings(handler: (settings: Record<string, unknown>) => void): NnzOverlaySdk;
+  /** Declares this widget's settings form from its own code, with no gallery link and no settings.json. The bot reads
+   *  the object literal when it builds the widget and never runs it, so write plain values only (no variables or calls).
+   *  Returns the injected settings, typed from the declared fields. */
+  defineSettings<const D extends NnzSettingsDeclaration>(declaration: D): NnzDeclaredSettings<D>;
   /** Logs the message and reports it to the server as a widget runtime error. */
   reportError(message: string): void;
   /** A YouTube player page tells the bot what it plays: state is 'PLAYING', 'PAUSED' or 'ENDED', positionMs the

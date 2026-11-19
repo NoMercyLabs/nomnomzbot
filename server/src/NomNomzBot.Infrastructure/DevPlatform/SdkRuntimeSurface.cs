@@ -312,12 +312,23 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  test?: boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
+        AppendSettingsDeclarationTypes(sb);
         sb.AppendLine("interface NnzOverlaySdk {");
         AppendEventMethods(sb, customPayloadName);
         sb.AppendLine(
             "  /** Fires immediately with the injected settings, then again on every dashboard change. */"
         );
         sb.AppendLine($"  onSettings(handler: (settings: {settingsType}) => void): NnzOverlaySdk;");
+        sb.AppendLine(
+            "  /** Declares this widget's settings form from its own code, with no gallery link and no settings.json. The bot reads"
+        );
+        sb.AppendLine(
+            "   *  the object literal when it builds the widget and never runs it, so write plain values only (no variables or calls)."
+        );
+        sb.AppendLine("   *  Returns the injected settings, typed from the declared fields. */");
+        sb.AppendLine(
+            "  defineSettings<const D extends NnzSettingsDeclaration>(declaration: D): NnzDeclaredSettings<D>;"
+        );
         sb.AppendLine(
             "  /** Logs the message and reports it to the server as a widget runtime error. */"
         );
@@ -481,6 +492,63 @@ internal static class SdkRuntimeSurface
         sb.AppendLine($"declare const WIDGET_SETTINGS: {settingsType};");
         sb.Append("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
         return sb.ToString();
+    }
+
+    // The shape defineSettings takes (the same fields settings.json uses) and the settings type read from it: each
+    // declared key gets the value type its field type holds, so `settings.fontSize` is a number.
+    private static void AppendSettingsDeclarationTypes(StringBuilder sb)
+    {
+        sb.AppendLine("/** One option of a select or multiselect field. */");
+        sb.AppendLine("interface NnzSettingOption {");
+        sb.AppendLine("  value: string;");
+        sb.AppendLine("  label?: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** One field of the settings form. Every field needs a key, a type and a default. */"
+        );
+        sb.AppendLine("interface NnzSettingField {");
+        sb.AppendLine("  key: string;");
+        sb.AppendLine(
+            "  type: 'bool' | 'number' | 'text' | 'color' | 'select' | 'multiselect' | 'json' | 'list' | 'group';"
+        );
+        sb.AppendLine("  default: unknown;");
+        sb.AppendLine("  label?: string;");
+        sb.AppendLine("  help?: string;");
+        sb.AppendLine("  group?: string;");
+        sb.AppendLine("  /** Required for select and multiselect. */");
+        sb.AppendLine("  options?: readonly NnzSettingOption[];");
+        sb.AppendLine("  min?: number;");
+        sb.AppendLine("  max?: number;");
+        sb.AppendLine("  step?: number;");
+        sb.AppendLine("  /** A resource picker kind; allowed on text fields only. */");
+        sb.AppendLine("  picker?: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** What nnz.defineSettings takes: the settings form of this widget. */");
+        sb.AppendLine("interface NnzSettingsDeclaration {");
+        sb.AppendLine("  fields: readonly NnzSettingField[];");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** The value type one declared field holds. */");
+        sb.AppendLine("type NnzSettingValue<F extends NnzSettingField> =");
+        sb.AppendLine("  F extends { type: 'bool' } ? boolean");
+        sb.AppendLine("  : F extends { type: 'number' } ? number");
+        sb.AppendLine("  : F extends { type: 'text' | 'color' } ? string");
+        sb.AppendLine(
+            "  : F extends { type: 'select'; options: readonly { value: infer V }[] } ? V"
+        );
+        sb.AppendLine(
+            "  : F extends { type: 'multiselect'; options: readonly { value: infer V }[] } ? V[]"
+        );
+        sb.AppendLine("  : F extends { type: 'list' } ? string[]");
+        sb.AppendLine("  : unknown;");
+        sb.AppendLine();
+        sb.AppendLine("/** The settings of a widget, typed from the form it declares. */");
+        sb.AppendLine(
+            "type NnzDeclaredSettings<D extends NnzSettingsDeclaration> = { [F in D['fields'][number] as F['key']]: NnzSettingValue<F> };"
+        );
+        sb.AppendLine();
     }
 
     // on / off / onAny. With the payload registry the handler gets the payload of the event it names; a name the

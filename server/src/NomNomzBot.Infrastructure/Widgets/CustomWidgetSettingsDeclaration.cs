@@ -48,6 +48,33 @@ public static partial class CustomWidgetSettingsDeclaration
     [GeneratedRegex("^[A-Za-z][A-Za-z0-9_]*$")]
     private static partial Regex KeyPattern();
 
+    /// <summary>
+    /// The settings a project declares, from its <c>settings.json</c> or from an <c>nnz.defineSettings</c> call in its
+    /// code; null when it declares none. Declaring both is an error, so the form has one source.
+    /// </summary>
+    public static Result<IReadOnlyList<WidgetSettingsField>>? FromProject(
+        IReadOnlyDictionary<string, string> files
+    )
+    {
+        bool hasFile = files.TryGetValue(FileName, out string? declaration);
+        SdkSettingsDeclaration.Call? call = SdkSettingsDeclaration.Find(files);
+        if (call is null)
+            return hasFile ? Parse(declaration!) : null;
+        if (!hasFile)
+            return SdkSettingsDeclaration.Read(call.Value);
+
+        string message =
+            $"This widget declares its settings twice: {FileName} and nnz.{SdkSettingsDeclaration.CallName}() in "
+            + $"{call.Value.Path}. Keep one of them.";
+        return Result.Failure<IReadOnlyList<WidgetSettingsField>>(
+            message,
+            InvalidCode,
+            errorData: new ProjectBuildFailure([
+                new(InvalidCode, message, call.Value.Path, call.Value.Line, null),
+            ])
+        );
+    }
+
     public static Result<IReadOnlyList<WidgetSettingsField>> Parse(string json)
     {
         JsonDocument document;

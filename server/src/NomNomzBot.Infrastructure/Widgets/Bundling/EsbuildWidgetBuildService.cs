@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Projects;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Infrastructure.Widgets.Bundling;
@@ -106,6 +107,16 @@ public sealed partial class EsbuildWidgetBuildService : IWidgetBuildService
                 pathCheck.ErrorMessage,
                 pathCheck.ErrorCode,
                 errorData: pathCheck.ErrorData
+            );
+
+        // The settings form (settings.json or an nnz.defineSettings call) must be readable without running the code.
+        Result<IReadOnlyList<WidgetSettingsField>>? declared =
+            CustomWidgetSettingsDeclaration.FromProject(input.Files);
+        if (declared is { IsFailure: true })
+            return Result.Failure<WidgetBuildOutput>(
+                declared.ErrorMessage,
+                declared.ErrorCode,
+                errorData: declared.ErrorData
             );
 
         // Deny-by-default: a declared dependency outside the allowlist fails up-front (no npm, ever). A bare import of
