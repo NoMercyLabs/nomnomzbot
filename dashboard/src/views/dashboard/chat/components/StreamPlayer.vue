@@ -44,6 +44,9 @@ function build(): void {
       autoPlay: true,
       playlist: [stream],
     });
+
+  // `muted: true` silences only the video element. The player must know it too, or its slider never unmutes.
+  void player.mute();
 }
 
 function dispose(): void {

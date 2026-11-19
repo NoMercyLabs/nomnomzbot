@@ -65,6 +65,7 @@ vi.mock('@nomercy-entertainment/nomercy-video-player', () => ({
       },
       on: () =>
         api,
+      mute: async () => {},
       dispose: async () => {
         player.disposed = true;
       },
