@@ -31,19 +31,31 @@ export type ChannelSuspension = components['schemas']['ChannelSuspension'];
 export type PublicChannel = components['schemas']['PublicChannel'];
 
 const version = { path: { version: '1' } };
+// The server's largest page, and a ceiling so a list that never ends cannot loop forever.
+const pageSize = 100;
+const maxPages = 20;
 
 // GET /channels declares Channel in the OpenAPI document but returns ChannelSummary rows
 // (checked against the running bot, 2026-10-13), so the rows are read as the summary.
+// Every page is read: the server pages this list, and a channel past the first page must stay reachable.
 async function fetchMyChannels(): Promise<ChannelSummary[]> {
-  const { data, error, response } = await client.GET('/api/v{version}/channels', {
-    params: version,
-  });
+  const rows: ChannelSummary[] = [];
 
-  if (!response.ok)
-    throw problemError('my channels', response.status, error);
+  for (let page = 1; page <= maxPages; page += 1) {
+    const { data, error, response } = await client.GET('/api/v{version}/channels', {
+      params: { ...version, query: { Page: page, PageSize: pageSize } },
+    });
 
-  // eslint-disable-next-line no-restricted-syntax -- the document types the rows as Channel, so the cast must go through the wire's true type
-  return (data?.data ?? []) as unknown as ChannelSummary[];
+    if (!response.ok)
+      throw problemError('my channels', response.status, error);
+
+    // eslint-disable-next-line no-restricted-syntax -- the document types the rows as Channel, so the cast must go through the wire's true type
+    rows.push(...((data?.data ?? []) as unknown as ChannelSummary[]));
+
+    if (data?.hasMore !== true) break;
+  }
+
+  return rows;
 }
 
 async function fetchModeratedChannels(): Promise<ModeratedChannel[]> {

@@ -63,16 +63,34 @@ export const missingScopesQuery = (channelId: string) =>
     retry: false,
   });
 
+// The server's largest page, and a ceiling so a list that never ends cannot loop forever.
+const pageSize = 100;
+const maxPages = 20;
+
+// Every page is read: a channel holds more subscriptions than one page, and a broken one can sit on any of them.
 async function fetchSubscriptions(channelId: string): Promise<EventSubSubscription[]> {
-  const { data, error, response } = await client.GET(
-    '/api/v{version}/channels/{channelId}/eventsub/subscriptions',
-    { params: { path: { version: '1', channelId } } },
-  );
+  const rows: EventSubSubscription[] = [];
 
-  if (!response.ok)
-    throw failed('eventsub reconcile', response.status, error);
+  for (let page = 1; page <= maxPages; page += 1) {
+    const { data, error, response } = await client.GET(
+      '/api/v{version}/channels/{channelId}/eventsub/subscriptions',
+      {
+        params: {
+          path: { version: '1', channelId },
+          query: { Page: page, PageSize: pageSize },
+        },
+      },
+    );
 
-  return data?.data ?? [];
+    if (!response.ok)
+      throw failed('eventsub reconcile', response.status, error);
+
+    rows.push(...(data?.data ?? []));
+
+    if (data?.hasMore !== true) break;
+  }
+
+  return rows;
 }
 
 export type EventFeedFacts = {

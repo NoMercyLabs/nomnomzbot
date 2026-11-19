@@ -58,4 +58,23 @@ describe('the channel lists a refused request', () => {
 
     expect(rows).toEqual([{ id: 'own-id', login: 'streamer' }]);
   });
+
+  it('reads every page, so a channel past the first page is still reachable', async () => {
+    http.GET.mockResolvedValueOnce({
+      data: { data: [{ id: 'own-id', login: 'streamer' }], hasMore: true },
+      response: { ok: true, status: 200 },
+    }).mockResolvedValueOnce({
+      data: { data: [{ id: 'late-id', login: 'zebra' }], hasMore: false },
+      response: { ok: true, status: 200 },
+    });
+
+    const rows = await freshClient().query(myChannelsQuery);
+
+    expect(rows.map((row) => row.login)).toEqual(['streamer', 'zebra']);
+
+    expect(http.GET.mock.calls.map(([, init]) => init)).toEqual([
+      { params: { path: { version: '1' }, query: { Page: 1, PageSize: 100 } } },
+      { params: { path: { version: '1' }, query: { Page: 2, PageSize: 100 } } },
+    ]);
+  });
 });
