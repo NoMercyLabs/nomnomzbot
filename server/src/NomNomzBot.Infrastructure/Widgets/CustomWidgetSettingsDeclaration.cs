@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Widgets.Dtos;
+using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Infrastructure.Widgets;
 
@@ -47,6 +48,39 @@ public static partial class CustomWidgetSettingsDeclaration
 
     [GeneratedRegex("^[A-Za-z][A-Za-z0-9_]*$")]
     private static partial Regex KeyPattern();
+
+    /// <summary>
+    /// The settings a project declares, from its <c>settings.json</c> or from an <c>nnz.defineSettings</c> call in its
+    /// code; null when it declares none. Declaring both is an error, so the form has one source.
+    /// </summary>
+    public static async Task<Result<IReadOnlyList<WidgetSettingsField>>?> FromProjectAsync(
+        IReadOnlyDictionary<string, string> files,
+        IWidgetBuildService build,
+        CancellationToken cancellationToken = default
+    )
+    {
+        bool hasFile = files.TryGetValue(FileName, out string? declaration);
+        SdkSettingsDeclaration.Declared? call = await SdkSettingsDeclaration.ReadAsync(
+            files,
+            build,
+            cancellationToken
+        );
+        if (call is null)
+            return hasFile ? Parse(declaration!) : null;
+        if (!hasFile)
+            return call.Fields;
+
+        string message =
+            $"This widget declares its settings twice: {FileName} and nnz.{SdkSettingsDeclaration.CallName}() in "
+            + $"{call.Path}. Keep one of them.";
+        return Result.Failure<IReadOnlyList<WidgetSettingsField>>(
+            message,
+            InvalidCode,
+            errorData: new ProjectBuildFailure([
+                new(InvalidCode, message, call.Path, call.Line, null),
+            ])
+        );
+    }
 
     public static Result<IReadOnlyList<WidgetSettingsField>> Parse(string json)
     {

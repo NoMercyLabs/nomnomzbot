@@ -26,6 +26,16 @@ public interface IWidgetBuildService
         WidgetBuildInput input,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Strips the TypeScript types from one source (esbuild's ts loader, no bundling) and returns plain JavaScript that
+    /// ends with esbuild's inline source map, so a position in the JavaScript maps back to the author's line. A source
+    /// esbuild cannot read is a failure carrying its file, line and column.
+    /// </summary>
+    Task<Result<string>> StripTypesAsync(
+        string typeScript,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>

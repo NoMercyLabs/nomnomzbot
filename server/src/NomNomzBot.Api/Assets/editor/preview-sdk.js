@@ -40,6 +40,8 @@
     if (typeof fn === "function") { settingsHandlers.push(fn); run("onSettings handler", fn, currentSettings); }
     return api;
   }
+  // The form is read from this call's source at build time; at runtime it only returns the settings.
+  function defineSettings() { return currentSettings; }
 
   // The preview has no bot, so it sends no seed frames: every event it emits is a live one.
   function emit(type, data) {
@@ -210,6 +212,7 @@
     off: off,
     onAny: onAny,
     onSettings: onSettings,
+    defineSettings: defineSettings,
     reportError: report,
     reportYouTubePlayerState: reportYouTubePlayerState,
     reportMediaSharePlayerState: reportMediaSharePlayerState,

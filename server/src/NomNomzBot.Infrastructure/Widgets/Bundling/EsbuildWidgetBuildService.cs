@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Projects;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Infrastructure.Widgets.Bundling;
@@ -106,6 +108,20 @@ public sealed partial class EsbuildWidgetBuildService : IWidgetBuildService
                 pathCheck.ErrorMessage,
                 pathCheck.ErrorCode,
                 errorData: pathCheck.ErrorData
+            );
+
+        // The settings form (settings.json or an nnz.defineSettings call) must be readable without running the code.
+        Result<IReadOnlyList<WidgetSettingsField>>? declared =
+            await CustomWidgetSettingsDeclaration.FromProjectAsync(
+                input.Files,
+                this,
+                cancellationToken
+            );
+        if (declared is { IsFailure: true })
+            return Result.Failure<WidgetBuildOutput>(
+                declared.ErrorMessage,
+                declared.ErrorCode,
+                errorData: declared.ErrorData
             );
 
         // Deny-by-default: a declared dependency outside the allowlist fails up-front (no npm, ever). A bare import of
@@ -236,6 +252,63 @@ public sealed partial class EsbuildWidgetBuildService : IWidgetBuildService
             + "  var __nnzRoot = (document.currentScript && document.currentScript.parentElement) || document.getElementById(\"app\") || document.body;\n"
             + "  __nnzCreateApp(__nnzRootComponent).mount(__nnzRoot);\n"
             + "})();\n";
+    }
+
+    // The overlay manifest reads settings per widget on a hot path; a stripped source is reused, not re-run.
+    private const int StripCacheLimit = 256;
+
+    private static readonly ConcurrentDictionary<string, string> StripCache = new(
+        StringComparer.Ordinal
+    );
+
+    public async Task<Result<string>> StripTypesAsync(
+        string typeScript,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(typeScript)));
+        if (StripCache.TryGetValue(key, out string? cached))
+            return Result.Success(cached);
+
+        ProcessRunResult run = await _process.RunAsync(
+            new(
+                _esbuildPath,
+                ["--loader=ts", "--sourcemap=inline", "--log-level=error"],
+                StandardInput: typeScript,
+                WorkingDirectory: Path.GetTempPath(),
+                Timeout: _esbuildTimeout
+            ),
+            cancellationToken
+        );
+
+        if (!run.Started)
+            return Result.Failure<string>(
+                $"The esbuild binary '{_esbuildPath}' could not be started. Install esbuild (or set "
+                    + "Widgets:EsbuildPath) to read TypeScript widgets.",
+                "WIDGET_BUILD_TOOL_UNAVAILABLE"
+            );
+
+        if (run.ExitCode == 0)
+        {
+            if (StripCache.Count >= StripCacheLimit)
+                StripCache.Clear();
+            StripCache[key] = run.StandardOutput;
+            return Result.Success(run.StandardOutput);
+        }
+
+        string message = string.IsNullOrWhiteSpace(run.StandardError)
+            ? "The TypeScript source could not be read."
+            : run.StandardError.Trim();
+        List<ProjectBuildError> problems = ParseLoggedErrors(run.StandardError);
+        return Result.Failure<string>(
+            message,
+            "WIDGET_BUILD_FAILED",
+            errorData: new ProjectBuildFailure(
+                problems.Count > 0
+                    ? problems
+                    : [new("WIDGET_BUILD_FAILED", message, null, null, null)]
+            )
+        );
     }
 
     // Runs esbuild in the materialized project dir and maps the outcome to a Result: a launch failure is an install
