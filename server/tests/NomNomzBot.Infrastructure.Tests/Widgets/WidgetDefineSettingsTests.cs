@@ -219,23 +219,107 @@ public sealed class WidgetDefineSettingsTests : IClassFixture<VueSfcCompilerFixt
             .BuildAsync(new(project.Manifest.ToManifest(), project.Files));
 
         build.IsSuccess.Should().BeTrue(build.ErrorMessage);
-        CustomWidgetSettingsDeclaration
-            .FromProject(project.Files)!
+        (await CustomWidgetSettingsDeclaration.FromProjectAsync(project.Files, NewBuildService()))!
             .Value.Select(f => f.Key)
             .Should()
             .Equal("a");
     }
 
+    private const string TypedVue = """
+        <template><div class="w">{{ settings.fontSize }}</div></template>
+        <script setup lang="ts">
+        interface Settings { fontSize: number }
+        const settings: Settings = nnz.defineSettings({
+          fields: [{ key: 'fontSize', label: 'Font size', type: 'number', default: 24 }],
+        } as const) as unknown as Settings;
+        </script>
+        """;
+
+    private static ProjectDto VueProject(string sfc) =>
+        new(
+            new Dictionary<string, string> { ["App.vue"] = sfc },
+            new("App.vue", "widget", "vue", [])
+        );
+
     [Fact]
-    public void FromProject_NegativeNumberAndPlainTemplate_ReadAsLiterals()
+    public async Task GetSettingsSchema_VueScriptSetupLangTs_ReturnsTheDeclaredFields()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        (Guid channel, Guid widget) = await SeedAsync(database);
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db);
+        Result<WidgetVersionDetail> saved = await service.SaveProjectAsync(
+            channel.ToString(),
+            widget.ToString(),
+            VueProject(TypedVue)
+        );
+        saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+
+        Result<WidgetSettingsSchema> schema = await service.GetSettingsSchemaAsync(
+            channel.ToString(),
+            widget.ToString()
+        );
+
+        schema.IsSuccess.Should().BeTrue(schema.ErrorMessage);
+        schema.Value.Fields.Select(f => (f.Key, f.Default)).Should().Equal(("fontSize", 24d));
+    }
+
+    [Fact]
+    public async Task GetSettingsSchema_TypeScriptFile_ReturnsTheDeclaredFields()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        (Guid channel, Guid widget) = await SeedAsync(database);
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db);
+        ProjectDto project = Project("<div></div>");
+        project.Files["settings.ts"] =
+            "type Mode = 'dark' | 'light';\nexport const settings = nnz.defineSettings({\n  fields: [{ key: 'mode', label: 'Mode', type: 'text', default: 'dark' as Mode }],\n});";
+        (await service.SaveProjectAsync(channel.ToString(), widget.ToString(), project))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Result<WidgetSettingsSchema> schema = await service.GetSettingsSchemaAsync(
+            channel.ToString(),
+            widget.ToString()
+        );
+
+        schema.IsSuccess.Should().BeTrue(schema.ErrorMessage);
+        schema.Value.Fields.Select(f => f.Key).Should().Equal("mode");
+    }
+
+    [Fact]
+    public async Task SaveProject_TypeScriptDefineSettingsWithNonLiteral_FailsNamingFileAndLine()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        (Guid channel, Guid widget) = await SeedAsync(database);
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db);
+        const string sfc =
+            "<template><div/></template>\n<script setup lang=\"ts\">\nconst size: number = 24;\nnnz.defineSettings({\n  fields: [{ key: 'a', label: 'A', type: 'number', default: size }],\n});\n</script>";
+
+        Result<WidgetVersionDetail> saved = await service.SaveProjectAsync(
+            channel.ToString(),
+            widget.ToString(),
+            VueProject(sfc)
+        );
+
+        saved.IsFailure.Should().BeTrue();
+        saved.ErrorCode.Should().Be(CustomWidgetSettingsDeclaration.InvalidCode);
+        ProjectBuildError error = ((ProjectBuildFailure)saved.ErrorData!).Errors.Single();
+        error.File.Should().Be("App.vue");
+        error.Line.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task FromProject_NegativeNumberAndPlainTemplate_ReadAsLiterals()
     {
         ProjectDto project = Project(
             "<script>\nnnz.defineSettings({ fields: [\n{ key: 'a', label: `A`, type: 'number', default: -5 } ] });\n</script>"
         );
 
-        IReadOnlyList<WidgetSettingsField> fields = CustomWidgetSettingsDeclaration
-            .FromProject(project.Files)!
-            .Value;
+        IReadOnlyList<WidgetSettingsField> fields = (
+            await CustomWidgetSettingsDeclaration.FromProjectAsync(project.Files, NewBuildService())
+        )!.Value;
 
         fields.Select(f => (f.Key, f.Default, f.Label.Text)).Should().Equal(("a", -5d, "A"));
     }

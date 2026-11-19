@@ -766,7 +766,11 @@ public class WidgetService : IWidgetService
         Dictionary<string, string>? files = ProjectJson.DeserializeFiles(filesJson);
         Result<IReadOnlyList<WidgetSettingsField>>? fields = files is null
             ? null
-            : CustomWidgetSettingsDeclaration.FromProject(files);
+            : await CustomWidgetSettingsDeclaration.FromProjectAsync(
+                files,
+                _buildService,
+                cancellationToken
+            );
         if (fields is null)
             return Result.Failure<WidgetSettingsSchema>(
                 "This widget has no typed settings schema — call nnz.defineSettings({...}) in its code, or add a settings.json, to declare one.",
@@ -813,21 +817,26 @@ public class WidgetService : IWidgetService
                 .Select(v => v.FilesJson)
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
-        return WithDeclaredDefaults(widget.Settings, filesJson);
+        return await WithDeclaredDefaultsAsync(widget.Settings, filesJson, cancellationToken);
     }
 
     // Declared defaults first, saved values on top. An absent or invalid settings.json declares nothing, so the
     // saved bag passes through unchanged (an invalid declaration is already reported by the schema endpoint).
-    private static Dictionary<string, object> WithDeclaredDefaults(
+    private async Task<Dictionary<string, object>> WithDeclaredDefaultsAsync(
         IReadOnlyDictionary<string, object> saved,
-        string? filesJson
+        string? filesJson,
+        CancellationToken cancellationToken
     )
     {
         Dictionary<string, object> effective = [];
         Dictionary<string, string>? files = ProjectJson.DeserializeFiles(filesJson);
         Result<IReadOnlyList<WidgetSettingsField>>? fields = files is null
             ? null
-            : CustomWidgetSettingsDeclaration.FromProject(files);
+            : await CustomWidgetSettingsDeclaration.FromProjectAsync(
+                files,
+                _buildService,
+                cancellationToken
+            );
         if (fields is { IsSuccess: true })
             foreach (WidgetSettingsField field in fields.Value)
                 if (field.Default is not null)
@@ -999,7 +1008,11 @@ public class WidgetService : IWidgetService
             return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
 
         Result<IReadOnlyList<WidgetSettingsField>>? declared =
-            CustomWidgetSettingsDeclaration.FromProject(project.Files);
+            await CustomWidgetSettingsDeclaration.FromProjectAsync(
+                project.Files,
+                _buildService,
+                cancellationToken
+            );
         if (declared is { IsFailure: true })
             return Result.Failure<WidgetVersionDetail>(
                 declared.ErrorMessage,
@@ -1393,8 +1406,13 @@ public class WidgetService : IWidgetService
                     $"/api/v1/overlay/bundle/{widget.Id}?token={Uri.EscapeDataString(overlayToken)}&v={version.ContentHash}",
                     version.ContentHash,
                     widget.EventSubscriptions,
-                    WithDeclaredDefaults(widget.Settings, version.FilesJson)
-                        .ToDictionary(k => k.Key, v => (object?)v.Value),
+                    (
+                        await WithDeclaredDefaultsAsync(
+                            widget.Settings,
+                            version.FilesJson,
+                            cancellationToken
+                        )
+                    ).ToDictionary(k => k.Key, v => (object?)v.Value),
                     widget.GalleryItemId is Guid galleryItemId
                         ? galleryKeys.GetValueOrDefault(galleryItemId)
                         : null

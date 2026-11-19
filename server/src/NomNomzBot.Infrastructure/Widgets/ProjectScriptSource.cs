@@ -26,14 +26,24 @@ internal static partial class ProjectScriptSource
     )]
     private static partial Regex ScriptBlock();
 
-    /// <summary>The JavaScript text of the file, or null when the file type holds no JavaScript the server reads.</summary>
-    public static string? Extract(string path, string content)
+    [GeneratedRegex(@"<script\b[^>]*\blang\s*=\s*[""']tsx?[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex TypeScriptBlock();
+
+    /// <summary>The script text of a file and whether it is TypeScript (types still to strip) rather than JavaScript.</summary>
+    public readonly record struct Script(string Text, bool IsTypeScript);
+
+    /// <summary>The script text of the file, or null when the file type holds no script the server reads.</summary>
+    public static Script? Extract(string path, string content)
     {
         string extension = Path.GetExtension(path).ToLowerInvariant();
         return extension switch
         {
-            ".js" or ".mjs" => content,
-            ".html" or ".htm" or ".vue" => KeepScriptBodies(content),
+            ".js" or ".mjs" => new(content, false),
+            ".ts" or ".mts" => new(content, true),
+            ".html" or ".htm" or ".vue" => new(
+                KeepScriptBodies(content),
+                TypeScriptBlock().IsMatch(content)
+            ),
             _ => null,
         };
     }
