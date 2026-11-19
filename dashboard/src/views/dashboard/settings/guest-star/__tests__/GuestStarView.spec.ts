@@ -277,7 +277,8 @@ beforeEach(() => {
     isModeratorSendLiveEnabled: true,
     slotCount: 6,
     isBrowserSourceAudioEnabled: true,
-    groupLayout: 'TILED_LAYOUT',
+    // What live Twitch sends on read (2026-11-19): the short name, not the *_LAYOUT name the write takes.
+    groupLayout: 'TILED',
     browserSourceToken: 'placeholder-token',
   };
 

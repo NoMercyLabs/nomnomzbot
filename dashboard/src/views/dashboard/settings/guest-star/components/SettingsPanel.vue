@@ -48,11 +48,18 @@ const draft = reactive({
   regenerateBrowserSources: false,
 });
 
+// Twitch reads the layout back as TILED but takes TILED_LAYOUT on write; the form holds the write name.
+function layoutName(held: string): string {
+  return held === '' || held.endsWith('_LAYOUT')
+    ? held
+    : `${held}_LAYOUT`;
+}
+
 function load(held: GuestStarSettings): void {
   draft.isModeratorSendLiveEnabled = held.isModeratorSendLiveEnabled;
   draft.slotCount = Number(held.slotCount);
   draft.isBrowserSourceAudioEnabled = held.isBrowserSourceAudioEnabled;
-  draft.groupLayout = held.groupLayout;
+  draft.groupLayout = layoutName(held.groupLayout);
   draft.regenerateBrowserSources = false;
 }
 
@@ -79,7 +86,7 @@ const dirty = computed<boolean>(() => {
     draft.isModeratorSendLiveEnabled !== held.isModeratorSendLiveEnabled ||
     draft.slotCount !== Number(held.slotCount) ||
     draft.isBrowserSourceAudioEnabled !== held.isBrowserSourceAudioEnabled ||
-    draft.groupLayout !== held.groupLayout
+    draft.groupLayout !== layoutName(held.groupLayout)
   );
 });
 
