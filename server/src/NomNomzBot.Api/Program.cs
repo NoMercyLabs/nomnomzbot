@@ -400,6 +400,9 @@ try
     builder.Services.AddSingleton<ShutdownReadinessTracker>();
     healthChecks.AddCheck<ShutdownReadinessHealthCheck>("shutdown", tags: ["ready"]);
 
+    // Low free disk warns the operator in the admin health panel; never "ready", so it can not block a deploy.
+    healthChecks.AddCheck("disk", new DiskSpaceHealthCheck(), tags: ["disk"]);
+
     // Host shutdown timeout — the drain window between /health/ready failing and the process actually
     // tearing down (HostedServices' StopAsync, including the EventSub transport). Configurable so an
     // operator can widen it for slower dependents; defaults to 30s, long enough to finish an in-flight
