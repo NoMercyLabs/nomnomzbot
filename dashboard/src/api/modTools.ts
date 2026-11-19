@@ -21,14 +21,17 @@ import type { KeyParts } from '@/lib/array';
 
 export type ChatSettings = components['schemas']['ChatSettings'];
 export type RaidAssessment = components['schemas']['RaidAssessment'];
+export type OwnNameSpamRemoval = components['schemas']['OwnNameSpamRemoval'];
 
 const version = '1';
 const settingsPath = '/api/v{version}/channels/{channelId}/chat/settings';
 const raidsPath = '/api/v{version}/channels/{channelId}/moderation/raid-assessments';
 const massBanPath = '/api/v{version}/channels/{channelId}/moderation/actions/mass-ban';
 const clearPath = '/api/v{version}/channels/{channelId}/moderation/chat/clear';
+const ownNameRemovalPath = '/api/v{version}/channels/{channelId}/moderation/spam-defense/own-name-removal';
 
 export const chatSettingsKey = (id: string | null): KeyParts => ['channels', id, 'chat-settings'];
+export const ownNameSpamRemovalKey = (id: string | null): KeyParts => ['channels', id, 'own-name-spam-removal'];
 export const raidAssessmentsKey = (id: string | null): KeyParts => ['channels', id, 'raid-assessments'];
 
 async function readSettings(channelId: string): Promise<ChatSettings> {
@@ -59,6 +62,41 @@ export function useSetChatSettings(channelId: MaybeRefOrGetter<string | null>) {
 
       if (error !== undefined || !data?.data)
         throw refusal('chat settings', error, response.status);
+
+      return data.data;
+    },
+  });
+}
+
+async function readOwnNameSpamRemoval(channelId: string): Promise<OwnNameSpamRemoval> {
+  const { data, error, response } = await client.GET(ownNameRemovalPath, {
+    params: { path: { version, channelId } },
+  });
+
+  if (error !== undefined || !data?.data)
+    throw failed('spam removal', response.status, error);
+
+  return data.data;
+}
+
+// The signed-in moderator's own switch: may the bot remove spam in their name in a channel without the bot.
+export function useOwnNameSpamRemoval(channelId: MaybeRefOrGetter<string | null>) {
+  return channelQuery(channelId, ownNameSpamRemovalKey, readOwnNameSpamRemoval);
+}
+
+export function useSetOwnNameSpamRemoval(channelId: MaybeRefOrGetter<string | null>) {
+  return useOptimisticSave<OwnNameSpamRemoval, boolean>({
+    queryKey: () => ownNameSpamRemovalKey(toValue(channelId)),
+    describe: () => ({ key: 'saveOwnNameSpamRemoval' }),
+    apply: (current, enabled) => ({ applies: current?.applies ?? true, enabled }),
+    mutationFn: async (enabled) => {
+      const { data, error, response } = await client.PUT(ownNameRemovalPath, {
+        params: { path: { version, channelId: toValue(channelId) as string } },
+        body: { enabled },
+      });
+
+      if (error !== undefined || !data?.data)
+        throw refusal('spam removal', error, response.status);
 
       return data.data;
     },

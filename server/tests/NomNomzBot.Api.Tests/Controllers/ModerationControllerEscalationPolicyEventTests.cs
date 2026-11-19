@@ -49,7 +49,8 @@ public sealed class ModerationControllerEscalationPolicyEventTests
             Substitute.For<IMassBanConsentService>(),
             [],
             Substitute.For<IShoutoutSuggestionService>(),
-            eventBus
+            eventBus,
+            Substitute.For<IOwnNameSpamRemovalService>()
         );
 
     private static UpsertEscalationPolicyRequest Request() => new(true, [], 24, false);

@@ -61,6 +61,7 @@ public class ModerationController : BaseController
     private readonly IEnumerable<ICommandAction> _actions;
     private readonly IShoutoutSuggestionService _shoutoutSuggestions;
     private readonly IEventBus _eventBus;
+    private readonly IOwnNameSpamRemovalService _ownNameSpamRemoval;
 
     public ModerationController(
         IModerationService moderationService,
@@ -79,10 +80,12 @@ public class ModerationController : BaseController
         IMassBanConsentService massBan,
         IEnumerable<ICommandAction> actions,
         IShoutoutSuggestionService shoutoutSuggestions,
-        IEventBus eventBus
+        IEventBus eventBus,
+        IOwnNameSpamRemovalService ownNameSpamRemoval
     )
     {
         _eventBus = eventBus;
+        _ownNameSpamRemoval = ownNameSpamRemoval;
         _shoutoutSuggestions = shoutoutSuggestions;
         _massBan = massBan;
         _twitchModeration = twitchModeration;
@@ -254,6 +257,54 @@ public class ModerationController : BaseController
                 ],
             }
         );
+    }
+
+    /// <summary>
+    /// The caller's own switch for this channel: may the bot remove spam here in the caller's name. It applies only
+    /// where the caller holds a role and the channel does not run the bot itself.
+    /// </summary>
+    [RequireAction("moderation:ban")]
+    [HttpGet("spam-defense/own-name-removal")]
+    [ProducesResponseType<StatusResponseDto<OwnNameSpamRemovalDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOwnNameSpamRemoval(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid moderatorUserId))
+            return UnauthenticatedResponse();
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return NotFoundResponse("Channel not found.");
+
+        OwnNameSpamRemovalDto state = await _ownNameSpamRemoval.GetAsync(
+            broadcasterId,
+            moderatorUserId,
+            ct
+        );
+        return Ok(new StatusResponseDto<OwnNameSpamRemovalDto> { Data = state });
+    }
+
+    /// <summary>Turns the caller's own switch on or off. It never changes another moderator's choice.</summary>
+    [RequireAction("moderation:ban")]
+    [HttpPut("spam-defense/own-name-removal")]
+    [ProducesResponseType<StatusResponseDto<OwnNameSpamRemovalDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetOwnNameSpamRemoval(
+        string channelId,
+        [FromBody] OwnNameSpamRemovalRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid moderatorUserId))
+            return UnauthenticatedResponse();
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return NotFoundResponse("Channel not found.");
+
+        Result<OwnNameSpamRemovalDto> state = await _ownNameSpamRemoval.SetAsync(
+            broadcasterId,
+            moderatorUserId,
+            request.Enabled,
+            ct
+        );
+        if (state.IsFailure)
+            return ResultResponse(state);
+        return Ok(new StatusResponseDto<OwnNameSpamRemovalDto> { Data = state.Value });
     }
 
     /// <summary>The channels this operator opted into their mass bans on the streamer's word.</summary>

@@ -50,6 +50,7 @@ internal static class ActionRequiredInboxHarness
             ),
             new MassBanFailureSource(db),
             new BotSendRefusedSource(db, clock),
+            new SpamNotRemovedSource(db, clock),
         ];
 
     // The real unban source fails for a channel with no row, which most inbox tests do not seed. Those tests

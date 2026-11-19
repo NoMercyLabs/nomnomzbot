@@ -392,6 +392,7 @@ export const apiOperations = {
   'raid assessments': 'modTools',
   'mass ban': 'modTools',
   'clear chat': 'modTools',
+  'spam removal': 'modTools',
   'supporter events': 'supporters',
   'supporter connections': 'supporters',
   'supporter connection': 'supporters',

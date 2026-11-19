@@ -52,7 +52,8 @@ public sealed class ModerationControllerNetworkBlockOptInTests
             Substitute.For<IMassBanConsentService>(),
             [],
             Substitute.For<IShoutoutSuggestionService>(),
-            eventBus ?? Substitute.For<IEventBus>()
+            eventBus ?? Substitute.For<IEventBus>(),
+            Substitute.For<IOwnNameSpamRemovalService>()
         );
 
     private static Guid SeedChannel(ApiTestDbContext db, string name)

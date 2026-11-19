@@ -6031,6 +6031,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("RemovesSpamInOwnName")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(20)

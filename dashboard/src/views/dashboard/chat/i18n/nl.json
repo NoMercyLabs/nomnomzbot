@@ -351,6 +351,9 @@
           "nonModeratorChatDelay": "Berichten van niet-moderators wachten {value} seconden."
         },
         "shieldNote": "Schildmodus houdt nieuwe accounts tegen en schakelt in één keer alleen volgers in.",
+        "spam": "Spam",
+        "ownNameRemoval": "Spam verwijderen uit mijn naam",
+        "ownNameRemovalHint": "De bot is niet geïnstalleerd in het kanaal van {name}. Staat dit aan, dan verwijdert de bot spamberichten en verbant de afzender met jouw moderatoraccount. Je kunt het altijd weer uitzetten.",
         "raids": "Raidaccounts",
         "raidCount": "{count} vijandige raidaccounts beoordeeld en nog niet verbannen.",
         "massBan": "Massaal verbannen...",

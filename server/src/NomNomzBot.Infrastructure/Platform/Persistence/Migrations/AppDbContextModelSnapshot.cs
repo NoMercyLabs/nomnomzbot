@@ -5747,6 +5747,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<bool>("RemovesSpamInOwnName")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(20)

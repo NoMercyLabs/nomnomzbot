@@ -225,6 +225,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.MassBanBatch),
         // A moderator's record of a streamer's permission — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn),
+        // A moderator's own yes to spam removal in their name lives on the membership.
+        typeof(ChannelMembership),
         // The J.4/J.5 projections — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.UserModerationHistory),
         typeof(NomNomzBot.Domain.Moderation.Entities.UserTrustScore),
@@ -320,8 +322,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
@@ -421,7 +422,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();
-    public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();
+    public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         throw new NotSupportedException();
     public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();

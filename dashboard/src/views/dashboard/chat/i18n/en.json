@@ -351,6 +351,9 @@
           "nonModeratorChatDelay": "Messages from non-moderators wait {value} seconds."
         },
         "shieldNote": "Shield mode holds new accounts and turns on followers-only in one press.",
+        "spam": "Spam",
+        "ownNameRemoval": "Remove spam in my name",
+        "ownNameRemovalHint": "The bot is not installed in {name}'s channel. When this is on, it deletes spam messages and bans the sender with your moderator account. You can turn it off at any time.",
         "raids": "Raid accounts",
         "raidCount": "{count} hostile raid accounts assessed and not yet banned.",
         "massBan": "Mass ban...",

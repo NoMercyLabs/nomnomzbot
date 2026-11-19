@@ -43,8 +43,10 @@ public sealed record ActingModerator(Guid OperatorUserId, string BroadcasterTwit
 /// dashboard's own "moderate a channel the bot never joined" feature).</para>
 ///
 /// <para><b>Opt-in (Stoney, 2026-11-18):</b> "EVERYTHING IS OPT-IN". An automatic action with nobody asking
-/// signs as a reading moderator only when the streamer's yes is on record for that moderator
-/// (<c>ModeratorMassBanOptIn</c>); otherwise it fails with <c>NOT_OPTED_IN</c>.</para>
+/// signs as a reading moderator only when that moderator turned it on for the channel themself
+/// (<c>ChannelMembership.RemovesSpamInOwnName</c>; Stoney, 2026-11-19: "Your own yes is enough"), or when the
+/// streamer's yes is on record for that moderator (<c>ModeratorMassBanOptIn</c>); otherwise it fails with
+/// <c>NOT_OPTED_IN</c>.</para>
 /// </summary>
 public interface IActingModeratorResolverService
 {
@@ -92,15 +94,14 @@ public sealed class ActingModeratorResolverService(
             return Result.Success(new ActingModerator(asking, channel.TwitchChannelId));
 
         // Otherwise act as a moderator who is reading this channel's chat right now, on their own token, but
-        // only when the streamer's yes is on record for that moderator (Stoney, 2026-11-18: "EVERYTHING IS
-        // OPT-IN"). A streamer who never said yes gets no automatic action in anyone's name.
+        // only when a yes is on record for that moderator (Stoney, 2026-11-18: "EVERYTHING IS OPT-IN"): their
+        // own, or the streamer's. With no yes, nobody's name signs an automatic action.
         List<Guid> reading =
         [
             .. moderatorChatReaders
                 .Snapshot()
                 .Where(status =>
-                    status.State == ModeratorChatReaderState.Reading
-                    && status.ModeratorUserId is not null
+                    status is { State: ModeratorChatReaderState.Reading, ModeratorUserId: not null }
                     && string.Equals(
                         status.TwitchBroadcasterId,
                         channel.TwitchChannelId,
@@ -116,22 +117,45 @@ public sealed class ActingModeratorResolverService(
                 "NO_ACTING_IDENTITY"
             );
 
-        Guid? optedIn = await db
-            .ModeratorMassBanOptIns.Where(o =>
-                o.BroadcasterTwitchId == channel.TwitchChannelId
-                && reading.Contains(o.OperatorUserId)
-            )
-            .Select(o => (Guid?)o.OperatorUserId)
-            .FirstOrDefaultAsync(ct);
+        Guid? optedIn =
+            await OwnYesAsync(broadcasterId, reading, ct)
+            ?? await StreamerYesAsync(channel.TwitchChannelId, reading, ct);
 
         return optedIn is { } moderatorUserId
             ? Result.Success(new ActingModerator(moderatorUserId, channel.TwitchChannelId))
             : Result.Failure<ActingModerator>(
-                "This channel is not onboarded and its streamer has not opted in, so the bot takes "
-                    + "no automatic action there in a moderator's name.",
+                "This channel is not onboarded and no moderator reading its chat has turned on spam "
+                    + "removal in their own name, so the bot takes no automatic action there.",
                 "NOT_OPTED_IN"
             );
     }
+
+    // A reading moderator who turned on "remove spam in my name" for this channel (Stoney, 2026-11-19).
+    // IgnoreQueryFilters: the membership belongs to the channel being moderated, not the request's tenant.
+    private Task<Guid?> OwnYesAsync(Guid broadcasterId, List<Guid> reading, CancellationToken ct) =>
+        db
+            .ChannelMemberships.IgnoreQueryFilters()
+            .Where(m =>
+                m.BroadcasterId == broadcasterId
+                && m.DeletedAt == null
+                && m.RemovesSpamInOwnName
+                && reading.Contains(m.UserId)
+            )
+            .Select(m => (Guid?)m.UserId)
+            .FirstOrDefaultAsync(ct);
+
+    // A reading moderator who recorded the streamer's yes for their mass bans; that yes covers spam too.
+    private Task<Guid?> StreamerYesAsync(
+        string twitchChannelId,
+        List<Guid> reading,
+        CancellationToken ct
+    ) =>
+        db
+            .ModeratorMassBanOptIns.Where(o =>
+                o.BroadcasterTwitchId == twitchChannelId && reading.Contains(o.OperatorUserId)
+            )
+            .Select(o => (Guid?)o.OperatorUserId)
+            .FirstOrDefaultAsync(ct);
 
     // The request's own user, when they hold a management role on the channel (every ManagementRole is at least
     // Moderator, and the column is a string in the database, so there is no rank comparison to make here). An impersonated request never

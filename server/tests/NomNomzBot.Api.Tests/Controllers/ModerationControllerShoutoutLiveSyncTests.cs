@@ -55,7 +55,8 @@ public sealed class ModerationControllerShoutoutLiveSyncTests
             Substitute.For<IMassBanConsentService>(),
             [],
             Substitute.For<IShoutoutSuggestionService>(),
-            eventBus
+            eventBus,
+            Substitute.For<IOwnNameSpamRemovalService>()
         );
     }
 

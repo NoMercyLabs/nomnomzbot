@@ -13,6 +13,7 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
@@ -141,6 +142,54 @@ public sealed class ActingModeratorResolverServiceTests
 
         acting.IsSuccess.Should().BeTrue(acting.ErrorMessage);
         acting.Value.OperatorUserId.Should().Be(Moderator);
+    }
+
+    // Stoney, 2026-11-19: "Your own yes is enough." A moderator may ban there already, so their own switch
+    // lets spam defence act in their name while they read the chat.
+    [Fact]
+    public async Task An_automatic_action_signs_as_the_reading_moderator_who_said_yes_themself()
+    {
+        PipelineOptionsTestDbContext db = Seed(onboarded: false, ManagementRole.Moderator);
+        db.ChannelMemberships.Single().RemovesSpamInOwnName = true;
+        db.SaveChanges();
+
+        Result<ActingModerator> acting = await Resolver(db, signedInUser: null, Moderator)
+            .ResolveAsync(Channel);
+
+        acting.IsSuccess.Should().BeTrue(acting.ErrorMessage);
+        acting.Value.OperatorUserId.Should().Be(Moderator);
+        acting.Value.BroadcasterTwitchId.Should().Be("170805317");
+    }
+
+    [Fact]
+    public async Task A_yes_from_a_moderator_who_is_not_reading_the_chat_signs_nothing()
+    {
+        PipelineOptionsTestDbContext db = Seed(onboarded: false, ManagementRole.Moderator);
+        db.ChannelMemberships.Single().RemovesSpamInOwnName = true;
+        db.SaveChanges();
+        Guid otherReader = Guid.Parse("0192c000-0000-7000-8000-0000000000a4");
+
+        Result<ActingModerator> acting = await Resolver(db, signedInUser: null, otherReader)
+            .ResolveAsync(Channel);
+
+        acting.IsFailure.Should().BeTrue();
+        acting.ErrorCode.Should().Be("NOT_OPTED_IN");
+    }
+
+    [Fact]
+    public async Task A_yes_on_a_removed_moderator_role_signs_nothing()
+    {
+        PipelineOptionsTestDbContext db = Seed(onboarded: false, ManagementRole.Moderator);
+        ChannelMembership membership = db.ChannelMemberships.Single();
+        membership.RemovesSpamInOwnName = true;
+        membership.DeletedAt = DateTime.UtcNow;
+        db.SaveChanges();
+
+        Result<ActingModerator> acting = await Resolver(db, signedInUser: null, Moderator)
+            .ResolveAsync(Channel);
+
+        acting.IsFailure.Should().BeTrue();
+        acting.ErrorCode.Should().Be("NOT_OPTED_IN");
     }
 
     [Fact]

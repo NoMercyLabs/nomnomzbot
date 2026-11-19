@@ -190,6 +190,11 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
             e.Ignore(s => s.Channel);
         });
         b.Entity<BotAccount>(e => e.HasKey(a => a.Id));
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.SpamDetection>(e => e.HasKey(d => d.Id));
+        b.Entity<ChannelMembership>(e => e.HasKey(m => m.Id));
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn>(e =>
+            e.HasKey(o => o.Id)
+        );
         b.Entity<ChannelBotAuthorization>(e =>
         {
             e.HasKey(a => a.Id);
@@ -246,6 +251,9 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(ChannelBotAuthorization),
         typeof(NomNomzBot.Domain.Stream.Entities.Stream),
         typeof(NomNomzBot.Domain.Moderation.Entities.MassBanBatch),
+        typeof(NomNomzBot.Domain.Moderation.Entities.SpamDetection),
+        typeof(ChannelMembership),
+        typeof(NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -292,7 +300,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<NomNomzBot.Domain.Moderation.Entities.MassBanBatch> MassBanBatches =>
         Set<NomNomzBot.Domain.Moderation.Entities.MassBanBatch>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn> ModeratorMassBanOptIns =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Moderation.Entities.ModeratorMassBanOptIn>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
@@ -326,8 +334,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
@@ -422,7 +429,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();
-    public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();
+    public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         throw new NotSupportedException();
     public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();

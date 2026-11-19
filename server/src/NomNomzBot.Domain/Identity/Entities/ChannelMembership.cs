@@ -31,4 +31,11 @@ public class ChannelMembership : SoftDeletableEntity, ITenantScoped
     public DateTime GrantedAt { get; set; }
     public Guid? GrantedByUserId { get; set; }
     public DateTime? LastSyncedAt { get; set; }
+
+    /// <summary>
+    /// This moderator's own yes: on a channel that did not onboard, spam defence may delete, time out and ban
+    /// in this moderator's name while they read its chat. Off until the moderator turns it on (Stoney,
+    /// 2026-11-19: "Your own yes is enough"). A moderator who loses the role and gets it back starts at off.
+    /// </summary>
+    public bool RemovesSpamInOwnName { get; set; }
 }

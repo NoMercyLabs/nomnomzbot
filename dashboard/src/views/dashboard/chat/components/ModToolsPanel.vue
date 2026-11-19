@@ -9,17 +9,21 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
+import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
 import { useChannelAccess } from '@/api/access';
+import { actionRequiredKey } from '@/api/actionRequired';
 import {
   useChatSettings,
   useClearChat,
   useMassBanRaiders,
+  useOwnNameSpamRemoval,
   useRaidAssessments,
   useSetChatSettings,
+  useSetOwnNameSpamRemoval,
   type ChatSettings,
 } from '@/api/modTools';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
@@ -51,6 +55,12 @@ const raids = useRaidAssessments(() =>
     : null);
 const ban = useMassBanRaiders(() => props.channelId);
 const clear = useClearChat(() => props.channelId);
+const queries = useQueryClient();
+const ownRemoval = useOwnNameSpamRemoval(() =>
+  canBan.value
+    ? props.channelId
+    : null);
+const saveOwnRemoval = useSetOwnNameSpamRemoval(() => props.channelId);
 
 // The plain switches first, then the ones that carry a number.
 const modeKeys = [
@@ -141,6 +151,18 @@ async function saveSettings(next: ChatSettings): Promise<boolean> {
       : t('dashboard.chat.modTools.saveFailed'));
 
     return false;
+  }
+}
+
+// The inbox notice "spam was not removed" ends with this yes, so the inbox reads again after the save.
+async function setOwnRemoval(enabled: boolean): Promise<void> {
+  try {
+    await saveOwnRemoval.mutateAsync(enabled);
+    await queries.invalidateQueries({ queryKey: actionRequiredKey(props.channelId) });
+  } catch (error) {
+    toast.error(error instanceof Error
+      ? errorText(error, t)
+      : t('dashboard.chat.modTools.saveFailed'));
   }
 }
 
@@ -265,6 +287,27 @@ async function confirm(): Promise<void> {
           </div>
         </template>
         <p class="text-xs text-muted-foreground">{{ $t('dashboard.chat.modTools.shieldNote') }}</p>
+      </section>
+      <!-- Only in a channel without the bot, for a moderator there: their own yes to act in their name. -->
+      <section v-if="canBan && ownRemoval.data.value?.applies" class="grid gap-3">
+        <h3 class="text-sm font-semibold">{{ $t('dashboard.chat.modTools.spam') }}</h3>
+        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
+          <div class="min-w-0">
+            <FieldLabel for="own-name-removal">
+              {{ $t('dashboard.chat.modTools.ownNameRemoval') }}
+            </FieldLabel>
+            <p class="text-xs text-muted-foreground">
+              {{ $t('dashboard.chat.modTools.ownNameRemovalHint', { name: channelName }) }}
+            </p>
+          </div>
+          <Switch
+            id="own-name-removal"
+            data-own-name-removal
+            :model-value="ownRemoval.data.value.enabled"
+            :disabled="saveOwnRemoval.isPending.value"
+            @update:model-value="setOwnRemoval"
+          />
+        </div>
       </section>
       <section v-if="canReadRaids" class="grid gap-2">
         <h3 class="text-sm font-semibold">{{ $t('dashboard.chat.modTools.raids') }}</h3>

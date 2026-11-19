@@ -63,9 +63,14 @@ const raid = {
   occurredAt: '2026-10-14T00:00:00Z',
 };
 
+let removal = { enabled: false, applies: false };
+
 function answerFor(path: string): unknown {
   if (path.includes('raid-assessments'))
     return [raid];
+
+  if (path.includes('own-name-removal'))
+    return removal;
 
   if (path.includes('roles/effective'))
     return { heldActionKeys: [] };
@@ -96,6 +101,7 @@ beforeEach(() => {
   http.GET.mockReset();
   http.PUT.mockReset();
   http.POST.mockReset();
+  removal = { enabled: false, applies: false };
 
   http.GET.mockImplementation(async (path) => ({ data: { data: answerFor(path) }, response: ok }));
 
@@ -208,6 +214,52 @@ describe('Mod tools', () => {
       '/api/v{version}/channels/{channelId}/moderation/actions/mass-ban',
       expect.objectContaining({ body: { targets: [{ twitchUserId: '123' }] } }),
     );
+
+    wrapper.unmount();
+  });
+
+  it('hides the spam switch where the bot is installed or the reader holds no role', async () => {
+    const { wrapper } = setup();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-own-name-removal]').exists()).toBe(false);
+
+    wrapper.unmount();
+  });
+
+  it('saves the moderator\'s own yes, reads the inbox again and rolls back when the bot refuses', async () => {
+    removal = { enabled: false, applies: true };
+    http.PUT.mockResolvedValue({ data: { data: { enabled: true, applies: true } }, response: ok });
+
+    const { wrapper, queries } = setup();
+    const inbox = ['channels', 'channel', 'action-required'];
+
+    queries.setQueryData(inbox, []);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Remove spam in my name');
+    await wrapper.find('[data-own-name-removal]').trigger('click');
+    await flushPromises();
+
+    expect(http.PUT).toHaveBeenCalledWith(
+      '/api/v{version}/channels/{channelId}/moderation/spam-defense/own-name-removal',
+      expect.objectContaining({ body: { enabled: true } }),
+    );
+
+    expect(queries.getQueryData(['channels', 'channel', 'own-name-spam-removal']))
+      .toEqual({ enabled: true, applies: true });
+
+    expect(queries.getQueryState(inbox)?.isInvalidated).toBe(true);
+
+    http.PUT.mockResolvedValue({ error: { detail: 'You hold no moderator role on this channel.' }, response: { status: 403, ok: false } });
+    await wrapper.find('[data-own-name-removal]').trigger('click');
+    await flushPromises();
+
+    expect(queries.getQueryData(['channels', 'channel', 'own-name-spam-removal']))
+      .toEqual({ enabled: true, applies: true });
+
+    expect(toast.error).toHaveBeenCalledWith('errors.forbidden You hold no moderator role on this channel.');
 
     wrapper.unmount();
   });
