@@ -100,7 +100,6 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         d.DefaultSettings.ContainsKey(FirstPartyWidgetCatalogue.ThemeSettingKey)
             ?
             [
-                .. fields,
                 new(
                     FirstPartyWidgetCatalogue.ThemeSettingKey,
                     new("widget.shared.theme.label"),
@@ -110,6 +109,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     new("widget.shared.theme.help"),
                     ThemeOptions
                 ),
+                .. fields,
             ]
             : fields;
 
@@ -180,12 +180,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             ],
             "chat_box" =>
             [
-                SelectField(
-                    d,
-                    "theme",
-                    Appearance,
-                    Opts(d, "theme", "dark", "light", "transparent")
-                ),
+                SelectField(d, "theme", Appearance, Opts(d, "theme", "dark", "transparent")),
                 Text(d, "fontFamily", Appearance, help: true),
                 NumberField(d, "fontSize", Appearance, min: 8, max: 48, step: 1),
                 ColorField(d, "background", Appearance, help: true),

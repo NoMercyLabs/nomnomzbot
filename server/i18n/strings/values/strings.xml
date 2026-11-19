@@ -5162,7 +5162,7 @@
     <string name="widget_event_ticker_speed_label">Scroll speed</string>
     <string name="widget_event_ticker_count_label">Items kept</string>
     <string name="widget_event_ticker_accentColor_label">Accent color</string>
-    <string name="widget_chat_box_theme_label">Theme</string>
+    <string name="widget_chat_box_theme_label">Message style</string>
     <string name="widget_chat_box_fontFamily_label">Font family</string>
     <string name="widget_chat_box_fontFamily_help">Blank uses the overlay default.</string>
     <string name="widget_chat_box_fontSize_label">Font size</string>
@@ -5321,9 +5321,8 @@
     <string name="widget_labels_label_option_sub_count">Subscriber count</string>
     <string name="widget_labels_label_option_member_count">YouTube member count</string>
     <string name="widget_labels_label_option_top_cheerer">Top cheerer</string>
-    <string name="widget_chat_box_theme_option_dark">Dark</string>
-    <string name="widget_chat_box_theme_option_light">Light</string>
-    <string name="widget_chat_box_theme_option_transparent">Transparent</string>
+    <string name="widget_chat_box_theme_option_dark">Card</string>
+    <string name="widget_chat_box_theme_option_transparent">Text only</string>
     <string name="widget_now_playing_layout_option_pill">Pill</string>
     <string name="widget_now_playing_layout_option_card">Card</string>
     <string name="widget_now_playing_youtubeMode_option_card">Compact card</string>

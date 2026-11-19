@@ -1345,7 +1345,6 @@
     "widget.chat_box.showTimestamps.label",
     "widget.chat_box.theme.label",
     "widget.chat_box.theme.option.dark",
-    "widget.chat_box.theme.option.light",
     "widget.chat_box.theme.option.transparent",
     "widget.countdown_timer.accentColor.label",
     "widget.countdown_timer.durationMs.label",

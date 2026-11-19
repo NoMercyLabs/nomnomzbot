@@ -5146,7 +5146,7 @@
     <string name="widget_event_ticker_speed_label">Scrollsnelheid</string>
     <string name="widget_event_ticker_count_label">Aantal bewaarde items</string>
     <string name="widget_event_ticker_accentColor_label">Accentkleur</string>
-    <string name="widget_chat_box_theme_label">Thema</string>
+    <string name="widget_chat_box_theme_label">Berichtstijl</string>
     <string name="widget_chat_box_fontFamily_label">Lettertype</string>
     <string name="widget_chat_box_fontFamily_help">Leeg gebruikt de standaard van de overlay.</string>
     <string name="widget_chat_box_fontSize_label">Lettergrootte</string>
@@ -5305,9 +5305,8 @@
     <string name="widget_labels_label_option_sub_count">Aantal abonnees</string>
     <string name="widget_labels_label_option_member_count">Aantal YouTube-leden</string>
     <string name="widget_labels_label_option_top_cheerer">Grootste cheerer</string>
-    <string name="widget_chat_box_theme_option_dark">Donker</string>
-    <string name="widget_chat_box_theme_option_light">Licht</string>
-    <string name="widget_chat_box_theme_option_transparent">Transparant</string>
+    <string name="widget_chat_box_theme_option_dark">Kaart</string>
+    <string name="widget_chat_box_theme_option_transparent">Alleen tekst</string>
     <string name="widget_now_playing_layout_option_pill">Pil</string>
     <string name="widget_now_playing_layout_option_card">Kaart</string>
     <string name="widget_now_playing_youtubeMode_option_card">Compacte kaart</string>

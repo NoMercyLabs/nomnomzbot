@@ -107,7 +107,24 @@ public sealed class WidgetSettingsSchemaTests
                 .Should()
                 .Equal("sticker", "ink", "print", "classic");
             theme.Label.Key.Should().Be("widget.shared.theme.label");
+            schema
+                .Fields[0]
+                .Key.Should()
+                .Be(
+                    FirstPartyWidgetCatalogue.ThemeSettingKey,
+                    $"'{schema.WidgetKey}' shows its theme first, not under the other fields"
+                );
         }
+    }
+
+    [Fact]
+    public void The_chat_box_message_style_is_a_card_or_bare_text()
+    {
+        WidgetSettingsField style = Provider
+            .GetByKey("chat_box")!
+            .Fields.Single(f => f.Key == "theme");
+
+        style.Options!.Select(o => o.Value).Should().Equal("dark", "transparent");
     }
 
     [Fact]
