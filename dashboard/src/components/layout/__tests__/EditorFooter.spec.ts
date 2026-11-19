@@ -51,6 +51,15 @@ function order(wrapper: VueWrapper): string[] {
 }
 
 describe('the editor footer', () => {
+  // Owner 2026-11-19: Save scrolled out of view on a long editor; the footer sticks to the page's bottom.
+  it('stays stuck to the bottom of the scroll area on an opaque ground', () => {
+    const wrapper = footer(full);
+
+    expect(wrapper.get('[data-slot="editor-footer"]').classes()).toEqual(
+      expect.arrayContaining(['sticky', 'bottom-0', 'bg-background']),
+    );
+  });
+
   it('lays out Delete, the extra actions, the unsaved text, Discard and Save, in that order', () => {
     const wrapper = footer(full, { extra: '<button>Duplicate</button>' });
 

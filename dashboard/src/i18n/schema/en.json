@@ -2897,11 +2897,10 @@
         "label": "Show timestamps"
       },
       "theme": {
-        "label": "Theme",
+        "label": "Message style",
         "option": {
-          "dark": "Dark",
-          "light": "Light",
-          "transparent": "Transparent"
+          "dark": "Card",
+          "transparent": "Text only"
         }
       }
     },

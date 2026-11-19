@@ -219,7 +219,7 @@ function submit(): void {
       >{{ hint }}</span>
       <Button
         data-save
-        variant="outline"
+        :variant="dirty ? 'default' : 'outline'"
         size="sm"
         :disabled="!dirty || save.isPending.value"
         @click="submit"

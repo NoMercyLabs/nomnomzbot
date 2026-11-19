@@ -69,7 +69,10 @@ defineEmits<{
 </script>
 
 <template>
-  <div data-slot="editor-footer" class="flex w-full flex-wrap items-center gap-2">
+  <div
+    data-slot="editor-footer"
+    class="sticky bottom-0 z-10 flex w-full flex-wrap items-center gap-2 bg-background py-3"
+  >
     <!-- Quiet destructive: ghost with the destructive text color; its confirm carries the danger. -->
     <Button
       v-if="deleteLabel"

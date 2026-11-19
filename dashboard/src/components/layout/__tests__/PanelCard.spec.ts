@@ -106,6 +106,21 @@ describe('the panel card header', () => {
 
     expect(wrapper.find('[data-slot="panel-actions"]').classes()).toContain('flex-wrap');
   });
+
+  // Owner 2026-11-19: the Save of a long settings panel scrolled out of view. The footer sticks to the bottom of
+  // the page's scroll area, on an opaque card ground, and the card clips without becoming a scroll box itself
+  // (overflow-hidden would stop the footer from sticking).
+  it('keeps its footer stuck to the bottom of the scroll area while the card scrolls past', () => {
+    const wrapper = mount(PanelCard, {
+      props: { title: 'Settings' },
+      slots: { default: '<p>rows</p>', footer: '<button>Save</button>' },
+      global: { plugins: [i18n] },
+    });
+
+    expect(wrapper.find('footer').classes()).toEqual(expect.arrayContaining(['sticky', 'bottom-0', 'bg-card']));
+    expect(wrapper.find('[data-slot="panel-card"]').classes()).toContain('overflow-clip');
+    expect(wrapper.find('[data-slot="panel-card"]').classes()).not.toContain('overflow-hidden');
+  });
 });
 
 describe('the panel card states', () => {

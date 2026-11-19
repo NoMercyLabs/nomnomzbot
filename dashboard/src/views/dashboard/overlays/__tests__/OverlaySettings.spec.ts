@@ -473,6 +473,16 @@ describe('the overlay settings form', () => {
     expect(saveButton().disabled).toBe(false);
   });
 
+  // Owner 2026-11-19: a change that needs a manual save must change the Save button visibly, in view.
+  it('turns Save into the primary button once a change waits to be saved', async () => {
+    await open();
+    expect(saveButton().dataset.variant).toBe('outline');
+
+    await type('title', 'Hello');
+
+    expect(saveButton().dataset.variant).toBe('default');
+  });
+
   it('Save sends the saved map with only the changed value merged over it', async () => {
     await open();
     expect(saveButton().disabled).toBe(true);

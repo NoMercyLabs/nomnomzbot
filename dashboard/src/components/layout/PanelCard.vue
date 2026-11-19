@@ -89,7 +89,8 @@ const rootClass = computed<string | string[]>(() => {
   if (props.bare)
     return 'gap-3';
 
-  return ['overflow-hidden', props.flush
+  // clip, not hidden: hidden makes the card a scroll box, and then its footer cannot stick to the page's bottom.
+  return ['overflow-clip', props.flush
     ? 'h-full'
     : 'rounded-lg border border-border bg-card'];
 });
@@ -116,7 +117,8 @@ const footerClass = computed<string | string[]>(() => {
   if (props.bare)
     return '';
 
-  return ['border-t border-border', props.headless
+  // The footer holds the card's actions (Save): it stays in view at the bottom while a long card scrolls.
+  return ['sticky bottom-0 z-10 bg-card border-t border-border', props.headless
     ? 'p-2'
     : 'px-4 py-3'];
 });

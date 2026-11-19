@@ -2897,11 +2897,10 @@
         "label": "Tijdstempels tonen"
       },
       "theme": {
-        "label": "Thema",
+        "label": "Berichtstijl",
         "option": {
-          "dark": "Donker",
-          "light": "Licht",
-          "transparent": "Transparant"
+          "dark": "Kaart",
+          "transparent": "Alleen tekst"
         }
       }
     },
