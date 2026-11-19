@@ -74,6 +74,8 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                     "user-read-playback-state",
                     "user-modify-playback-state",
                     "user-read-currently-playing",
+                    // Search and track lookup send market=from_token; Spotify refuses that without this scope.
+                    "user-read-private",
                 ],
                 ["spotify.library"] =
                 [

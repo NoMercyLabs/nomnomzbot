@@ -70,6 +70,21 @@ public sealed class IntegrationOAuthServiceTests
         spotify.Value.ScopeSets.Should().ContainKey("spotify.library");
     }
 
+    /// <summary>Live 2026-11-19: search and track reads ask for market=from_token, which Spotify allows only
+    /// with user-read-private. A playback connect without it got 403 "Insufficient client scope" on every !sr.</summary>
+    [Fact]
+    public void Spotify_playback_set_carries_the_scope_the_streamer_market_needs()
+    {
+        OAuthProviderRegistry registry = new(EmptyConfig());
+
+        Result<OAuthProviderDescriptor> spotify = registry.Resolve(
+            AuthEnums.IntegrationProvider.Spotify,
+            Tenant
+        );
+
+        spotify.Value.ScopeSets["spotify.playback"].Should().Contain("user-read-private");
+    }
+
     [Fact]
     public void Registry_UnknownProvider_Fails()
     {
@@ -461,7 +476,7 @@ public sealed class IntegrationOAuthServiceTests
         StubHandler handler = new()
         {
             TokenJson =
-                """{"access_token":"spotify-access","refresh_token":"spotify-refresh","expires_in":3600,"scope":"user-read-playback-state user-modify-playback-state user-read-currently-playing"}""",
+                """{"access_token":"spotify-access","refresh_token":"spotify-refresh","expires_in":3600,"scope":"user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-private"}""",
             IdentityJson = """{"id":"spotify-user-1","display_name":"DJ Test"}""",
         };
         (IntegrationOAuthService service, AuthDbContext db, IIntegrationTokenVault vault, _) =
