@@ -21,6 +21,23 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-11-19 — making the bot a moderator is the opt-in for spam removal (later)
+
+Owner, verbatim: "serrybot functionality should be included as a moderator opt in, this should technically
+mean that just allowing the bot to be mod woudl be enough to allow it to act on serybot features". On the
+reading "when a streamer makes the bot account a moderator, the bot removes spam there in its own name, with
+no further setup": "that was what i was thinking about, but lets put that on the todo list for later."
+
+- 🔒 **S-MOD-BOT-AS-MOD-OPTIN** A streamer who has not onboarded makes the bot account a moderator. That is
+  the opt-in: the bot removes spam there in its own name. Needs the owner's go before it is built, because
+  the bot account then acts in a channel that has not onboarded (the 2026-11-18 rule: no bot subscription
+  and no bot speech there without his explicit yes). Design first: how the bot learns it was modded, what
+  it may do (delete and ban spam only, never speak), and how the streamer turns it off (unmod). Done-when:
+  the bot is modded on a test channel that has not onboarded, a spam message is removed in the bot's name,
+  the bot posts nothing, and unmodding stops it.
+
+---
+
 ## OWNER REQUEST 2026-11-10 — the default overlay widgets become one NomNomzBot look
 
 Owner, verbatim: "most of the default overlay widgets are half-assed and super ugly. they need to be humanized
