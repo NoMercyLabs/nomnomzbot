@@ -78,6 +78,8 @@ export const ownerActionKeys = [
   'giveaways:codes:write',
   'giveaways:read',
   'giveaways:write',
+  'guest-star:read',
+  'guest-star:write',
   'integration:read',
   'integration:write',
   'live-ops:ads:read',

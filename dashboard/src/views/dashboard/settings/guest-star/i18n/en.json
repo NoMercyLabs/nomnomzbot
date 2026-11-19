@@ -1,0 +1,87 @@
+{
+  "dashboard": {
+    "settings": {
+      "guestStar": {
+        "explain": "Guest Star lets guests join your stream from Twitch. Start a session, invite people, and place them in slots. Twitch holds all of it.",
+        "loadError": "Guest Star could not be loaded.",
+        "errors": {
+          "missing_scope": "Twitch has not allowed this yet. Connect Twitch again and accept the Guest Star permission.",
+          "no_token": "Your Twitch connection is not active. Connect Twitch again, then retry.",
+          "not_found": "Twitch does not know this session or guest. The session may have ended. Reload the page.",
+          "rate_limited": "Twitch asked to slow down. Wait a minute, then try again.",
+          "other": "Twitch could not do this. Try again in a moment."
+        },
+        "settings": {
+          "title": "Channel settings",
+          "moderatorSendLive": "Moderators can send guests live",
+          "moderatorSendLiveHelp": "A moderator can move a ready guest onto the stream.",
+          "browserAudio": "Separate audio in the browser source",
+          "browserAudioHelp": "Each guest has their own audio channel in OBS.",
+          "slotCount": "Number of slots",
+          "slotCountHelp": "How many guests fit at once.",
+          "groupLayout": "Group layout",
+          "regenerate": "Make new browser source links",
+          "regenerateHelp": "The old links stop working when you save.",
+          "save": "Save settings",
+          "layouts": {
+            "TILED_LAYOUT": "Tiled",
+            "SCREENSHARE_LAYOUT": "Screen share",
+            "HORIZONTAL_LAYOUT": "Horizontal",
+            "VERTICAL_LAYOUT": "Vertical"
+          }
+        },
+        "session": {
+          "title": "Session",
+          "empty": "No session is running. Start one to invite guests.",
+          "running": "A session is running.",
+          "guestCount": "{count} guests in slots",
+          "start": "Start session",
+          "end": "End session",
+          "endTitle": "End this session?",
+          "endDescription": "Every guest leaves the session.",
+          "endAction": "End session"
+        },
+        "invites": {
+          "title": "Invites",
+          "empty": "No invite is waiting.",
+          "loadError": "The invites could not be loaded.",
+          "invite": "Invite a guest",
+          "dialogTitle": "Invite a guest",
+          "dialogDescription": "Type the Twitch user id of the person to invite.",
+          "userId": "Twitch user id",
+          "userIdPlaceholder": "For example 123456789",
+          "send": "Send invite",
+          "remove": "Remove",
+          "status": "Status: {status}",
+          "invitedAt": "Invited {time}"
+        },
+        "slots": {
+          "title": "Slots",
+          "empty": "No guest holds a slot yet.",
+          "assign": "Assign a guest",
+          "assignTitle": "Assign a guest to a slot",
+          "assignDescription": "The guest must be ready in the waiting room.",
+          "userId": "Twitch user id",
+          "slotId": "Slot",
+          "slotPlaceholder": "For example 1",
+          "assignAction": "Assign",
+          "move": "Move",
+          "moveTitle": "Move {name}",
+          "moveDescription": "Leave the slot empty to move the guest to the empty interface.",
+          "destination": "Destination slot",
+          "moveAction": "Move guest",
+          "remove": "Remove",
+          "removeTitle": "Remove {name} from the slot?",
+          "removeDescription": "The guest leaves the stream.",
+          "reinvite": "Send the guest back to the waiting room",
+          "removeAction": "Remove guest",
+          "slot": "Slot {slot}",
+          "audio": "Audio",
+          "video": "Video",
+          "live": "Live",
+          "volume": "Volume"
+        }
+      }
+    }
+  }
+}

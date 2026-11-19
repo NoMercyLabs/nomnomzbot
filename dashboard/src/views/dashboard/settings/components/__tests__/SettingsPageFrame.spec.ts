@@ -155,8 +155,8 @@ const sources: Record<string, string> = import.meta.glob(
 );
 
 describe('the settings pages on the frame', () => {
-  it('reads the settings page itself and its 23 pages', () => {
-    expect(Object.keys(sources)).toHaveLength(24);
+  it('reads the settings page itself and its 24 pages', () => {
+    expect(Object.keys(sources)).toHaveLength(25);
   });
 
   it.each(Object.keys(sources))('%s uses SettingsPageFrame and not PageHeader', (path) => {
@@ -187,7 +187,7 @@ describe('the settings pages on the frame', () => {
       return route.meta?.titleKey !== `frame.nav.${entry?.label}`;
     });
 
-    expect(framed).toHaveLength(27);
+    expect(framed).toHaveLength(28);
 
     expect(wrong).toEqual([]);
   });

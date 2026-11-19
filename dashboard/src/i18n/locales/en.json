@@ -962,6 +962,7 @@
         "blockedTerms": "Blocked terms",
         "banned": "Banned people",
         "unbanRequests": "Unban requests",
+        "guestStar": "Guest Star",
         "reports": "Viewer reports",
         "resourceLimits": "Resource limits",
         "billing": "Billing",

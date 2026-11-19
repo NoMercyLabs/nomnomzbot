@@ -1,0 +1,84 @@
+{
+  "dashboard": {
+    "settings": {
+      "guestStar": {
+        "explain": "Met Guest Star kunnen gasten via Twitch in je stream komen. Start een sessie, nodig mensen uit en zet ze in een plek. Twitch bewaart alles.",
+        "loadError": "Guest Star kon niet worden geladen.",
+        "errors": {
+          "missing_scope": "Twitch heeft dit nog niet toegestaan. Koppel Twitch opnieuw en accepteer de Guest Star-toestemming.",
+          "no_token": "Je Twitch-koppeling is niet actief. Koppel Twitch opnieuw en probeer het dan nog eens.",
+          "not_found": "Twitch kent deze sessie of gast niet. De sessie is misschien afgelopen. Laad de pagina opnieuw.",
+          "rate_limited": "Twitch vraagt om te vertragen. Wacht een minuut en probeer het opnieuw.",
+          "other": "Twitch kon dit niet doen. Probeer het zo nog eens."
+        },
+        "settings": {
+          "title": "Kanaalinstellingen",
+          "moderatorSendLive": "Moderators mogen gasten live zetten",
+          "moderatorSendLiveHelp": "Een moderator kan een klare gast in de stream zetten.",
+          "browserAudio": "Aparte audio in de browserbron",
+          "browserAudioHelp": "Elke gast heeft een eigen audiokanaal in OBS.",
+          "slotCount": "Aantal plekken",
+          "slotCountHelp": "Hoeveel gasten tegelijk passen.",
+          "groupLayout": "Groepsindeling",
+          "regenerate": "Maak nieuwe browserbron-links",
+          "regenerateHelp": "De oude links werken niet meer na het opslaan.",
+          "save": "Instellingen opslaan",
+          "layouts": {
+            "TILED_LAYOUT": "Tegels",
+            "SCREENSHARE_LAYOUT": "Scherm delen",
+            "HORIZONTAL_LAYOUT": "Horizontaal",
+            "VERTICAL_LAYOUT": "Verticaal"
+          }
+        },
+        "session": {
+          "title": "Sessie",
+          "empty": "Er loopt geen sessie. Start er een om gasten uit te nodigen.",
+          "running": "Er loopt een sessie.",
+          "guestCount": "{count} gasten op een plek",
+          "start": "Sessie starten",
+          "end": "Sessie beëindigen",
+          "endTitle": "Deze sessie beëindigen?",
+          "endDescription": "Elke gast verlaat de sessie.",
+          "endAction": "Sessie beëindigen"        },
+        "invites": {
+          "title": "Uitnodigingen",
+          "empty": "Er wacht geen uitnodiging.",
+          "loadError": "De uitnodigingen konden niet worden geladen.",
+          "invite": "Een gast uitnodigen",
+          "dialogTitle": "Een gast uitnodigen",
+          "dialogDescription": "Typ de Twitch-gebruikers-id van de persoon.",
+          "userId": "Twitch-gebruikers-id",
+          "userIdPlaceholder": "Bijvoorbeeld 123456789",
+          "send": "Uitnodiging sturen",
+          "remove": "Verwijderen",
+          "status": "Status: {status}",
+          "invitedAt": "Uitgenodigd {time}"        },
+        "slots": {
+          "title": "Plekken",
+          "empty": "Nog geen gast op een plek.",
+          "assign": "Een gast plaatsen",
+          "assignTitle": "Een gast op een plek zetten",
+          "assignDescription": "De gast moet klaarstaan in de wachtkamer.",
+          "userId": "Twitch-gebruikers-id",
+          "slotId": "Plek",
+          "slotPlaceholder": "Bijvoorbeeld 1",
+          "assignAction": "Plaatsen",
+          "move": "Verplaatsen",
+          "moveTitle": "{name} verplaatsen",
+          "moveDescription": "Laat de plek leeg om de gast naar de lege interface te zetten.",
+          "destination": "Doelplek",
+          "moveAction": "Gast verplaatsen",
+          "remove": "Verwijderen",
+          "removeTitle": "{name} van de plek halen?",
+          "removeDescription": "De gast verlaat de stream.",
+          "reinvite": "Stuur de gast terug naar de wachtkamer",
+          "removeAction": "Gast verwijderen",
+          "slot": "Plek {slot}",
+          "audio": "Audio",
+          "video": "Video",
+          "live": "Live",
+          "volume": "Volume"        }
+      }
+    }
+  }
+}

@@ -27,6 +27,7 @@ import { settingsChatFiltersRoute } from './chat-filters/route';
 import { settingsEventJournalRoute } from './event-journal/route';
 import { settingsFeaturesRoute } from './features/route';
 import { settingsFederationRoute } from './federation/route';
+import { settingsGuestStarRoute } from './guest-star/route';
 import { settingsIntegrationsRoute } from './integrations/route';
 import { settingsPermissionsRoute } from './permissions/route';
 import { settingsResourceLimitsRoute } from './resource-limits/route';
@@ -129,6 +130,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsBlockedTermsRoute,
   settingsBannedRoute,
   settingsUnbanRequestsRoute,
+  settingsGuestStarRoute,
   settingsReportsRoute,
   settingsEventJournalRoute,
   settingsYourDataRoute,

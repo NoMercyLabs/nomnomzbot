@@ -28,6 +28,7 @@ import Megaphone from '~icons/nnz/megaphone';
 import MessageCheck from '~icons/nnz/message-bubble-check';
 import MessageRemove from '~icons/nnz/message-bubble-remove';
 import MultiPoint from '~icons/nnz/multi-point-connection';
+import MultiUsers from '~icons/nnz/multi-users';
 import PaperScroll from '~icons/nnz/paper-scroll';
 import Plugged from '~icons/nnz/plugged';
 import SettingsFader from '~icons/nnz/settings-fader';
@@ -70,6 +71,7 @@ export const settingsNav: readonly NavGroup[] = [
       navEntry('dashboard-settings-discord', 'settingsPages.discord', ChatBubble),
       navEntry('dashboard-settings-supporter-sources', 'settingsPages.supporterSources', Handshake),
       navEntry('dashboard-settings-federation', 'settingsPages.federation', MultiPoint),
+      navEntry('dashboard-settings-guest-star', 'settingsPages.guestStar', MultiUsers),
     ],
   },
   {
