@@ -1213,7 +1213,7 @@
         "attention_bot_send_refused_title": "Twitch weigerde het bericht van {botName} in {channelName}",
         "attention_bot_send_refused_message": "{botName} kan nog niet praten in {channelName}. Maak {botName} moderator in {channelName}: vraag de kanaaleigenaar om /mod {botName} te typen in de Twitch-chat. Daarna praat de bot vanzelf weer.",
         "attention_spam_not_removed_title": "Er is spam gezien in deze chat en niet verwijderd",
-        "attention_spam_not_removed_message": "De bot zag de afgelopen dag {count} spamberichten. Het laatste kwam van {username}. Er is niets verwijderd, omdat geen moderator hier de bot toestemming gaf om uit zijn of haar naam te handelen. Om dat toe te staan: open Chat, open Chatinstellingen en zet \"Spam verwijderen uit mijn naam\" aan.",
+        "attention_spam_not_removed_message": "Spamberichten die de bot de afgelopen dag zag: {count}. Het laatste kwam van {username}. Er is niets verwijderd, omdat geen moderator hier de bot toestemming gaf om uit zijn of haar naam te handelen. Om dat toe te staan: open Chat, open Chatinstellingen en zet \"Spam verwijderen uit mijn naam\" aan.",
         "attention_spam_not_removed_open": "Chat openen",
         "attention_spotify_blocked_title":"Spotify heeft je muziek gepauzeerd tot {until}",
         "attention_spotify_blocked_message": "Spotify heeft je Spotify-app geblokkeerd na te veel verzoeken. Verzoeknummers en nu-speelt wachten tot dan. Wil je nu verder? Maak een nieuwe app in het Spotify Developer Dashboard en vul de Client ID en Client Secret in op de pagina Integraties.",

@@ -1213,7 +1213,7 @@
         "attention_bot_send_refused_title": "Twitch refused {botName}'s message in {channelName}",
         "attention_bot_send_refused_message": "{botName} cannot talk in {channelName} yet. Make {botName} a moderator in {channelName}: ask the channel owner to type /mod {botName} in their Twitch chat. The bot talks again by itself after that.",
         "attention_spam_not_removed_title": "Spam was seen in this chat and not removed",
-        "attention_spam_not_removed_message": "The bot saw {count} spam messages in the last day. The last one came from {username}. It removed nothing, because no moderator here allowed it to act in their name. To allow it, open Chat, open Chat settings and turn on \"Remove spam in my name\".",
+        "attention_spam_not_removed_message": "Spam messages the bot saw in the last day: {count}. The last one came from {username}. It removed nothing, because no moderator here allowed it to act in their name. To allow it, open Chat, open Chat settings and turn on \"Remove spam in my name\".",
         "attention_spam_not_removed_open": "Open Chat",
         "attention_spotify_blocked_title": "Spotify paused your music until {until}",
         "attention_spotify_blocked_message": "Spotify blocked your Spotify app after too many requests. Song requests and now playing wait until then. To continue now, make a new app in the Spotify Developer Dashboard and enter its Client ID and Client Secret on the Integrations page.",
