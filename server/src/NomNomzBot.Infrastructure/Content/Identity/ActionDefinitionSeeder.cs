@@ -284,6 +284,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:networkblock:optin", Broadcaster);
         M("moderation:unbanrequest:read", Mod);
         M("moderation:unbanrequest:resolve", LeadModerator);
+        // Twitch Guest Star (beta), run with the channel's own Twitch token.
+        M("guest-star:read", Mod);
+        M("guest-star:write", LeadModerator);
         M("moderation:blocklist:write", LeadModerator);
         M("moderation:suspicioususer:write", LeadModerator);
 

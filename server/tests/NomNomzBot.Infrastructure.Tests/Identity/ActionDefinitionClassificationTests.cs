@@ -275,6 +275,8 @@ public sealed class ActionDefinitionClassificationTests
         "moderation:shoutout",
         "moderation:unbanrequest:read",
         "moderation:unbanrequest:resolve",
+        "guest-star:read",
+        "guest-star:write",
         "moderation:blocklist:write",
         "moderation:suspicioususer:write",
         "eventsub:subscribe",
