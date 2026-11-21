@@ -116,9 +116,10 @@ Write-Host "SHIP: CI green (image job: $imageJob)."
 # networks, base URL, profiles). A committed compose change that never reaches the host silently does
 # nothing, and the host quietly keeps running an older stack definition than the repo says it does.
 # The host's .env is NOT touched - that is the operator's secret custody, not ours.
-Write-Host "SHIP: syncing docker-compose.yml + Caddyfile + guard-single-color.sh."
+Write-Host "SHIP: syncing docker-compose.yml + Caddyfile + guard-single-color.sh + stack-watchdog.sh."
 & scp -i $sshKey -o StrictHostKeyChecking=accept-new `
     "$repoRoot/docker-compose.yml" "$repoRoot/Caddyfile" "$repoRoot/scripts/guard-single-color.sh" `
+    "$repoRoot/scripts/stack-watchdog.sh" `
     "${sshTarget}:$deployDir/" 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail "could not copy the stack definition to $sshTarget - nothing deployed" }
 
@@ -129,8 +130,8 @@ if ($LASTEXITCODE -ne 0) { Fail "could not copy the stack definition to $sshTarg
 # duplicating every chat command via two independent EventSub sessions. chmod + install the cron
 # line idempotently (grep-guarded, so re-running ship.ps1 never adds a second copy).
 $guardRemote = @"
-chmod +x $deployDir/guard-single-color.sh
-( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * $deployDir/guard-single-color.sh >> $deployDir/guard-single-color.log 2>&1" ) | crontab -
+chmod +x $deployDir/guard-single-color.sh $deployDir/stack-watchdog.sh
+( crontab -l 2>/dev/null | grep -vF -e 'guard-single-color.sh' -e 'stack-watchdog.sh' ; echo "*/5 * * * * $deployDir/guard-single-color.sh >> $deployDir/guard-single-color.log 2>&1" ; echo "* * * * * $deployDir/stack-watchdog.sh >> $deployDir/stack-watchdog.log 2>&1" ) | crontab -
 "@
 # PowerShell 5.1 adds CRLF to every line it pipes into a native command, so the remote side strips CR.
 $guardRemote = $guardRemote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
@@ -138,8 +139,8 @@ $ErrorActionPreference = "Continue"
 $guardOutput = ($guardRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "tr -d '\r' | bash -s" 2>&1 | Out-String)
 $guardExit = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
-if ($guardExit -ne 0) { Fail "could not install guard-single-color.sh cron job on ${sshTarget}: $guardOutput" }
-Write-Host "SHIP: guard-single-color.sh installed (cron, every 5 min)."
+if ($guardExit -ne 0) { Fail "could not install the guard and watchdog cron jobs on ${sshTarget}: $guardOutput" }
+Write-Host "SHIP: guard-single-color.sh (every 5 min) and stack-watchdog.sh (every minute) installed in cron."
 
 # The Caddyfile is a bind mount, so scp alone changes nothing until Caddy re-reads it. `up -d caddy` is
 # idempotent: it recreates the container only when the caddy service block itself changed. The reload

@@ -73,12 +73,12 @@ jobs:
             sha=$(docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")
             [ -n "$sha" ] || { echo "No revision label on $image." >&2; exit 1; }
             raw="https://raw.githubusercontent.com/${{ github.repository }}/$sha"
-            for f in docker-compose.yml Caddyfile scripts/guard-single-color.sh; do
+            for f in docker-compose.yml Caddyfile scripts/guard-single-color.sh scripts/stack-watchdog.sh; do
               curl -fsSL "$raw/$f" -o "$(basename "$f").new"
             done
-            for f in docker-compose.yml Caddyfile guard-single-color.sh; do mv "$f.new" "$f"; done
-            chmod +x guard-single-color.sh
-            ( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1" ) | crontab -
+            for f in docker-compose.yml Caddyfile guard-single-color.sh stack-watchdog.sh; do mv "$f.new" "$f"; done
+            chmod +x guard-single-color.sh stack-watchdog.sh
+            ( crontab -l 2>/dev/null | grep -vF -e 'guard-single-color.sh' -e 'stack-watchdog.sh' ; echo "*/5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1" ; echo "* * * * * /opt/nomnomzbot/stack-watchdog.sh >> /opt/nomnomzbot/stack-watchdog.log 2>&1" ) | crontab -
             # The Caddyfile is a bind mount: `up -d caddy` recreates only on a service change, the reload applies it.
             docker compose up -d --no-deps caddy >/dev/null 2>&1
             # Bounded and non-fatal (2026-11-06): `localhost` resolved to ::1 where Caddy's admin API does not listen, and a

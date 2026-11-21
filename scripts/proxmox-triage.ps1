@@ -104,6 +104,7 @@ Invoke-Remote 'free -m; echo; df -h / | tail -2'
 # --- 4. Single-colour guard ------------------------------------------------------------------
 Write-Section 'Blue/green drift guard (last 20 lines)'
 Invoke-Remote "tail -20 $StackDir/guard-single-color.log 2>/dev/null || echo '(no guard log)'"
+Invoke-Remote "tail -20 $StackDir/stack-watchdog.log 2>/dev/null || echo '(no watchdog log)'"
 
 # --- 5. Deduplicated error profile - the highest-signal view ---------------------------------
 Write-Section "Distinct ERR/WRN/FTL by frequency (last $Since)"

@@ -62,6 +62,7 @@ not in this tree.
 | `dev-api.ps1` | Start / stop / status of the local dev API (waits for `/health`) |
 | `free-disk-and-recover.ps1` | Disk-full Postgres crash-loop recovery: prune dangling images, verify recovery |
 | `guard-single-color.sh` | Runs on the deploy host via cron; keeps only the healthy blue/green colour up |
+| `stack-watchdog.sh` | Runs on the deploy host via cron, every minute; restarts a container that Docker lists as running while its process or its published port is gone (test: `stack-watchdog.test.sh`) |
 | `land-worktree.ps1` | Merge a finished worktree-agent branch, sanity-check `v1.json`, push and watch |
 | `migration-check.ps1` | Prove a migration works on an upgrade (database that already holds rows) |
 | `mint-jwt.py` | Mint an HS256 access JWT to drive a deployed instance as an authenticated user |

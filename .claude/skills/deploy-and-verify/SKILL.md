@@ -26,7 +26,7 @@ NOMNOMZ_DEPLOY_DIR   /opt/nomnomzbot   (default)
 Watches CI for that commit; on **green** pulls + restarts on the host, verifies health and image
 freshness, and prints one compact report. **Red CI deploys nothing and exits 1.**
 
-`ship.ps1` syncs `docker-compose.yml`, `Caddyfile` and `guard-single-color.sh` to the host, reloads
+`ship.ps1` syncs `docker-compose.yml`, `Caddyfile`, `guard-single-color.sh` and `stack-watchdog.sh` to the host, reloads
 Caddy (after this plan's `ship.ps1` edit) and installs the single-colour guard cron. When the box
 misbehaves afterwards, run `scripts/proxmox-triage.ps1` (read-only).
 
