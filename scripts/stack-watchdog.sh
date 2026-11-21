@@ -24,6 +24,8 @@
 # A container younger than this may not listen on its port yet (a deploy or a restart in progress).
 PORT_GRACE_SEC=180
 PROC_ROOT="${PROC_ROOT:-/proc}"
+# Optional, root-only (chmod 600). Two lines: DISCORD_BOT_TOKEN=... and DISCORD_ALERT_USER_ID=...
+WATCHDOG_ENV="${WATCHDOG_ENV:-$(dirname "$0")/stack-watchdog.env}"
 
 set -u
 
@@ -46,9 +48,35 @@ closed_port() { # <container name>
   done
 }
 
+restarted=""
+
 restart() { # <container name> <reason>
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $1: $2 - restarting"
   docker restart "$1" >/dev/null
+  restarted="$restarted\\n- $1: $2"
+}
+
+discord_post() { # <api path> <json body>
+  # The header comes from a file descriptor, so the token never shows in the process list.
+  curl -s -m 15 -X POST "https://discord.com/api/v10$1" \
+    -H @<(printf 'Authorization: Bot %s' "$DISCORD_BOT_TOKEN") \
+    -H 'Content-Type: application/json' -d "$2"
+}
+
+# Sends one Discord DM from the bot's own Discord app. Without the config file it sends nothing.
+alert() { # <message, with \n as the line break>
+  [ -r "$WATCHDOG_ENV" ] || return 0
+  # shellcheck disable=SC1090
+  . "$WATCHDOG_ENV"
+  [ -n "${DISCORD_BOT_TOKEN:-}" ] && [ -n "${DISCORD_ALERT_USER_ID:-}" ] || return 0
+
+  channel=$(discord_post /users/@me/channels "{\"recipient_id\":\"$DISCORD_ALERT_USER_ID\"}" \
+    | grep -o '"id": *"[0-9]*"' | head -1 | grep -o '[0-9]*')
+  if [ -z "$channel" ]; then
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) alert: Discord gave no DM channel - no alert sent"
+    return 0
+  fi
+  discord_post "/channels/$channel/messages" "{\"content\":\"$1\"}" >/dev/null
 }
 
 for name in $(docker ps --filter name=nomnomzbot- --format '{{.Names}}' 2>/dev/null); do
@@ -66,3 +94,7 @@ for name in $(docker ps --filter name=nomnomzbot- --format '{{.Names}}' 2>/dev/n
     restart "$name" "published port $port refuses connections"
   fi
 done
+
+if [ -n "$restarted" ]; then
+  alert "NomNomzBot watchdog on $(hostname) restarted:$restarted"
+fi
