@@ -151,6 +151,9 @@ public enum PipelineActionFieldKind
 
     /// <summary>One member of the linked Discord server, searched and picked by name; the saved value is the Discord user id.</summary>
     DiscordUser,
+
+    /// <summary>One stream category (game) found by searching the platform's catalogue; the saved value is the category name.</summary>
+    StreamCategory,
 }
 
 /// <summary>
@@ -263,6 +266,7 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.VtsRequestType => "vts_request_type",
             PipelineActionFieldKind.VtsArtMeshTag => "vts_art_mesh_tag",
             PipelineActionFieldKind.TtsSpeaker => "tts_speaker",
+            PipelineActionFieldKind.StreamCategory => "stream_category",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
 

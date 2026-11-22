@@ -3010,6 +3010,7 @@
     <string name="pipelines_block_song_skip">Nummer overslaan</string>
     <string name="pipelines_block_song_volume">Volume instellen</string>
     <string name="pipelines_block_set_variable">Variabele instellen</string>
+    <string name="pipelines_block_set_stream_info">Streaminfo instellen</string>
     <string name="pipelines_block_wait">Wachten</string>
     <string name="pipelines_block_stop">Stoppen</string>
     <string name="pipelines_block_user_role">Gebruikersrol</string>
@@ -3035,6 +3036,9 @@
     <string name="pipelines_block_run_code">Script uitvoeren</string>
     <string name="pipelines_block_run_pipeline">Pipeline uitvoeren</string>
     <string name="pipelines_field_message">Bericht</string>
+    <string name="pipelines_field_title">Titel</string>
+    <string name="pipelines_field_category">Categorie</string>
+    <string name="pipelines_field_tags">Tags</string>
     <string name="pipelines_field_user_id">Gebruikers-ID</string>
     <string name="pipelines_field_duration_seconds">Duur (seconden)</string>
     <string name="pipelines_field_reason">Reden</string>
@@ -5609,6 +5613,9 @@
     <string name="pipeline_set_pronoun_username_help">De kijker van wie de voornaamwoorden worden ingesteld.</string>
     <string name="pipeline_set_variable_name_help">De naam van de variabele, door latere stappen gebruikt als {name}.</string>
     <string name="pipeline_set_variable_value_help">De waarde die in de variabele wordt opgeslagen. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
+    <string name="pipeline_set_stream_info_title_help">De nieuwe streamtitel. Ondersteunt sjabloonvariabelen (bijv. {args}). Laat leeg om de huidige titel te houden.</string>
+    <string name="pipeline_set_stream_info_category_help">De categorie waarin je streamt. Zoek op naam. Laat leeg om de huidige categorie te houden.</string>
+    <string name="pipeline_set_stream_info_tags_help">De tags die je instelt; ze vervangen de huidige. Maximaal 10 tags van 25 tekens, zonder spaties of speciale tekens. Laat leeg om de huidige tags te houden.</string>
     <string name="pipeline_set_viewer_data_key_help">De naam van het per-kijker gegevensveld dat wordt ingesteld.</string>
     <string name="pipeline_set_viewer_data_target_help">Van welke kijker de gegevens worden ingesteld. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
     <string name="pipeline_set_viewer_data_value_help">De waarde die voor deze kijker wordt opgeslagen. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
@@ -5772,6 +5779,7 @@
     <string name="pipeline_set_counter_description">Zet een benoemde teller op een vaste waarde</string>
     <string name="pipeline_set_pronoun_description">Stel de voornaamwoorden van een kijker in</string>
     <string name="pipeline_set_variable_description">Stel een pipelinevariabele in</string>
+    <string name="pipeline_set_stream_info_description">Wijzig de streamtitel, categorie of tags</string>
     <string name="pipeline_set_viewer_data_description">Stel een opgeslagen waarde in op het profiel van een kijker</string>
     <string name="pipeline_shoutout_description">Geef een shoutout aan een ander kanaal</string>
     <string name="pipeline_show_raid_recap_description">Toon het streamoverzicht op de raid-recap-widget</string>

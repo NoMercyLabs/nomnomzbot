@@ -226,8 +226,8 @@ function typed(event: Event): void {
   <Field v-else :data-step-field="row.name" class="gap-1.5">
     <div class="flex items-center gap-1.5">
       <FieldLabel :for="id">{{ row.label }}</FieldLabel>
-      <FieldInfo v-if="row.help || row.templated">
-        {{ row.help }}
+      <FieldInfo v-if="(row.help && row.control !== 'list') || row.templated">
+        <template v-if="row.control !== 'list'">{{ row.help }}</template>
         <template v-if="row.templated">{{ $t('dashboard.pipelines.workbench.inspector.templated') }}</template>
       </FieldInfo>
     </div>
@@ -285,6 +285,9 @@ function typed(event: Event): void {
     />
     <p v-else :id="id" class="m-0 text-sm wrap-break-word" :class="text === '' && 'text-muted-foreground'">
       {{ text || $t('dashboard.pipelines.workbench.inspector.notSet') }}
+    </p>
+    <p v-if="row.control === 'list' && row.help" data-list-help class="m-0 text-xs text-muted-foreground">
+      {{ row.help }}
     </p>
   </Field>
 </template>

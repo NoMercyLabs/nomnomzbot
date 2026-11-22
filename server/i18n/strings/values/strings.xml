@@ -3015,6 +3015,7 @@
     <string name="pipelines_block_song_skip">Skip song</string>
     <string name="pipelines_block_song_volume">Set song volume</string>
     <string name="pipelines_block_set_variable">Set variable</string>
+    <string name="pipelines_block_set_stream_info">Set stream info</string>
     <string name="pipelines_block_wait">Wait</string>
     <string name="pipelines_block_stop">Stop</string>
     <string name="pipelines_block_user_role">User role</string>
@@ -3040,6 +3041,9 @@
     <string name="pipelines_block_run_code">Run script</string>
     <string name="pipelines_block_run_pipeline">Run pipeline</string>
     <string name="pipelines_field_message">Message</string>
+    <string name="pipelines_field_title">Title</string>
+    <string name="pipelines_field_category">Category</string>
+    <string name="pipelines_field_tags">Tags</string>
     <string name="pipelines_field_user_id">User ID</string>
     <string name="pipelines_field_duration_seconds">Duration (seconds)</string>
     <string name="pipelines_field_reason">Reason</string>
@@ -5625,6 +5629,9 @@
     <string name="pipeline_set_pronoun_username_help">The viewer whose pronouns are being set.</string>
     <string name="pipeline_set_variable_name_help">The variable's name, used by later steps as {name}.</string>
     <string name="pipeline_set_variable_value_help">The value stored in the variable. Supports template variables (e.g. {user.name}).</string>
+    <string name="pipeline_set_stream_info_title_help">The new stream title. Supports template variables (e.g. {args}). Leave blank to keep the current title.</string>
+    <string name="pipeline_set_stream_info_category_help">The category to stream in. Search for it by name. Leave blank to keep the current category.</string>
+    <string name="pipeline_set_stream_info_tags_help">The tags to set; they replace the current ones. Up to 10 tags, 25 characters each, with no spaces or special characters. Leave empty to keep the current tags.</string>
     <string name="pipeline_set_viewer_data_key_help">The name of the per-viewer data field to set.</string>
     <string name="pipeline_set_viewer_data_target_help">Which viewer's data is set. Blank targets the user who triggered this pipeline.</string>
     <string name="pipeline_set_viewer_data_value_help">The value stored for this viewer. Supports template variables (e.g. {user.name}).</string>
@@ -5788,6 +5795,7 @@
     <string name="pipeline_set_counter_description">Set a named counter to a fixed value</string>
     <string name="pipeline_set_pronoun_description">Set a viewer&apos;s pronouns</string>
     <string name="pipeline_set_variable_description">Set a pipeline variable</string>
+    <string name="pipeline_set_stream_info_description">Change the stream title, category or tags</string>
     <string name="pipeline_set_viewer_data_description">Set a stored value on a viewer&apos;s profile</string>
     <string name="pipeline_shoutout_description">Give another channel a shoutout</string>
     <string name="pipeline_show_raid_recap_description">Show the stream recap on the raid recap widget</string>

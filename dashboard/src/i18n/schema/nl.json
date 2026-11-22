@@ -2298,6 +2298,18 @@
         "help": "De kijker van wie de voornaamwoorden worden ingesteld."
       }
     },
+    "set_stream_info": {
+      "category": {
+        "help": "De categorie waarin je streamt. Zoek op naam. Laat leeg om de huidige categorie te houden."
+      },
+      "description": "Wijzig de streamtitel, categorie of tags",
+      "tags": {
+        "help": "De tags die je instelt; ze vervangen de huidige. Maximaal 10 tags van 25 tekens, zonder spaties of speciale tekens. Laat leeg om de huidige tags te houden."
+      },
+      "title": {
+        "help": "De nieuwe streamtitel. Ondersteunt sjabloonvariabelen (bijv. {'{'}args{'}'}). Laat leeg om de huidige titel te houden."
+      }
+    },
     "set_variable": {
       "description": "Stel een pipelinevariabele in",
       "name": {
@@ -3556,6 +3568,7 @@
     "send_message": "Bericht versturen",
     "send_reply": "Antwoord versturen",
     "send_webhook": "Webhook versturen",
+    "set_stream_info": "Streaminfo instellen",
     "set_variable": "Variabele instellen",
     "shoutout": "Shoutout",
     "song_ban": "Nummer verbannen",
@@ -3587,6 +3600,7 @@
     "args": "Argumenten (op volgorde, {'{'}args.1{'}'}, {'{'}args.2{'}'}, …)",
     "art_mesh_tag": "Art-mesh-tag",
     "bet_amount": "Inzetbedrag",
+    "category": "Categorie",
     "clip": "Geluidsfragment",
     "code_script_id": "Script-ID",
     "color_a": "Alfa",
@@ -3653,10 +3667,12 @@
     "song_queue_max": "Max. nummers weergeven",
     "source": "Bron",
     "studio": "Studio-overgang",
+    "tags": "Tags",
     "target": "Doel",
     "target_variable": "Doelvariabele",
     "text": "Voor te lezen tekst (bijv. {'{'}args{'}'})",
     "time_seconds": "Tijd (seconden)",
+    "title": "Titel",
     "toggle": "Wisselen",
     "track_uri": "Track-URI (optioneel)",
     "transition": "Overgang",

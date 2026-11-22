@@ -1827,6 +1827,11 @@ interface NnzActionParams {
     username: string;
     pronoun: string;
   };
+  'set_stream_info': {
+    title?: string;
+    category?: string;
+    tags?: string[];
+  };
   'set_variable': {
     name: string;
     value?: string;

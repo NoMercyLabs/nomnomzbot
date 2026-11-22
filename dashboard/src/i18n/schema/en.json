@@ -2298,6 +2298,18 @@
         "help": "The viewer whose pronouns are being set."
       }
     },
+    "set_stream_info": {
+      "category": {
+        "help": "The category to stream in. Search for it by name. Leave blank to keep the current category."
+      },
+      "description": "Change the stream title, category or tags",
+      "tags": {
+        "help": "The tags to set; they replace the current ones. Up to 10 tags, 25 characters each, with no spaces or special characters. Leave empty to keep the current tags."
+      },
+      "title": {
+        "help": "The new stream title. Supports template variables (e.g. {'{'}args{'}'}). Leave blank to keep the current title."
+      }
+    },
     "set_variable": {
       "description": "Set a pipeline variable",
       "name": {
@@ -3556,6 +3568,7 @@
     "send_message": "Send message",
     "send_reply": "Send reply",
     "send_webhook": "Send webhook",
+    "set_stream_info": "Set stream info",
     "set_variable": "Set variable",
     "shoutout": "Shoutout",
     "song_ban": "Ban song",
@@ -3587,6 +3600,7 @@
     "args": "Arguments (in order, {'{'}args.1{'}'}, {'{'}args.2{'}'}, …)",
     "art_mesh_tag": "Art mesh tag",
     "bet_amount": "Bet amount",
+    "category": "Category",
     "clip": "Sound clip",
     "code_script_id": "Script ID",
     "color_a": "Alpha",
@@ -3653,10 +3667,12 @@
     "song_queue_max": "Max songs to show",
     "source": "Source",
     "studio": "Studio transition",
+    "tags": "Tags",
     "target": "Target",
     "target_variable": "Target variable",
     "text": "Text to read (e.g. {'{'}args{'}'})",
     "time_seconds": "Time (seconds)",
+    "title": "Title",
     "toggle": "Toggle",
     "track_uri": "Track URI (optional)",
     "transition": "Transition",
