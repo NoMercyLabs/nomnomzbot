@@ -142,6 +142,85 @@ public sealed class ToneTemplateCatalogIntegrityTests
     }
 
     [Fact]
+    public void Every_slot_the_core_catalogue_file_adds_ships_dutch_text()
+    {
+        // Slots of keys that the core file shares with other catalogue files are listed one by one.
+        (string, string)[] coreSlots =
+        [
+            (BuiltinResponseSlots.Lurk.Key, BuiltinResponseSlots.Lurk.AccountUnresolved),
+            (
+                BuiltinResponseSlots.AccountAge.Key,
+                BuiltinResponseSlots.AccountAge.AccountUnresolved
+            ),
+            (
+                BuiltinResponseSlots.AccountAge.Key,
+                BuiltinResponseSlots.AccountAge.TwitchUnavailable
+            ),
+            (BuiltinResponseSlots.AccountAge.Key, BuiltinResponseSlots.AccountAge.NotFound),
+            (BuiltinResponseSlots.AccountAge.Key, BuiltinResponseSlots.AccountAge.Undetermined),
+            (BuiltinResponseSlots.AccountAge.Key, BuiltinResponseSlots.AccountAge.AgeOther),
+            (BuiltinResponseSlots.AccountAge.Key, BuiltinResponseSlots.AccountAge.UserNotFound),
+            (BuiltinResponseSlots.FollowAge.Key, BuiltinResponseSlots.FollowAge.Age),
+            (BuiltinResponseSlots.FollowAge.Key, BuiltinResponseSlots.FollowAge.NotFollowing),
+            (BuiltinResponseSlots.FollowAge.Key, BuiltinResponseSlots.FollowAge.TwitchUnavailable),
+            (BuiltinResponseSlots.FollowAge.Key, BuiltinResponseSlots.FollowAge.AgeOther),
+            (BuiltinResponseSlots.FollowAge.Key, BuiltinResponseSlots.FollowAge.NotFollowingOther),
+            (BuiltinResponseSlots.FollowAge.Key, BuiltinResponseSlots.FollowAge.UserNotFound),
+            (BuiltinResponseSlots.Whisper.Key, BuiltinResponseSlots.Whisper.Sent),
+            (BuiltinResponseSlots.Whisper.Key, BuiltinResponseSlots.Whisper.SendFailed),
+            (BuiltinResponseSlots.UpdateUserInfo.Key, BuiltinResponseSlots.UpdateUserInfo.Updated),
+            (BuiltinResponseSlots.Discord.Key, BuiltinResponseSlots.Discord.Invite),
+            (BuiltinResponseSlots.Discord.Key, BuiltinResponseSlots.Discord.NotConnected),
+            (BuiltinResponseSlots.Discord.Key, BuiltinResponseSlots.Discord.Unavailable),
+            (BuiltinResponseSlots.Leaderboard.Key, BuiltinResponseSlots.Leaderboard.None),
+            (BuiltinResponseSlots.Leaderboard.Key, BuiltinResponseSlots.Leaderboard.Empty),
+            (BuiltinResponseSlots.Leaderboard.Key, BuiltinResponseSlots.Leaderboard.Top),
+            (BuiltinResponseSlots.Reward.Key, BuiltinResponseSlots.Reward.NoPermission),
+            (
+                BuiltinResponseSlots.SystemReplies.Key,
+                BuiltinResponseSlots.SystemReplies.PermissionDenied
+            ),
+            (BuiltinResponseSlots.SystemReplies.Key, BuiltinResponseSlots.SystemReplies.Cooldown),
+            (BuiltinResponseSlots.SystemReplies.Key, BuiltinResponseSlots.SystemReplies.Failed),
+            (BuiltinResponseSlots.SystemReplies.Key, BuiltinResponseSlots.SystemReplies.NothingRan),
+        ];
+        string[] gameKeys = ["coinflip", "dice", "slots"];
+        string[] gameSlots =
+        [
+            BuiltinResponseSlots.Game.Usage,
+            BuiltinResponseSlots.Game.NotEnabled,
+            BuiltinResponseSlots.Game.Unavailable,
+            BuiltinResponseSlots.Game.Won,
+            BuiltinResponseSlots.Game.Lost,
+            BuiltinResponseSlots.Game.BetOutOfRange,
+            BuiltinResponseSlots.Game.InsufficientFunds,
+            BuiltinResponseSlots.Game.AgeConsentRequired,
+            BuiltinResponseSlots.Game.NotAllowed,
+            BuiltinResponseSlots.Game.OnCooldown,
+            BuiltinResponseSlots.Game.StreamLimit,
+            BuiltinResponseSlots.Game.CurrencyDisabled,
+            BuiltinResponseSlots.Game.PlayFailed,
+        ];
+
+        List<(string BuiltinKey, string Slot)> expected =
+        [
+            .. coreSlots,
+            .. gameKeys.SelectMany(key => gameSlots.Select(slot => (key, slot))),
+        ];
+        IReadOnlyList<(string BuiltinKey, string Slot)> translated =
+            ToneTemplateCatalog.TranslatedSlots("nl");
+
+        expected.Should().HaveCount(27 + (3 * 13));
+        List<string> missing =
+        [
+            .. expected.Where(s => !translated.Contains(s)).Select(s => $"{s.BuiltinKey}/{s.Slot}"),
+        ];
+        missing
+            .Should()
+            .BeEmpty("every core slot needs Dutch text; missing: {0}", string.Join(", ", missing));
+    }
+
+    [Fact]
     public void Every_dutch_entry_fills_all_five_tones_with_the_english_shape_and_declared_variables()
     {
         TemplateHelperValidator validator = new();
