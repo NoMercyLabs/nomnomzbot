@@ -97,6 +97,8 @@ const config: MusicConfig = {
   minTrustLevel: 'everyone',
   bangerAutoCreate: false,
   bangerTarget: 'default',
+  easeVolumeUp: true,
+  easeVolumeDown: false,
   requestsOpen: true,
   maxSongSeconds: 600,
   allowExplicit: true,

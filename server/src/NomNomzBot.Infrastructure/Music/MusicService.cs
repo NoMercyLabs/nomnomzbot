@@ -68,6 +68,10 @@ public sealed class MusicService : IMusicService
     private readonly RefusedSongRequestStore _refused;
     private readonly IPlaybackInputSink _playbackInput;
     private readonly IPlaybackStateReader _playbackState;
+    private readonly TimeProvider _time;
+
+    /// <summary>The volume ease running for each channel; a newer volume change cancels and replaces it.</summary>
+    private readonly Dictionary<Guid, CancellationTokenSource> _volumeEases = [];
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -86,9 +90,11 @@ public sealed class MusicService : IMusicService
         IForeignLinkTitleLookup linkTitles,
         IPlaybackInputSink playbackInput,
         IPlaybackStateReader playbackState,
-        RefusedSongRequestStore? refused = null
+        RefusedSongRequestStore? refused = null,
+        TimeProvider? timeProvider = null
     )
     {
+        _time = timeProvider ?? TimeProvider.System;
         _playbackInput = playbackInput;
         _playbackState = playbackState;
         _refused = refused ?? new();
@@ -1590,12 +1596,139 @@ public sealed class MusicService : IMusicService
             OutboundSanction.ChannelConfiguration("music:volume_control")
         );
 
-        return await SendOwnerControlAsync(
-            tenantId,
-            provider,
-            new OwnerVolume(volume),
+        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
+        int? current = _nowPlayingCache
+            .TryGet(tenantId, NowPlayingCacheFreshness)
+            ?.Track.VolumePercent;
+        IReadOnlyList<int> steps = VolumeEaseSteps(
+            current,
+            volume,
+            config?.EaseVolumeUp ?? MusicConfigDefaults.EaseVolumeUp,
+            config?.EaseVolumeDown ?? MusicConfigDefaults.EaseVolumeDown
+        );
+
+        using CancellationTokenSource ease = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken
         );
+        ReplaceVolumeEase(tenantId, ease);
+        try
+        {
+            return await SendVolumeStepsAsync(tenantId, provider, steps, ease.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // A newer volume change replaced this ease and carries the channel to its own value.
+            return Result.Success();
+        }
+        finally
+        {
+            EndVolumeEase(tenantId, ease);
+        }
+    }
+
+    /// <summary>A volume change of more than this many points eases when its direction's setting is on.</summary>
+    private const int VolumeEaseThreshold = 10;
+
+    private const int VolumeEaseMaxSteps = 5;
+    private static readonly TimeSpan VolumeEaseStepGap = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>
+    /// The volumes to send, in order, for a change from <paramref name="current"/> to <paramref name="target"/>:
+    /// the target alone unless the current volume is known, the change is more than 10 points, and the setting
+    /// for its direction is on. Then at most 5 evenly spaced values, the last one the exact target.
+    /// </summary>
+    private static IReadOnlyList<int> VolumeEaseSteps(
+        int? current,
+        int target,
+        bool easeUp,
+        bool easeDown
+    )
+    {
+        if (current is not { } from)
+            return [target];
+
+        int distance = target - from;
+        bool eases = distance > 0 ? easeUp : easeDown;
+        if (!eases || Math.Abs(distance) <= VolumeEaseThreshold)
+            return [target];
+
+        int count = Math.Min(
+            VolumeEaseMaxSteps,
+            (int)Math.Ceiling(Math.Abs(distance) / (double)VolumeEaseThreshold)
+        );
+
+        return
+        [
+            .. Enumerable
+                .Range(1, count)
+                .Select(i =>
+                    i == count
+                        ? target
+                        : (int)
+                            Math.Round(
+                                from + (distance * i / (double)count),
+                                MidpointRounding.AwayFromZero
+                            )
+                ),
+        ];
+    }
+
+    private async Task<Result> SendVolumeStepsAsync(
+        Guid tenantId,
+        IMusicProvider provider,
+        IReadOnlyList<int> steps,
+        CancellationToken cancellationToken
+    )
+    {
+        Result result = Result.Success();
+        for (int i = 0; i < steps.Count; i++)
+        {
+            if (i > 0)
+                await Task.Delay(VolumeEaseStepGap, _time, cancellationToken);
+
+            result = await SendOwnerControlAsync(
+                tenantId,
+                provider,
+                new OwnerVolume(steps[i]),
+                cancellationToken
+            );
+            if (result.IsFailure)
+                return result;
+        }
+
+        return result;
+    }
+
+    /// <summary>Makes <paramref name="ease"/> the channel's running ease and cancels the one it replaces.</summary>
+    private void ReplaceVolumeEase(Guid tenantId, CancellationTokenSource ease)
+    {
+        CancellationTokenSource? previous;
+        lock (_volumeEases)
+        {
+            _volumeEases.Remove(tenantId, out previous);
+            _volumeEases[tenantId] = ease;
+        }
+
+        try
+        {
+            previous?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The earlier ease finished on its own between the swap and the cancel.
+        }
+    }
+
+    private void EndVolumeEase(Guid tenantId, CancellationTokenSource ease)
+    {
+        lock (_volumeEases)
+        {
+            if (
+                _volumeEases.TryGetValue(tenantId, out CancellationTokenSource? running)
+                && running == ease
+            )
+                _volumeEases.Remove(tenantId);
+        }
     }
 
     /// <summary>

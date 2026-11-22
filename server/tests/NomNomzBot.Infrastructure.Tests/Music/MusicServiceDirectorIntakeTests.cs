@@ -175,7 +175,9 @@ public sealed class MusicServiceDirectorIntakeTests
     internal static (MusicService Sut, RecordingHttpHandler Handler, DirectorRig Rig) BuildSpotify(
         NowPlayingCache? nowPlaying = null,
         RecordingEventBus? bus = null,
-        Func<DirectorRig, IPlaybackInputSink>? inputSink = null
+        Func<DirectorRig, IPlaybackInputSink>? inputSink = null,
+        IMusicConfigService? config = null,
+        TimeProvider? time = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -221,14 +223,15 @@ public sealed class MusicServiceDirectorIntakeTests
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
-            PermissiveMusicConfigService.Instance,
+            config ?? PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             nowPlaying ?? new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>(),
             inputSink?.Invoke(rig) ?? rig.Registry,
-            rig.Registry
+            rig.Registry,
+            timeProvider: time
         );
         return (sut, handler, rig);
     }

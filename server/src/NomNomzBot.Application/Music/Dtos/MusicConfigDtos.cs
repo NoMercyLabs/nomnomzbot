@@ -31,7 +31,9 @@ public sealed record MusicConfigDto(
     bool AllowExplicit = MusicConfigDefaults.AllowExplicit,
     int? PerStreamLimit = null,
     bool YouTubeMusicCategoryOnly = MusicConfigDefaults.YouTubeMusicCategoryOnly,
-    string BangerTarget = MusicConfigDefaults.BangerTarget
+    string BangerTarget = MusicConfigDefaults.BangerTarget,
+    bool EaseVolumeUp = MusicConfigDefaults.EaseVolumeUp,
+    bool EaseVolumeDown = MusicConfigDefaults.EaseVolumeDown
 );
 
 /// <summary>Request to update music configuration.</summary>
@@ -70,6 +72,12 @@ public sealed record UpdateMusicConfigDto
     /// When false, any on-demand video is admitted (fan uploads). A music.youtube.com link always counts.
     /// </summary>
     public bool? YouTubeMusicCategoryOnly { get; init; }
+
+    /// <summary>When true, a volume rise of more than 10 points eases up in steps instead of jumping.</summary>
+    public bool? EaseVolumeUp { get; init; }
+
+    /// <summary>When true, a volume drop of more than 10 points eases down in steps instead of jumping.</summary>
+    public bool? EaseVolumeDown { get; init; }
 
     public bool? AllowYouTube { get; init; }
     public bool? AllowSpotify { get; init; }

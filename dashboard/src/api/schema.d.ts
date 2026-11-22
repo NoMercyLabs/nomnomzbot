@@ -97817,6 +97817,10 @@ export interface components {
             youTubeMusicCategoryOnly: boolean;
             /** @default default */
             bangerTarget: string;
+            /** @default true */
+            easeVolumeUp: boolean;
+            /** @default false */
+            easeVolumeDown: boolean;
         };
         MusicDevice: {
             id: string;
@@ -108920,6 +108924,10 @@ export interface components {
              *     When false, any on-demand video is admitted (fan uploads). A music.youtube.com link always counts.
              */
             youTubeMusicCategoryOnly?: null | boolean;
+            /** @description When true, a volume rise of more than 10 points eases up in steps instead of jumping. */
+            easeVolumeUp?: null | boolean;
+            /** @description When true, a volume drop of more than 10 points eases down in steps instead of jumping. */
+            easeVolumeDown?: null | boolean;
             allowYouTube?: null | boolean;
             allowSpotify?: null | boolean;
             /** @description Ignored. Who may request is set per source (`music:request:*`); kept so old clients still compile. */

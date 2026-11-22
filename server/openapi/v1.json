@@ -127289,6 +127289,14 @@
           "bangerTarget": {
             "type": "string",
             "default": "default"
+          },
+          "easeVolumeUp": {
+            "type": "boolean",
+            "default": true
+          },
+          "easeVolumeDown": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "Music configuration for a channel."
@@ -159945,6 +159953,20 @@
               "boolean"
             ],
             "description": "When true, a YouTube upload must sit in the Music category or come from a \"- Topic\" artist channel.\r\nWhen false, any on-demand video is admitted (fan uploads). A music.youtube.com link always counts."
+          },
+          "easeVolumeUp": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "When true, a volume rise of more than 10 points eases up in steps instead of jumping."
+          },
+          "easeVolumeDown": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "When true, a volume drop of more than 10 points eases down in steps instead of jumping."
           },
           "allowYouTube": {
             "type": [

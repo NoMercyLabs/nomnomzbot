@@ -165,6 +165,9 @@
           }
         },
         "open": "Requests are open",
+        "easeVolumeUp": "Ease volume up",
+        "easeVolumeDown": "Ease volume down",
+        "easeVolumeHelp": "A volume change of more than 10 points moves in steps instead of jumping.",
         "queueSize": "Songs in the queue, at most",
         "songSeconds": "Longest song (minutes:seconds)",
         "perStream": "Songs per person per stream",

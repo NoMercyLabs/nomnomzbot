@@ -86,6 +86,18 @@ function setRequestsOpen(open: boolean): void {
   save.mutate({ requestsOpen: open });
 }
 
+// The two volume-ease switches save at once, like the header switch; the rules draft never carries them.
+const easeUp = computed<boolean>(() => configQuery.data.value?.easeVolumeUp === true);
+const easeDown = computed<boolean>(() => configQuery.data.value?.easeVolumeDown === true);
+
+function setEaseUp(on: boolean): void {
+  save.mutate({ easeVolumeUp: on });
+}
+
+function setEaseDown(on: boolean): void {
+  save.mutate({ easeVolumeDown: on });
+}
+
 function saveRules(): void {
   if (dirty.value) {
     save.mutate(change.value);
@@ -140,6 +152,24 @@ function discard(): void {
         @update:model-value="setRequestsOpen"
       />
     </template>
+    <div v-if="draft" class="mb-4 flex flex-wrap gap-x-6 gap-y-2" data-music-ease>
+      <LabeledSwitch
+        :label="$t('dashboard.music.rules.easeVolumeUp')"
+        :help="$t('dashboard.music.rules.easeVolumeHelp')"
+        action="music:config:write"
+        :model-value="easeUp"
+        data-setting="ease-volume-up"
+        @update:model-value="setEaseUp"
+      />
+      <LabeledSwitch
+        :label="$t('dashboard.music.rules.easeVolumeDown')"
+        :help="$t('dashboard.music.rules.easeVolumeHelp')"
+        action="music:config:write"
+        :model-value="easeDown"
+        data-setting="ease-volume-down"
+        @update:model-value="setEaseDown"
+      />
+    </div>
     <Tabs v-if="draft" v-model="tab" class="gap-4">
       <TabsList class="w-full">
         <TabsTrigger v-for="name in tabs" :key="name" :value="name" :data-rules-tab="name">

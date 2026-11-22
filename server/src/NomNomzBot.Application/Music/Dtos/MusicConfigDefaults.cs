@@ -30,4 +30,6 @@ public static class MusicConfigDefaults
     public const string MinTrustLevel = "everyone";
     public const bool BangerAutoCreate = false;
     public const string BangerTarget = BangerTargets.Default;
+    public const bool EaseVolumeUp = true;
+    public const bool EaseVolumeDown = false;
 }

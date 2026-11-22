@@ -112,6 +112,10 @@ public class MusicConfigService : IMusicConfigService
             current.BangerAutoCreate = request.BangerAutoCreate.Value;
         if (request.BangerTarget is not null)
             current.BangerTarget = request.BangerTarget;
+        if (request.EaseVolumeUp.HasValue)
+            current.EaseVolumeUp = request.EaseVolumeUp.Value;
+        if (request.EaseVolumeDown.HasValue)
+            current.EaseVolumeDown = request.EaseVolumeDown.Value;
 
         string json = JsonSerializer.Serialize(current);
 
@@ -195,7 +199,9 @@ public class MusicConfigService : IMusicConfigService
             d.AllowExplicit,
             d.PerStreamLimit,
             d.YouTubeMusicCategoryOnly,
-            d.BangerTarget
+            d.BangerTarget,
+            d.EaseVolumeUp,
+            d.EaseVolumeDown
         );
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
@@ -221,6 +227,8 @@ public class MusicConfigService : IMusicConfigService
         public string? BangerPlaylistProvider { get; set; }
         public bool BangerAutoCreate { get; set; } = MusicConfigDefaults.BangerAutoCreate;
         public string BangerTarget { get; set; } = MusicConfigDefaults.BangerTarget;
+        public bool EaseVolumeUp { get; set; } = MusicConfigDefaults.EaseVolumeUp;
+        public bool EaseVolumeDown { get; set; } = MusicConfigDefaults.EaseVolumeDown;
         public Dictionary<string, int> MaxRequestsPerRole { get; set; } = new();
     }
 }

@@ -410,6 +410,38 @@ describe('RulesPanel', () => {
     expect(puts()[0]!.body).toEqual({ requestsOpen: false });
   });
 
+  it('shows the two volume-ease switches as the config has them and saves each flip on its own', async () => {
+    config = {
+      ...baseConfig(),
+      easeVolumeUp: true,
+      easeVolumeDown: false,
+    };
+
+    await open();
+
+    const rowOf = (setting: string) =>
+      document.body.querySelector<HTMLElement>(`[data-setting="${setting}"]`);
+    const switchOf = (setting: string) =>
+      rowOf(setting)?.querySelector<HTMLButtonElement>('button[role="switch"]');
+
+    expect(rowOf('ease-volume-up')?.textContent).toContain('Ease volume up');
+    expect(rowOf('ease-volume-down')?.textContent).toContain('Ease volume down');
+    expect(switchOf('ease-volume-up')?.getAttribute('aria-checked')).toBe('true');
+    expect(switchOf('ease-volume-down')?.getAttribute('aria-checked')).toBe('false');
+
+    switchOf('ease-volume-up')?.click();
+    await settle();
+
+    expect(puts()).toHaveLength(1);
+    expect(puts()[0]!.body).toEqual({ easeVolumeUp: false });
+
+    switchOf('ease-volume-down')?.click();
+    await settle();
+
+    expect(puts()).toHaveLength(2);
+    expect(puts()[1]!.body).toEqual({ easeVolumeDown: true });
+  });
+
   // Stoney 2026-10-19: "i also don't need the same button twice lol". The panel has one switch about requests;
   // the master music on/off lives on the music page.
   it('renders exactly one switch about requests and no music on/off switch', async () => {
