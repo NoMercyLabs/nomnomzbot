@@ -2302,10 +2302,22 @@
       }
     },
     "set_stream_info": {
+      "branded_content": {
+        "help": "Zet aan als de stream betaalde promotie heeft, zoals een sponsor. Kies uit om het te wissen. Laat leeg om de huidige instelling te houden."
+      },
       "category": {
         "help": "De categorie waarin je streamt. Zoek op naam. Laat leeg om de huidige categorie te houden."
       },
-      "description": "Wijzig de streamtitel, categorie of tags",
+      "description": "Wijzig de streamtitel, categorie, tags, taal, inhoudslabels of gesponsorde inhoud",
+      "labels_off": {
+        "help": "De inhoudslabels die je uitzet. Labels die je niet kiest, houden hun huidige stand. Een label kan niet in beide lijsten staan."
+      },
+      "labels_on": {
+        "help": "De inhoudslabels die je aanzet, zoals Gambling of Sexual Themes. Labels die je niet kiest, houden hun huidige stand."
+      },
+      "language": {
+        "help": "De taal waarin je streamt, als code van twee letters, zoals en of nl. Gebruik other voor een taal zonder code. Laat leeg om de huidige taal te houden."
+      },
       "tags": {
         "help": "De tags die je instelt; ze vervangen de huidige. Maximaal 10 tags van 25 tekens, zonder spaties of speciale tekens. Laat leeg om de huidige tags te houden."
       },

@@ -2302,10 +2302,22 @@
       }
     },
     "set_stream_info": {
+      "branded_content": {
+        "help": "Turn on if the stream has paid promotion, such as a sponsor. Choose off to clear it. Leave blank to keep the current setting."
+      },
       "category": {
         "help": "The category to stream in. Search for it by name. Leave blank to keep the current category."
       },
-      "description": "Change the stream title, category or tags",
+      "description": "Change the stream title, category, tags, language, content labels or branded content",
+      "labels_off": {
+        "help": "The content labels to turn off. Labels you do not pick keep their current setting. A label cannot be in both lists."
+      },
+      "labels_on": {
+        "help": "The content labels to turn on, such as Gambling or Sexual Themes. Labels you do not pick keep their current setting."
+      },
+      "language": {
+        "help": "The language you stream in, as a two-letter code such as en or nl. Use other for a language without a code. Leave blank to keep the current language."
+      },
       "tags": {
         "help": "The tags to set; they replace the current ones. Up to 10 tags, 25 characters each, with no spaces or special characters. Leave empty to keep the current tags."
       },
