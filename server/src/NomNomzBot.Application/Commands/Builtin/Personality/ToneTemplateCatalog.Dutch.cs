@@ -88,5 +88,7 @@ public static partial class ToneTemplateCatalog
             ],
             chill: ["offline nu.", "even niet live.", "we zijn uit. tot later."]
         );
+
+        AddDutchMusicSlots(catalog);
     }
 }

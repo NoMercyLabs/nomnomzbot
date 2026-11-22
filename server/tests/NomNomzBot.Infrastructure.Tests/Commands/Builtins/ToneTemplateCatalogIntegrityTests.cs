@@ -49,6 +49,61 @@ public sealed class ToneTemplateCatalogIntegrityTests
     }
 
     [Fact]
+    public void Every_slot_the_music_catalogue_file_adds_ships_dutch_text()
+    {
+        string[] musicKeys =
+        [
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.Skip.Key,
+            BuiltinResponseSlots.BanSong.Key,
+            BuiltinResponseSlots.Volume.Key,
+            BuiltinResponseSlots.CloseQueue.Key,
+            BuiltinResponseSlots.OpenQueue.Key,
+            BuiltinResponseSlots.ClearSongs.Key,
+            BuiltinResponseSlots.Banger.Key,
+            BuiltinResponseSlots.Pause.Key,
+            BuiltinResponseSlots.Resume.Key,
+            BuiltinResponseSlots.Playlist.Key,
+        ];
+        // Slots of the music keys that the core catalogue file adds, not the music file.
+        (string, string)[] coreFileSlots =
+        [
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.Added),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.Duplicate),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.AlreadyPlaying),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.NotFound),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.NoCloseMatch),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequestErrors.Disabled),
+            (BuiltinResponseSlots.Skip.Key, BuiltinResponseSlots.Skip.Skipped),
+            (BuiltinResponseSlots.BanSong.Key, BuiltinResponseSlots.BanSong.Nothing),
+            (BuiltinResponseSlots.BanSong.Key, BuiltinResponseSlots.BanSong.CouldNotBan),
+            (BuiltinResponseSlots.Volume.Key, BuiltinResponseSlots.Volume.Usage),
+            (BuiltinResponseSlots.Volume.Key, BuiltinResponseSlots.Volume.CannotRead),
+        ];
+
+        List<(string BuiltinKey, string Slot)> musicSlots =
+        [
+            .. ToneTemplateCatalog
+                .AllSlots()
+                .Where(s => musicKeys.Contains(s.BuiltinKey))
+                .Where(s => !coreFileSlots.Contains((s.BuiltinKey, s.Slot))),
+        ];
+        IReadOnlyList<(string BuiltinKey, string Slot)> translated =
+            ToneTemplateCatalog.TranslatedSlots("nl");
+
+        musicSlots.Should().HaveCountGreaterThan(70);
+        List<string> missing =
+        [
+            .. musicSlots
+                .Where(s => !translated.Contains(s))
+                .Select(s => $"{s.BuiltinKey}/{s.Slot}"),
+        ];
+        missing
+            .Should()
+            .BeEmpty("every music slot needs Dutch text; missing: {0}", string.Join(", ", missing));
+    }
+
+    [Fact]
     public void Every_dutch_entry_fills_all_five_tones_with_the_english_shape_and_declared_variables()
     {
         TemplateHelperValidator validator = new();
