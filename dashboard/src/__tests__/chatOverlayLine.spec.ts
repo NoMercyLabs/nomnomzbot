@@ -22,8 +22,14 @@ type Handler = (data: unknown) => void;
 
 const handlers: Record<string, Handler> = {};
 
+const settingsListeners: ((settings: Record<string, unknown>) => void)[] = [];
+
 const sdk = {
-  onSettings: () => sdk,
+  onSettings: (cb: (settings: Record<string, unknown>) => void) => {
+    settingsListeners.push(cb);
+
+    return sdk;
+  },
   on: (type: string, cb: Handler) => {
     handlers[type] = cb;
 
@@ -92,7 +98,12 @@ function show(widget: typeof ChatBox | typeof ChatOverlay, line: Line): VueWrapp
   return wrapper;
 }
 
+function sendSettings(settings: Record<string, unknown>): void {
+  settingsListeners.forEach((cb) => cb(settings));
+}
+
 beforeEach(() => {
+  settingsListeners.splice(0);
   vi.useFakeTimers();
   vi.stubGlobal('NomNomz', sdk);
 });
@@ -187,6 +198,71 @@ describe('the chat box widget draws the bot overlay line', () => {
 
     expect(wrapper.find('.line').attributes('data-highlight')).toBeUndefined();
     expect(wrapper.find('.requested-by').exists()).toBe(false);
+  });
+});
+
+describe('the chat box widget role badge option', () => {
+  const moderatorLine = botLine(null, {
+    userType: 'viewer',
+    displayName: 'Mod One',
+    isModerator: true,
+  });
+
+  const plainLine = botLine(null, {
+    userType: 'viewer',
+    displayName: 'Viewer Two',
+  });
+
+  it('draws no role badge by default', async () => {
+    const wrapper = show(ChatBox, moderatorLine);
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find('.role-badge').exists()).toBe(false);
+  });
+
+  it('draws one badge with the role in front of the name when the option is on', async () => {
+    const wrapper = mount(ChatBox);
+
+    wrappers.push(wrapper);
+    sendSettings({ showRoleBadge: true });
+    handlers.ChatMessage!(moderatorLine);
+    await vi.advanceTimersByTimeAsync(0);
+
+    const badges = wrapper.findAll('.line .role-badge');
+
+    expect(badges).toHaveLength(1);
+    expect(badges[0]!.text()).toBe('moderator');
+    expect(badges[0]!.classes()).toContain('role-badge-moderator');
+    expect(wrapper.find('.head').text()).toContain('moderatorMod One');
+  });
+
+  it('draws no badge on a line without a role, even when the option is on', async () => {
+    const wrapper = mount(ChatBox);
+
+    wrappers.push(wrapper);
+    sendSettings({ showRoleBadge: true });
+    handlers.ChatMessage!(plainLine);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find('.line').exists()).toBe(true);
+    expect(wrapper.find('.role-badge').exists()).toBe(false);
+  });
+
+  it('removes the badge again when the option goes back to off', async () => {
+    const wrapper = mount(ChatBox);
+
+    wrappers.push(wrapper);
+    sendSettings({ showRoleBadge: true });
+    handlers.ChatMessage!(moderatorLine);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.findAll('.role-badge')).toHaveLength(1);
+
+    sendSettings({ showRoleBadge: false });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find('.role-badge').exists()).toBe(false);
   });
 });
 

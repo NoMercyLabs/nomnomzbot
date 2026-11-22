@@ -242,6 +242,7 @@ public static class FirstPartyWidgetCatalogue
                 ["maxMessages"] = 12,
                 ["fadeAfterMs"] = 0,
                 ["showBadges"] = true,
+                ["showRoleBadge"] = false,
                 ["showEmotes"] = true,
                 // Default true — matches the always-on behaviour before this toggle existed, so shipping it is
                 // never a silent regression for a channel already relying on painted names.

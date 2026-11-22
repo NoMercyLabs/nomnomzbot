@@ -128,6 +128,18 @@ public sealed class WidgetSettingsSchemaTests
     }
 
     [Fact]
+    public void The_chat_box_role_badge_is_an_off_by_default_bool()
+    {
+        WidgetSettingsField field = Provider
+            .GetByKey("chat_box")!
+            .Fields.Single(f => f.Key == "showRoleBadge");
+
+        field.Type.Should().Be("bool");
+        field.Default.Should().Be(false);
+        field.Label.Key.Should().Be("widget.chat_box.showRoleBadge.label");
+    }
+
+    [Fact]
     public void Every_first_party_widget_type_has_a_schema()
     {
         HashSet<string> schematised = [.. Provider.GetAll().Select(s => s.WidgetKey)];

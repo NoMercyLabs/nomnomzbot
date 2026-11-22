@@ -2890,6 +2890,9 @@
       "showEmotes": {
         "label": "Emotes tonen"
       },
+      "showRoleBadge": {
+        "label": "Rolbadge tonen"
+      },
       "showSevenTvPaints": {
         "label": "7TV-naamkleuren tonen"
       },

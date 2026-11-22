@@ -19,6 +19,7 @@ interface ChatBoxConfig {
   maxMessages: number
   fadeAfterMs: number    // 0 = never fade
   showBadges: boolean
+  showRoleBadge: boolean // a small uppercase role label before the name; off by default
   showEmotes: boolean
   showSevenTvPaints: boolean // false = names fall back to plain chat colour even when a paint resolved
   hideCommands: boolean  // drop messages starting with '!'
@@ -36,6 +37,7 @@ const cfg = reactive<ChatBoxConfig>({
   maxMessages: 12,
   fadeAfterMs: 0,
   showBadges: true,
+  showRoleBadge: false,
   showEmotes: true,
   showSevenTvPaints: true,
   hideCommands: true,
@@ -424,6 +426,7 @@ onMounted(() => {
     if (isFinite(Number(s.maxMessages)) && Number(s.maxMessages) > 0) cfg.maxMessages = Number(s.maxMessages)
     if (isFinite(Number(s.fadeAfterMs)) && Number(s.fadeAfterMs) >= 0) cfg.fadeAfterMs = Number(s.fadeAfterMs)
     if (typeof s.showBadges === 'boolean') cfg.showBadges = s.showBadges
+    if (typeof s.showRoleBadge === 'boolean') cfg.showRoleBadge = s.showRoleBadge
     if (typeof s.showEmotes === 'boolean') cfg.showEmotes = s.showEmotes
     if (typeof s.showSevenTvPaints === 'boolean') cfg.showSevenTvPaints = s.showSevenTvPaints
     if (typeof s.hideCommands === 'boolean') cfg.hideCommands = s.hideCommands
@@ -475,7 +478,9 @@ onUnmounted(() => {
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
         <span v-if="l.provider !== 'twitch'" class="platform" :class="'platform-' + l.provider">{{ PROVIDER_LABEL[l.provider] || l.provider }}</span>
         <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
-        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">        <span class="name">{{ l.name }}</span>
+        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
+        <span v-if="cfg.showRoleBadge && l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
+        <span class="name">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
         <span v-if="l.isCheer && l.bitsAmount > 0" class="line-cheer-bits">{{ l.bitsAmount }} bits</span>
       </span>
@@ -596,6 +601,29 @@ onUnmounted(() => {
   font-size: 0.8em;
   line-height: 1.2;
   opacity: 0.7;
+}
+/* A label, not an action: its radius is the inner radius halved, always smaller than the line's own. */
+.role-badge {
+  font-size: 0.65em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: calc(var(--nnz-radius-inner) / 2);
+  color: #fff; /* theme-exempt: white on Twitch's own role colors */
+  flex: none;
+}
+.role-badge-broadcaster {
+  background: #e91916; /* theme-exempt: Twitch's broadcaster role color */
+}
+.role-badge-moderator {
+  background: #00ad03; /* theme-exempt: Twitch's moderator role color */
+}
+.role-badge-vip {
+  background: #e005b9; /* theme-exempt: Twitch's VIP role color */
+}
+.role-badge-subscriber {
+  background: #9146ff; /* theme-exempt: Twitch's subscriber role color */
 }
 .line-cheer-bits {
   font-size: 0.75em;

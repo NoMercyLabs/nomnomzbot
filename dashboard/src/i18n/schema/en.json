@@ -2890,6 +2890,9 @@
       "showEmotes": {
         "label": "Show emotes"
       },
+      "showRoleBadge": {
+        "label": "Show role badge"
+      },
       "showSevenTvPaints": {
         "label": "Show 7TV name colors"
       },

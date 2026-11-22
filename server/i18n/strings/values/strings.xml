@@ -5173,6 +5173,7 @@
     <string name="widget_chat_box_maxMessages_label">Max messages</string>
     <string name="widget_chat_box_fadeAfterMs_label">Fade after (ms, 0 = never)</string>
     <string name="widget_chat_box_showBadges_label">Show badges</string>
+    <string name="widget_chat_box_showRoleBadge_label">Show role badge</string>
     <string name="widget_chat_box_showEmotes_label">Show emotes</string>
     <string name="widget_chat_box_showSevenTvPaints_label">Show 7TV name colors</string>
     <string name="widget_chat_box_hideCommands_label">Hide command messages</string>
