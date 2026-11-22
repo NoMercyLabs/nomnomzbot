@@ -104,6 +104,44 @@ public sealed class ToneTemplateCatalogIntegrityTests
     }
 
     [Fact]
+    public void Every_slot_the_community_catalogue_file_adds_ships_dutch_text()
+    {
+        // The community file adds these builtins; the whitelist and mass-ban slots live in their own files.
+        string[] communityKeys =
+        [
+            BuiltinResponseSlots.Forgetme.Key,
+            BuiltinResponseSlots.Shoutout.Key,
+            BuiltinResponseSlots.Stats.Key,
+            BuiltinResponseSlots.Quote.Key,
+            BuiltinResponseSlots.Voice.Key,
+            BuiltinResponseSlots.Media.Key,
+            BuiltinResponseSlots.Permit.Key,
+            BuiltinResponseSlots.Unpermit.Key,
+        ];
+
+        List<(string BuiltinKey, string Slot)> communitySlots =
+        [
+            .. ToneTemplateCatalog.AllSlots().Where(s => communityKeys.Contains(s.BuiltinKey)),
+        ];
+        IReadOnlyList<(string BuiltinKey, string Slot)> translated =
+            ToneTemplateCatalog.TranslatedSlots("nl");
+
+        communitySlots.Should().HaveCountGreaterThan(70);
+        List<string> missing =
+        [
+            .. communitySlots
+                .Where(s => !translated.Contains(s))
+                .Select(s => $"{s.BuiltinKey}/{s.Slot}"),
+        ];
+        missing
+            .Should()
+            .BeEmpty(
+                "every community slot needs Dutch text; missing: {0}",
+                string.Join(", ", missing)
+            );
+    }
+
+    [Fact]
     public void Every_dutch_entry_fills_all_five_tones_with_the_english_shape_and_declared_variables()
     {
         TemplateHelperValidator validator = new();

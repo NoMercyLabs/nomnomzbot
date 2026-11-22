@@ -90,5 +90,6 @@ public static partial class ToneTemplateCatalog
         );
 
         AddDutchMusicSlots(catalog);
+        AddDutchCommunitySlots(catalog);
     }
 }
