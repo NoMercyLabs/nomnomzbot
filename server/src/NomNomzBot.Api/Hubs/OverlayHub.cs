@@ -56,6 +56,7 @@ public class OverlayHub : Hub<IOverlayClient>
     private readonly IReadOnlyList<IWidgetSeedProvider> _seedProviders;
     private readonly ILogger<OverlayHub> _logger;
     private readonly IPlaybackInputSink? _playback;
+    private readonly NowPlayingSeed? _nowPlaying;
 
     public OverlayHub(
         IApplicationDbContext db,
@@ -67,10 +68,12 @@ public class OverlayHub : Hub<IOverlayClient>
         IEventBus eventBus,
         IEnumerable<IWidgetSeedProvider> seedProviders,
         ILogger<OverlayHub> logger,
-        IPlaybackInputSink? playback = null
+        IPlaybackInputSink? playback = null,
+        NowPlayingSeed? nowPlaying = null
     )
     {
         _playback = playback;
+        _nowPlaying = nowPlaying;
         _seedProviders = seedProviders.ToList();
         _db = db;
         _widgetService = widgetService;
@@ -339,7 +342,30 @@ public class OverlayHub : Hub<IOverlayClient>
             _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
         else
             _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
+
+        if (subscribed.Contains(NowPlayingEventKey))
+            await SendCurrentSongAsync(widgetId, broadcasterId);
         return true;
+    }
+
+    // The page just registered its now_playing handler: it gets the current song now, not at the next change.
+    private async Task SendCurrentSongAsync(string widgetId, Guid broadcasterId)
+    {
+        if (_nowPlaying is null)
+            return;
+        try
+        {
+            NowPlayingWidgetPayload? current = await _nowPlaying.CurrentAsync(
+                broadcasterId,
+                Context.ConnectionAborted
+            );
+            if (current is not null)
+                await Clients.Caller.WidgetEvent(new(widgetId, NowPlayingEventKey, current));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Now-playing seed failed for widget {W}", widgetId);
+        }
     }
 
     // The events a first-party widget gets whatever its page registers (the server acts on them, such as the

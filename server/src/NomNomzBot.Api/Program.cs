@@ -152,6 +152,7 @@ try
         NomNomzBot.Application.Widgets.Services.IWidgetSeedProvider,
         MediaShareSeedProvider
     >();
+    builder.Services.AddScoped<NowPlayingSeed>();
     builder.Services.AddSingleton<PollPredictionStateStore>();
     builder.Services.AddScoped<
         NomNomzBot.Application.Widgets.Services.IWidgetSeedProvider,
