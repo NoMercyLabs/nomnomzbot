@@ -65,28 +65,10 @@ public sealed class ToneTemplateCatalogIntegrityTests
             BuiltinResponseSlots.Resume.Key,
             BuiltinResponseSlots.Playlist.Key,
         ];
-        // Slots of the music keys that the core catalogue file adds, not the music file.
-        (string, string)[] coreFileSlots =
-        [
-            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.Added),
-            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.Duplicate),
-            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.AlreadyPlaying),
-            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.NotFound),
-            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.NoCloseMatch),
-            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequestErrors.Disabled),
-            (BuiltinResponseSlots.Skip.Key, BuiltinResponseSlots.Skip.Skipped),
-            (BuiltinResponseSlots.BanSong.Key, BuiltinResponseSlots.BanSong.Nothing),
-            (BuiltinResponseSlots.BanSong.Key, BuiltinResponseSlots.BanSong.CouldNotBan),
-            (BuiltinResponseSlots.Volume.Key, BuiltinResponseSlots.Volume.Usage),
-            (BuiltinResponseSlots.Volume.Key, BuiltinResponseSlots.Volume.CannotRead),
-        ];
 
         List<(string BuiltinKey, string Slot)> musicSlots =
         [
-            .. ToneTemplateCatalog
-                .AllSlots()
-                .Where(s => musicKeys.Contains(s.BuiltinKey))
-                .Where(s => !coreFileSlots.Contains((s.BuiltinKey, s.Slot))),
+            .. ToneTemplateCatalog.AllSlots().Where(s => musicKeys.Contains(s.BuiltinKey)),
         ];
         IReadOnlyList<(string BuiltinKey, string Slot)> translated =
             ToneTemplateCatalog.TranslatedSlots("nl");
@@ -139,6 +121,83 @@ public sealed class ToneTemplateCatalogIntegrityTests
                 "every community slot needs Dutch text; missing: {0}",
                 string.Join(", ", missing)
             );
+    }
+
+    [Fact]
+    public void Every_slot_the_base_catalogue_file_adds_ships_dutch_text()
+    {
+        // The slots that ToneTemplateCatalog.cs itself adds (the two uptime slots have their own test above).
+        (string, string)[] baseSlots =
+        [
+            (BuiltinResponseSlots.Uptime.Key, BuiltinResponseSlots.Uptime.Live),
+            (BuiltinResponseSlots.Uptime.Key, BuiltinResponseSlots.Uptime.Offline),
+            (BuiltinResponseSlots.Song.Key, BuiltinResponseSlots.Song.Playing),
+            (BuiltinResponseSlots.Song.Key, BuiltinResponseSlots.Song.Nothing),
+            (BuiltinResponseSlots.Queue.Key, BuiltinResponseSlots.Queue.List),
+            (BuiltinResponseSlots.Queue.Key, BuiltinResponseSlots.Queue.Empty),
+            (BuiltinResponseSlots.Queue.Key, BuiltinResponseSlots.Queue.Mine),
+            (BuiltinResponseSlots.Queue.Key, BuiltinResponseSlots.Queue.None),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.Added),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.Duplicate),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.AlreadyPlaying),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.NotFound),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequest.NoCloseMatch),
+            (BuiltinResponseSlots.SongRequest.Key, BuiltinResponseSlots.SongRequestErrors.Disabled),
+            (BuiltinResponseSlots.Skip.Key, BuiltinResponseSlots.Skip.Skipped),
+            (BuiltinResponseSlots.Commands.Key, BuiltinResponseSlots.Commands.List),
+            (BuiltinResponseSlots.Commands.Key, BuiltinResponseSlots.Commands.Empty),
+            (BuiltinResponseSlots.Help.Key, BuiltinResponseSlots.Help.Described),
+            (BuiltinResponseSlots.Help.Key, BuiltinResponseSlots.Help.Usage),
+            (BuiltinResponseSlots.Help.Key, BuiltinResponseSlots.Help.Unknown),
+            (BuiltinResponseSlots.Help.Key, BuiltinResponseSlots.Help.NoDescription),
+            (BuiltinResponseSlots.Lurk.Key, BuiltinResponseSlots.Lurk.Lurking),
+            (BuiltinResponseSlots.Lurk.Key, BuiltinResponseSlots.Lurk.NotLurking),
+            (BuiltinResponseSlots.AccountAge.Key, BuiltinResponseSlots.AccountAge.Age),
+            (BuiltinResponseSlots.Whisper.Key, BuiltinResponseSlots.Whisper.Usage),
+            (BuiltinResponseSlots.Whisper.Key, BuiltinResponseSlots.Whisper.NotFound),
+            (BuiltinResponseSlots.Whisper.Key, BuiltinResponseSlots.Whisper.TwitchUnavailable),
+            (BuiltinResponseSlots.Whisper.Key, BuiltinResponseSlots.Whisper.NotAvailable),
+            (BuiltinResponseSlots.Whisper.Key, BuiltinResponseSlots.Whisper.CapReached),
+            (BuiltinResponseSlots.BanSong.Key, BuiltinResponseSlots.BanSong.Nothing),
+            (BuiltinResponseSlots.BanSong.Key, BuiltinResponseSlots.BanSong.CouldNotBan),
+            (BuiltinResponseSlots.UpdateUserInfo.Key, BuiltinResponseSlots.UpdateUserInfo.NotFound),
+            (
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.TwitchUnavailable
+            ),
+            (
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.UpdateFailed
+            ),
+            (
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.LoginUnresolved
+            ),
+            (
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.OwnInfoOnly
+            ),
+            (BuiltinResponseSlots.Volume.Key, BuiltinResponseSlots.Volume.Usage),
+            (BuiltinResponseSlots.Volume.Key, BuiltinResponseSlots.Volume.CannotRead),
+            ("coinflip", BuiltinResponseSlots.Game.AccountUnresolved),
+            ("dice", BuiltinResponseSlots.Game.AccountUnresolved),
+            ("slots", BuiltinResponseSlots.Game.AccountUnresolved),
+            (BuiltinResponseSlots.BotStatus.Key, BuiltinResponseSlots.BotStatus.GoingOffline),
+            (BuiltinResponseSlots.BotStatus.Key, BuiltinResponseSlots.BotStatus.ConnectionLost),
+            (BuiltinResponseSlots.BotStatus.Key, BuiltinResponseSlots.BotStatus.ConnectionRestored),
+        ];
+        IReadOnlyList<(string BuiltinKey, string Slot)> translated =
+            ToneTemplateCatalog.TranslatedSlots("nl");
+
+        baseSlots.Should().HaveCount(44);
+        baseSlots.Should().OnlyContain(s => ToneTemplateCatalog.Contains(s.Item1, s.Item2));
+        List<string> missing =
+        [
+            .. baseSlots.Where(s => !translated.Contains(s)).Select(s => $"{s.Item1}/{s.Item2}"),
+        ];
+        missing
+            .Should()
+            .BeEmpty("every base slot needs Dutch text; missing: {0}", string.Join(", ", missing));
     }
 
     [Fact]
