@@ -213,6 +213,8 @@ public sealed record TtsSpokenEmotes(IReadOnlyList<string> Codes, string? OwnerL
 /// <param name="SpeakerTwitchUserId">The platform user id whose saved voice a <see cref="TtsSpeaker.Viewer"/> part uses.</param>
 /// <param name="VolumePercent">Optional loudness change (percent, clamped by the provider).</param>
 /// <param name="Stressed">These words carry the stress; a provider that cannot stress speaks them plain.</param>
+/// <param name="Style">Optional speaking style for this part.</param>
+/// <param name="SayAs">Optional reading form for this part.</param>
 public sealed record TtsSpeakSegment(
     string Text,
     string? VoiceId = null,
@@ -222,7 +224,9 @@ public sealed record TtsSpeakSegment(
     TtsSpeaker? Speaker = null,
     string? SpeakerTwitchUserId = null,
     double? VolumePercent = null,
-    bool Stressed = false
+    bool Stressed = false,
+    string? Style = null,
+    string? SayAs = null
 );
 
 /// <summary>Whose words a TTS line carries; picks the voice (see <see cref="TtsSpeakRequest.Speaker"/>).</summary>

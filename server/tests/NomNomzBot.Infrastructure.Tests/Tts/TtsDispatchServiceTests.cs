@@ -2372,7 +2372,17 @@ public sealed class TtsDispatchServiceTests
             Speak("ignored when segments are set") with
             {
                 AssignVoiceIfMissing = false,
-                Segments = [new("not a fix", VolumePercent: 20, Stressed: true), new("plain")],
+                Segments =
+                [
+                    new(
+                        "not a fix",
+                        VolumePercent: 20,
+                        Stressed: true,
+                        Style: "cheerful",
+                        SayAs: "cardinal"
+                    ),
+                    new("plain"),
+                ],
             }
         );
 
@@ -2380,7 +2390,14 @@ public sealed class TtsDispatchServiceTests
         SentSegments(h)
             .Should()
             .Equal(
-                new TtsSegment("not a fix", "default-voice", VolumePercent: 20, Stressed: true),
+                new TtsSegment(
+                    "not a fix",
+                    "default-voice",
+                    VolumePercent: 20,
+                    Stressed: true,
+                    Style: "cheerful",
+                    SayAs: "cardinal"
+                ),
                 new TtsSegment("plain", "default-voice")
             );
     }

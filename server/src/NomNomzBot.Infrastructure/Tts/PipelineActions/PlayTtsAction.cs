@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Domain.Tts.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Tts.PipelineActions;
 
@@ -456,7 +457,7 @@ public sealed class PlayTtsAction : ICommandAction
 
     /// <summary>
     /// Reads the <c>segments</c> field — a JSON array (or JSON text of one) of
-    /// blocks. A text block is <c>{text, voice, rate, pitch, volume, stress, breakAfterMs}</c>; a pause block is
+    /// blocks. A text block is <c>{text, voice, rate, pitch, volume, stress, style, sayAs, breakAfterMs}</c>; a pause block is
     /// <c>{pause}</c>. Blocks combine in any order. Every value goes through the template resolver, or the whole
     /// list comes from one variable. Returns the error message instead of segments when the field is not a non-empty array
     /// of objects that each carry <c>text</c>, or a rate/pitch is not a number.
@@ -539,6 +540,22 @@ public sealed class PlayTtsAction : ICommandAction
                     );
 
                 string stress = await ResolveFieldAsync(item, "stress", ctx, literal);
+                string style = (await ResolveFieldAsync(item, "style", ctx, literal))
+                    .Trim()
+                    .ToLowerInvariant();
+                string sayAs = (await ResolveFieldAsync(item, "sayAs", ctx, literal))
+                    .Trim()
+                    .ToLowerInvariant();
+                if (style.Length > 0 && !TtsSpeechOptions.Styles.Contains(style))
+                    return (
+                        null,
+                        $"play_tts segment {index} has an unsupported 'style': '{style}'."
+                    );
+                if (sayAs.Length > 0 && !TtsSpeechOptions.SayAsValues.Contains(sayAs))
+                    return (
+                        null,
+                        $"play_tts segment {index} has an unsupported 'sayAs': '{sayAs}'."
+                    );
                 segments.Add(
                     new(
                         await ResolveFieldAsync(item, "text", ctx, literal),
@@ -547,7 +564,9 @@ public sealed class PlayTtsAction : ICommandAction
                         pitch,
                         await ResolveMillisecondsAsync(item, "breakAfterMs", ctx, literal),
                         VolumePercent: volume,
-                        Stressed: stress.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
+                        Stressed: stress.Trim().Equals("true", StringComparison.OrdinalIgnoreCase),
+                        Style: style.Length == 0 ? null : style,
+                        SayAs: sayAs.Length == 0 ? null : sayAs
                     )
                 );
                 index++;

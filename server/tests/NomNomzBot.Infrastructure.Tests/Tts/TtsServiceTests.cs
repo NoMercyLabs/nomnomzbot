@@ -28,6 +28,43 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// </summary>
 public sealed class TtsServiceTests
 {
+    [Fact]
+    public async Task SegmentCache_DistinguishesStyleAndReading()
+    {
+        ITtsProvider provider = Substitute.For<ITtsProvider>();
+        provider
+            .SynthesizeSegmentsAsync(
+                Arg.Any<IReadOnlyList<TtsSegment>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new TtsSynthesisResult
+                {
+                    AudioData = [1, 2, 3],
+                    DurationMs = 100,
+                    Provider = "test",
+                    VoiceId = "voice",
+                    ContentHash = "hash",
+                }
+            );
+        TtsService service = new([provider], NullLogger<TtsService>.Instance);
+        IReadOnlyList<TtsSegment> cheerful = [new("42", "voice", Style: "cheerful")];
+        IReadOnlyList<TtsSegment> sad = [new("42", "voice", Style: "sad")];
+        IReadOnlyList<TtsSegment> cardinal = [new("42", "voice", Style: "sad", SayAs: "cardinal")];
+
+        await service.SynthesizeSegmentsAsync(cheerful);
+        await service.SynthesizeSegmentsAsync(cheerful);
+        await service.SynthesizeSegmentsAsync(sad);
+        await service.SynthesizeSegmentsAsync(cardinal);
+
+        await provider
+            .Received(3)
+            .SynthesizeSegmentsAsync(
+                Arg.Any<IReadOnlyList<TtsSegment>>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static AzureTtsProvider Azure(string? apiKey) =>
         new(Substitute.For<IHttpClientFactory>(), NullLogger<AzureTtsProvider>.Instance, apiKey);
 

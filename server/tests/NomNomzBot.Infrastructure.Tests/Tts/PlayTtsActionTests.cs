@@ -795,6 +795,8 @@ public sealed class PlayTtsActionTests
                 ["Welcome {{user}}"] = "Welcome Bob",
                 ["{{intro.voice}}"] = "en-US-GuyNeural",
                 ["and you"] = "and you",
+                ["Cheerful"] = "Cheerful",
+                ["cardinal"] = "cardinal",
             }
         );
         dispatch
@@ -814,6 +816,8 @@ public sealed class PlayTtsActionTests
                             voice = "{{intro.voice}}",
                             rate = -20,
                             pitch = 10,
+                            style = "Cheerful",
+                            sayAs = "cardinal",
                             breakAfterMs = 600,
                         },
                         new { text = "and you" },
@@ -830,11 +834,40 @@ public sealed class PlayTtsActionTests
                     r.Segments != null
                     && r.Segments.Count == 2
                     && r.Segments[0]
-                        == new TtsSpeakSegment("Welcome Bob", "en-US-GuyNeural", -20, 10, 600)
+                        == new TtsSpeakSegment(
+                            "Welcome Bob",
+                            "en-US-GuyNeural",
+                            -20,
+                            10,
+                            600,
+                            null,
+                            null,
+                            null,
+                            false,
+                            "cheerful",
+                            "cardinal"
+                        )
                     && r.Segments[1] == new TtsSpeakSegment("and you", null, null, null, 0)
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RejectsUnsupportedStyleBeforeDispatch()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("resolved");
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(("segments", "[{\"text\":\"hello\",\"style\":\"sarcastic\"}]"))
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("unsupported 'style'");
+        await dispatch
+            .DidNotReceive()
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

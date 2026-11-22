@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Security;
 using System.Security.Cryptography;
@@ -32,6 +33,9 @@ public sealed class AzureTtsProvider : ITtsProvider
     private readonly ILogger<AzureTtsProvider> _logger;
     private readonly string? _apiKey;
     private readonly string _region;
+    private readonly ConcurrentDictionary<string, IReadOnlyList<string>> _stylesByVoice = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     /// <summary>False when no BYOK API key is configured — the provider is registered in DI regardless (shared
     /// operator config), but must never be preferred over a keyless provider that can actually speak.</summary>
@@ -69,16 +73,37 @@ public sealed class AzureTtsProvider : ITtsProvider
         CancellationToken cancellationToken = default
     )
     {
+        if (segments.Any(s => s.Style is not null) && _stylesByVoice.IsEmpty)
+            await GetVoicesAsync(cancellationToken);
+
         string hashSource = string.Join(
             '\n',
             segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)
         );
+        string ssml = BuildSsml(segments, _stylesByVoice);
+        bool hasExpression =
+            ssml.Contains("<mstts:express-as", StringComparison.Ordinal)
+            || ssml.Contains("<say-as", StringComparison.Ordinal);
         TtsSynthesisResult spoken = await SynthesizeSsmlAsync(
-            BuildSsml(segments),
+            ssml,
             hashSource,
             segments[0].VoiceId,
             cancellationToken
         );
+        if (spoken.AudioData.Length > 0)
+            return spoken;
+
+        if (hasExpression)
+        {
+            _logger.LogWarning("Azure TTS: no audio with style or say-as, retrying without them");
+            segments = [.. segments.Select(s => s with { Style = null, SayAs = null })];
+            spoken = await SynthesizeSsmlAsync(
+                BuildSsml(segments, _stylesByVoice),
+                hashSource,
+                segments[0].VoiceId,
+                cancellationToken
+            );
+        }
         if (spoken.AudioData.Length > 0 || !segments.Any(s => s.Phonemes is { Count: > 0 }))
             return spoken;
 
@@ -169,6 +194,9 @@ public sealed class AzureTtsProvider : ITtsProvider
             if (voices is null)
                 return [];
 
+            foreach (AzureVoice voice in voices)
+                _stylesByVoice[voice.ShortName] = voice.StyleList ?? [];
+
             return
             [
                 .. voices.Select(v => new TtsVoiceInfo
@@ -224,10 +252,13 @@ public sealed class AzureTtsProvider : ITtsProvider
     /// that speaks before it: Azure refuses a <c>&lt;break&gt;</c> between two voices (BadRequest, seen
     /// 2026-11-11).
     /// </summary>
-    internal static string BuildSsml(IReadOnlyList<TtsSegment> segments)
+    internal static string BuildSsml(
+        IReadOnlyList<TtsSegment> segments,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? stylesByVoice = null
+    )
     {
         StringBuilder ssml = new(
-            "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
+            "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'>"
         );
         for (int i = 0; i < segments.Count; i++)
         {
@@ -239,7 +270,19 @@ public sealed class AzureTtsProvider : ITtsProvider
                     .Append(SecurityElement.Escape(block.VoiceId))
                     .Append("'>");
 
+            bool styled =
+                block.Style is not null
+                && TtsSpeechOptions.Styles.Contains(block.Style)
+                && stylesByVoice?.TryGetValue(block.VoiceId, out IReadOnlyList<string>? styles)
+                    == true
+                && styles.Contains(block.Style, StringComparer.OrdinalIgnoreCase);
+            if (styled)
+                ssml.Append("<mstts:express-as style='")
+                    .Append(SecurityElement.Escape(block.Style))
+                    .Append("'>");
             AppendBlock(ssml, block, flowsOn);
+            if (styled)
+                ssml.Append("</mstts:express-as>");
 
             if (!last && block.BreakAfterMs > 0)
                 ssml.Append("<break time='")
@@ -286,9 +329,15 @@ public sealed class AzureTtsProvider : ITtsProvider
             ssml.Append(" volume='").Append(TtsProsody.FormatPercent(volume)).Append('\'');
         ssml.Append('>')
             .Append(flowsOn ? " " : string.Empty)
-            .Append(WithPhonemes(block))
+            .Append(
+                block.SayAs is null || !TtsSpeechOptions.SayAsValues.Contains(block.SayAs)
+                    ? WithPhonemes(block)
+                    : $"<say-as interpret-as='{SayAsValue(block.SayAs)}'>{SecurityElement.Escape(block.Text)}</say-as>"
+            )
             .Append("</prosody>");
     }
+
+    private static string SayAsValue(string sayAs) => sayAs == "digits" ? "number_digit" : sayAs;
 
     /// <summary>
     /// The block's words, escaped, with every word that has an exact sound inside a <c>&lt;phoneme&gt;</c>. The

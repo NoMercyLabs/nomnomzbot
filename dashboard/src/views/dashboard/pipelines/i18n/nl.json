@@ -39,6 +39,33 @@
         },
         "end": "Klaar. De pipeline stopt hier.",
         "empty": "Deze pipeline heeft nog geen stappen.",
+        "ttsBlocks": {
+          "editBlocks": "Blokken bewerken",
+          "editJson": "JSON of sjabloon bewerken",
+          "block": "Blok {number}",
+          "remove": "Verwijderen",
+          "pause": "Pauze (ms)",
+          "text": "Woorden",
+          "voice": "Stem",
+          "rate": "Snelheid",
+          "pitch": "Toonhoogte",
+          "volume": "Volume",
+          "breakAfterMs": "Stilte erna (ms)",
+          "style": "Spreekstijl",
+          "styleHelp": "Azure gebruikt deze stijl alleen als de gekozen stem die ondersteunt. Andere aanbieders benaderen de toon met hun beschikbare instellingen.",
+          "sayAs": "Lees als",
+          "sayAsHelp": "Kies hoe woorden of getallen worden uitgesproken. Gebruik voor datums en tijden een eenduidige notatie.",
+          "stress": "Leg nadruk op dit blok",
+          "none": "Natuurlijk lezen",
+          "addText": "Tekstblok toevoegen",
+          "addPause": "Pauze toevoegen",
+          "styles": {
+            "cheerful": "Vrolijk", "excited": "Opgewonden", "sad": "Verdrietig", "whispering": "Fluisterend", "shouting": "Schreeuwend", "friendly": "Vriendelijk", "unfriendly": "Onvriendelijk", "terrified": "Doodsbang", "hopeful": "Hoopvol"
+          },
+          "readings": {
+            "spell-out": "Spellen", "cardinal": "Hoofdtelwoord", "ordinal": "Rangtelwoord", "digits": "Losse cijfers", "date": "Datum", "time": "Tijd", "telephone": "Telefoonnummer"
+          }
+        },
         "block": {
           "if": "Als, anders",
           "switch": "Kies op een waarde",

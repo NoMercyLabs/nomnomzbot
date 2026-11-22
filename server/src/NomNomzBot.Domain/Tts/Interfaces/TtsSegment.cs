@@ -30,6 +30,8 @@ namespace NomNomzBot.Domain.Tts.Interfaces;
 /// The words of <paramref name="Text"/> that have an exact sound. A provider that reads IPA speaks that sound; a
 /// provider that cannot speaks the word as written, so the text always holds a form every voice can say.
 /// </param>
+/// <param name="Style">Optional speaking style for this block.</param>
+/// <param name="SayAs">Optional reading form for this block.</param>
 public sealed record TtsSegment(
     string Text,
     string VoiceId,
@@ -38,10 +40,44 @@ public sealed record TtsSegment(
     int BreakAfterMs = 0,
     double? VolumePercent = null,
     bool Stressed = false,
-    IReadOnlyList<TtsPhoneme>? Phonemes = null
+    IReadOnlyList<TtsPhoneme>? Phonemes = null,
+    string? Style = null,
+    string? SayAs = null
 );
 
 /// <summary>The exact sound of one word or phrase of a spoken text.</summary>
 /// <param name="Spoken">The plain word as it stands in the text.</param>
 /// <param name="Ipa">Its sound in the International Phonetic Alphabet.</param>
 public sealed record TtsPhoneme(string Spoken, string Ipa);
+
+/// <summary>Accepted speaking styles and reading forms for a spoken block.</summary>
+public static class TtsSpeechOptions
+{
+    public static readonly IReadOnlySet<string> Styles = new HashSet<string>(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "cheerful",
+        "excited",
+        "sad",
+        "whispering",
+        "shouting",
+        "friendly",
+        "unfriendly",
+        "terrified",
+        "hopeful",
+    };
+
+    public static readonly IReadOnlySet<string> SayAsValues = new HashSet<string>(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "spell-out",
+        "cardinal",
+        "ordinal",
+        "digits",
+        "date",
+        "time",
+        "telephone",
+    };
+}

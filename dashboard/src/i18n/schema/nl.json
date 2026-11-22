@@ -2127,7 +2127,7 @@
         "help": "Het scene_reserve-token ({'{'}scene.token{'}'}) waartoe deze regel behoort, indien van toepassing. Laat deze regel meteen spelen, zelfs terwijl die reservering actief is; een lege waarde wacht gewoon op haar beurt zoals elk ander verzoek."
       },
       "segments": {
-        "help": "Meerdere stemmen in een fragment. Een JSON-lijst met blokken, in elke volgorde. Een tekstblok heeft text en optioneel voice, rate, pitch, volume, stress (true: dit blok krijgt de klemtoon) en breakAfterMs (stilte na het blok, tot 5000 ms). Een pauzeblok heeft alleen pause, in milliseconden. Als dit is ingevuld, vervangt het Tekst. Ondersteunt sjabloonvariabelen."
+        "help": "Meerdere stemmen in één fragment. Voeg tekstblokken of pauzes toe in de editor. Elk tekstblok kan voice, rate, pitch, volume, stress, style en sayAs instellen. Stijlen: cheerful, excited, sad, whispering, shouting, friendly, unfriendly, terrified, hopeful. Leesvormen: spell-out, cardinal, ordinal, digits, date, time, telephone. Azure gebruikt alleen stijlen die de stem ondersteunt; andere aanbieders benaderen ze. Een pauze is in milliseconden, tot 5000. Ingevulde blokken vervangen Tekst. Ondersteunt sjabloonvariabelen en JSON-bewerking."
       },
       "text": {
         "help": "De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."

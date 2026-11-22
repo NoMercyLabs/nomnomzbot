@@ -47,10 +47,7 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         _apiKey = apiKey;
     }
 
-    // ratePercent/pitchPercent are accepted for ITtsProvider conformance but intentionally ignored: ElevenLabs
-    // has no SSML prosody surface — its expressiveness knobs are stability/similarity_boost/style, a genuinely
-    // different capability, not a substitute for rate/pitch. Faking a mapping would misrepresent what the
-    // provider actually does with the utterance.
+    // ElevenLabs supports speed for this model; pitch and volume have no matching voice setting.
     public async Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
@@ -71,7 +68,12 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
             {
                 text,
                 model_id = "eleven_multilingual_v2",
-                voice_settings = new { stability = 0.5, similarity_boost = 0.75 },
+                voice_settings = new
+                {
+                    stability = 0.5,
+                    similarity_boost = 0.75,
+                    speed = Math.Clamp(1 + (ratePercent ?? 0) / 100, 0.7, 1.2),
+                },
             }
         );
 
@@ -122,11 +124,12 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
     {
         string firstVoice = segments[0].VoiceId;
         using MemoryStream joined = new();
-        foreach ((string voiceId, string text) in VoiceRuns(segments))
+        foreach ((string voiceId, string text, double? rate) in SpeedRuns(segments))
         {
             TtsSynthesisResult part = await SynthesizeAsync(
                 text,
                 voiceId,
+                ratePercent: rate,
                 cancellationToken: cancellationToken
             );
             if (part.AudioData.Length == 0)
@@ -160,10 +163,31 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         List<(string VoiceId, string Text)> runs = [];
         foreach (TtsSegment block in segments)
             if (runs.Count > 0 && runs[^1].VoiceId == block.VoiceId)
-                runs[^1] = (block.VoiceId, $"{runs[^1].Text} {block.Text}");
+                runs[^1] = (block.VoiceId, $"{runs[^1].Text} {TtsSegmentSpeech.PlainText(block)}");
             else
-                runs.Add((block.VoiceId, block.Text));
+                runs.Add((block.VoiceId, TtsSegmentSpeech.PlainText(block)));
 
+        return runs;
+    }
+
+    private static List<(string VoiceId, string Text, double? Rate)> SpeedRuns(
+        IReadOnlyList<TtsSegment> segments
+    )
+    {
+        List<(string VoiceId, string Text, double? Rate)> runs = [];
+        foreach (TtsSegment segment in segments)
+        {
+            TtsSegment spoken = TtsSegmentSpeech.Approximate(segment);
+            string text = TtsSegmentSpeech.PlainText(segment);
+            if (
+                runs.Count > 0
+                && runs[^1].VoiceId == segment.VoiceId
+                && runs[^1].Rate == spoken.RatePercent
+            )
+                runs[^1] = (segment.VoiceId, $"{runs[^1].Text} {text}", spoken.RatePercent);
+            else
+                runs.Add((segment.VoiceId, text, spoken.RatePercent));
+        }
         return runs;
     }
 

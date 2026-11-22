@@ -26,6 +26,174 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// </summary>
 public sealed class TtsSegmentSynthesisTests
 {
+    [Fact]
+    public void Azure_StyleAndSayAs_AreScopedToOneSupportedBlock()
+    {
+        string ssml = AzureTtsProvider.BuildSsml(
+            [new("42", "en-US-AriaNeural", Style: "cheerful", SayAs: "cardinal")],
+            new Dictionary<string, IReadOnlyList<string>> { ["en-US-AriaNeural"] = ["cheerful"] }
+        );
+
+        XDocument doc = XDocument.Parse(ssml);
+        XElement style = doc.Descendants().Single(e => e.Name.LocalName == "express-as");
+        style.Attribute("style")!.Value.Should().Be("cheerful");
+        XElement sayAs = style.Descendants().Single(e => e.Name.LocalName == "say-as");
+        sayAs.Attribute("interpret-as")!.Value.Should().Be("cardinal");
+        sayAs.Value.Should().Be("42");
+    }
+
+    [Fact]
+    public void Azure_UnsupportedStyle_IsDropped()
+    {
+        string ssml = AzureTtsProvider.BuildSsml(
+            [new("hello", "en-US-AriaNeural", Style: "terrified")],
+            new Dictionary<string, IReadOnlyList<string>> { ["en-US-AriaNeural"] = ["cheerful"] }
+        );
+
+        XDocument
+            .Parse(ssml)
+            .Descendants()
+            .Should()
+            .NotContain(e => e.Name.LocalName == "express-as");
+    }
+
+    [Fact]
+    public void PlainProviders_ReadTheRequestedFormWithoutStyleMarkup()
+    {
+        TtsSegment segment = new("42", "en-US-AnaNeural", Style: "cheerful", SayAs: "cardinal");
+        string edge = EdgeTtsProvider.BuildRunSsml([segment]);
+        edge.Should().Contain("forty-two").And.NotContain("express-as").And.NotContain("say-as");
+        ElevenLabsTtsProvider.VoiceRuns([segment]).Single().Text.Should().Be("forty-two");
+    }
+
+    [Theory]
+    [InlineData("123", "digits", "one two three")]
+    [InlineData("42", "cardinal", "forty-two")]
+    [InlineData("3rd", "ordinal", "third")]
+    [InlineData("+31 20-1234", "telephone", "plus three one two zero one two three four")]
+    public void PlainReading_UsesWordsForNumbers(string input, string sayAs, string expected)
+    {
+        ElevenLabsTtsProvider
+            .VoiceRuns([new(input, "en-US-AnaNeural", SayAs: sayAs)])
+            .Single()
+            .Text.Should()
+            .Be(expected);
+    }
+
+    [Fact]
+    public void DutchCardinal_UsesDutchNumberWords()
+    {
+        string ssml = EdgeTtsProvider.BuildRunSsml([
+            new("42", "nl-NL-ColetteNeural", SayAs: "cardinal"),
+        ]);
+        XDocument
+            .Parse(ssml)
+            .Descendants()
+            .Single(e => e.Name.LocalName == "prosody")
+            .Value.Should()
+            .Be("tweeënveertig");
+    }
+
+    [Theory]
+    [InlineData("en-US-AnaNeural", "cardinal")]
+    [InlineData("en-US-AnaNeural", "ordinal")]
+    [InlineData("nl-NL-ColetteNeural", "cardinal")]
+    [InlineData("nl-NL-ColetteNeural", "ordinal")]
+    public void PlainReading_CoversTheRequestedNumberRange(string voice, string sayAs)
+    {
+        foreach (string number in new[] { "0", "9999" })
+        {
+            string spoken = ElevenLabsTtsProvider
+                .VoiceRuns([new(number, voice, SayAs: sayAs)])
+                .Single()
+                .Text;
+            spoken.Should().NotBe(number).And.NotMatchRegex("[0-9]");
+        }
+    }
+
+    [Theory]
+    [InlineData("ABC", "spell-out", "A B C")]
+    [InlineData("12:35", "time", "twelve thirty-five")]
+    public void PlainReading_UsesAReadableForm(string input, string sayAs, string expected)
+    {
+        ElevenLabsTtsProvider
+            .VoiceRuns([new(input, "en-US-AnaNeural", SayAs: sayAs)])
+            .Single()
+            .Text.Should()
+            .Be(expected);
+    }
+
+    [Fact]
+    public void PlainReading_DateNamesTheMonthAndUsesWords()
+    {
+        string spoken = ElevenLabsTtsProvider
+            .VoiceRuns([new("2026-11-11", "en-US-AnaNeural", SayAs: "date")])
+            .Single()
+            .Text;
+
+        spoken.Should().Contain("November").And.NotMatchRegex("[0-9]");
+    }
+
+    [Fact]
+    public void Edge_StyleChangesOnlySupportedProsodyControls()
+    {
+        XDocument doc = XDocument.Parse(
+            EdgeTtsProvider.BuildRunSsml([new("hello", "en-US-AnaNeural", Style: "cheerful")])
+        );
+        XElement prosody = doc.Descendants().Single(e => e.Name.LocalName == "prosody");
+        prosody.Attribute("rate")!.Value.Should().Be("+8%");
+        prosody.Attribute("pitch")!.Value.Should().Be("+8%");
+        prosody.Attribute("volume")!.Value.Should().Be("+10%");
+        doc.Descendants()
+            .Should()
+            .NotContain(e => e.Name.LocalName == "express-as" || e.Name.LocalName == "say-as");
+    }
+
+    private sealed class RefusingExpression : HttpMessageHandler
+    {
+        public List<string> Bodies { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            if (request.Method == HttpMethod.Get)
+                return new(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """[{"ShortName":"en-US-AriaNeural","DisplayName":"Aria","Locale":"en-US","Gender":"Female","StyleList":["cheerful"]}]"""
+                    ),
+                };
+
+            string body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            Bodies.Add(body);
+            return body.Contains("express-as") || body.Contains("say-as")
+                ? new(HttpStatusCode.BadRequest)
+                : new(HttpStatusCode.OK) { Content = new ByteArrayContent(Frames(2, 0xA1)) };
+        }
+    }
+
+    [Fact]
+    public async Task Azure_StyleOrSayAsRefused_RetriesOnceWithoutBoth()
+    {
+        RefusingExpression handler = new();
+        AzureTtsProvider provider = new(
+            new FakeFactory(handler),
+            NullLogger<AzureTtsProvider>.Instance,
+            "key"
+        );
+
+        TtsSynthesisResult result = await provider.SynthesizeSegmentsAsync([
+            new("42", "en-US-AriaNeural", Style: "cheerful", SayAs: "cardinal"),
+        ]);
+
+        handler.Bodies.Should().HaveCount(2);
+        handler.Bodies[0].Should().Contain("express-as").And.Contain("say-as");
+        handler.Bodies[1].Should().NotContain("express-as").And.NotContain("say-as");
+        result.AudioData.Should().NotBeEmpty();
+    }
+
     private static readonly IReadOnlyList<TtsSegment> TwoVoices =
     [
         new(
@@ -446,6 +614,32 @@ public sealed class TtsSegmentSynthesisTests
         result.DurationMs.Should().Be(784);
         result.Provider.Should().Be("elevenlabs");
         result.VoiceId.Should().Be("voice-a");
+    }
+
+    [Fact]
+    public async Task ElevenLabs_StyleUsesSpeedAndSayAsWordsInTheRequest()
+    {
+        RecordingHandler handler = new(new() { ["voice-a"] = Frames(2, 0xA1) });
+        ElevenLabsTtsProvider provider = new(
+            new FakeFactory(handler),
+            NullLogger<ElevenLabsTtsProvider>.Instance,
+            "key"
+        );
+
+        TtsSynthesisResult result = await provider.SynthesizeSegmentsAsync([
+            new("42", "voice-a", Style: "cheerful", SayAs: "cardinal"),
+        ]);
+
+        using System.Text.Json.JsonDocument body = System.Text.Json.JsonDocument.Parse(
+            handler.Calls.Single().Body
+        );
+        body.RootElement.GetProperty("text").GetString().Should().Be("forty-two");
+        body.RootElement.GetProperty("voice_settings")
+            .GetProperty("speed")
+            .GetDouble()
+            .Should()
+            .Be(1.08);
+        result.AudioData.Should().NotBeEmpty();
     }
 
     [Fact]

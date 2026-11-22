@@ -629,7 +629,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
                     part.PitchPercent,
                     Math.Max(0, part.BreakAfterMs),
                     part.VolumePercent,
-                    part.Stressed
+                    part.Stressed,
+                    Style: part.Style,
+                    SayAs: part.SayAs
                 )
             );
         }
