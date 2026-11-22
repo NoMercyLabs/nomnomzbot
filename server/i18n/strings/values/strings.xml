@@ -5635,6 +5635,10 @@
     <string name="pipeline_set_stream_info_title_help">The new stream title. Supports template variables (e.g. {args}). Leave blank to keep the current title.</string>
     <string name="pipeline_set_stream_info_category_help">The category to stream in. Search for it by name. Leave blank to keep the current category.</string>
     <string name="pipeline_set_stream_info_tags_help">The tags to set; they replace the current ones. Up to 10 tags, 25 characters each, with no spaces or special characters. Leave empty to keep the current tags.</string>
+    <string name="pipeline_set_stream_info_language_help">The language you stream in, as a two-letter code such as en or nl. Use other for a language without a code. Leave blank to keep the current language.</string>
+    <string name="pipeline_set_stream_info_labels_on_help">The content labels to turn on, such as Gambling or Sexual Themes. Labels you do not pick keep their current setting.</string>
+    <string name="pipeline_set_stream_info_labels_off_help">The content labels to turn off. Labels you do not pick keep their current setting. A label cannot be in both lists.</string>
+    <string name="pipeline_set_stream_info_branded_content_help">Turn on if the stream has paid promotion, such as a sponsor. Choose off to clear it. Leave blank to keep the current setting.</string>
     <string name="pipeline_set_viewer_data_key_help">The name of the per-viewer data field to set.</string>
     <string name="pipeline_set_viewer_data_target_help">Which viewer's data is set. Blank targets the user who triggered this pipeline.</string>
     <string name="pipeline_set_viewer_data_value_help">The value stored for this viewer. Supports template variables (e.g. {user.name}).</string>
@@ -5798,7 +5802,7 @@
     <string name="pipeline_set_counter_description">Set a named counter to a fixed value</string>
     <string name="pipeline_set_pronoun_description">Set a viewer&apos;s pronouns</string>
     <string name="pipeline_set_variable_description">Set a pipeline variable</string>
-    <string name="pipeline_set_stream_info_description">Change the stream title, category or tags</string>
+    <string name="pipeline_set_stream_info_description">Change the stream title, category, tags, language, content labels or branded content</string>
     <string name="pipeline_set_viewer_data_description">Set a stored value on a viewer&apos;s profile</string>
     <string name="pipeline_shoutout_description">Give another channel a shoutout</string>
     <string name="pipeline_show_raid_recap_description">Show the stream recap on the raid recap widget</string>

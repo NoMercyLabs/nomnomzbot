@@ -86,10 +86,22 @@ public sealed class SetStreamInfoActionTests
     private static ActionDefinition Step(
         string? title = null,
         string? category = null,
-        string[]? tags = null
+        string[]? tags = null,
+        string? language = null,
+        string[]? labelsOn = null,
+        string[]? labelsOff = null,
+        string? branded = null
     )
     {
         Dictionary<string, JsonElement> parameters = [];
+        if (language is not null)
+            parameters["language"] = JsonSerializer.SerializeToElement(language);
+        if (labelsOn is not null)
+            parameters["labels_on"] = JsonSerializer.SerializeToElement(labelsOn);
+        if (labelsOff is not null)
+            parameters["labels_off"] = JsonSerializer.SerializeToElement(labelsOff);
+        if (branded is not null)
+            parameters["branded_content"] = JsonSerializer.SerializeToElement(branded);
         if (title is not null)
             parameters["title"] = JsonSerializer.SerializeToElement(title);
         if (category is not null)
@@ -118,6 +130,141 @@ public sealed class SetStreamInfoActionTests
         update.Tags.Should().Equal("a", "b");
         update.ContentLabels.Should().BeNull();
         update.IsBrandedContent.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Language_labels_and_branded_content_reach_the_platform_as_one_exact_update()
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Step(
+                language: "  NL ",
+                labelsOn: ["Gambling", "SexualThemes"],
+                labelsOff: ["ViolentGraphic"],
+                branded: "on"
+            )
+        );
+
+        result.Succeeded.Should().BeTrue();
+        PlatformStreamInfoUpdate update = platform.Calls.Should().ContainSingle().Subject;
+        update.Title.Should().BeNull();
+        update.CategoryName.Should().BeNull();
+        update.Tags.Should().BeNull();
+        update.ContentLabels.Should().BeNull();
+        update.Language.Should().Be("nl");
+        update.IsBrandedContent.Should().BeTrue();
+        update
+            .ContentLabelChanges.Should()
+            .BeEquivalentTo(
+                new Dictionary<string, bool>
+                {
+                    ["Gambling"] = true,
+                    ["SexualThemes"] = true,
+                    ["ViolentGraphic"] = false,
+                }
+            );
+    }
+
+    [Fact]
+    public async Task Branded_content_off_is_sent_as_false_and_the_language_other_is_allowed()
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Step(language: "other", branded: "off")
+        );
+
+        result.Succeeded.Should().BeTrue();
+        PlatformStreamInfoUpdate update = platform.Calls.Should().ContainSingle().Subject;
+        update.Language.Should().Be("other");
+        update.IsBrandedContent.Should().BeFalse();
+        update.ContentLabelChanges.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Blank_language_labels_and_branded_content_leave_those_members_unchanged()
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Step(title: "t", language: " ", labelsOn: [], labelsOff: [], branded: "")
+        );
+
+        result.Succeeded.Should().BeTrue();
+        PlatformStreamInfoUpdate update = platform.Calls.Should().ContainSingle().Subject;
+        update.Language.Should().BeNull();
+        update.ContentLabelChanges.Should().BeNull();
+        update.IsBrandedContent.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("dutch")]
+    [InlineData("n1")]
+    [InlineData("n")]
+    public async Task A_language_that_is_not_two_letters_or_other_fails_before_any_call(
+        string language
+    )
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Step(title: "t", language: language)
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("language").And.Contain(language);
+        platform.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_label_that_is_not_editable_fails_before_any_call_and_names_it()
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Step(labelsOn: ["MatureGame"]));
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("MatureGame");
+        platform.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_same_label_in_both_lists_fails_before_any_call_and_names_it()
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Step(labelsOn: ["Gambling"], labelsOff: ["Gambling"])
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Gambling");
+        platform.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_branded_content_value_other_than_on_or_off_fails_before_any_call()
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Step(branded: "maybe"));
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("maybe");
+        platform.Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -248,7 +395,7 @@ public sealed class SetStreamInfoActionTests
     }
 
     [Fact]
-    public void The_catalogue_entry_holds_the_title_category_and_tags_fields_with_their_kinds()
+    public void The_catalogue_entry_holds_the_stream_info_fields_with_their_kinds_and_options()
     {
         SetStreamInfoAction action = new(new RecordingPlatform(), Resolver());
 
@@ -259,9 +406,34 @@ public sealed class SetStreamInfoActionTests
             .Equal(
                 ("title", "text", true, false),
                 ("category", "stream_category", false, false),
-                ("tags", "text", false, true)
+                ("tags", "text", false, true),
+                ("language", "text", false, false),
+                ("labels_on", "enum", false, true),
+                ("labels_off", "enum", false, true),
+                ("branded_content", "enum", false, false)
             );
         action.Fields.Should().OnlyContain(f => f.Description != null);
+        action
+            .Fields.Where(f => f.Name != "title")
+            .Select(f => f.Description!.Key)
+            .Should()
+            .Equal(
+                "pipeline.set_stream_info.category.help",
+                "pipeline.set_stream_info.tags.help",
+                "pipeline.set_stream_info.language.help",
+                "pipeline.set_stream_info.labels_on.help",
+                "pipeline.set_stream_info.labels_off.help",
+                "pipeline.set_stream_info.branded_content.help"
+            );
+        action
+            .Fields.Single(f => f.Name == "labels_on")
+            .Options.Should()
+            .Equal(TwitchContentLabels.Editable);
+        action
+            .Fields.Single(f => f.Name == "labels_off")
+            .Options.Should()
+            .Equal(TwitchContentLabels.Editable);
+        action.Fields.Single(f => f.Name == "branded_content").Options.Should().Equal("on", "off");
         PipelineActionFieldKind.StreamCategory.IsResourcePicker().Should().BeTrue();
     }
 
@@ -273,7 +445,15 @@ public sealed class SetStreamInfoActionTests
         action
             .Fields.Select(f => (f.Name, f.MaxItems))
             .Should()
-            .Equal(("title", null), ("category", null), ("tags", 10));
+            .Equal(
+                ("title", null),
+                ("category", null),
+                ("tags", 10),
+                ("language", null),
+                ("labels_on", null),
+                ("labels_off", null),
+                ("branded_content", null)
+            );
     }
 
     [Fact]

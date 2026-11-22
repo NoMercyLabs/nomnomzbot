@@ -1840,6 +1840,10 @@ interface NnzActionParams {
     title?: string;
     category?: string;
     tags?: string[];
+    language?: string;
+    labels_on?: ('DebatedSocialIssuesAndPolitics' | 'DrugsIntoxication' | 'SexualThemes' | 'ViolentGraphic' | 'Gambling' | 'ProfanityVulgarity')[];
+    labels_off?: ('DebatedSocialIssuesAndPolitics' | 'DrugsIntoxication' | 'SexualThemes' | 'ViolentGraphic' | 'Gambling' | 'ProfanityVulgarity')[];
+    branded_content?: 'on' | 'off';
   };
   'set_variable': {
     name: string;

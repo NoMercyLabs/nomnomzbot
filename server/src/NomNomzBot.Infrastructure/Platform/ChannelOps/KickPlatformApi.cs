@@ -48,7 +48,12 @@ public sealed class KickPlatformApi : IPlatformApi
                 "Kick channels have no stream tags to set.",
                 "VALIDATION_FAILED"
             );
-        if (update.ContentLabels is not null || update.IsBrandedContent is not null)
+        if (
+            update.ContentLabels is not null
+            || update.ContentLabelChanges is not null
+            || update.IsBrandedContent is not null
+            || update.Language is not null
+        )
             return Result.Failure<PlatformStreamInfoApplied>(
                 "Kick channels have no content labels to set.",
                 "VALIDATION_FAILED"

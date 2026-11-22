@@ -46,14 +46,17 @@ public interface IPlatformApi : IPlatformChannelApi
 /// <summary>
 /// The requested change — null fields are left untouched. <c>ContentLabels</c> is the FULL set of content
 /// label ids that should be on (an empty list turns every editable label off); <c>IsBrandedContent</c> is
-/// the paid-promotion flag.
+/// the paid-promotion flag. <c>ContentLabelChanges</c> maps a label id to on/off and only those labels change;
+/// <c>ContentLabels</c> wins when both are set. <c>Language</c> is the broadcaster language (a two-letter code or "other").
 /// </summary>
 public sealed record PlatformStreamInfoUpdate(
     string? Title = null,
     string? CategoryName = null,
     IReadOnlyList<string>? Tags = null,
     IReadOnlyList<string>? ContentLabels = null,
-    bool? IsBrandedContent = null
+    bool? IsBrandedContent = null,
+    string? Language = null,
+    IReadOnlyDictionary<string, bool>? ContentLabelChanges = null
 );
 
 /// <summary>What the platform actually applied (canonicalized where the platform does so).</summary>

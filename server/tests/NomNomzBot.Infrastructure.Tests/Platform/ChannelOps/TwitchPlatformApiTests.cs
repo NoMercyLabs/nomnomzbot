@@ -178,6 +178,89 @@ public sealed class TwitchPlatformApiTests
     }
 
     [Fact]
+    public async Task Label_changes_send_one_choice_per_entry_and_leave_the_other_labels_out()
+    {
+        (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();
+
+        Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
+            Tenant,
+            new(
+                ContentLabelChanges: new Dictionary<string, bool>
+                {
+                    ["Gambling"] = true,
+                    ["ViolentGraphic"] = false,
+                }
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await channels
+            .Received(1)
+            .ModifyChannelInformationAsync(
+                Tenant,
+                Arg.Is<ModifyChannelInformationRequest>(r =>
+                    r.ContentClassificationLabels != null
+                    && r.ContentClassificationLabels.Count == 2
+                    && r.ContentClassificationLabels.Single(l => l.Id == "Gambling").IsEnabled
+                    && r.ContentClassificationLabels.Count(l =>
+                        l.Id == "ViolentGraphic" && !l.IsEnabled
+                    ) == 1
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task The_full_label_set_wins_over_label_changes()
+    {
+        (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();
+
+        await api.UpdateStreamInfoAsync(
+            Tenant,
+            new(
+                ContentLabels: ["Gambling"],
+                ContentLabelChanges: new Dictionary<string, bool> { ["SexualThemes"] = true }
+            )
+        );
+
+        await channels
+            .Received(1)
+            .ModifyChannelInformationAsync(
+                Tenant,
+                Arg.Is<ModifyChannelInformationRequest>(r =>
+                    r.ContentClassificationLabels != null
+                    && r.ContentClassificationLabels.Count == 6
+                    && !r.ContentClassificationLabels.Single(l => l.Id == "SexualThemes").IsEnabled
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task The_language_goes_to_helix_as_the_broadcaster_language()
+    {
+        (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();
+
+        Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
+            Tenant,
+            new(Language: "nl")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await channels
+            .Received(1)
+            .ModifyChannelInformationAsync(
+                Tenant,
+                Arg.Is<ModifyChannelInformationRequest>(r =>
+                    r.BroadcasterLanguage == "nl"
+                    && r.Title == null
+                    && r.ContentClassificationLabels == null
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_title_only_update_sends_no_content_labels()
     {
         (TwitchPlatformApi api, ITwitchChannelsApi channels, _) = Build();

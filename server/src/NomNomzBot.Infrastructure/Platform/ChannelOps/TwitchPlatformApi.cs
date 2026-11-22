@@ -72,7 +72,10 @@ public sealed class TwitchPlatformApi : IPlatformApi
                 Title: update.Title,
                 GameId: gameId,
                 Tags: update.Tags,
-                ContentClassificationLabels: ToLabelChoices(update.ContentLabels),
+                BroadcasterLanguage: update.Language,
+                ContentClassificationLabels: update.ContentLabels is not null
+                    ? ToLabelChoices(update.ContentLabels)
+                    : ToLabelChoices(update.ContentLabelChanges),
                 IsBrandedContent: update.IsBrandedContent
             ),
             cancellationToken
@@ -105,4 +108,12 @@ public sealed class TwitchPlatformApi : IPlatformApi
             )),
         ];
     }
+
+    // Only the labels named in the change go out; the others keep their current state.
+    private static List<TwitchContentClassificationLabelChoice>? ToLabelChoices(
+        IReadOnlyDictionary<string, bool>? changes
+    ) =>
+        changes is null
+            ? null
+            : [.. changes.Select(c => new TwitchContentClassificationLabelChoice(c.Key, c.Value))];
 }

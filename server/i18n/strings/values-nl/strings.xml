@@ -5619,6 +5619,10 @@
     <string name="pipeline_set_stream_info_title_help">De nieuwe streamtitel. Ondersteunt sjabloonvariabelen (bijv. {args}). Laat leeg om de huidige titel te houden.</string>
     <string name="pipeline_set_stream_info_category_help">De categorie waarin je streamt. Zoek op naam. Laat leeg om de huidige categorie te houden.</string>
     <string name="pipeline_set_stream_info_tags_help">De tags die je instelt; ze vervangen de huidige. Maximaal 10 tags van 25 tekens, zonder spaties of speciale tekens. Laat leeg om de huidige tags te houden.</string>
+    <string name="pipeline_set_stream_info_language_help">De taal waarin je streamt, als code van twee letters, zoals en of nl. Gebruik other voor een taal zonder code. Laat leeg om de huidige taal te houden.</string>
+    <string name="pipeline_set_stream_info_labels_on_help">De inhoudslabels die je aanzet, zoals Gambling of Sexual Themes. Labels die je niet kiest, houden hun huidige stand.</string>
+    <string name="pipeline_set_stream_info_labels_off_help">De inhoudslabels die je uitzet. Labels die je niet kiest, houden hun huidige stand. Een label kan niet in beide lijsten staan.</string>
+    <string name="pipeline_set_stream_info_branded_content_help">Zet aan als de stream betaalde promotie heeft, zoals een sponsor. Kies uit om het te wissen. Laat leeg om de huidige instelling te houden.</string>
     <string name="pipeline_set_viewer_data_key_help">De naam van het per-kijker gegevensveld dat wordt ingesteld.</string>
     <string name="pipeline_set_viewer_data_target_help">Van welke kijker de gegevens worden ingesteld. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
     <string name="pipeline_set_viewer_data_value_help">De waarde die voor deze kijker wordt opgeslagen. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
@@ -5782,7 +5786,7 @@
     <string name="pipeline_set_counter_description">Zet een benoemde teller op een vaste waarde</string>
     <string name="pipeline_set_pronoun_description">Stel de voornaamwoorden van een kijker in</string>
     <string name="pipeline_set_variable_description">Stel een pipelinevariabele in</string>
-    <string name="pipeline_set_stream_info_description">Wijzig de streamtitel, categorie of tags</string>
+    <string name="pipeline_set_stream_info_description">Wijzig de streamtitel, categorie, tags, taal, inhoudslabels of gesponsorde inhoud</string>
     <string name="pipeline_set_viewer_data_description">Stel een opgeslagen waarde in op het profiel van een kijker</string>
     <string name="pipeline_shoutout_description">Geef een shoutout aan een ander kanaal</string>
     <string name="pipeline_show_raid_recap_description">Toon het streamoverzicht op de raid-recap-widget</string>

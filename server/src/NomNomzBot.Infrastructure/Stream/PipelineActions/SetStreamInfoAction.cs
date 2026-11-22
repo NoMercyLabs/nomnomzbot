@@ -43,6 +43,9 @@ public sealed class SetStreamInfoAction : ICommandAction
     internal const int MaxTags = 10;
     internal const int MaxTagLength = 25;
 
+    private const string OtherLanguage = "other";
+    private static readonly string[] BrandedOptions = ["on", "off"];
+
     private readonly IPlatformChannelApi _platform;
     private readonly ITemplateResolver _resolver;
 
@@ -74,6 +77,31 @@ public sealed class SetStreamInfoAction : ICommandAction
                 Description: new("pipeline.set_stream_info.tags.help"),
                 MaxItems: MaxTags
             ),
+            new(
+                "language",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.set_stream_info.language.help")
+            ),
+            new(
+                "labels_on",
+                PipelineActionFieldKind.Enum,
+                Repeatable: true,
+                Options: TwitchContentLabels.Editable,
+                Description: new("pipeline.set_stream_info.labels_on.help")
+            ),
+            new(
+                "labels_off",
+                PipelineActionFieldKind.Enum,
+                Repeatable: true,
+                Options: TwitchContentLabels.Editable,
+                Description: new("pipeline.set_stream_info.labels_off.help")
+            ),
+            new(
+                "branded_content",
+                PipelineActionFieldKind.Enum,
+                Options: BrandedOptions,
+                Description: new("pipeline.set_stream_info.branded_content.help")
+            ),
         ];
 
     public SetStreamInfoAction(IPlatformChannelApi platform, ITemplateResolver resolver)
@@ -97,7 +125,9 @@ public sealed class SetStreamInfoAction : ICommandAction
             )
         ).Trim();
         string category = (action.GetString("category") ?? string.Empty).Trim();
-        List<string> tags = ReadTags(action);
+        JsonElement tagsElement = default;
+        action.Parameters?.TryGetValue("tags", out tagsElement);
+        List<string> tags = ReadList(tagsElement);
 
         if (tags.Count > MaxTags)
             return ActionResult.Failure(
@@ -110,14 +140,64 @@ public sealed class SetStreamInfoAction : ICommandAction
                 $"set_stream_info tags are at most {MaxTagLength} characters long, but '{tooLong}' is {tooLong.Length}"
             );
 
+        string language = (action.GetString("language") ?? string.Empty).Trim().ToLowerInvariant();
+        if (language.Length > 0 && language != OtherLanguage && !IsTwoLetterCode(language))
+            return ActionResult.Failure(
+                $"set_stream_info language must be a two-letter code such as 'en' or 'other', but '{language}' was given"
+            );
+
+        JsonElement labelsOnElement = default;
+        action.Parameters?.TryGetValue("labels_on", out labelsOnElement);
+        JsonElement labelsOffElement = default;
+        action.Parameters?.TryGetValue("labels_off", out labelsOffElement);
+        List<string> labelsOn = ReadList(labelsOnElement);
+        List<string> labelsOff = ReadList(labelsOffElement);
+        string? badLabel = labelsOn
+            .Concat(labelsOff)
+            .FirstOrDefault(id => !TwitchContentLabels.Editable.Contains(id));
+        if (badLabel is not null)
+            return ActionResult.Failure(
+                $"set_stream_info cannot set the content label '{badLabel}'; the labels that can be set are {string.Join(", ", TwitchContentLabels.Editable)}"
+            );
+
+        string? both = labelsOn.Find(labelsOff.Contains);
+        if (both is not null)
+            return ActionResult.Failure(
+                $"set_stream_info content label '{both}' is in both the on list and the off list"
+            );
+
+        string branded = (action.GetString("branded_content") ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant();
+        if (branded.Length > 0 && !BrandedOptions.Contains(branded))
+            return ActionResult.Failure(
+                $"set_stream_info branded_content must be 'on' or 'off', but '{branded}' was given"
+            );
+
+        Dictionary<string, bool> labelChanges = [];
+        foreach (string id in labelsOn)
+            labelChanges[id] = true;
+        foreach (string id in labelsOff)
+            labelChanges[id] = false;
+
         PlatformStreamInfoUpdate update = new(
             Title: title.Length > 0 ? title : null,
             CategoryName: category.Length > 0 ? category : null,
-            Tags: tags.Count > 0 ? tags : null
+            Tags: tags.Count > 0 ? tags : null,
+            IsBrandedContent: branded.Length > 0 ? branded == "on" : null,
+            Language: language.Length > 0 ? language : null,
+            ContentLabelChanges: labelChanges.Count > 0 ? labelChanges : null
         );
-        if (update.Title is null && update.CategoryName is null && update.Tags is null)
+        if (
+            update.Title is null
+            && update.CategoryName is null
+            && update.Tags is null
+            && update.IsBrandedContent is null
+            && update.Language is null
+            && update.ContentLabelChanges is null
+        )
             return ActionResult.Failure(
-                "set_stream_info needs at least one of a title, a category or tags"
+                "set_stream_info needs at least one of a title, a category, tags, a language, content labels or branded content"
             );
 
         Result<PlatformStreamInfoApplied> applied = await _platform.UpdateStreamInfoAsync(
@@ -139,14 +219,14 @@ public sealed class SetStreamInfoAction : ICommandAction
             );
     }
 
-    // The saved tags are a JSON array of text; blank entries are dropped so an empty list means "unchanged".
-    private static List<string> ReadTags(ActionDefinition action)
+    private static bool IsTwoLetterCode(string value) =>
+        value.Length == 2 && value.All(c => c is >= 'a' and <= 'z');
+
+    // A saved list is a JSON array of text; blank entries are dropped so an empty list means "unchanged".
+    // A missing parameter arrives as a default element, which is not an array.
+    private static List<string> ReadList(JsonElement element)
     {
-        if (
-            action.Parameters is null
-            || !action.Parameters.TryGetValue("tags", out JsonElement element)
-            || element.ValueKind != JsonValueKind.Array
-        )
+        if (element.ValueKind != JsonValueKind.Array)
             return [];
 
         return
