@@ -50,6 +50,15 @@ Rules applied:
 
 - **One item, steps as bullets.** A line that starts with `2.`, `2)`, `b.` or `Item 2` is a second
   work item, and the guard refuses it. Give that item its own builder and run the two in parallel.
+- **Write once, then Edit.** A file is created with one Write. Every later change is an Edit of the
+  changed block. `full-rewrite-guard` refuses a Write that repeats half or more of an existing file.
+- **Heavy runs start outside the editor's process tree.** Every dotnet, dotnet ef, jb, slice-check,
+  migration-check, refresh-openapi, npm, vitest and dashboard-commit run goes through
+  `C:/Projects/NoMercy/.claude/scripts/heavy-run.ps1 -Name <n> -WorkDir <dir> -Command "<cmd>"`.
+  The brief names the run, the `done.txt` to wait for, and "one heavy run at a time on the machine".
+- **List every generated file the change touches.** A contract change names `server/openapi/v1.json`
+  and `dashboard/src/api/schema.d.ts`; a widget SDK change names `dashboard/src/api/nnz-widget.d.ts`;
+  a new word names `dashboard/src/i18n/schema/en.json` and `nl.json`.
 - **The details file** holds what changed, the evidence, and the first real error on failure. It
   never holds file dumps.
 - **Tests come first, every time.** The test step comes before any production edit. A worker that

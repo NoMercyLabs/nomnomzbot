@@ -256,6 +256,24 @@
    ]
   },
   {
+   "id": "official-api-methods-only",
+   "paths": [
+    "**/server/**/Infrastructure/**"
+   ],
+   "brief": [
+    "\\bHelix\\b",
+    "\\bGQL\\b",
+    "private (web )?calls?",
+    "undocumented",
+    "external API"
+   ],
+   "text": "Official API methods only: a platform feature uses only documented, official API endpoints. No private or undocumented web calls (for example Twitch GQL). When the official API has no field or endpoint, the feature is not built; report that the platform does not offer it.",
+   "source": "memory official-api-methods-only.md (Stoney, 2026-11-22: \"only use official methods so the system stays stable.\")",
+   "covers": [
+    "official-api-methods-only.md"
+   ]
+  },
+  {
    "id": "saas-restricted-marker",
    "paths": [
     "**/*.md",
