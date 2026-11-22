@@ -132,10 +132,11 @@ public sealed class ToneTemplateCatalogIntegrityTests
                     );
                     if (valid.IsFailure)
                         failures.Add($"{key}/{slot} ({tone}): {valid.ErrorMessage}");
-                    string words = Regex.Replace(line, @"\{[^}]*\}", string.Empty);
+                    // A variable, a command name and an argument placeholder keep their own case, as in English.
+                    string words = Regex.Replace(line, @"\{[^}]*\}|<[^>]*>|!\w+", string.Empty);
                     if (tone == PersonalityTone.Hype && words.Any(char.IsLower))
                         failures.Add($"{key}/{slot} (hype) is not in capitals: {line}");
-                    if (tone == PersonalityTone.Chill && line != line.ToLowerInvariant())
+                    if (tone == PersonalityTone.Chill && words != words.ToLowerInvariant())
                         failures.Add($"{key}/{slot} (chill) is not lower case: {line}");
                 }
             }

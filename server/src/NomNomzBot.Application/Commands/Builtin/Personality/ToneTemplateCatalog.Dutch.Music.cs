@@ -106,7 +106,7 @@ public static partial class ToneTemplateCatalog
             informative: ["Gebruik: !clearsongs <gebruiker>"],
             friendly: ["Zeg maar van wie ik de nummers moet wissen! !clearsongs <gebruiker>"],
             sassy: ["Van wie? Probeer: !clearsongs <gebruiker>"],
-            hype: ["VAN WIE? !CLEARSONGS <GEBRUIKER>"],
+            hype: ["VAN WIE? !clearsongs <gebruiker>"],
             chill: ["van wie? !clearsongs <gebruiker>"]
         );
 
@@ -160,8 +160,8 @@ public static partial class ToneTemplateCatalog
             informative: ["Gebruik: !sr <naam van het nummer of URL>"],
             friendly: ["Zeg maar welk nummer je wilt! !sr <naam van het nummer of URL>"],
             sassy: ["Je bent het nummer vergeten. Probeer: !sr <naam van het nummer of URL>"],
-            hype: ["WELK NUMMER? !SR <NAAM VAN HET NUMMER OF URL>"],
-            chill: ["kies een nummer: !sr <naam van het nummer of url>"]
+            hype: ["WELK NUMMER? !sr <naam van het nummer of URL>"],
+            chill: ["kies een nummer: !sr <naam van het nummer of URL>"]
         );
 
         Translate(
@@ -1062,7 +1062,7 @@ public static partial class ToneTemplateCatalog
             ],
             hype:
             [
-                "!SKIP <N> VERWIJDERT JOUW N-DE VERZOEK. !SKIP ALLEEN SLAAT HET HUIDIGE NUMMER OVER (MODS ELK NUMMER, JIJ JE EIGEN).",
+                "!skip <N> VERWIJDERT JOUW N-DE VERZOEK. !skip ALLEEN SLAAT HET HUIDIGE NUMMER OVER (MODS ELK NUMMER, JIJ JE EIGEN).",
             ],
             chill:
             [
