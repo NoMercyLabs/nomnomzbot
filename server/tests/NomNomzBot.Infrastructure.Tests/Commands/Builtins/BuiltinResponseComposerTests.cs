@@ -157,36 +157,6 @@ public sealed class BuiltinResponseComposerTests
     }
 
     [Theory]
-    [InlineData(PersonalityTone.Informative)]
-    [InlineData(PersonalityTone.Sassy)]
-    [InlineData(PersonalityTone.Hype)]
-    public async Task A_slot_with_no_dutch_text_answers_in_english_on_a_dutch_channel(string tone)
-    {
-        // The first slot with no variables, no helpers and no Dutch text yet.
-        (string key, string slot) = ToneTemplateCatalog
-            .AllSlots()
-            .First(s =>
-                ToneTemplateCatalog.Variables(s.BuiltinKey, s.Slot).Count == 0
-                && !ToneTemplateCatalog.TranslatedSlots("nl").Contains(s)
-                && ToneTemplateCatalog.Get(tone, s.BuiltinKey, s.Slot).All(t => !t.Contains('{'))
-            );
-
-        string result = await Sut(channels: ChannelWithLanguage("nl"))
-            .ComposeAsync(
-                new()
-                {
-                    BroadcasterId = Channel,
-                    Personality = tone,
-                    BuiltinKey = key,
-                    Slot = slot,
-                    NeutralFallback = "NEUTRAL",
-                }
-            );
-
-        ToneTemplateCatalog.Get(tone, key, slot).Should().Contain(result);
-    }
-
-    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("en")]

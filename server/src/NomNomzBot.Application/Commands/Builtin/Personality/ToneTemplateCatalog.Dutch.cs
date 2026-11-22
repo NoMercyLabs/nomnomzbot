@@ -93,5 +93,7 @@ public static partial class ToneTemplateCatalog
         AddDutchCommunitySlots(catalog);
         AddDutchCoreSlots(catalog);
         AddDutchBaseSlots(catalog);
+        AddDutchModerationSlots(catalog);
+        AddDutchHelpLineSlots(catalog);
     }
 }

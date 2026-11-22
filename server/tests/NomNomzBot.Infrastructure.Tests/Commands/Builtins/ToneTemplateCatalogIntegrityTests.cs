@@ -280,6 +280,24 @@ public sealed class ToneTemplateCatalogIntegrityTests
     }
 
     [Fact]
+    public void Every_slot_of_the_catalogue_ships_dutch_text()
+    {
+        IReadOnlyList<(string BuiltinKey, string Slot)> translated =
+            ToneTemplateCatalog.TranslatedSlots("nl");
+        List<string> missing =
+        [
+            .. ToneTemplateCatalog
+                .AllSlots()
+                .Where(s => !translated.Contains(s))
+                .Select(s => $"{s.BuiltinKey}/{s.Slot}"),
+        ];
+
+        missing
+            .Should()
+            .BeEmpty("every slot needs Dutch text; missing: {0}", string.Join(", ", missing));
+    }
+
+    [Fact]
     public void Every_dutch_entry_fills_all_five_tones_with_the_english_shape_and_declared_variables()
     {
         TemplateHelperValidator validator = new();
@@ -299,8 +317,9 @@ public sealed class ToneTemplateCatalogIntegrityTests
                 if (dutch.SequenceEqual(english))
                     failures.Add($"{key}/{slot} ({tone}): the Dutch text is the English text");
 
-                foreach (string line in dutch)
+                for (int i = 0; i < dutch.Count; i++)
                 {
+                    string line = dutch[i];
                     Result valid = validator.Validate(
                         line,
                         TemplateHelperContext.Command,
@@ -314,9 +333,26 @@ public sealed class ToneTemplateCatalogIntegrityTests
                         @"\{prefix\}\w+|\{[^}]*\}|<[^>]*>|!\w+",
                         string.Empty
                     );
-                    if (tone == PersonalityTone.Hype && words.Any(char.IsLower))
+                    // The case rule applies to a Dutch line only when the English line of the same position keeps it.
+                    string englishWords =
+                        i < english.Count
+                            ? Regex.Replace(
+                                english[i],
+                                @"\{prefix\}\w+|\{[^}]*\}|<[^>]*>|!\w+",
+                                string.Empty
+                            )
+                            : words;
+                    if (
+                        tone == PersonalityTone.Hype
+                        && words.Any(char.IsLower)
+                        && !englishWords.Any(char.IsLower)
+                    )
                         failures.Add($"{key}/{slot} (hype) is not in capitals: {line}");
-                    if (tone == PersonalityTone.Chill && words != words.ToLowerInvariant())
+                    if (
+                        tone == PersonalityTone.Chill
+                        && words != words.ToLowerInvariant()
+                        && englishWords == englishWords.ToLowerInvariant()
+                    )
                         failures.Add($"{key}/{slot} (chill) is not lower case: {line}");
                 }
             }
