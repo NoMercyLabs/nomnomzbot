@@ -45,6 +45,7 @@ import {
 import StepCard from './StepCard.vue';
 import StepInspector from './StepInspector.vue';
 import StepPalette from './StepPalette.vue';
+import { pipelineWords } from './stepWords';
 import { vLaneDrag } from './useStepDrag';
 import { useStepDraft } from '../useStepDraft';
 
@@ -68,7 +69,7 @@ const draft = useStepDraft(pipeline.data);
 const wordsReady = ref(false);
 
 void Promise.all([
-  ensureWords((locale) => import(`../i18n/${locale}.json`)),
+  ensureWords(pipelineWords),
   ensureWords(schemaWords),
 ]).then(() => {
   wordsReady.value = true;

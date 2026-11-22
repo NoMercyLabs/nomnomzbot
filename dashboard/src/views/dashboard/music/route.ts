@@ -11,7 +11,8 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
-import { loadPage } from '@/i18n';
+import { loadPage, schemaWords } from '@/i18n';
+import { pipelineWords } from '@/views/dashboard/pipelines/components/stepWords';
 
 export const dashboardMusicRoute = {
   path: 'music',
@@ -23,5 +24,8 @@ export const dashboardMusicRoute = {
       (locale) => import(`./i18n/${locale}.json`),
       // The Music Player setup dialog on a waiting queue row speaks with the Overlays page's words.
       (locale) => import(`../overlays/i18n/${locale}.json`),
+      // A player button's action shows the pipeline editor's fields, with their words and the bot's schema labels.
+      pipelineWords,
+      schemaWords,
     ),
 } as const satisfies RouteRecordRaw;

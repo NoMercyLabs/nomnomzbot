@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
@@ -56,6 +57,15 @@ vi.mock('@/api/pipelines', () => ({
               templated: false,
               declaresVariable: false,
             },
+            {
+              name: 'delay',
+              kind: 'number',
+              required: false,
+              repeatable: false,
+              description: null,
+              templated: true,
+              declaresVariable: false,
+            },
           ],
         },
         {
@@ -85,16 +95,23 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = (): void => undefined;
 });
 
+let mounted: VueWrapper | null = null;
+
+// The picker is unmounted before the page is emptied: a form that redraws later must not find its nodes gone.
 afterEach(() => {
+  mounted?.unmount();
+  mounted = null;
   document.body.innerHTML = '';
 });
 
 function mountPicker(props: Record<string, unknown> = {}): VueWrapper {
-  return mount(TargetPicker, {
+  mounted = mount(TargetPicker, {
     attachTo: document.body,
     props: { target: null, ...props },
-    global: { plugins: [i18n] },
+    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
   });
+
+  return mounted;
 }
 
 async function openList(wrapper: VueWrapper): Promise<void> {
@@ -121,6 +138,25 @@ function emitted(wrapper: VueWrapper): PickedTarget | null {
 }
 
 describe('the target picker', () => {
+  // First on purpose: a later test loads the pipeline words, and this one must find them on its own.
+  it('explains a field that takes words in braces in plain words, never the raw key', async () => {
+    const wrapper: VueWrapper = mountPicker({
+      kinds: ['command', 'action'],
+      target: {
+        kind: 'action',
+        id: '',
+        actionType: 'play_sound',
+        params: {},
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-step-field="delay"]').text()).toContain('Words in braces');
+    }, { timeout: 5000 });
+
+    expect(wrapper.text()).not.toContain('dashboard.pipelines');
+  });
+
   it('offers commands and pipelines in their own groups', async () => {
     const wrapper = mountPicker();
 

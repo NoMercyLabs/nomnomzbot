@@ -35,6 +35,10 @@ export type StartSource = { kind: 'command' | 'chat' | 'timer' | 'event'; name: 
 
 const page = 'dashboard.pipelines.workbench';
 
+// The words of the step parts belong to the pipelines pages. A form on another page loads them with this
+// (ensureWords); one shared loader, so a language switch reloads them once.
+export const pipelineWords = (locale: string) => import(`../i18n/${locale}.json`);
+
 export function actionTitle(type: string, { t, te }: Words): string {
   const key = `pipelineBlock.${type}`;
 

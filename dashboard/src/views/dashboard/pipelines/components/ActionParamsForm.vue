@@ -11,17 +11,27 @@
 <script setup lang="ts">
 // The settings of one action that runs on its own (a binding target), as the same fields the pipeline editor
 // gives a step. The fields come from the bot's catalog; an emptied field leaves the settings.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { PipelineActionDescriptor } from '@/api/pipelines';
 import { FieldGroup } from '@/components/ui/field';
 import { useLocalizedText } from '@/composables/useLocalizedText';
+import { ensureWords } from '@/i18n';
 import type { ActionParams } from '@/lib/bindingTarget';
 import type { JsonValue } from '@/lib/json';
 
 import { choiceContext, type FieldRow, settingRows, settingsAfter } from './stepFields';
 import StepField from './StepField.vue';
+import { pipelineWords } from './stepWords';
+
+// This form shows on pages that never loaded the pipelines words; the fields would show raw keys without them.
+// The translation lookup does not notify a render, so the words arriving flips this flag and the fields redraw.
+const wordsReady = ref(false);
+
+void ensureWords(pipelineWords).then(() => {
+  wordsReady.value = true;
+});
 
 const props = defineProps<{
   actionType: string;
@@ -60,7 +70,7 @@ function change(row: FieldRow, value: JsonValue | undefined): void {
   <FieldGroup v-if="rows.length > 0" data-action-params class="gap-4">
     <StepField
       v-for="row in rows"
-      :key="`${actionType}:${row.name}`"
+      :key="`${actionType}:${row.name}:${wordsReady}`"
       :row="row"
       :context="context"
       @change="change(row, $event)"

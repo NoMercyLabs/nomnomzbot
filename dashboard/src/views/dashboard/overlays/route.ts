@@ -12,6 +12,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage, schemaWords } from '@/i18n';
+import { pipelineWords } from '@/views/dashboard/pipelines/components/stepWords';
 
 // The widget settings name their fields with the bot's schema labels.
 export const dashboardOverlaysRoute = {
@@ -23,5 +24,7 @@ export const dashboardOverlaysRoute = {
       () => import('./OverlaysView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
       schemaWords,
+      // A widget setting that picks a pipeline item speaks with the pipeline editor's words.
+      pipelineWords,
     ),
 } as const satisfies RouteRecordRaw;
