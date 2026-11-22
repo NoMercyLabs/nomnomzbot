@@ -496,7 +496,7 @@ public static partial class ToneTemplateCatalog
             ],
             hype:
             [
-                "@{user} HIER IS HET HELE ARSENAAL: {commands} — GEBRUIK {prefix}HELP <commando> VOOR DETAILS.",
+                "@{user} HIER IS HET HELE ARSENAAL: {commands} — GEBRUIK {prefix}help <commando> VOOR DETAILS.",
             ],
             chill:
             [
@@ -547,7 +547,7 @@ public static partial class ToneTemplateCatalog
             ],
             hype:
             [
-                "@{user} GEBRUIK {prefix}HELP <commando> VOOR EEN BEPAALD COMMANDO, OF {prefix}COMMANDS VOOR HET HELE ARSENAAL.",
+                "@{user} GEBRUIK {prefix}help <commando> VOOR EEN BEPAALD COMMANDO, OF {prefix}commands VOOR HET HELE ARSENAAL.",
             ],
             chill:
             [
@@ -574,7 +574,7 @@ public static partial class ToneTemplateCatalog
             ],
             hype:
             [
-                "@{user} \"{command}\" BESTAAT NIET. GEBRUIK {prefix}COMMANDS OM TE ZIEN WAT ER WEL IS.",
+                "@{user} \"{command}\" BESTAAT NIET. GEBRUIK {prefix}commands OM TE ZIEN WAT ER WEL IS.",
             ],
             chill:
             [
@@ -601,7 +601,7 @@ public static partial class ToneTemplateCatalog
             ],
             hype:
             [
-                "@{user} {prefix}{command} BESTAAT MAAR HEEFT NOG GEEN HELPTEKST. GEBRUIK {prefix}COMMANDS VOOR DE REST.",
+                "@{user} {prefix}{command} BESTAAT MAAR HEEFT NOG GEEN HELPTEKST. GEBRUIK {prefix}commands VOOR DE REST.",
             ],
             chill:
             [

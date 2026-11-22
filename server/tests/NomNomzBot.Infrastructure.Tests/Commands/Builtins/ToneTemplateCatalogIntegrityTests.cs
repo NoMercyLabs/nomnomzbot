@@ -309,7 +309,11 @@ public sealed class ToneTemplateCatalogIntegrityTests
                     if (valid.IsFailure)
                         failures.Add($"{key}/{slot} ({tone}): {valid.ErrorMessage}");
                     // A variable, a command name and an argument placeholder keep their own case, as in English.
-                    string words = Regex.Replace(line, @"\{[^}]*\}|<[^>]*>|!\w+", string.Empty);
+                    string words = Regex.Replace(
+                        line,
+                        @"\{prefix\}\w+|\{[^}]*\}|<[^>]*>|!\w+",
+                        string.Empty
+                    );
                     if (tone == PersonalityTone.Hype && words.Any(char.IsLower))
                         failures.Add($"{key}/{slot} (hype) is not in capitals: {line}");
                     if (tone == PersonalityTone.Chill && words != words.ToLowerInvariant())
