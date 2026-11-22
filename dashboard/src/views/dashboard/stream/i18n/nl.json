@@ -31,7 +31,11 @@
         "tagUndo": "Ongedaan maken",
         "tagLimit": "{count} van 10 tags. Meer staat Twitch niet toe.",
         "language": "Taal",
-        "languageHint": "Twitch bepaalt de taal. Wijzig die in Twitch.",
+        "languageHint": "De taal die je op stream spreekt. Twitch toont die aan kijkers.",
+        "languageOther": "Anders",
+        "languageAsl": "Amerikaanse gebarentaal",
+        "languageSearch": "Zoek een taal",
+        "languageNone": "Geen taal gevonden.",
         "labels": "Inhoudslabels",
         "labelsHint": "Twitch toont deze aan kijkers. Zet aan wat je stream bevat.",
         "label": {

@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import {
   CATEGORY_CONTENT_LABEL,
   EDITABLE_CONTENT_LABELS,
+  STREAM_LANGUAGES,
   useSaveStreamInfo,
   useStreamHistory,
   useStreamInfo,
@@ -28,12 +29,14 @@ import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
+import OptionSelect, { type Choice } from '@/components/layout/OptionSelect.vue';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { merge } from '@/lib/array';
 
 import CategoryPicker from './CategoryPicker.vue';
 import TagInput from './TagInput.vue';
@@ -61,10 +64,15 @@ const form = computed(() => ({
   tags: draft.value.tags ?? [...(info.value?.tags ?? [])],
   contentLabels: draft.value.contentLabels ?? [...(info.value?.contentLabels ?? [])],
   isBrandedContent: draft.value.isBrandedContent ?? info.value?.isBrandedContent ?? false,
+  language: draft.value.language ?? info.value?.language ?? '',
 }) as const satisfies StreamInfoDraft);
 
 const sameList = (a: string[], b: string[]): boolean =>
   JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+
+const languageChanged = computed<boolean>(
+  () => form.value.language !== (info.value?.language ?? ''),
+);
 
 const dirty = computed<boolean>(
   () =>
@@ -72,7 +80,8 @@ const dirty = computed<boolean>(
     form.value.gameName !== (info.value?.gameName ?? '') ||
     JSON.stringify(form.value.tags) !== JSON.stringify(info.value?.tags ?? []) ||
     !sameList(form.value.contentLabels, [...(info.value?.contentLabels ?? [])]) ||
-    form.value.isBrandedContent !== (info.value?.isBrandedContent ?? false),
+    form.value.isBrandedContent !== (info.value?.isBrandedContent ?? false) ||
+    languageChanged.value,
 );
 
 // Twitch sets this one from the category, so it is shown and never switched.
@@ -95,10 +104,43 @@ const recentCategories = computed<string[]>(() => [
   ...new Set(history.value.map((stream) => stream.gameName ?? '').filter((name) => name !== '')),
 ]);
 
-const language = computed<string>(() => {
-  const code = info.value?.language ?? '';
+const OTHER_LANGUAGE = 'other';
 
-  return new Intl.DisplayNames([locale.value], { type: 'language' }).of(code) ?? code;
+// Twitch calls American Sign Language "asl" and Hong Kong Chinese "zh-hk"; Intl knows them by "ase" and "zh-HK".
+// Only the name lookup uses these.
+const NAME_CODES = new Map([
+  ['asl', 'ase'],
+  ['zh-hk', 'zh-HK'],
+]);
+const ASL_LANGUAGE = 'asl';
+
+// A language is named in the dashboard language; "other" has no name of its own, so it has a key. So does a
+// language the runtime cannot name (it answers with the code it was asked about).
+function languageName(code: string): string {
+  if (code === '')
+    return code;
+
+  if (code === OTHER_LANGUAGE)
+    return t('dashboard.stream.info.languageOther');
+
+  const asked = NAME_CODES.get(code) ?? code;
+  const named = new Intl.DisplayNames([locale.value], { type: 'language' }).of(asked) ?? asked;
+
+  return named === asked && code === ASL_LANGUAGE
+    ? t('dashboard.stream.info.languageAsl')
+    : named;
+}
+
+const language = computed<string>(() => languageName(form.value.language));
+
+const languageChoices = computed<Choice[]>(() => {
+  const codes = form.value.language === '' || STREAM_LANGUAGES.some((code) => code === form.value.language)
+    ? STREAM_LANGUAGES
+    : merge(STREAM_LANGUAGES, [form.value.language]);
+
+  return codes
+    .map((code) => ({ value: code, label: languageName(code) }))
+    .sort((a, b) => a.label.localeCompare(b.label, locale.value));
 });
 
 function setTitle(value: string | number): void {
@@ -128,8 +170,17 @@ function setBranded(on: boolean): void {
   draft.value = { ...draft.value, isBrandedContent: on };
 }
 
+function setLanguage(value: string): void {
+  draft.value = { ...draft.value, language: value };
+}
+
 function submit(): void {
-  save.mutate(form.value, {
+  const { language: chosen, ...rest } = form.value;
+  const body = languageChanged.value
+    ? { ...rest, language: chosen }
+    : rest;
+
+  save.mutate(body, {
     onSuccess: () => {
       draft.value = {};
     },
@@ -214,7 +265,18 @@ function submit(): void {
 
       <div class="flex flex-col gap-1">
         <span class="text-sm font-medium">{{ t("dashboard.stream.info.language") }}</span>
-        <span class="text-sm">{{ language }}</span>
+        <OptionSelect
+          v-if="canEdit"
+          data-field="stream-language"
+          :aria-label="t('dashboard.stream.info.language')"
+          :options="languageChoices"
+          :model-value="form.language"
+          searchable
+          :search-placeholder="t('dashboard.stream.info.languageSearch')"
+          :empty-text="t('dashboard.stream.info.languageNone')"
+          @update:model-value="setLanguage"
+        />
+        <span v-else class="text-sm">{{ language }}</span>
         <span class="text-sm text-muted-foreground">{{
           t("dashboard.stream.info.languageHint")
         }}</span>

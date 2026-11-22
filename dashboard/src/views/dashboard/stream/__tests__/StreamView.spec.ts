@@ -529,6 +529,90 @@ describe('the stream info form', () => {
     expect(button('Save changes')?.disabled).toBe(true);
   });
 
+  const languageBox = (): HTMLElement | null =>
+    document.body.querySelector<HTMLElement>('[data-field="stream-language"]');
+
+  async function chooseLanguage(name: string): Promise<void> {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+
+    languageBox()?.click();
+    await settle();
+
+    const option = [...document.body.querySelectorAll<HTMLElement>('[data-option]')].find(
+      (node) => node.textContent?.trim() === name,
+    );
+
+    option?.click();
+    await settle();
+  }
+
+  it('shows the stream language by name in a picker an editor can use', async () => {
+    await open();
+
+    expect(languageBox()?.textContent).toContain('English');
+    expect(languageBox()?.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('sends the chosen language with the rest of the stream info', async () => {
+    await open();
+
+    await chooseLanguage('Dutch');
+    expect(button('Save changes')?.disabled).toBe(false);
+    button('Save changes')?.click();
+    await settle();
+
+    expect(puts()[0]!.body).toEqual({
+      title: 'Building the bot',
+      gameName: 'Software and Game Development',
+      tags: ['coding', 'English'],
+      contentLabels: ['Gambling', 'MatureGame'],
+      isBrandedContent: false,
+      language: 'nl',
+    });
+
+    expect(button('Save changes')?.disabled).toBe(true);
+  });
+
+  it('sends American Sign Language as asl', async () => {
+    await open();
+
+    await chooseLanguage('American Sign Language');
+    button('Save changes')?.click();
+    await settle();
+
+    expect(puts()[0]!.body).toMatchObject({ language: 'asl' });
+  });
+
+  it('sends Hong Kong Chinese as zh-hk, named by Intl', async () => {
+    await open();
+
+    const hongKong = new Intl.DisplayNames(['en'], { type: 'language' }).of('zh-HK') as string;
+
+    await chooseLanguage(hongKong);
+    button('Save changes')?.click();
+    await settle();
+
+    expect(puts()[0]!.body).toMatchObject({ language: 'zh-hk' });
+  });
+
+  it('is clean again when the language is set back to what Twitch has', async () => {
+    await open();
+
+    await chooseLanguage('Dutch');
+    await chooseLanguage('English');
+
+    expect(button('Save changes')?.disabled).toBe(true);
+  });
+
+  it('shows the language as plain text without the title write key', async () => {
+    access.held = ['stream:read'];
+    await open();
+
+    expect(languageBox()).toBeNull();
+    expect(text()).toContain('English');
+  });
+
   it('shows the labels as badges without the title write key', async () => {
     access.held = ['stream:read'];
     await open();

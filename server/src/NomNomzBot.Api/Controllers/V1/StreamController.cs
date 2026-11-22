@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Collections.Frozen;
+using System.Globalization;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -76,12 +78,14 @@ public class StreamController : BaseController
 
     // ContentLabels is the full set of content label ids that should be on (an empty list turns all editable
     // labels off, null leaves them alone). MatureGame may ride along and is ignored: Twitch sets it from the category.
+    // Language is the broadcaster language: a two-letter ISO 639-1 code or "other"; null or blank leaves it alone.
     public record UpdateStreamRequest(
         string? Title,
         string? GameName,
         List<string>? Tags,
         List<string>? ContentLabels = null,
-        bool? IsBrandedContent = null
+        bool? IsBrandedContent = null,
+        string? Language = null
     );
 
     public record UpdateTitleRequest(string Title);
@@ -232,6 +236,12 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
+        string? language = NormalizeLanguage(request.Language);
+        if (language is not null && !IsLanguageCode(language))
+            return BadRequestResponse(
+                "Language must be a two-letter language code, \"asl\", \"zh-hk\" or \"other\"."
+            );
+
         Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
@@ -246,7 +256,8 @@ public class StreamController : BaseController
                 CategoryName: request.GameName,
                 Tags: request.Tags,
                 ContentLabels: request.ContentLabels,
-                IsBrandedContent: request.IsBrandedContent
+                IsBrandedContent: request.IsBrandedContent,
+                Language: language
             ),
             ct
         );
@@ -272,13 +283,40 @@ public class StreamController : BaseController
             channel.IsLive,
             channel.ViewerCount ?? 0,
             null,
-            null,
+            language,
             ContentLabels: request.ContentLabels ?? [],
             IsBrandedContent: request.IsBrandedContent ?? false
         );
 
         return Ok(new StatusResponseDto<StreamInfoDto> { Data = info });
     }
+
+    // Null or blank means "leave the language alone"; anything else is trimmed and lower-cased.
+    private static string? NormalizeLanguage(string? language) =>
+        string.IsNullOrWhiteSpace(language) ? null : language.Trim().ToLowerInvariant();
+
+    // Twitch takes an ISO 639-1 two-letter code, plus three values of its own: "other", American Sign Language
+    // ("asl") and Hong Kong Chinese ("zh-hk"). The two-letter codes come from the .NET culture data.
+    private static readonly FrozenSet<string> TwitchOnlyLanguages = new[]
+    {
+        "other",
+        "asl",
+        "zh-hk",
+    }.ToFrozenSet(StringComparer.Ordinal);
+
+    // .NET names Norwegian "nb"/"nn" and Filipino "fil", so it has no culture for the ISO 639-1 codes "no" and "tl"
+    // that Twitch offers; those two are added by hand.
+    private static readonly string[] TwitchCodesWithoutCulture = ["no", "tl"];
+
+    private static readonly FrozenSet<string> LanguageCodes = CultureInfo
+        .GetCultures(CultureTypes.NeutralCultures)
+        .Select(culture => culture.TwoLetterISOLanguageName)
+        .Where(code => code.Length == 2)
+        .Concat(TwitchCodesWithoutCulture)
+        .ToFrozenSet(StringComparer.Ordinal);
+
+    private static bool IsLanguageCode(string language) =>
+        TwitchOnlyLanguages.Contains(language) || LanguageCodes.Contains(language);
 
     // ── Lightweight live status ──────────────────────────────────────────────
 

@@ -31,7 +31,11 @@
         "tagUndo": "Undo",
         "tagLimit": "{count} of 10 tags. The most Twitch allows.",
         "language": "Language",
-        "languageHint": "Twitch sets the language. Change it in Twitch.",
+        "languageHint": "The language you speak on stream. Twitch shows it to viewers.",
+        "languageOther": "Other",
+        "languageAsl": "American Sign Language",
+        "languageSearch": "Find a language",
+        "languageNone": "No language found.",
         "labels": "Content labels",
         "labelsHint": "Twitch shows these to viewers. Switch on what your stream has.",
         "label": {

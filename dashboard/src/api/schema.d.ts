@@ -109080,6 +109080,7 @@ export interface components {
             tags?: null | string[];
             contentLabels?: null | string[];
             isBrandedContent?: null | boolean;
+            language?: null | string;
         };
         UpdateTagsRequest: {
             tags: string[];

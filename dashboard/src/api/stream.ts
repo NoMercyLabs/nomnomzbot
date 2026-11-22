@@ -36,7 +36,49 @@ export type StreamInfoDraft = {
   tags: string[];
   contentLabels: string[];
   isBrandedContent: boolean;
+  // Sent only when the person changed it: blank or missing leaves the Twitch language alone.
+  language?: string;
 };
+
+// Values Twitch returns from Get Streams, checked 2026-11-22.
+// "other" is for a language with no code here and "asl" is American Sign Language, which Twitch names with three letters.
+export const STREAM_LANGUAGES = [
+  'asl',
+  'zh-hk',
+  'ar',
+  'bg',
+  'ca',
+  'cs',
+  'da',
+  'de',
+  'el',
+  'en',
+  'es',
+  'fi',
+  'fr',
+  'hi',
+  'hu',
+  'id',
+  'it',
+  'ja',
+  'ko',
+  'ms',
+  'nl',
+  'no',
+  'pl',
+  'pt',
+  'ro',
+  'ru',
+  'sk',
+  'sv',
+  'th',
+  'tl',
+  'tr',
+  'uk',
+  'vi',
+  'zh',
+  'other',
+] as const;
 
 // The labels Twitch lets a streamer switch. MatureGame is not here: Twitch sets it from the category.
 export const EDITABLE_CONTENT_LABELS = [
