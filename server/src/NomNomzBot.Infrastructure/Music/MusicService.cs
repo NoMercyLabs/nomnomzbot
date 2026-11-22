@@ -1874,7 +1874,13 @@ public sealed class MusicService : IMusicService
             tenantId.ToString(),
             playingTrackUri
         );
-        _queueStore.TryGet(tenantId.ToString())?.SetNowPlayingOwner(requester);
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(tenantId.ToString());
+        // A song that still is a queue row is already that owner's share: counting it again moves their next request back.
+        bool isStillRow =
+            requester is not null
+            && queue is not null
+            && queue.GetSnapshot().Any(e => e.Item.TrackUri == playingTrackUri);
+        queue?.SetNowPlayingOwner(isStillRow ? null : requester);
         return requester;
     }
 
