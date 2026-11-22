@@ -55,6 +55,7 @@
           "description": "Kies de woorden om op te letten en wat de bot terugzegt.",
           "patternRequired": "Geef de trigger woorden om op te letten.",
           "responseRequired": "Schrijf het antwoord.",
+          "targetRequired": "Kies het commando, de actie of de pipeline die de trigger uitvoert.",
           "create": "Trigger maken"
         }
       },

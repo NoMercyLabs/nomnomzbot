@@ -17,6 +17,7 @@ import { ref } from 'vue';
 import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
 import { position, pressBack } from '@/__tests__/backHistory';
+import { chooseTarget, openTargetPicker, targetRow } from '@/components/layout/__tests__/targetPickerDom';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -38,9 +39,22 @@ let rows: Row[] = [];
 let refusePatch: string | null = null;
 let held: string[] = ['timers:read', 'chattriggers:read', 'chattriggers:write'];
 
+const catalogAction = {
+  type: 'play_sound',
+  category: { key: 'pipeline.category.media' },
+  description: { key: 'x' },
+  fields: [],
+} as const satisfies Row;
+
 function read(path: string): unknown {
   if (path.endsWith('/roles/effective/me'))
     return { heldActionKeys: held };
+
+  if (path.endsWith('/pipelines/actions'))
+    return { actions: [catalogAction] };
+
+  if (path.endsWith('/commands'))
+    return [{ id: 'c1', name: 'hello' }];
 
   return path.endsWith('/chat-triggers')
     ? rows
@@ -276,6 +290,54 @@ describe('Chat triggers tab', () => {
     });
 
     expect(patterns()).toContain('hello bot');
+  });
+
+  it('creates a trigger that runs a catalog action and sends no reply text', async () => {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    await open();
+    await click(buttonByText('New trigger'));
+    await type(field('Words to watch for'), 'play it');
+    await click(buttonByText('Pipeline'));
+    await openTargetPicker();
+
+    await vi.waitFor(() => {
+      expect(targetRow('play_sound') ?? targetRow('Play sound')).toBeDefined();
+    }, { timeout: 5000 });
+
+    await chooseTarget(targetRow('play_sound')
+      ? 'play_sound'
+      : 'Play sound');
+
+    await settle();
+    await click(buttonByText('Create trigger'));
+
+    const posts = calls.filter((call) => call.method === 'POST');
+
+    expect(posts).toHaveLength(1);
+
+    expect(posts[0]!.body).toEqual({
+      pattern: 'play it',
+      target: {
+        kind: 2,
+        id: '',
+        actionType: 'play_sound',
+        params: {},
+      },
+    });
+  });
+
+  it('refuses a submit in the command, pipeline or action mode with no target', async () => {
+    await open();
+    await click(buttonByText('New trigger'));
+    await type(field('Words to watch for'), 'play it');
+    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Create trigger'));
+
+    expect(document.body.textContent).toContain(en.dashboard.timers.triggers.dialog.targetRequired);
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0);
   });
 
   it('deletes a trigger only after the confirm and refetches the list', async () => {

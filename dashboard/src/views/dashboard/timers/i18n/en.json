@@ -55,6 +55,7 @@
           "description": "Pick the words to watch for and what the bot says back.",
           "patternRequired": "Give the trigger some words to watch for.",
           "responseRequired": "Write the reply.",
+          "targetRequired": "Pick the command, action or pipeline the trigger runs.",
           "create": "Create trigger"
         }
       },
