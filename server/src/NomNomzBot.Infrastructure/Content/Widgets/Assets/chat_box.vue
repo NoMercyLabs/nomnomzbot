@@ -259,6 +259,10 @@ function resolveRole(m: Payload): string {
 const lines = ref<ChatLine[]>([])
 let seq = 0
 const fadeTimers: number[] = []
+const IMAGE_HOLD_MS = 400
+// Lines that arrived but wait for their images, and the chain that lets them in one after the other.
+let held: ChatLine[] = []
+let arrivals: Promise<void> = Promise.resolve()
 
 function hexColor(c: unknown): string {
   return (typeof c === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c.trim())) ? c.trim() : ''
@@ -339,6 +343,34 @@ function isFilteredOut(m: Payload): boolean {
   return cfg.hideBots && KNOWN_BOTS.indexOf(login) !== -1
 }
 
+// The images a line really draws: its emotes when emotes are on, its badges when badges are on.
+function lineImageUrls(line: ChatLine): string[] {
+  const emotes: string[] = cfg.showEmotes
+    ? line.fragments.filter((fr: ChatFragment) => fr.type === 'emote' && fr.emote).map(emoteUrl)
+    : []
+  return Array.from(new Set(emotes.concat(line.badgeUrls).filter((u: string) => !!u)))
+}
+
+function decodeImage(url: string): Promise<void> {
+  const img: HTMLImageElement = new Image()
+  img.src = url
+  return img.decode().catch(() => undefined)
+}
+
+// Resolves when every image is loaded and decoded (a failed one counts as ready), or after IMAGE_HOLD_MS for
+// the whole line, so a slow image never keeps chat back for long.
+function whenImagesReady(urls: string[]): Promise<void> {
+  if (!urls.length) return Promise.resolve()
+
+  return new Promise<void>((resolve: () => void) => {
+    const timer: number = window.setTimeout(resolve, IMAGE_HOLD_MS)
+    Promise.all(urls.map(decodeImage)).then(() => {
+      window.clearTimeout(timer)
+      resolve()
+    })
+  })
+}
+
 function onChat(data: unknown): void {
   if (!data || typeof data !== 'object') return
   const m: Payload = data as Payload
@@ -370,6 +402,16 @@ function onChat(data: unknown): void {
     paint: paintOf(m.paint),
     look: lookOf(m.overlayLine),
   }
+  held.push(line)
+  arrivals = arrivals.then(() => whenImagesReady(lineImageUrls(line))).then(() => admit(line))
+}
+
+// A line enters the page in arrival order, once its images are ready. A line deleted or cleared while it was
+// held is no longer in `held`, so it never enters.
+function admit(line: ChatLine): void {
+  if (!held.includes(line)) return
+  held.splice(held.indexOf(line), 1)
+
   const next: ChatLine[] = lines.value.concat([line])
   while (next.length > Math.max(1, cfg.maxMessages)) next.shift()
   lines.value = next
@@ -401,11 +443,13 @@ function onMessageDeleted(data: unknown): void {
   const e: Payload = asPayload(data)
   const id: string = e.messageId ? String(e.messageId) : ''
   if (!id) return
+  held = held.filter((l: ChatLine) => l.sourceId !== id)
   lines.value = lines.value.filter((l: ChatLine) => l.sourceId !== id)
 }
 
 // A whole-channel "Clear chat" — every currently-rendered line goes, not just future ones.
 function onChatCleared(): void {
+  held = []
   lines.value = []
 }
 
@@ -415,6 +459,7 @@ function onUserMessagesCleared(data: unknown): void {
   const e: Payload = asPayload(data)
   const targetUserId: string = e.targetUserId ? String(e.targetUserId) : ''
   if (!targetUserId) return
+  held = held.filter((l: ChatLine) => l.userId !== targetUserId)
   lines.value = lines.value.filter((l: ChatLine) => l.userId !== targetUserId)
 }
 
@@ -478,7 +523,7 @@ onUnmounted(() => {
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
         <span v-if="l.provider !== 'twitch'" class="platform" :class="'platform-' + l.provider">{{ PROVIDER_LABEL[l.provider] || l.provider }}</span>
         <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
-        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
+        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="" decoding="sync">
         <span v-if="cfg.showRoleBadge && l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
         <span class="name">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
@@ -499,7 +544,7 @@ onUnmounted(() => {
                  is the only place that turns text into an html fragment, and it sanitizes before it ever gets here. -->
             <span v-if="fr.type === 'html'" class="frag-html" v-html="fr.text"></span>
             <!-- Twitch / third-party emote image -->
-            <img v-else-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="emoteUrl(fr)" :alt="fr.text">
+            <img v-else-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="emoteUrl(fr)" :alt="fr.text" decoding="sync">
             <!-- Cheermote: the animated bits image plus its tier-coloured amount -->
             <template v-else-if="fr.type === 'cheermote' && fr.cheermote">
               <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteUrl(fr)" :alt="fr.text">

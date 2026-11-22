@@ -266,6 +266,211 @@ describe('the chat box widget role badge option', () => {
   });
 });
 
+// A chat line appears together with its emote and badge images: it is held until every image is loaded and
+// decoded, or until the hold time (400 ms) passes. The browser Image is the outside world, so a stub stands in
+// for it and the test settles each decode by hand.
+describe('the chat box widget holds a line until its images are decoded', () => {
+  interface PendingImage {
+    src: string;
+    settle: (failed: boolean) => void;
+  }
+
+  const images: PendingImage[] = [];
+
+  class StubImage {
+    src = '';
+
+    decode(): Promise<void> {
+      return new Promise<void>((resolve, reject) => {
+        images.push({
+          src: this.src,
+          settle: (failed: boolean) =>
+            failed
+              ? reject(new Error('decode failed'))
+              : resolve(),
+        });
+      });
+    }
+  }
+
+  function emoteFragment(name: string): Line {
+    return {
+      type: 'emote',
+      text: name,
+      emote: { urls: { 2: `https://cdn.test/${name}.png` } },
+    };
+  }
+
+  function chatter(id: string, extra: Line = {}): Line {
+    return botLine(null, {
+      id,
+      userId: `user-${id}`,
+      userType: 'viewer',
+      displayName: `Chatter ${id}`,
+      message: `message ${id}`,
+      fragments: [{ type: 'text', text: `message ${id}` }],
+      ...extra,
+    });
+  }
+
+  function emoteLine(id: string, extra: Line = {}): Line {
+    return chatter(id, {
+      fragments: [emoteFragment('Kappa'), emoteFragment('PogChamp')],
+      ...extra,
+    });
+  }
+
+  function mountBox(): VueWrapper {
+    const wrapper = mount(ChatBox);
+
+    wrappers.push(wrapper);
+
+    return wrapper;
+  }
+
+  function lineIds(wrapper: VueWrapper): string[] {
+    return wrapper.findAll('.line').map((l) => l.find('.name').text());
+  }
+
+  beforeEach(() => {
+    images.splice(0);
+    vi.stubGlobal('Image', StubImage);
+  });
+
+  it('keeps a line with two emotes out of the page until both images are decoded', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(emoteLine('a'));
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(images.map((i) => i.src)).toEqual(['https://cdn.test/Kappa.png', 'https://cdn.test/PogChamp.png']);
+    expect(wrapper.find('.line').exists()).toBe(false);
+
+    images[0]!.settle(false);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find('.line').exists()).toBe(false);
+
+    images[1]!.settle(false);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.findAll('.line')).toHaveLength(1);
+    expect(wrapper.findAll('.line img.emote')).toHaveLength(2);
+    expect(wrapper.find('.line img.emote').attributes('decoding')).toBe('sync');
+  });
+
+  it('draws the line after the hold time when the images never settle', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(emoteLine('a'));
+    await vi.advanceTimersByTimeAsync(399);
+
+    expect(wrapper.find('.line').exists()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(2);
+
+    expect(wrapper.findAll('.line')).toHaveLength(1);
+  });
+
+  it('counts an image that fails to decode as ready', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(emoteLine('a'));
+    await vi.advanceTimersByTimeAsync(0);
+    images.forEach((i) => i.settle(true));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.findAll('.line')).toHaveLength(1);
+  });
+
+  it('keeps chat order: a line without images waits behind an earlier held line', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(emoteLine('a'));
+    handlers.ChatMessage!(chatter('b'));
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(wrapper.find('.line').exists()).toBe(false);
+
+    images.forEach((i) => i.settle(false));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lineIds(wrapper)).toEqual(['Chatter a', 'Chatter b']);
+  });
+
+  it('never draws a held line whose message was deleted before its images were ready', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(emoteLine('a'));
+    handlers.ChatMessage!(chatter('b'));
+    await vi.advanceTimersByTimeAsync(0);
+    handlers.MessageDeleted!({ messageId: 'a' });
+    images.forEach((i) => i.settle(false));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lineIds(wrapper)).toEqual(['Chatter b']);
+  });
+
+  it('never draws a held line whose chatter was cleared before its images were ready', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(emoteLine('a'));
+    await vi.advanceTimersByTimeAsync(0);
+    handlers.UserMessagesCleared!({ targetUserId: 'user-a' });
+    images.forEach((i) => i.settle(false));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find('.line').exists()).toBe(false);
+  });
+
+  it('draws a line without images at once, with no wait', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(chatter('a'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(images).toHaveLength(0);
+    expect(lineIds(wrapper)).toEqual(['Chatter a']);
+  });
+
+  it('does not wait for emote images when emotes are off', async () => {
+    const wrapper = mountBox();
+
+    sendSettings({ showEmotes: false });
+    handlers.ChatMessage!(emoteLine('a'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(images).toHaveLength(0);
+    expect(wrapper.findAll('.line')).toHaveLength(1);
+    expect(wrapper.find('img.emote').exists()).toBe(false);
+  });
+
+  it('holds a line for its badge images when badges are on, and not when they are off', async () => {
+    const badgeLine = chatter('a', { badges: [{ urls: { 2: 'https://cdn.test/mod.png' } }] });
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(badgeLine);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(images.map((i) => i.src)).toEqual(['https://cdn.test/mod.png']);
+    expect(wrapper.find('.line').exists()).toBe(false);
+
+    images[0]!.settle(false);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.findAll('.line img.badge')).toHaveLength(1);
+    expect(wrapper.find('.line img.badge').attributes('decoding')).toBe('sync');
+
+    images.splice(0);
+    sendSettings({ showBadges: false });
+    handlers.ChatMessage!(chatter('b', { badges: [{ urls: { 2: 'https://cdn.test/mod.png' } }] }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(images).toHaveLength(0);
+    expect(wrapper.findAll('.line')).toHaveLength(2);
+  });
+});
+
 describe('the chat overlay bundle draws the bot overlay line', () => {
   it('shows the line under the bot name with "requested by" and the viewer name', async () => {
     const wrapper = show(ChatOverlay, botLine(look));
