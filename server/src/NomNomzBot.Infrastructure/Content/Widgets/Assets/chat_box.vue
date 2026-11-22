@@ -343,11 +343,15 @@ function isFilteredOut(m: Payload): boolean {
   return cfg.hideBots && KNOWN_BOTS.indexOf(login) !== -1
 }
 
-// The images a line really draws: its emotes when emotes are on, its badges when badges are on.
+function fragmentImageUrl(fr: ChatFragment): string {
+  if (fr.type === 'emote') return emoteUrl(fr)
+  if (fr.type === 'cheermote') return cheermoteUrl(fr)
+  return ''
+}
+
+// The images a line really draws: its emotes and cheermotes when emotes are on, its badges when badges are on.
 function lineImageUrls(line: ChatLine): string[] {
-  const emotes: string[] = cfg.showEmotes
-    ? line.fragments.filter((fr: ChatFragment) => fr.type === 'emote' && fr.emote).map(emoteUrl)
-    : []
+  const emotes: string[] = cfg.showEmotes ? line.fragments.map(fragmentImageUrl) : []
   return Array.from(new Set(emotes.concat(line.badgeUrls).filter((u: string) => !!u)))
 }
 
@@ -403,7 +407,9 @@ function onChat(data: unknown): void {
     look: lookOf(m.overlayLine),
   }
   held.push(line)
-  arrivals = arrivals.then(() => whenImagesReady(lineImageUrls(line))).then(() => admit(line))
+  // The hold starts now, on arrival, so a burst of lines loads its images side by side.
+  const ready: Promise<void> = whenImagesReady(lineImageUrls(line))
+  arrivals = arrivals.then(() => ready).then(() => admit(line))
 }
 
 // A line enters the page in arrival order, once its images are ready. A line deleted or cleared while it was
@@ -547,7 +553,7 @@ onUnmounted(() => {
             <img v-else-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="emoteUrl(fr)" :alt="fr.text" decoding="sync">
             <!-- Cheermote: the animated bits image plus its tier-coloured amount -->
             <template v-else-if="fr.type === 'cheermote' && fr.cheermote">
-              <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteUrl(fr)" :alt="fr.text">
+              <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteUrl(fr)" :alt="fr.text" decoding="sync">
               <span class="cheer-bits" :style="fragColor(fr.cheermote.colorHex)">{{ fr.cheermote.bits }}</span>
             </template>
             <!-- Twitch native chat GIF (GIPHY-backed, Tier 2+ sub feature): the fragment carries a real,

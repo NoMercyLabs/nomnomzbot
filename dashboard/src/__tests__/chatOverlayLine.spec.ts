@@ -372,6 +372,48 @@ describe('the chat box widget holds a line until its images are decoded', () => 
     expect(wrapper.findAll('.line')).toHaveLength(1);
   });
 
+  it('starts the hold when a line arrives, so a burst of slow lines waits one hold time and not one each', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(emoteLine('a'));
+    handlers.ChatMessage!(emoteLine('b', { fragments: [emoteFragment('LUL')] }));
+    handlers.ChatMessage!(emoteLine('c', { fragments: [emoteFragment('HeyGuys')] }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(images).toHaveLength(4);
+
+    await vi.advanceTimersByTimeAsync(401);
+
+    expect(lineIds(wrapper)).toEqual(['Chatter a', 'Chatter b', 'Chatter c']);
+  });
+
+  it('holds a line for its cheermote image', async () => {
+    const wrapper = mountBox();
+
+    handlers.ChatMessage!(
+      chatter('a', {
+        fragments: [
+          {
+            type: 'cheermote',
+            text: 'Cheer100',
+            cheermote: { urls: { 2: 'https://cdn.test/cheer100.gif' } },
+          },
+        ],
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(images.map((i) => i.src)).toEqual(['https://cdn.test/cheer100.gif']);
+    expect(wrapper.find('.line').exists()).toBe(false);
+
+    images[0]!.settle(false);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.findAll('.line img.cheermote')).toHaveLength(1);
+    expect(wrapper.find('.line img.cheermote').attributes('decoding')).toBe('sync');
+  });
+
   it('counts an image that fails to decode as ready', async () => {
     const wrapper = mountBox();
 
