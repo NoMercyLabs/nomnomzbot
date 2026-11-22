@@ -271,6 +271,7 @@ public sealed class ChannelChatMessageTranslator(
                 ct
             ),
             MessageType = payload.GetString("message_type") ?? "text",
+            AnimationId = payload.GetString("channel_points_animation_id"),
             SourceChannelId = payload.GetString("source_broadcaster_user_id"),
             SourceChannelName = payload.GetString("source_broadcaster_user_name"),
             Badges = badges,

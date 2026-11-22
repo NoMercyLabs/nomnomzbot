@@ -78,6 +78,7 @@ public sealed class ChatMessagePersistenceHandler(
             Badges = [.. @event.Badges],
             SourceBadges = @event.SourceBadges is null ? null : [.. @event.SourceBadges],
             MessageType = @event.MessageType,
+            AnimationId = @event.AnimationId,
             IsCommand = !string.IsNullOrEmpty(@event.Message) && @event.Message.StartsWith('!'),
             IsCheer = @event.Bits > 0,
             BitsAmount = @event.Bits > 0 ? @event.Bits : null,

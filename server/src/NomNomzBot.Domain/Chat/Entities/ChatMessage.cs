@@ -92,6 +92,10 @@ public class ChatMessage : SoftDeletableEntity, ITenantScoped
     [MaxLength(50)]
     public string MessageType { get; set; } = "text";
 
+    /// <summary>The Message Effect Power-up bought with this message, as Twitch names it; null when none.</summary>
+    [MaxLength(50)]
+    public string? AnimationId { get; set; }
+
     public bool IsCommand { get; set; }
     public bool IsCheer { get; set; }
     public int? BitsAmount { get; set; }

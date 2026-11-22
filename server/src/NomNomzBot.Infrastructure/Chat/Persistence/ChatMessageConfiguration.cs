@@ -51,6 +51,8 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         builder.Property(e => e.MessageType).IsRequired().HasMaxLength(50).HasDefaultValue("text");
 
+        builder.Property(e => e.AnimationId).HasMaxLength(50);
+
         builder.Property(e => e.IsCommand).IsRequired();
 
         builder.Property(e => e.IsCheer).IsRequired();

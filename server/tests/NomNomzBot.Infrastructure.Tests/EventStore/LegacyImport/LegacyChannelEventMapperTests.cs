@@ -450,6 +450,27 @@ public sealed class LegacyChannelEventMapperTests
             .Be("emotesv2_d29ad362da0343b38c75c2a7c95eb0a3");
     }
 
+    [Theory]
+    [InlineData("\"power_ups_message_effect\"", "\"cosmic-abyss\"", "cosmic-abyss")]
+    [InlineData("\"text\"", "null", null)]
+    public void Maps_the_legacy_decoration_style_to_the_message_effect_name(
+        string messageTypeJson,
+        string decorationStyleJson,
+        string? expectedAnimationId
+    )
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.chat.message",
+                $$"""{"MessageId":"0b6a1c2e-5d1f-4c1e-9f55-1a2b3c4d5e6f","ChatterUserId":"100","ChatterUserName":"Bob","ChatterUserLogin":"bob","Color":null,"MessageType":{{messageTypeJson}},"DecorationStyle":{{decorationStyleJson}},"Message":{"Text":"hi","Fragments":[{"Type":"text","Text":"hi"}]},"Badges":[],"IsSubscriber":false,"IsModerator":false,"IsBroadcaster":false,"IsVip":false}"""
+            ),
+            Tenant
+        );
+
+        JObject payload = JObject.Parse(request!.PayloadJson);
+        payload["AnimationId"]!.Value<string>().Should().Be(expectedAnimationId);
+    }
+
     [Fact]
     public void Maps_chat_message_reply_and_cheer_bits()
     {

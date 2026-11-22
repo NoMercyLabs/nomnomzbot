@@ -1095,6 +1095,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AnimationId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("AnnouncementColor")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");

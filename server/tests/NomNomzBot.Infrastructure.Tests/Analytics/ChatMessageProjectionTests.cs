@@ -36,7 +36,9 @@ public sealed class ChatMessageProjectionTests
         string messageId,
         string text = "hello chat",
         string provider = "twitch",
-        Guid? channel = null
+        Guid? channel = null,
+        string messageType = "text",
+        string? animationId = null
     ) =>
         new()
         {
@@ -56,6 +58,8 @@ public sealed class ChatMessageProjectionTests
             IsBroadcaster = false,
             Bits = 0,
             ReplyParentMessageId = "parent-9",
+            MessageType = messageType,
+            AnimationId = animationId,
         };
 
     private static EventRecord Record(
@@ -107,6 +111,29 @@ public sealed class ChatMessageProjectionTests
         row.Badges.Should().ContainSingle().Which.SetId.Should().Be("moderator");
         row.ReplyToMessageId.Should().Be("parent-9");
         row.IsCommand.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("power_ups_message_effect", "simmer")]
+    [InlineData("text", null)]
+    public async Task Folds_the_message_effect_name_into_the_row(
+        string messageType,
+        string? animationId
+    )
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ChatMessageProjection sut = new(db);
+
+        await sut.ApplyAsync(
+            Record(
+                Message("tw-effect", messageType: messageType, animationId: animationId),
+                DateTime.UtcNow
+            )
+        );
+
+        ChatMessage row = await db.ChatMessages.SingleAsync();
+        row.MessageType.Should().Be(messageType);
+        row.AnimationId.Should().Be(animationId);
     }
 
     [Fact]

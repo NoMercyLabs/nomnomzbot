@@ -561,6 +561,98 @@ public sealed class ChatControllerTests
     }
 
     [Fact]
+    public async Task GetMessages_history_carries_the_message_effect_name_of_each_stored_row()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.Channels.Add(
+            new()
+            {
+                Id = Broadcaster,
+                OwnerUserId = Guid.CreateVersion7(),
+                TwitchChannelId = "998877",
+                Name = "stoney_eagle",
+                NameNormalized = "stoney_eagle",
+            }
+        );
+        DateTime created = new(2026, 7, 2, 9, 30, 15, DateTimeKind.Utc);
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = "msg-effect",
+                BroadcasterId = Broadcaster,
+                UserId = "twitch-42",
+                Username = "viewer1",
+                DisplayName = "Viewer1",
+                UserType = "viewer",
+                Message = "boom",
+                Fragments = [new() { Type = "text", Text = "boom" }],
+                Badges = [],
+                MessageType = "power_ups_message_effect",
+                AnimationId = "simmer",
+                CreatedAt = created,
+            }
+        );
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = "msg-plain",
+                BroadcasterId = Broadcaster,
+                UserId = "twitch-42",
+                Username = "viewer1",
+                DisplayName = "Viewer1",
+                UserType = "viewer",
+                Message = "plain",
+                Fragments = [new() { Type = "text", Text = "plain" }],
+                Badges = [],
+                CreatedAt = created.AddSeconds(1),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [], Badges = [] });
+        ChatController controller = Build(db, decorator);
+
+        List<DashboardChatMessageDto> history = Data(
+            await controller.GetMessages(Broadcaster.ToString())
+        );
+
+        history.Should().HaveCount(2);
+        DashboardChatMessageDto effect = history.Single(m => m.Id == "msg-effect");
+        effect.MessageType.Should().Be("power_ups_message_effect");
+        effect.AnimationId.Should().Be("simmer");
+        DashboardChatMessageDto plain = history.Single(m => m.Id == "msg-plain");
+        plain.MessageType.Should().Be("text");
+        plain.AnimationId.Should().BeNull();
+    }
+
+    [Fact]
+    public void A_native_history_row_keeps_the_message_effect_name_of_its_stored_row()
+    {
+        ChatMessage row = new()
+        {
+            Id = "native-1",
+            BroadcasterId = Broadcaster,
+            UserId = "twitch-42",
+            Username = "viewer1",
+            DisplayName = "Viewer1",
+            UserType = "viewer",
+            Message = "boom",
+            Kind = "notice",
+            MessageType = "power_ups_message_effect",
+            AnimationId = "cosmic-abyss",
+            CreatedAt = new(2026, 7, 2, 9, 30, 15, DateTimeKind.Utc),
+        };
+
+        DashboardChatMessageDto dto = ChatHistoryMapper.MapNativeRow(row, Broadcaster.ToString());
+
+        dto.MessageType.Should().Be("power_ups_message_effect");
+        dto.AnimationId.Should().Be("cosmic-abyss");
+    }
+
+    [Fact]
     public async Task SendMessage_as_bot_returns_ok_when_the_bot_delivers_the_message_to_twitch()
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();

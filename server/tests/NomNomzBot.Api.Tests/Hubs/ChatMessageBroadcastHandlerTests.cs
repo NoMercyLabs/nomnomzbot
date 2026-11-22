@@ -142,6 +142,48 @@ public sealed class ChatMessageBroadcastHandlerTests
             );
     }
 
+    [Theory]
+    [InlineData("power_ups_message_effect", "rainbow-eclipse")]
+    [InlineData("text", null)]
+    public async Task The_live_chat_line_carries_the_message_effect_name_of_the_event(
+        string messageType,
+        string? animationId
+    )
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            Substitute.For<IHubUserEnricher>(),
+            Substitute.For<ISevenTvUserPaintResolver>(),
+            Substitute.For<IWidgetNotifier>(),
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
+        );
+
+        await handler.HandleAsync(
+            Event(channel, messageType: messageType, animationId: animationId)
+        );
+
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto =>
+                    dto.MessageType == messageType && dto.AnimationId == animationId
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task A_chatters_first_line_carries_first_ever_and_a_later_line_does_not()
     {
@@ -787,7 +829,9 @@ public sealed class ChatMessageBroadcastHandlerTests
         string messageId = "m1",
         string userId = "u1",
         string? parentMessageId = null,
-        string? rootMessageId = null
+        string? rootMessageId = null,
+        string messageType = "text",
+        string? animationId = null
     ) =>
         new()
         {
@@ -806,5 +850,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             IsBroadcaster = false,
             ReplyParentMessageId = parentMessageId,
             ReplyThreadParentMessageId = rootMessageId,
+            MessageType = messageType,
+            AnimationId = animationId,
         };
 }

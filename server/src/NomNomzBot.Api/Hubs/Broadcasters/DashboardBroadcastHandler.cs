@@ -145,6 +145,7 @@ public sealed class ChatMessageBroadcastHandler
             BitsAmount: evt.Bits,
             Color: evt.ColorHex,
             MessageType: evt.MessageType,
+            AnimationId: evt.AnimationId,
             ReplyToMessageId: evt.ReplyParentMessageId,
             ReplyThreadParentMessageId: evt.ReplyThreadParentMessageId,
             ReplyParentMessageBody: evt.ReplyParentMessageBody,

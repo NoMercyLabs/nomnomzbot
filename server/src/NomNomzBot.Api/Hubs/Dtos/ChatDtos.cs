@@ -83,7 +83,10 @@ public record DashboardChatMessageDto(
     // here. Never read for a role or identity: Badges is the only source for those.
     IReadOnlyList<ChatBadgeDto>? SourceBadges = null,
     // Shared chat only: the avatar of the channel the line came from, null when that channel has no known avatar.
-    string? SourceChannelAvatarUrl = null
+    string? SourceChannelAvatarUrl = null,
+    // The Message Effect Power-up bought with this message (simmer | rainbow-eclipse | cosmic-abyss, or any other
+    // name Twitch sends), so a client can play it. Null on a message without one.
+    string? AnimationId = null
 );
 
 /// <summary>

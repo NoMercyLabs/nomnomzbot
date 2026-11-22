@@ -81,6 +81,7 @@ public sealed class ChatMessageProjection(IApplicationDbContext db) : IProjectio
                 Fragments = [.. chat.Fragments],
                 Badges = [.. chat.Badges],
                 MessageType = chat.MessageType,
+                AnimationId = chat.AnimationId,
                 IsCommand = !string.IsNullOrEmpty(chat.Message) && chat.Message.StartsWith('!'),
                 IsCheer = chat.Bits > 0,
                 BitsAmount = chat.Bits > 0 ? chat.Bits : null,

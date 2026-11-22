@@ -67,6 +67,12 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
     /// </summary>
     public string MessageType { get; init; } = "text";
 
+    /// <summary>
+    /// The Message Effect Power-up bought with this message, from EventSub <c>channel_points_animation_id</c>
+    /// (for example "simmer", "rainbow-eclipse", "cosmic-abyss"). Kept as Twitch sends it; null when none.
+    /// </summary>
+    public string? AnimationId { get; init; }
+
     /// <summary>Parsed badges with their set ID, badge ID, and info field.</summary>
     public required IReadOnlyList<ChatBadge> Badges { get; init; }
 

@@ -257,6 +257,7 @@ public sealed class LegacyChannelEventMapper
             Fragments = ReadFragments(message),
             ColorHex = Str(data, "Color"),
             MessageType = Str(data, "MessageType") ?? "text",
+            AnimationId = Str(data, "DecorationStyle"),
             Badges = badges,
             IsSubscriber = Bool(data, "IsSubscriber") ?? HasBadge(badges, "subscriber", "founder"),
             IsVip = Bool(data, "IsVip") ?? HasBadge(badges, "vip"),
@@ -575,7 +576,7 @@ public sealed class LegacyChannelEventMapper
     private static ChannelOnlineEvent MapStreamOnline(JObject data, EventEnvelope env) =>
         new()
         {
-            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+            Provider = Domain.Identity.Enums.AuthEnums.Platform.Twitch,
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
             OccurredAt = env.OccurredAt,
@@ -591,7 +592,7 @@ public sealed class LegacyChannelEventMapper
     private static ChannelOfflineEvent MapStreamOffline(JObject data, EventEnvelope env) =>
         new()
         {
-            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+            Provider = Domain.Identity.Enums.AuthEnums.Platform.Twitch,
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
             OccurredAt = env.OccurredAt,

@@ -60,7 +60,9 @@ public sealed class ChatMessagePersistenceHandlerTests
     private static ChatMessageReceivedEvent Message(
         string provider,
         string messageId,
-        DateTimeOffset? occurredAt = null
+        DateTimeOffset? occurredAt = null,
+        string messageType = "text",
+        string? animationId = null
     ) =>
         new()
         {
@@ -79,6 +81,8 @@ public sealed class ChatMessagePersistenceHandlerTests
             IsVip = false,
             IsModerator = false,
             IsBroadcaster = false,
+            MessageType = messageType,
+            AnimationId = animationId,
         };
 
     [Fact]
@@ -94,6 +98,31 @@ public sealed class ChatMessagePersistenceHandlerTests
         // The rest of the canonical shape rides through unchanged — the provider is an addition, not a swap.
         row.UserId.Should().Be("u-1");
         row.Message.Should().Be("hello chat");
+    }
+
+    [Theory]
+    [InlineData("power_ups_message_effect", "cosmic-abyss")]
+    [InlineData("text", null)]
+    public async Task Stores_the_message_effect_name_the_event_carries(
+        string messageType,
+        string? animationId
+    )
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ChatMessagePersistenceHandler handler = new(db);
+
+        await handler.HandleAsync(
+            Message(
+                AuthEnums.Platform.Twitch,
+                "m-effect",
+                messageType: messageType,
+                animationId: animationId
+            )
+        );
+
+        ChatMessage row = await db.ChatMessages.SingleAsync();
+        row.MessageType.Should().Be(messageType);
+        row.AnimationId.Should().Be(animationId);
     }
 
     [Fact]

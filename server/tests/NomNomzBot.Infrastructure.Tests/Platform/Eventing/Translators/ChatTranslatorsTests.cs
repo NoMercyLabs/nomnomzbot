@@ -139,6 +139,54 @@ public sealed class ChatTranslatorsTests
         emote.EmoteFormats.Should().Equal("static", "animated");
     }
 
+    [Theory]
+    [InlineData("power_ups_message_effect", "\"rainbow-eclipse\"", "rainbow-eclipse")]
+    [InlineData("power_ups_message_effect", "\"a-future-effect\"", "a-future-effect")]
+    [InlineData("text", "null", null)]
+    public async Task ChatMessage_KeepsTheMessageEffectNameExactlyAsTwitchSendsIt(
+        string expectedType,
+        string animationIdJson,
+        string? expectedAnimationId
+    )
+    {
+        CapturingEventBus bus = new();
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
+        );
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.message",
+                $$"""
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "cool_user",
+                    "chatter_user_name": "Cool_User",
+                    "message_id": "abc-effect",
+                    "color": "#FF0000",
+                    "message": { "text": "hello", "fragments": [ { "type": "text", "text": "hello" } ] },
+                    "badges": [],
+                    "message_type": "{{expectedType}}",
+                    "channel_points_animation_id": {{animationIdJson}}
+                }
+                """
+            )
+        );
+
+        ChatMessageReceivedEvent published = bus.EventsOf<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        published.MessageType.Should().Be(expectedType);
+        published.AnimationId.Should().Be(expectedAnimationId);
+    }
+
     [Fact]
     public async Task ChatMessage_SuppressedByTheSelfEchoGuard_PublishesNothing()
     {
