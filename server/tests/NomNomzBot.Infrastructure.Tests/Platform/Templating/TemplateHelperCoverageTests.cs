@@ -104,6 +104,9 @@ public sealed partial class TemplateHelperCoverageTests
         "ad.duration",
         "ad.when", // supplied by AdScheduleWarner for channel.ad_break.upcoming, same seed-passthrough shape
         "ad.seconds",
+        "clip.title", // supplied by ClipDetector for channel.clip.created, same seed-passthrough shape
+        "clip.creator",
+        "clip.url",
         "ad.automatic", // supplied by AdBreakBeganAlertHandler.BuildVariables, never assigned inside
         // TemplateResolver.cs
         // Supplied directly by each EventSub/webhook-ingest handler's BuildVariables — the same

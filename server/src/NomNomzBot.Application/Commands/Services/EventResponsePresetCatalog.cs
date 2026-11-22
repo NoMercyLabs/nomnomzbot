@@ -149,6 +149,8 @@ public static class EventResponsePresetCatalog
         Preset("channel.ad_break.end", ["ad.duration"]),
         // The warning about 3 minutes before the next ad — {ad.when} reads "in ~3 minutes", {ad.seconds} is the length.
         Preset("channel.ad_break.upcoming", ["ad.when", "ad.seconds"]),
+        // A new clip made while the channel is live — {clip.creator} made it, {clip.url} is the link.
+        Preset("channel.clip.created", ["clip.title", "clip.creator", "clip.url"]),
         // Moderation notices — channel.ban covers bans AND timeouts ({duration} = "permanent" or seconds).
         Preset("channel.ban", ["user", "user.id", "moderator", "reason", "duration"]),
         Preset("channel.unban", ["user", "user.id", "moderator"]),

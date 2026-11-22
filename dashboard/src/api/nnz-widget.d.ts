@@ -1170,6 +1170,9 @@ type TemplateHelperName =
   | 'channel.name'
   | 'channel.title'
   | 'channel.url'
+  | 'clip.creator'
+  | 'clip.title'
+  | 'clip.url'
   | 'cost'
   | 'count'
   | 'count.<key>'
@@ -1359,6 +1362,9 @@ interface NnzTemplateHelperMap {
   'channel.name': 'For example Example_Channel';
   'channel.title': 'For example Cozy coding night';
   'channel.url': 'For example https://www.twitch.tv/example_channel';
+  'clip.creator': 'For example ViewerOne';
+  'clip.title': 'For example Insane clutch';
+  'clip.url': 'For example https://clips.twitch.tv/ExampleClip';
   'cost': 'For example 500';
   'count': 'For example 12';
   'count.<key>': 'For example 12';

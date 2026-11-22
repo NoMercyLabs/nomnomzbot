@@ -486,6 +486,8 @@ public static class DependencyInjection
         services.AddSingleton<IAdBreakEndScheduler, Stream.AdBreak.AdBreakEndScheduler>();
         // A live channel's ad schedule is read once a minute; chat and the overlays hear the warnings before an ad.
         services.AddSingleton<IAdScheduleWarner, Stream.AdBreak.AdScheduleWarner>();
+        // A live channel's new clips are found by reading its clips once a minute (Twitch has no clip-created event).
+        services.AddSingleton<Stream.Clips.IClipDetector, Stream.Clips.ClipDetector>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();

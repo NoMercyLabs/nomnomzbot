@@ -480,6 +480,7 @@ public sealed class EventResponseToneTests
                         "channel.ad_break.upcoming",
                         "channel.ad_break.begin",
                         "channel.ad_break.end",
+                        "channel.clip.created",
                         "stream.online",
                     ])
                     .ToList()
@@ -517,6 +518,7 @@ public sealed class EventResponseToneTests
     [InlineData("channel.ad_break.upcoming")]
     [InlineData("channel.ad_break.begin")]
     [InlineData("channel.ad_break.end")]
+    [InlineData("channel.clip.created")]
     public async Task The_seeder_turns_an_untouched_ad_break_row_on(string eventType)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();

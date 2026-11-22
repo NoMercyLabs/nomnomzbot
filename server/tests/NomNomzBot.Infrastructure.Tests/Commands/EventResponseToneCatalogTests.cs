@@ -31,7 +31,8 @@ public sealed class EventResponseToneCatalogTests
     {
         EventResponseToneCatalog
             .EventTypes.Should()
-            .HaveCount(18)
+            .HaveCount(19)
+            .And.Contain("channel.clip.created")
             .And.Contain("stream.online")
             .And.Contain("channel.poll.end")
             .And.Contain("channel.ban")

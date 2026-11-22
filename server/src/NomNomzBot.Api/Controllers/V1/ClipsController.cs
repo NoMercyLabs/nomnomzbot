@@ -48,7 +48,7 @@ public class ClipsController(ITwitchClipsApi clips, IYouTubeClipUploadService up
         Result<TwitchPage<TwitchClip>> page = await clips.GetClipsByBroadcasterAsync(
             channelId,
             new(cursor, PageSize),
-            ct
+            ct: ct
         );
         if (page.IsFailure)
             return TwitchResultResponse(page);

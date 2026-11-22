@@ -234,6 +234,28 @@ public class TwitchClipsApiTests
             .Contain(q => q.Key == "broadcaster_id" && q.Value == TwitchId);
         transport.LastRequest.Query.Should().Contain(q => q.Key == "first" && q.Value == "25");
         transport.LastRequest.Query.Should().Contain(q => q.Key == "after" && q.Value == "abc");
+        transport.LastRequest.Query.Should().NotContain(q => q.Key == "started_at");
+    }
+
+    [Fact]
+    public async Task GetClipsByBroadcaster_WithStartedAt_SendsStartedAtInUtcRfc3339()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            PageResult = new TwitchPage<TwitchClip>([SampleClip()], null, 0),
+        };
+        TwitchClipsApi api = Build(transport);
+
+        Result<TwitchPage<TwitchClip>> result = await api.GetClipsByBroadcasterAsync(
+            Tenant,
+            new(),
+            startedAt: new DateTimeOffset(2026, 11, 22, 14, 30, 5, TimeSpan.FromHours(2))
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport
+            .LastRequest!.Query.Should()
+            .Contain(q => q.Key == "started_at" && q.Value == "2026-11-22T12:30:05Z");
     }
 
     [Fact]

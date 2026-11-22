@@ -237,6 +237,25 @@ public static class TemplateHelperRegistry
                 "template.helper.ad_seconds",
                 eventScoped: true
             ),
+            // channel.clip.created (a new clip made while the channel is live)
+            Literal(
+                "clip.title",
+                EventSourceOnlyContexts,
+                "template.helper.clip_title",
+                eventScoped: true
+            ),
+            Literal(
+                "clip.creator",
+                EventSourceOnlyContexts,
+                "template.helper.clip_creator",
+                eventScoped: true
+            ),
+            Literal(
+                "clip.url",
+                EventSourceOnlyContexts,
+                "template.helper.clip_url",
+                eventScoped: true
+            ),
             Literal(
                 "ad.automatic",
                 EventSourceOnlyContexts,

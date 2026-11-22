@@ -71,6 +71,14 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         "channel.ad_break.end",
     };
 
+    /// <summary>The line for a new clip made while the channel is live; the tone catalogue speaks it.</summary>
+    internal static readonly IReadOnlySet<string> ClipLines = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "channel.clip.created",
+    };
+
     /// <summary>The going-live wish to the streamer; the tone catalogue speaks it.</summary>
     internal static readonly IReadOnlySet<string> StreamStartLines = new HashSet<string>(
         StringComparer.Ordinal
@@ -93,6 +101,7 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
             .Keys.Append("channel.poll.end")
             .Concat(ModerationLines)
             .Concat(AdBreakLines)
+            .Concat(ClipLines)
             .Concat(StreamStartLines),
         StringComparer.Ordinal
     );
@@ -116,6 +125,7 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
                 (
                     ModerationLines.Contains(row.EventType)
                     || AdBreakLines.Contains(row.EventType)
+                    || ClipLines.Contains(row.EventType)
                     || StreamStartLines.Contains(row.EventType)
                 ) && row is { IsEnabled: false, Message: null, UpdatedByUserId: null }
             )

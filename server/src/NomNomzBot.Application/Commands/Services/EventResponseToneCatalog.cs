@@ -680,6 +680,33 @@ public static class EventResponseToneCatalog
             ]
         );
 
+        // A new clip made while the channel is live. {clip.creator} made it, {clip.title} names it, {clip.url} is the link.
+        Add(
+            catalog,
+            "channel.clip.created",
+            informative: ["{clip.creator} clipped \"{clip.title}\": {clip.url}"],
+            friendly:
+            [
+                "{clip.creator} made a new clip, \"{clip.title}\". Take a look: {clip.url}",
+                "Nice one, {clip.creator}! \"{clip.title}\" is a clip now: {clip.url}",
+            ],
+            sassy:
+            [
+                "{clip.creator} clipped \"{clip.title}\". Bold choice. Watch it here: {clip.url}",
+                "New clip from {clip.creator}: \"{clip.title}\". Judge it yourself: {clip.url}",
+            ],
+            hype:
+            [
+                "NEW CLIP FROM {clip.creator}! \"{clip.title}\" {clip.url}",
+                "{clip.creator} JUST CLIPPED \"{clip.title}\"! WATCH IT: {clip.url}",
+            ],
+            chill:
+            [
+                "{clip.creator} clipped \"{clip.title}\". {clip.url}",
+                "new clip by {clip.creator}: \"{clip.title}\" {clip.url}",
+            ]
+        );
+
         return catalog;
     }
 

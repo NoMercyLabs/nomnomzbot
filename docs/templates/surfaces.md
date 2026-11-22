@@ -296,6 +296,14 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `chat.settings.subOnly` | Y | Y | Y | Y | Y | Y | V |
 | `chat.shared.channels` | Y | Y | Y | Y | Y | Y | V |
 
+## clip
+
+| Helper | Commands | Event responses | Timers | Pipelines | Discord notifications | Webhooks | Viewer text |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `clip.creator` | N | Y | N | Y | N | N | V |
+| `clip.title` | N | Y | N | Y | N | N | V |
+| `clip.url` | N | Y | N | Y | N | N | V |
+
 ## count
 
 | Helper | Commands | Event responses | Timers | Pipelines | Discord notifications | Webhooks | Viewer text |

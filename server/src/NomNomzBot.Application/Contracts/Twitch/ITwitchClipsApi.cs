@@ -44,10 +44,14 @@ public interface ITwitchClipsApi
         CancellationToken ct = default
     );
 
-    /// <summary>Get Clips — one page of the broadcaster's clips, newest first. App token; no scope.</summary>
+    /// <summary>
+    /// Get Clips — one page of the broadcaster's clips, newest first. App token; no scope. When
+    /// <paramref name="startedAt"/> is set, only clips created at or after it come back (Helix <c>started_at</c>).
+    /// </summary>
     Task<Result<TwitchPage<TwitchClip>>> GetClipsByBroadcasterAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
+        DateTimeOffset? startedAt = null,
         CancellationToken ct = default
     );
 

@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -102,6 +103,7 @@ public sealed class TwitchClipsApi(
     public async Task<Result<TwitchPage<TwitchClip>>> GetClipsByBroadcasterAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
+        DateTimeOffset? startedAt = null,
         CancellationToken ct = default
     )
     {
@@ -116,6 +118,16 @@ public sealed class TwitchClipsApi(
         ];
         if (page.After is not null)
             query.Add(new("after", page.After));
+        if (startedAt is DateTimeOffset since)
+            query.Add(
+                new(
+                    "started_at",
+                    since.UtcDateTime.ToString(
+                        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                        CultureInfo.InvariantCulture
+                    )
+                )
+            );
 
         TwitchHelixRequest request = new(
             HttpMethod.Get,
