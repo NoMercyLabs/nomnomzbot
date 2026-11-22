@@ -34,33 +34,79 @@ public static partial class ToneTemplateCatalog
     /// <paramref name="slot"/>)</c>. Falls back to <see cref="PersonalityTone.Informative"/> when the tone
     /// itself has no entry; empty when the slot is not in the catalog at all.
     /// </summary>
-    public static IReadOnlyList<string> Get(string? tone, string builtinKey, string slot)
+    public static IReadOnlyList<string> Get(
+        string? tone,
+        string builtinKey,
+        string slot,
+        string? language = null
+    )
     {
         if (!Catalog.TryGetValue((builtinKey, slot), out SlotEntry? entry))
             return [];
 
+        IReadOnlyDictionary<string, string[]> tones = TonesFor(entry, language);
         string normalized = PersonalityTone.Normalize(tone);
-        if (entry.Tones.TryGetValue(normalized, out string[]? variations) && variations.Length > 0)
+        if (tones.TryGetValue(normalized, out string[]? variations) && variations.Length > 0)
             return variations;
 
-        return entry.Tones.TryGetValue(PersonalityTone.Informative, out string[]? informative)
+        return tones.TryGetValue(PersonalityTone.Informative, out string[]? informative)
             ? informative
             : [];
     }
 
     /// <summary>
-    /// One random template for <c>(tone, builtinKey, slot)</c>, or <c>null</c> when the slot has no templates
-    /// (so the caller can fall back to its own neutral string).
+    /// One random template for <c>(tone, builtinKey, slot)</c> in <paramref name="language"/> (English when the
+    /// slot has no text in that language), or <c>null</c> when the slot has no templates (so the caller can fall
+    /// back to its own neutral string).
     /// </summary>
-    public static string? Pick(string? tone, string builtinKey, string slot)
+    public static string? Pick(
+        string? tone,
+        string builtinKey,
+        string slot,
+        string? language = null
+    )
     {
-        IReadOnlyList<string> variations = Get(tone, builtinKey, slot);
+        IReadOnlyList<string> variations = Get(tone, builtinKey, slot, language);
         if (variations.Count == 0)
             return null;
-        return NoImmediateRepeatPicker.Pick(
-            variations,
-            $"{builtinKey}:{slot}:{PersonalityTone.Normalize(tone)}"
-        );
+
+        // Each language keeps its own no-repeat memory; English keeps the original key.
+        string? used = TextLanguage(Catalog[(builtinKey, slot)], language);
+        string memory = $"{builtinKey}:{slot}:{PersonalityTone.Normalize(tone)}";
+        return NoImmediateRepeatPicker.Pick(variations, used is null ? memory : $"{memory}:{used}");
+    }
+
+    /// <summary>Every <c>(builtinKey, slot)</c> that has its own text in <paramref name="language"/>.</summary>
+    public static IReadOnlyList<(string BuiltinKey, string Slot)> TranslatedSlots(string? language)
+    {
+        string? code = LanguageCode(language);
+        return code is null
+            ? []
+            : [.. AllSlots().Where(s => Catalog[s].Translations.ContainsKey(code))];
+    }
+
+    /// <summary>The first part of a language tag, lower case: <c>nl-NL</c> and <c>NL</c> both read as <c>nl</c>.</summary>
+    private static string? LanguageCode(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            return null;
+        string trimmed = language.Trim();
+        int end = trimmed.IndexOfAny(['-', '_']);
+        return (end < 0 ? trimmed : trimmed[..end]).ToLowerInvariant();
+    }
+
+    /// <summary>The tone sets of <paramref name="language"/> when the slot has them, else the English base.</summary>
+    private static IReadOnlyDictionary<string, string[]> TonesFor(SlotEntry entry, string? language)
+    {
+        string? code = TextLanguage(entry, language);
+        return code is null ? entry.Tones : entry.Translations[code];
+    }
+
+    /// <summary>The language code the slot has text in for <paramref name="language"/>, or null for the English base.</summary>
+    private static string? TextLanguage(SlotEntry entry, string? language)
+    {
+        string? code = LanguageCode(language);
+        return code is not null && entry.Translations.ContainsKey(code) ? code : null;
     }
 
     /// <summary>Every <c>(builtinKey, slot)</c> the catalog authors, ordered by key then slot.</summary>
@@ -108,11 +154,18 @@ public static partial class ToneTemplateCatalog
         return samples;
     }
 
-    /// <summary>One slot's declared variables and its per-tone variation-sets.</summary>
+    /// <summary>
+    /// One slot's declared variables and its per-tone variation-sets. <see cref="Tones"/> is the English base
+    /// and the fallback; <see cref="Translations"/> holds the tone sets of other languages by language code.
+    /// </summary>
     private sealed record SlotEntry(
         IReadOnlyList<string> Variables,
         IReadOnlyDictionary<string, string[]> Tones
-    );
+    )
+    {
+        public Dictionary<string, IReadOnlyDictionary<string, string[]>> Translations { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Content. Grouped by (builtinKey, slot); every slot declares its variables and all five tones.
@@ -1138,7 +1191,42 @@ public static partial class ToneTemplateCatalog
             chill: ["reconnected, redeems and commands are working again."]
         );
 
+        // Translations come last: each one needs its English slot to exist already.
+        AddDutchSlots(catalog);
         return catalog;
+    }
+
+    /// <summary>
+    /// Adds the <paramref name="language"/> text of a slot the English catalogue already has (it shares the
+    /// English variables). Every tone is required. Throws at start-up for a slot English does not author.
+    /// </summary>
+    private static void Translate(
+        Dictionary<(string, string), SlotEntry> catalog,
+        string language,
+        string builtinKey,
+        string slot,
+        string[] informative,
+        string[] friendly,
+        string[] sassy,
+        string[] hype,
+        string[] chill
+    )
+    {
+        if (!catalog.TryGetValue((builtinKey, slot), out SlotEntry? entry))
+            throw new InvalidOperationException(
+                $"Cannot translate {builtinKey}/{slot}: the English catalogue has no such slot."
+            );
+
+        entry.Translations[language] = new Dictionary<string, string[]>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            [PersonalityTone.Informative] = informative,
+            [PersonalityTone.Friendly] = friendly,
+            [PersonalityTone.Sassy] = sassy,
+            [PersonalityTone.Hype] = hype,
+            [PersonalityTone.Chill] = chill,
+        };
     }
 
     /// <summary>Registers one slot's variables and five tone variation-sets. Every tone is required, keeping the catalog complete.</summary>

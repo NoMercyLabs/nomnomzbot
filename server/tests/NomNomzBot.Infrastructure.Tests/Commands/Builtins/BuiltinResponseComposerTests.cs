@@ -10,9 +10,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 
@@ -26,12 +29,190 @@ public sealed class BuiltinResponseComposerTests
 {
     private static readonly Guid Channel = Guid.Parse("0198c000-0000-7000-8000-0000000000f1");
 
-    private static BuiltinResponseComposer Sut(FakeChannelBuiltinReplies? channelReplies = null) =>
+    private static BuiltinResponseComposer Sut(
+        FakeChannelBuiltinReplies? channelReplies = null,
+        IChannelRegistry? channels = null,
+        IPlatformBuiltinReplyDefaults? platformReplies = null
+    ) =>
         new(
             TestTemplateResolver.Create(),
-            NoPlatformBuiltinReplies.Instance,
-            channelReplies ?? FakeChannelBuiltinReplies.None
+            platformReplies ?? NoPlatformBuiltinReplies.Instance,
+            channelReplies ?? FakeChannelBuiltinReplies.None,
+            channels
         );
+
+    private static IChannelRegistry ChannelWithLanguage(string? language)
+    {
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry
+            .Get(Channel)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = Channel,
+                    TwitchChannelId = "9001",
+                    ChannelName = "dutch_channel",
+                    Language = language,
+                }
+            );
+        return registry;
+    }
+
+    private static Task<string> ComposeUptimeLive(BuiltinResponseComposer sut, string tone) =>
+        sut.ComposeAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                Personality = tone,
+                BuiltinKey = BuiltinResponseSlots.Uptime.Key,
+                Slot = BuiltinResponseSlots.Uptime.Live,
+                NeutralFallback = "NEUTRAL {uptime}",
+                Variables = new Dictionary<string, string> { ["uptime"] = "2h 5m" },
+            }
+        );
+
+    private static HashSet<string> UptimeLiveLines(string tone, string? language) =>
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    tone,
+                    BuiltinResponseSlots.Uptime.Key,
+                    BuiltinResponseSlots.Uptime.Live,
+                    language
+                )
+                .Select(t => t.Replace("{uptime}", "2h 5m")),
+        ];
+
+    [Theory]
+    [InlineData(PersonalityTone.Informative)]
+    [InlineData(PersonalityTone.Friendly)]
+    [InlineData(PersonalityTone.Sassy)]
+    [InlineData(PersonalityTone.Hype)]
+    [InlineData(PersonalityTone.Chill)]
+    public async Task A_dutch_channel_gets_a_dutch_uptime_line_of_its_tone_with_the_value_filled_in(
+        string tone
+    )
+    {
+        string result = await ComposeUptimeLive(Sut(channels: ChannelWithLanguage("nl")), tone);
+
+        HashSet<string> dutch = UptimeLiveLines(tone, "nl");
+        HashSet<string> english = UptimeLiveLines(tone, null);
+        dutch.Should().NotBeEquivalentTo(english, "the Dutch set must be its own text");
+        dutch.Should().Contain(result);
+        english.Should().NotContain(result);
+        result.Should().Contain("2h 5m");
+    }
+
+    [Theory]
+    [InlineData("nl-NL")]
+    [InlineData("NL")]
+    [InlineData("nl_BE")]
+    public async Task A_longer_or_upper_case_dutch_tag_reads_as_dutch(string tag)
+    {
+        string result = await ComposeUptimeLive(
+            Sut(channels: ChannelWithLanguage(tag)),
+            PersonalityTone.Sassy
+        );
+
+        UptimeLiveLines(PersonalityTone.Sassy, "nl").Should().Contain(result);
+        UptimeLiveLines(PersonalityTone.Sassy, null).Should().NotContain(result);
+    }
+
+    [Fact]
+    public async Task A_channel_override_still_wins_on_a_dutch_channel()
+    {
+        FakeChannelBuiltinReplies own = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            BuiltinResponseSlots.Uptime.Key,
+            BuiltinResponseSlots.Uptime.Live,
+            "MY channel has been live {uptime}, deal with it."
+        );
+
+        string result = await ComposeUptimeLive(
+            Sut(own, ChannelWithLanguage("nl")),
+            PersonalityTone.Sassy
+        );
+
+        result.Should().Be("MY channel has been live 2h 5m, deal with it.");
+    }
+
+    [Fact]
+    public async Task A_platform_admin_reply_still_wins_over_the_dutch_text()
+    {
+        IPlatformBuiltinReplyDefaults admin = Substitute.For<IPlatformBuiltinReplyDefaults>();
+        admin
+            .GetAsync(
+                BuiltinResponseSlots.Uptime.Key,
+                BuiltinResponseSlots.Uptime.Live,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("ADMIN says {uptime}");
+
+        string result = await ComposeUptimeLive(
+            Sut(channels: ChannelWithLanguage("nl"), platformReplies: admin),
+            PersonalityTone.Sassy
+        );
+
+        result.Should().Be("ADMIN says 2h 5m");
+    }
+
+    [Theory]
+    [InlineData(PersonalityTone.Informative)]
+    [InlineData(PersonalityTone.Sassy)]
+    [InlineData(PersonalityTone.Hype)]
+    public async Task A_slot_with_no_dutch_text_answers_in_english_on_a_dutch_channel(string tone)
+    {
+        // The first slot with no variables, no helpers and no Dutch text yet.
+        (string key, string slot) = ToneTemplateCatalog
+            .AllSlots()
+            .First(s =>
+                ToneTemplateCatalog.Variables(s.BuiltinKey, s.Slot).Count == 0
+                && !ToneTemplateCatalog.TranslatedSlots("nl").Contains(s)
+                && ToneTemplateCatalog.Get(tone, s.BuiltinKey, s.Slot).All(t => !t.Contains('{'))
+            );
+
+        string result = await Sut(channels: ChannelWithLanguage("nl"))
+            .ComposeAsync(
+                new()
+                {
+                    BroadcasterId = Channel,
+                    Personality = tone,
+                    BuiltinKey = key,
+                    Slot = slot,
+                    NeutralFallback = "NEUTRAL",
+                }
+            );
+
+        ToneTemplateCatalog.Get(tone, key, slot).Should().Contain(result);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("en")]
+    [InlineData("en-GB")]
+    [InlineData("fr")]
+    [InlineData("zz-unknown")]
+    public async Task A_channel_without_dutch_gets_the_english_line(string? language)
+    {
+        string result = await ComposeUptimeLive(
+            Sut(channels: ChannelWithLanguage(language)),
+            PersonalityTone.Sassy
+        );
+
+        UptimeLiveLines(PersonalityTone.Sassy, null).Should().Contain(result);
+        UptimeLiveLines(PersonalityTone.Sassy, "nl").Should().NotContain(result);
+    }
+
+    [Fact]
+    public async Task A_channel_missing_from_the_registry_gets_the_english_line()
+    {
+        IChannelRegistry empty = Substitute.For<IChannelRegistry>();
+
+        string result = await ComposeUptimeLive(Sut(channels: empty), PersonalityTone.Sassy);
+
+        UptimeLiveLines(PersonalityTone.Sassy, null).Should().Contain(result);
+    }
 
     [Fact]
     public async Task Override_wins_over_the_tone_template_and_is_rendered_with_the_variables()

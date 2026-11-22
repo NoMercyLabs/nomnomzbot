@@ -49,6 +49,42 @@ public sealed class ToneTemplateCatalogNoRepeatTests
     }
 
     [Fact]
+    public void A_dutch_line_is_never_spoken_twice_in_a_row_while_english_picks_run_between()
+    {
+        // With one shared memory, an English pick between two Dutch picks would hide the Dutch repeat.
+        string? previousDutch = null;
+        string? previousEnglish = null;
+        for (int i = 0; i < 200; i++)
+        {
+            string? dutch = ToneTemplateCatalog.Pick(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Uptime.Key,
+                BuiltinResponseSlots.Uptime.Live,
+                "nl"
+            );
+            string? english = ToneTemplateCatalog.Pick(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Uptime.Key,
+                BuiltinResponseSlots.Uptime.Live
+            );
+
+            dutch.Should().NotBeNull().And.NotBe(previousDutch);
+            english.Should().NotBeNull().And.NotBe(previousEnglish);
+            ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.Uptime.Key,
+                    BuiltinResponseSlots.Uptime.Live,
+                    "nl"
+                )
+                .Should()
+                .Contain(dutch);
+            previousDutch = dutch;
+            previousEnglish = english;
+        }
+    }
+
+    [Fact]
     public void An_unknown_slot_returns_null_without_touching_the_picker()
     {
         ToneTemplateCatalog

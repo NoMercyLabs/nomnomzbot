@@ -37,6 +37,72 @@ public sealed class ToneTemplateCatalogIntegrityTests
     ];
 
     [Fact]
+    public void The_two_uptime_slots_ship_dutch_text()
+    {
+        ToneTemplateCatalog
+            .TranslatedSlots("nl")
+            .Should()
+            .Contain([
+                (BuiltinResponseSlots.Uptime.Key, BuiltinResponseSlots.Uptime.Live),
+                (BuiltinResponseSlots.Uptime.Key, BuiltinResponseSlots.Uptime.Offline),
+            ]);
+    }
+
+    [Fact]
+    public void Every_dutch_entry_fills_all_five_tones_with_the_english_shape_and_declared_variables()
+    {
+        TemplateHelperValidator validator = new();
+        List<string> failures = [];
+
+        foreach ((string key, string slot) in ToneTemplateCatalog.TranslatedSlots("nl"))
+        {
+            IReadOnlyList<string> declared = ToneTemplateCatalog.Variables(key, slot);
+            foreach (string tone in Tones)
+            {
+                IReadOnlyList<string> dutch = ToneTemplateCatalog.Get(tone, key, slot, "nl");
+                IReadOnlyList<string> english = ToneTemplateCatalog.Get(tone, key, slot);
+                if (dutch.Count != english.Count)
+                    failures.Add(
+                        $"{key}/{slot} ({tone}): {dutch.Count} Dutch lines, {english.Count} English"
+                    );
+                if (dutch.SequenceEqual(english))
+                    failures.Add($"{key}/{slot} ({tone}): the Dutch text is the English text");
+
+                foreach (string line in dutch)
+                {
+                    Result valid = validator.Validate(
+                        line,
+                        TemplateHelperContext.Command,
+                        declared
+                    );
+                    if (valid.IsFailure)
+                        failures.Add($"{key}/{slot} ({tone}): {valid.ErrorMessage}");
+                    string words = Regex.Replace(line, @"\{[^}]*\}", string.Empty);
+                    if (tone == PersonalityTone.Hype && words.Any(char.IsLower))
+                        failures.Add($"{key}/{slot} (hype) is not in capitals: {line}");
+                    if (tone == PersonalityTone.Chill && line != line.ToLowerInvariant())
+                        failures.Add($"{key}/{slot} (chill) is not lower case: {line}");
+                }
+            }
+        }
+
+        failures.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Translating_a_slot_the_english_catalogue_does_not_have_is_not_possible()
+    {
+        ToneTemplateCatalog
+            .Get(PersonalityTone.Sassy, "no-such-builtin", "no-such-slot", "nl")
+            .Should()
+            .BeEmpty();
+        ToneTemplateCatalog
+            .TranslatedSlots("nl")
+            .Should()
+            .OnlyContain(s => ToneTemplateCatalog.Contains(s.BuiltinKey, s.Slot));
+    }
+
+    [Fact]
     public void Every_shipped_line_uses_only_its_slots_declared_variables_or_registered_helpers()
     {
         TemplateHelperValidator validator = new();

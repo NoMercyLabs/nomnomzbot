@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -27,16 +28,19 @@ public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
     private readonly ITemplateResolver _templates;
     private readonly IPlatformBuiltinReplyDefaults _platformReplies;
     private readonly IChannelBuiltinReplyOverrides _channelReplies;
+    private readonly IChannelRegistry? _channels;
 
     public BuiltinResponseComposer(
         ITemplateResolver templates,
         IPlatformBuiltinReplyDefaults platformReplies,
-        IChannelBuiltinReplyOverrides channelReplies
+        IChannelBuiltinReplyOverrides channelReplies,
+        IChannelRegistry? channels = null
     )
     {
         _templates = templates;
         _platformReplies = platformReplies;
         _channelReplies = channelReplies;
+        _channels = channels;
     }
 
     public async Task<string> ComposeAsync(
@@ -58,7 +62,8 @@ public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
                     ?? ToneTemplateCatalog.Pick(
                         request.Personality,
                         request.BuiltinKey,
-                        request.Slot
+                        request.Slot,
+                        _channels?.Get(request.BroadcasterId)?.Language
                     )
                     ?? request.NeutralFallback;
 
