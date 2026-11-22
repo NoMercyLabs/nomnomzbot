@@ -165,6 +165,10 @@ public sealed class TwitchEventSubHostedService
     // construction from deployment profile + host capability; an explicit Scaling:* config value always wins.
     private readonly SemaphoreSlim _notificationDispatchGate;
 
+    // A notification stays an inbox row until its dispatch ends, so every poll sees it again. This keeps the
+    // running ones by inbox id: a poll starts a notification one time only.
+    private readonly ConcurrentDictionary<Guid, Task> _inFlightDispatches = new();
+
     // A standby's notifications reach the active instance only through the database, so the drain also
     // polls; the active instance's own notifications wake it at once through _inboxSignal.
     private static readonly TimeSpan InboxPollInterval = TimeSpan.FromMilliseconds(250);
@@ -1084,6 +1088,19 @@ public sealed class TwitchEventSubHostedService
 
     private async Task DrainInboxAsync(CancellationToken stop)
     {
+        try
+        {
+            await PollInboxUntilStoppedAsync(stop);
+        }
+        finally
+        {
+            // Nothing is left half-processed when the lease is released (StopInboxDrainAsync relies on that).
+            await Task.WhenAll(_inFlightDispatches.Values);
+        }
+    }
+
+    private async Task PollInboxUntilStoppedAsync(CancellationToken stop)
+    {
         while (!stop.IsCancellationRequested)
         {
             try
@@ -1112,21 +1129,15 @@ public sealed class TwitchEventSubHostedService
     }
 
     /// <summary>
-    /// Dispatches every waiting notification, bounded but CONCURRENT (S-CONCURRENCY-DRAIN) — a plain
-    /// sequential await-per-message here meant one slow chat command (a long TTS line, a Spotify call still
-    /// waiting on an API) held up every other queued message, across every channel this instance leases,
-    /// until it finished. The stop token is honoured between notifications; every notification already
-    /// dispatched is awaited to completion before this returns, so nothing is left half-processed when the
-    /// lease is released (<see cref="StopInboxDrainAsync"/> relies on that).
+    /// Starts every waiting notification, bounded but CONCURRENT (S-CONCURRENCY-DRAIN), and returns without
+    /// waiting for them: a slow chat command (an 88-second raid wait, a long TTS line) must not hold up a
+    /// notification that arrives after it. The stop token is honoured between notifications.
     /// </summary>
     internal async Task DrainBatchAsync(CancellationToken stop)
     {
-        List<Task> inFlight = [];
-        // A message already dispatched is NOT yet removed from the inbox until its dispatch completes, so
-        // re-peeking while it is still running would otherwise see it again and start it a second time —
-        // tracked here, never by removal timing.
-        HashSet<Guid> inFlightIds = [];
-
+        // A failed dispatch keeps its row for a retry. The retry belongs to the next poll: a restart inside
+        // this one would spin on a failure that lasts.
+        HashSet<Guid> startedThisPoll = [];
         try
         {
             while (!stop.IsCancellationRequested)
@@ -1144,16 +1155,23 @@ public sealed class TwitchEventSubHostedService
                     if (stop.IsCancellationRequested)
                         break;
 
-                    if (!inFlightIds.Add(message.Id))
+                    if (_inFlightDispatches.ContainsKey(message.Id))
+                        continue;
+
+                    if (!startedThisPoll.Add(message.Id))
                         continue;
 
                     startedAny = true;
                     // Honours stop while waiting for a free slot too — a shutdown must never start a NEW
-                    // dispatch, only finish ones already in flight (awaited below regardless of how this
-                    // loop exits).
+                    // dispatch, only finish ones already in flight (the drain loop awaits those when it ends).
                     await _notificationDispatchGate.WaitAsync(stop);
-                    inFlight.Add(DispatchOneAsync(message));
-                    inFlight.RemoveAll(t => t.IsCompleted);
+                    Guid id = message.Id;
+                    Task dispatch = DispatchOneAsync(message);
+                    _inFlightDispatches[id] = dispatch;
+                    _ = dispatch.ContinueWith(
+                        finished => _inFlightDispatches.TryRemove(id, out _),
+                        TaskScheduler.Default
+                    );
                 }
 
                 // Every peeked message is already running (none new) — re-peeking immediately would just
@@ -1164,10 +1182,8 @@ public sealed class TwitchEventSubHostedService
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested)
         {
-            // Stopped while waiting for a dispatch slot — fall through and await what's already running.
+            // Stopped while waiting for a dispatch slot — the drain loop awaits what is already running.
         }
-
-        await Task.WhenAll(inFlight);
     }
 
     /// <summary>Processes and removes one inbox message on its own task, releasing the dispatch gate (and
