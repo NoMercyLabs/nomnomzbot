@@ -690,7 +690,7 @@ public static partial class ToneTemplateCatalog
             [
                 "De muziekverbinding moet opnieuw worden gekoppeld. De streamer kan dat doen in het dashboard.",
             ],
-            sassy: ["De muziekverbinding is kapot. Zeg tegen de streamer dat hij het moet fixen."],
+            sassy: ["De muziekverbinding is kapot. Dat mag de streamer fixen."],
             hype: ["DE MUZIEKVERBINDING MOET OPNIEUW WORDEN GEKOPPELD."],
             chill: ["de muziekverbinding moet opnieuw gekoppeld worden."]
         );
@@ -937,19 +937,19 @@ public static partial class ToneTemplateCatalog
             BuiltinResponseSlots.SongRequest.NoProviderModerator,
             informative:
             [
-                "Nummerverzoeken zijn niet gekoppeld. Laat de broadcaster weten dat hij Spotify of YouTube moet koppelen in het dashboard.",
+                "Nummerverzoeken zijn niet gekoppeld. De broadcaster kan Spotify of YouTube koppelen in het dashboard.",
             ],
             friendly:
             [
-                "Nummerverzoeken zijn niet gekoppeld. Zeg tegen de broadcaster dat hij Spotify of YouTube kan koppelen in het dashboard.",
+                "Nummerverzoeken zijn niet gekoppeld. Geef de broadcaster een seintje: Spotify of YouTube koppelen kan in het dashboard.",
             ],
             sassy:
             [
-                "Nummerverzoeken zijn niet gekoppeld. Zeg tegen de broadcaster dat hij Spotify of YouTube moet koppelen.",
+                "Nummerverzoeken zijn niet gekoppeld. De broadcaster moet eerst Spotify of YouTube koppelen.",
             ],
             hype:
             [
-                "NUMMERVERZOEKEN ZIJN NIET GEKOPPELD. ZEG TEGEN DE BROADCASTER DAT HIJ SPOTIFY OF YOUTUBE MOET KOPPELEN.",
+                "NUMMERVERZOEKEN ZIJN NIET GEKOPPELD. DE BROADCASTER MOET SPOTIFY OF YOUTUBE KOPPELEN.",
             ],
             chill: ["nummerverzoeken zijn niet gekoppeld. zeg het tegen de broadcaster."]
         );

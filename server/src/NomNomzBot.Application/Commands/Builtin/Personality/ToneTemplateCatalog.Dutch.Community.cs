@@ -80,7 +80,7 @@ public static partial class ToneTemplateCatalog
                 "Opgelet, aardbewoners! {target.displayname} heeft {target.game}-video's die je moet zien. Geef een follow! Het is een masterclass of een circus, en beide zijn vermakelijk.",
                 "Daar komt iets moois! {target.displayname} heeft {target.game}-actie voor je. Geef een follow! Kan het goed, of laat het in elk geval zo lijken.",
                 "Niet lopen, rennen! {target.displayname} heeft meer {target.game} dan je aankunt. Geef een follow! Zeker het onderbreken van je snack waard.",
-                "Onze eigen legende {target.displayname} heeft geweldige {target.game}-content! Geef een follow! Staat vast op het punt iets episch te doen, of glorieus op zijn gezicht te vallen.",
+                "Onze eigen legende {target.displayname} heeft geweldige {target.game}-content! Geef een follow! Staat vast op het punt iets episch te doen, of glorieus onderuit te gaan.",
                 "Let op, schatjes! {target.displayname} heeft wat {target.game} voor je. Geef een follow! Blijft bewijzen dat het geweldig is (zeg niet dat ik dat zei).",
                 "Raad eens wie content heeft? {target.displayname}! Zit lekker in {target.game}. Geef een follow! Brengt de vibes mee, of je het nu wilt of niet.",
                 "Aanschouw! {target.displayname} heeft stevige {target.game} voor je. Geef een follow! Verwent ons met aanwezigheid en twijfelachtige keuzes in {target.game}.",
