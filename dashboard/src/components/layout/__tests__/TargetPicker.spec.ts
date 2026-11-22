@@ -23,6 +23,11 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('chan-1') }),
 }));
 
+// The steps of a picked pipeline have their own spec (PipelineStepsInline.spec.ts); here the pipeline has not loaded.
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({ known: ref(true), can: (): boolean => false }),
+}));
+
 vi.mock('@/api/commands', () => ({
   useCommands: () => ({
     data: ref([
@@ -65,6 +70,8 @@ vi.mock('@/api/pipelines', () => ({
   usePipelines: () => ({
     data: ref([{ id: 'p-1', name: 'Welcome flow' }]),
   }),
+  usePipeline: () => ({ data: ref(undefined) }),
+  useSavePipeline: () => ({ isPending: ref(false), mutateAsync: vi.fn<() => Promise<unknown>>() }),
   useCreatePipeline: () => ({
     isPending: ref(false),
     mutateAsync: created,

@@ -11,7 +11,7 @@
 <script setup lang="ts">
 // The one place a surface picks what it runs: a command, a pipeline or one action with its settings (the
 // fields come from the bot's catalog, the same form a pipeline step has). It can create an empty pipeline in
-// place and clear the choice.
+// place and clear the choice. A picked pipeline also shows its steps as an editable list in place.
 // A refusal from the server and a bound id that is missing from this channel show as one error line.
 import Plus from '~icons/nnz/add';
 import ChevronDown from '~icons/nnz/chevron-down';
@@ -46,6 +46,7 @@ import { useLocalizedText } from '@/composables/useLocalizedText';
 import { ensureWords, schemaWords } from '@/i18n';
 import type { ActionParams, PickedTarget, TargetKind } from '@/lib/bindingTarget';
 import ActionParamsForm from '@/views/dashboard/pipelines/components/ActionParamsForm.vue';
+import PipelineStepsInline from '@/views/dashboard/pipelines/components/PipelineStepsInline.vue';
 import { actionGroups } from '@/views/dashboard/pipelines/components/stepGroups';
 import { actionIcon } from '@/views/dashboard/pipelines/components/stepIcons';
 import { actionTitle } from '@/views/dashboard/pipelines/components/stepWords';
@@ -380,6 +381,12 @@ async function createPipeline(): Promise<void> {
       :action-type="target.actionType"
       :descriptor="descriptor"
       class="mt-2"
+    />
+    <!-- A picked pipeline shows its steps in place; its own Save and Discard make a change to it a visible act. -->
+    <PipelineStepsInline
+      v-if="target?.kind === 'pipeline' && target.id !== '' && known"
+      :key="target.id"
+      :pipeline-id="target.id"
     />
     <FieldError v-if="message !== ''">{{ message }}</FieldError>
   </Field>
