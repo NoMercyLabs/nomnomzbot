@@ -242,4 +242,40 @@ public sealed class PipelinesControllerCatalogueTests
         pick.Fields.Single(f => f.Name == "variable").DeclaredVariableDefault.Should().Be("pick");
         pick.Fields.Single(f => f.Name == "list").DeclaresVariable.Should().BeFalse();
     }
+
+    [Fact]
+    public void Catalogue_carries_the_most_values_a_list_field_takes()
+    {
+        ICommandAction[] actions =
+        [
+            new FakeAction(
+                "set_stream_info",
+                "stream",
+                [
+                    new("title", PipelineActionFieldKind.Text),
+                    new("tags", PipelineActionFieldKind.Text, Repeatable: true, MaxItems: 10),
+                ]
+            ),
+        ];
+        PipelinesController controller = new(
+            Substitute.For<IPipelineService>(),
+            Substitute.For<IPipelineTestRunService>(),
+            Substitute.For<ICommandConfigValidator>(),
+            actions,
+            [],
+            Substitute.For<IPlatformDefaultRestoreService>()
+        );
+
+        PipelineCatalogueDto data = controller
+            .ListActionCatalogue("chan")
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Subject.Value.Should()
+            .BeOfType<StatusResponseDto<PipelineCatalogueDto>>()
+            .Subject.Data!;
+
+        PipelineActionDescriptorDto step = data.Actions.Single(a => a.Type == "set_stream_info");
+        step.Fields.Single(f => f.Name == "tags").MaxItems.Should().Be(10);
+        step.Fields.Single(f => f.Name == "title").MaxItems.Should().BeNull();
+    }
 }

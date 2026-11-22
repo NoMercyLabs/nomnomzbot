@@ -71,7 +71,8 @@ public sealed class SetStreamInfoAction : ICommandAction
                 "tags",
                 PipelineActionFieldKind.Text,
                 Repeatable: true,
-                Description: new("pipeline.set_stream_info.tags.help")
+                Description: new("pipeline.set_stream_info.tags.help"),
+                MaxItems: MaxTags
             ),
         ];
 

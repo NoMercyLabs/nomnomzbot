@@ -99435,6 +99435,8 @@ export interface components {
             /** @default false */
             declaresVariable: boolean;
             declaredVariableDefault?: null | string;
+            /** Format: int32 */
+            maxItems?: null | number | string;
         };
         /**
          * @description The real, counted set of rows that reference a pipeline right now — surfaced in the delete

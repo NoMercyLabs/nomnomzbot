@@ -156,7 +156,8 @@ public class PipelinesController : BaseController
                             f.Description,
                             f.Templated,
                             f.DeclaresVariable,
-                            f.DeclaredVariableDefault
+                            f.DeclaredVariableDefault,
+                            f.MaxItems
                         )),
                     ]
                 ))

@@ -132781,6 +132781,15 @@
               "null",
               "string"
             ]
+          },
+          "maxItems": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "One configuration field of a pipeline action block — drives which typed control the builder's step form\r\nrenders (S045) instead of a free-text box. `Kind` is the serialized name of a\r\nPipelineActionFieldKind value (e.g. `\"number\"`,\r\n`\"enum\"`, `\"discord_channel\"`). `Options` is populated only for `\"enum\"` fields."

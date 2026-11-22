@@ -100,7 +100,8 @@ public sealed record PipelineActionFieldDto(
     LocalizedText? Description,
     bool Templated = false,
     bool DeclaresVariable = false,
-    string? DeclaredVariableDefault = null
+    string? DeclaredVariableDefault = null,
+    int? MaxItems = null
 );
 
 /// <summary>One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13).</summary>

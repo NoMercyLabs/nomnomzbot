@@ -266,6 +266,17 @@ public sealed class SetStreamInfoActionTests
     }
 
     [Fact]
+    public void The_tags_field_tells_the_step_form_the_platform_limit_of_ten_and_no_other_field_has_a_limit()
+    {
+        SetStreamInfoAction action = new(new RecordingPlatform(), Resolver());
+
+        action
+            .Fields.Select(f => (f.Name, f.MaxItems))
+            .Should()
+            .Equal(("title", null), ("category", null), ("tags", 10));
+    }
+
+    [Fact]
     public async Task The_category_picker_lists_the_platform_search_with_the_name_as_the_saved_value()
     {
         ITwitchSearchApi search = Substitute.For<ITwitchSearchApi>();

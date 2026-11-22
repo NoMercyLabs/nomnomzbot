@@ -197,6 +197,9 @@ public enum PipelineActionFieldKind
 /// The variable name the action writes when a <see cref="DeclaresVariable"/> field is left empty
 /// (e.g. <c>pick</c>); null when the action writes nothing without it.
 /// </param>
+/// <param name="MaxItems">
+/// The most values a <see cref="Repeatable"/> field takes; the step form adds no row past it. Null = no limit.
+/// </param>
 public sealed record PipelineActionFieldDescriptor(
     string Name,
     PipelineActionFieldKind Kind,
@@ -206,7 +209,8 @@ public sealed record PipelineActionFieldDescriptor(
     bool Templated = false,
     LocalizedText? Description = null,
     bool DeclaresVariable = false,
-    string? DeclaredVariableDefault = null
+    string? DeclaredVariableDefault = null,
+    int? MaxItems = null
 );
 
 /// <summary>Converts a <see cref="PipelineActionFieldKind"/> to its snake_case wire name for the catalogue DTO.</summary>
