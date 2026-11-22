@@ -1508,6 +1508,9 @@
       "channel_cheer": {
         "template": "{'{'}user{'}'} heeft {'{'}bits{'}'} bits gecheerd. Bedankt!"
       },
+      "channel_clip_created": {
+        "template": "{'{'}clip.creator{'}'} heeft \"{'{'}clip.title{'}'}\" geclipt: {'{'}clip.url{'}'}"
+      },
       "channel_follow": {
         "template": "Bedankt voor het volgen, {'{'}user{'}'}!"
       },
@@ -2663,6 +2666,9 @@
       "channel_name": "De weergavenaam van het kanaal (Discord seed-alias)",
       "channel_title": "De huidige titel van de stream (Discord seed-alias)",
       "channel_url": "De link naar het kanaal op zijn platform (Discord seed-alias)",
+      "clip_creator": "De naam van wie de clip maakte (bijv. \"KijkerEen\")",
+      "clip_title": "De titel van de nieuwe clip (bijv. \"Insane clutch\")",
+      "clip_url": "De link naar de clip (bijv. \"https://clips.twitch.tv/ExampleClip\")",
       "cost": "De kosten van de kanaalpunten-beloning",
       "count": "De huidige waarde van een benoemde teller (bijv. {'{'}count.deaths{'}'})",
       "custom_data": "Een veld uit een aangesloten aangepaste gegevensbron (bijv. {'{'}custom.mysource.field{'}'})",

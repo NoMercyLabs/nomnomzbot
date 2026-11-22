@@ -50,6 +50,8 @@ export type FieldRow = {
   choices: FieldChoice[];
   required: boolean;
   templated: boolean;
+  // The most items a list takes; unset means no limit.
+  maxItems?: number;
   // Where the value lives: an action setting, a block setting, or a setting of the step itself.
   target: 'action' | 'block_config' | 'step';
   // A locked control keeps its value but cannot be changed; the help says why.
@@ -191,6 +193,9 @@ export function settingRows(
         ({ value: option, label: humanize(option) })),
       required: field.required,
       templated: field.templated,
+      maxItems: field.maxItems == null
+        ? undefined
+        : Number(field.maxItems),
       target: 'action',
     };
   });

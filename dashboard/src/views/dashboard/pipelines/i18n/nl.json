@@ -264,6 +264,8 @@
         "list": {
           "item": "Item {number}",
           "remove": "Item {number} verwijderen",
+          "up": "Item {number} omhoog",
+          "down": "Item {number} omlaag",
           "add": "Een item toevoegen"
         },
         "map": {

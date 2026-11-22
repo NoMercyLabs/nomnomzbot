@@ -84,7 +84,7 @@ const words = {
     fallback,
 };
 
-const field = (name: string, kind: string, extra: Record<string, boolean> = {}) => ({
+const field = (name: string, kind: string, extra: Record<string, boolean | number> = {}) => ({
   name,
   kind,
   required: false,
@@ -103,7 +103,7 @@ const descriptor = {
   fields: [
     field('title', 'text', { templated: true }),
     field('category', 'stream_category'),
-    field('tags', 'text', { repeatable: true }),
+    field('tags', 'text', { repeatable: true, maxItems: 10 }),
   ],
 } as never;
 
@@ -140,6 +140,73 @@ describe('the Set stream info step form', () => {
     });
 
     expect(document.body.querySelector('[data-list-help]')?.textContent?.trim()).toBe('Up to 10 tags, 25 characters each.');
+  });
+
+  const mountTags = (tags: string[]): VueWrapper => {
+    i18n.global.mergeLocaleMessage('en', en);
+    const row = actionRows(stepOf({ tags }), descriptor, words).find((candidate) =>
+      candidate.name === 'tags')!;
+
+    mounted = mount(StepField, {
+      attachTo: document.body,
+      props: { row },
+      global: { plugins: [i18n] },
+    });
+
+    return mounted;
+  };
+
+  const addButton = (): HTMLButtonElement =>
+    document.body.querySelector<HTMLButtonElement>('[data-list-add]')!;
+
+  it('takes no eleventh tag: the add button stops at ten rows, filled or empty', async () => {
+    mountTags(Array.from({ length: 9 }, (_, index) =>
+      `tag${index + 1}`));
+
+    expect(addButton().disabled).toBe(false);
+
+    addButton().click();
+    await flushPromises();
+
+    expect(document.body.querySelectorAll('[data-list-item]')).toHaveLength(10);
+    expect(addButton().disabled).toBe(true);
+
+    addButton().click();
+    await flushPromises();
+
+    expect(document.body.querySelectorAll('[data-list-item]')).toHaveLength(10);
+
+    document.body.querySelector<HTMLButtonElement>('[data-list-remove]')!.click();
+    await flushPromises();
+
+    expect(addButton().disabled).toBe(false);
+  });
+
+  it('moves a tag up or down and saves the new order; the first cannot go up, the last cannot go down', async () => {
+    const wrapper = mountTags(['english', 'chill', 'coding']);
+    const ups = (): HTMLButtonElement[] =>
+      [...document.body.querySelectorAll<HTMLButtonElement>('[data-list-up]')];
+    const downs = (): HTMLButtonElement[] =>
+      [...document.body.querySelectorAll<HTMLButtonElement>('[data-list-down]')];
+
+    expect(ups().map((button) =>
+      button.disabled)).toEqual([true, false, false]);
+
+    expect(downs().map((button) =>
+      button.disabled)).toEqual([false, false, true]);
+
+    downs()[0]!.click();
+    await flushPromises();
+    ups()[2]!.click();
+    await flushPromises();
+
+    expect(wrapper.emitted('change')).toEqual([
+      [['chill', 'english', 'coding']],
+      [['chill', 'coding', 'english']],
+    ]);
+
+    expect([...document.body.querySelectorAll<HTMLInputElement>('[data-list-item] input')].map((input) =>
+      input.value)).toEqual(['chill', 'coding', 'english']);
   });
 
   it('saves the category picked from the search and the tag added, as the step parameters', async () => {

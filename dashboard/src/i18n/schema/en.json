@@ -1508,6 +1508,9 @@
       "channel_cheer": {
         "template": "{'{'}user{'}'} cheered {'{'}bits{'}'} bits. Thank you!"
       },
+      "channel_clip_created": {
+        "template": "{'{'}clip.creator{'}'} clipped \"{'{'}clip.title{'}'}\": {'{'}clip.url{'}'}"
+      },
       "channel_follow": {
         "template": "Thanks for the follow, {'{'}user{'}'}!"
       },
@@ -2663,6 +2666,9 @@
       "channel_name": "The channel display name (Discord seed alias)",
       "channel_title": "The stream current title (Discord seed alias)",
       "channel_url": "The link to the channel on its platform (Discord seed alias)",
+      "clip_creator": "The name of the person who made the clip (e.g. \"ViewerOne\")",
+      "clip_title": "The title of the new clip (e.g. \"Insane clutch\")",
+      "clip_url": "The link to the clip (e.g. \"https://clips.twitch.tv/ExampleClip\")",
       "cost": "The channel-points reward's cost",
       "count": "A named counter current value (e.g. {'{'}count.deaths{'}'})",
       "custom_data": "A field from an ingested custom data source (e.g. {'{'}custom.mysource.field{'}'})",

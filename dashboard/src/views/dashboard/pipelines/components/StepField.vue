@@ -261,6 +261,7 @@ function typed(event: Event): void {
       :templated="row.templated"
       :variables="variables"
       :event-type="eventType"
+      :max-items="row.maxItems"
       @change="emit('change', $event)"
     />
     <MapField

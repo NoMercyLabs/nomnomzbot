@@ -264,6 +264,8 @@
         "list": {
           "item": "Item {number}",
           "remove": "Remove item {number}",
+          "up": "Move item {number} up",
+          "down": "Move item {number} down",
           "add": "Add an item"
         },
         "map": {

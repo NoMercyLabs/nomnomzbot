@@ -13,13 +13,16 @@ import type { JsonValue } from '@/lib/json';
 // A step setting with many items: one row each, a row is removed on its own, and a new row is empty until it
 // is typed in. Empty rows are left out of the saved setting; no rows at all saves without it.
 import Add from '~icons/nnz/add';
+import ArrowDown from '~icons/nnz/arrow-down';
+import ArrowUp from '~icons/nnz/arrow-up';
 import Cross from '~icons/nnz/cross';
-import { nextTick, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { moveItem } from '@/lib/array';
 
 import { itemText, jsonOf, listItem } from './stepFields';
 
@@ -30,10 +33,13 @@ const props = withDefaults(defineProps<{
   templated?: boolean;
   variables?: string[];
   eventType?: string;
+  // The most rows the setting takes; at that count no row is added.
+  maxItems?: number;
 }>(), {
   templated: false,
   variables: () => [],
   eventType: undefined,
+  maxItems: undefined,
 });
 
 const emit = defineEmits<{ change: [value: JsonValue[] | undefined] }>();
@@ -112,7 +118,17 @@ function remove(index: number): void {
   save();
 }
 
+function move(index: number, to: number): void {
+  items.value = moveItem(items.value, index, to);
+  save();
+}
+
+const full = computed(() =>
+  props.maxItems !== undefined && items.value.length >= props.maxItems);
+
 async function add(): Promise<void> {
+  if (full.value) return;
+
   items.value.push('');
   await nextTick();
 
@@ -128,7 +144,7 @@ async function add(): Promise<void> {
       v-for="(item, index) in items"
       :key="index"
       data-list-item
-      class="flex items-start gap-2"
+      class="flex items-start gap-1"
       @focusout="templated && leave($event)"
     >
       <TemplateField
@@ -162,6 +178,28 @@ async function add(): Promise<void> {
         type="button"
         variant="ghost"
         size="icon"
+        data-list-up
+        :disabled="index === 0"
+        :aria-label="$t('dashboard.pipelines.workbench.list.up', { number: index + 1 })"
+        @click="move(index, index - 1)"
+      >
+        <ArrowUp aria-hidden="true" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        data-list-down
+        :disabled="index === items.length - 1"
+        :aria-label="$t('dashboard.pipelines.workbench.list.down', { number: index + 1 })"
+        @click="move(index, index + 1)"
+      >
+        <ArrowDown aria-hidden="true" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
         data-list-remove
         :aria-label="$t('dashboard.pipelines.workbench.list.remove', { number: index + 1 })"
         @click="remove(index)"
@@ -174,6 +212,7 @@ async function add(): Promise<void> {
             size="sm"
             data-list-add
             class="self-start"
+            :disabled="full"
             @click="add"
     >
       <Add aria-hidden="true" />

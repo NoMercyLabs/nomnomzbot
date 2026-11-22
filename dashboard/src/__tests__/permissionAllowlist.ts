@@ -82,7 +82,7 @@ export const permissionAllowlist = [
       'commands/components/RandomReplyList.vue': 2,
       'overlays/components/SettingGroup.vue': 3,
       'overlays/components/StringListEditor.vue': 4,
-      'pipelines/components/ListField.vue': 2,
+      'pipelines/components/ListField.vue': 4,
       'pipelines/components/MapField.vue': 2,
       'pipelines/components/StepField.vue': 4,
       'pipelines/components/StepInspector.vue': 2,
