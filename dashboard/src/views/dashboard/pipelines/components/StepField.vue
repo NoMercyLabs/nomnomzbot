@@ -39,6 +39,7 @@ import ListField from './ListField.vue';
 import MapField from './MapField.vue';
 import type { FieldRow } from './stepFields';
 import StepPicker from './StepPicker.vue';
+import TtsSegmentsField from './TtsSegmentsField.vue';
 import { valueText } from './stepWords';
 
 // The text earlier steps hold (stepChain.ts), offered on a template field so a step can reuse those words.
@@ -117,8 +118,9 @@ function typed(event: Event): void {
 </script>
 
 <template>
+  <TtsSegmentsField v-if="row.control === 'tts_segments'" :row="row" @change="emit('change', $event)" />
   <Field
-    v-if="row.control === 'switch'"
+    v-else-if="row.control === 'switch'"
     :data-step-field="row.name"
     orientation="horizontal"
     class="gap-3"

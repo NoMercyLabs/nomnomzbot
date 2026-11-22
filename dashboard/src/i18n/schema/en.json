@@ -2127,7 +2127,7 @@
         "help": "The scene_reserve token ({'{'}scene.token{'}'}) this line belongs to, if any. Lets this line play immediately even while that reservation is active; a blank value waits its turn like any other request."
       },
       "segments": {
-        "help": "Several voices in one clip. A JSON list of blocks, in any order. A text block has text, and optionally voice, rate, pitch, volume, stress (true: this block carries the stress) and breakAfterMs (silence after the block, up to 5000 ms). A pause block has only pause, in milliseconds. When set, it replaces Text. Supports template variables."
+        "help": "Several voices in one clip. Add spoken blocks or pauses in the editor. Each spoken block can set voice, rate, pitch, volume, stress, style and sayAs. Styles: cheerful, excited, sad, whispering, shouting, friendly, unfriendly, terrified, hopeful. Read as: spell-out, cardinal, ordinal, digits, date, time, telephone. Azure uses styles supported by the voice; other providers approximate them. A pause is in milliseconds, up to 5000. When set, blocks replace Text. Supports template variables and JSON editing."
       },
       "text": {
         "help": "The text to speak. Supports template variables (e.g. {'{'}user.name{'}'})."

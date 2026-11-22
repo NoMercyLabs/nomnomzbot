@@ -181,8 +181,14 @@ public sealed class EdgeTtsProvider : ITtsProvider
     internal static List<List<TtsSegment>> VoiceRuns(IReadOnlyList<TtsSegment> segments)
     {
         List<List<TtsSegment>> runs = [];
-        foreach (TtsSegment block in segments)
+        foreach (TtsSegment original in segments)
         {
+            TtsSegment block = TtsSegmentSpeech.Approximate(original) with
+            {
+                Text = TtsSegmentSpeech.PlainText(original),
+                Style = null,
+                SayAs = null,
+            };
             if (runs.Count == 0 || runs[^1][0].VoiceId != block.VoiceId)
             {
                 runs.Add([block]);
@@ -864,17 +870,18 @@ public sealed class EdgeTtsProvider : ITtsProvider
             .Append("'>");
         foreach (TtsSegment segment in run)
         {
+            TtsSegment spoken = TtsSegmentSpeech.Approximate(segment);
             ssml.Append("<prosody rate='")
-                .Append(TtsProsody.FormatPercent(segment.RatePercent))
+                .Append(TtsProsody.FormatPercent(spoken.RatePercent))
                 .Append("' pitch='")
-                .Append(TtsProsody.FormatPercent(segment.PitchPercent))
+                .Append(TtsProsody.FormatPercent(spoken.PitchPercent))
                 .Append('\'');
-            if (segment.VolumePercent is not null)
+            if (spoken.VolumePercent is not null)
                 ssml.Append(" volume='")
-                    .Append(TtsProsody.FormatPercent(segment.VolumePercent))
+                    .Append(TtsProsody.FormatPercent(spoken.VolumePercent))
                     .Append('\'');
             ssml.Append('>')
-                .Append(System.Security.SecurityElement.Escape(segment.Text))
+                .Append(System.Security.SecurityElement.Escape(TtsSegmentSpeech.PlainText(segment)))
                 .Append("</prosody>");
         }
 

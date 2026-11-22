@@ -86,6 +86,7 @@ export const permissionAllowlist = [
       'pipelines/components/MapField.vue': 2,
       'pipelines/components/StepField.vue': 4,
       'pipelines/components/StepInspector.vue': 2,
+      'pipelines/components/TtsSegmentsField.vue': 5,
       'settings/custom-event-feeds/components/FieldMapEditor.vue': 2,
     },
   },

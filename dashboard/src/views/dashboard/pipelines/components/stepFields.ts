@@ -35,6 +35,7 @@ export type FieldControl =
   'pick' |
   'list' |
   'map' |
+  'tts_segments' |
   'fixed';
 
 export type FieldChoice = { value: string; label: string };
@@ -177,7 +178,9 @@ export function settingRows(
   words: Words & { text: TextOf },
 ): FieldRow[] {
   return (descriptor?.fields ?? []).map((field) => {
-    const control = controlOf(field);
+    const control = type === 'play_tts' && field.name === 'segments'
+      ? 'tts_segments'
+      : controlOf(field);
     const saved = settings[field.name];
 
     return {

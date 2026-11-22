@@ -39,6 +39,33 @@
         },
         "end": "Done. The pipeline ends here.",
         "empty": "This pipeline has no steps yet.",
+        "ttsBlocks": {
+          "editBlocks": "Edit blocks",
+          "editJson": "Edit JSON or template",
+          "block": "Block {number}",
+          "remove": "Remove",
+          "pause": "Pause (ms)",
+          "text": "Words",
+          "voice": "Voice",
+          "rate": "Rate",
+          "pitch": "Pitch",
+          "volume": "Volume",
+          "breakAfterMs": "Silence after (ms)",
+          "style": "Speaking style",
+          "styleHelp": "Azure uses this style only when the chosen voice supports it. Other providers approximate the delivery with their available controls.",
+          "sayAs": "Read as",
+          "sayAsHelp": "Choose how the words or numbers should be read. For dates and times, use an unambiguous format.",
+          "stress": "Emphasize this block",
+          "none": "Natural reading",
+          "addText": "Add spoken block",
+          "addPause": "Add pause",
+          "styles": {
+            "cheerful": "Cheerful", "excited": "Excited", "sad": "Sad", "whispering": "Whispering", "shouting": "Shouting", "friendly": "Friendly", "unfriendly": "Unfriendly", "terrified": "Terrified", "hopeful": "Hopeful"
+          },
+          "readings": {
+            "spell-out": "Spell out", "cardinal": "Number words", "ordinal": "Ordinal words", "digits": "Single digits", "date": "Date", "time": "Time", "telephone": "Telephone"
+          }
+        },
         "block": {
           "if": "If, otherwise",
           "switch": "Switch on a value",
