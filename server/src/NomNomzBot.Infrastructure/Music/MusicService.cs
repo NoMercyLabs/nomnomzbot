@@ -70,8 +70,8 @@ public sealed class MusicService : IMusicService
     private readonly IPlaybackStateReader _playbackState;
     private readonly TimeProvider _time;
 
-    /// <summary>The volume ease running for each channel; a newer volume change cancels and replaces it.</summary>
-    private readonly Dictionary<Guid, CancellationTokenSource> _volumeEases = [];
+    /// <summary>The volume ease running for each channel, shared across requests; a newer change replaces it.</summary>
+    private readonly VolumeEaseHolder _volumeEases;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -91,9 +91,11 @@ public sealed class MusicService : IMusicService
         IPlaybackInputSink playbackInput,
         IPlaybackStateReader playbackState,
         RefusedSongRequestStore? refused = null,
-        TimeProvider? timeProvider = null
+        TimeProvider? timeProvider = null,
+        VolumeEaseHolder? volumeEases = null
     )
     {
+        _volumeEases = volumeEases ?? new();
         _time = timeProvider ?? TimeProvider.System;
         _playbackInput = playbackInput;
         _playbackState = playbackState;
@@ -1610,7 +1612,7 @@ public sealed class MusicService : IMusicService
         using CancellationTokenSource ease = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken
         );
-        ReplaceVolumeEase(tenantId, ease);
+        _volumeEases.Replace(tenantId, ease);
         try
         {
             return await SendVolumeStepsAsync(tenantId, provider, steps, ease.Token);
@@ -1622,7 +1624,7 @@ public sealed class MusicService : IMusicService
         }
         finally
         {
-            EndVolumeEase(tenantId, ease);
+            _volumeEases.End(tenantId, ease);
         }
     }
 
@@ -1697,38 +1699,6 @@ public sealed class MusicService : IMusicService
         }
 
         return result;
-    }
-
-    /// <summary>Makes <paramref name="ease"/> the channel's running ease and cancels the one it replaces.</summary>
-    private void ReplaceVolumeEase(Guid tenantId, CancellationTokenSource ease)
-    {
-        CancellationTokenSource? previous;
-        lock (_volumeEases)
-        {
-            _volumeEases.Remove(tenantId, out previous);
-            _volumeEases[tenantId] = ease;
-        }
-
-        try
-        {
-            previous?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // The earlier ease finished on its own between the swap and the cancel.
-        }
-    }
-
-    private void EndVolumeEase(Guid tenantId, CancellationTokenSource ease)
-    {
-        lock (_volumeEases)
-        {
-            if (
-                _volumeEases.TryGetValue(tenantId, out CancellationTokenSource? running)
-                && running == ease
-            )
-                _volumeEases.Remove(tenantId);
-        }
     }
 
     /// <summary>

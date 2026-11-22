@@ -428,6 +428,8 @@ public static class DependencyInjection
         services.AddSingleton<IMusicDuckScheduler, MusicDuckScheduler>();
         // Song requests a limit refused, kept 15 minutes so a moderator's !permit can admit them.
         services.AddSingleton<RefusedSongRequestStore>();
+        // The running volume ease of each channel, shared by every request-scoped MusicService.
+        services.AddSingleton<VolumeEaseHolder>();
 
         // Same reasoning as the queue store above: must outlive the scoped MusicService that reads/writes
         // it. Kept warm by every real GetNowPlayingAsync read (poller-cadence for an actively streaming

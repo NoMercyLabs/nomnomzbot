@@ -177,7 +177,9 @@ public sealed class MusicServiceDirectorIntakeTests
         RecordingEventBus? bus = null,
         Func<DirectorRig, IPlaybackInputSink>? inputSink = null,
         IMusicConfigService? config = null,
-        TimeProvider? time = null
+        TimeProvider? time = null,
+        SongRequestQueueStore? queueStore = null,
+        VolumeEaseHolder? volumeEases = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -212,7 +214,7 @@ public sealed class MusicServiceDirectorIntakeTests
             new OutboundSanctionAccessor()
         );
 
-        SongRequestQueueStore store = new();
+        SongRequestQueueStore store = queueStore ?? new();
         DirectorRig rig = DirectorRig.Of(store);
         MusicService sut = new(
             [spotify],
@@ -231,7 +233,8 @@ public sealed class MusicServiceDirectorIntakeTests
             Substitute.For<IForeignLinkTitleLookup>(),
             inputSink?.Invoke(rig) ?? rig.Registry,
             rig.Registry,
-            timeProvider: time
+            timeProvider: time,
+            volumeEases: volumeEases
         );
         return (sut, handler, rig);
     }

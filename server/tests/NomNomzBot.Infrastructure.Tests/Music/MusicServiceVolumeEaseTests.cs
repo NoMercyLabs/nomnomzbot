@@ -33,7 +33,10 @@ public sealed class MusicServiceVolumeEaseTests
         MusicService Sut,
         FakeEngine Spotify,
         FakeTimeProvider Time,
-        MusicConfigDbFixture Config
+        MusicConfigDbFixture Config,
+        NowPlayingCache Cache,
+        SongRequestQueueStore Store,
+        VolumeEaseHolder Eases
     ) : IDisposable
     {
         public void Dispose() => Config.Dispose();
@@ -57,10 +60,14 @@ public sealed class MusicServiceVolumeEaseTests
             .BeTrue();
         NowPlayingCache cache = new();
         FakeTimeProvider time = new();
+        SongRequestQueueStore store = new();
+        VolumeEaseHolder eases = new();
         (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = BuildSpotify(
             cache,
             config: config.Service,
-            time: time
+            time: time,
+            queueStore: store,
+            volumeEases: eases
         );
         (await RequestAsync(sut, handler, "e1", "viewer-e1")).IsSuccess.Should().BeTrue();
         if (current is { } volume)
@@ -82,7 +89,15 @@ public sealed class MusicServiceVolumeEaseTests
             );
         }
 
-        return new(sut, rig.Engines.EngineOf(SpotifyChannel, EngineKind.Spotify), time, config);
+        return new(
+            sut,
+            rig.Engines.EngineOf(SpotifyChannel, EngineKind.Spotify),
+            time,
+            config,
+            cache,
+            store,
+            eases
+        );
     }
 
     /// <summary>Moves the fake clock one step gap at a time until the call finishes.</summary>
@@ -178,6 +193,35 @@ public sealed class MusicServiceVolumeEaseTests
 
         Result second = await FinishAsync(
             rig.Sut.SetVolumeAsync(SpotifyChannel.ToString(), 50),
+            rig.Time
+        );
+        Result firstResult = await FinishAsync(first, rig.Time);
+
+        second.IsSuccess.Should().BeTrue();
+        firstResult.IsSuccess.Should().BeTrue("a replaced ease is not a failure");
+        VolumesSent(rig.Spotify).Should().Equal(32, 30, 40, 50);
+    }
+
+    [Fact]
+    public async Task A_newer_change_from_another_service_instance_stops_the_running_ease()
+    {
+        // A real host builds MusicService per request (scoped) over the same singletons: the queue store,
+        // the director, the cache, the clock, the ease holder. The second call comes from a different instance.
+        using Rig rig = await PlayingAtAsync(20);
+        Task<Result> first = rig.Sut.SetVolumeAsync(SpotifyChannel.ToString(), 80);
+        for (int i = 0; i < 200 && VolumesSent(rig.Spotify).Count == 0; i++)
+            await Task.Delay(5);
+        VolumesSent(rig.Spotify).Should().Equal(32);
+        (MusicService other, _, _) = BuildSpotify(
+            rig.Cache,
+            config: rig.Config.Service,
+            time: rig.Time,
+            queueStore: rig.Store,
+            volumeEases: rig.Eases
+        );
+
+        Result second = await FinishAsync(
+            other.SetVolumeAsync(SpotifyChannel.ToString(), 50),
             rig.Time
         );
         Result firstResult = await FinishAsync(first, rig.Time);
