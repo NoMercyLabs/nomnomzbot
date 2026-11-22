@@ -15,6 +15,7 @@ import { useRefHistory } from '@vueuse/core';
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
 
 import type { Pipeline, PipelineStep } from '@/api/pipelines';
+import { newId } from '@/lib/id';
 
 import {
   duplicateStep,
@@ -50,8 +51,7 @@ export type StepDraft = {
   add: (make: MakeSteps, spot?: Spot) => string | null;
 };
 
-const mint = (): string =>
-  crypto.randomUUID();
+const mint = newId;
 
 export function useStepDraft(saved: Ref<Pipeline | undefined>) {
   // Vue's deep unwrap of the recursive JSON value type is unbounded, so the ref is typed as the list it holds.

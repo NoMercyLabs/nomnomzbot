@@ -12,6 +12,7 @@
 // The list the editor changes before it is saved. Each draft button carries a local key so a row keeps its
 // place on screen while it moves; the key never reaches the bot.
 import { buttonProblems, type PlayerButton } from '@/api/playerButtons';
+import { newId } from '@/lib/id';
 
 export type DraftButton = PlayerButton & { key: string };
 
@@ -20,7 +21,7 @@ export function toDraft(buttons: PlayerButton[]): DraftButton[] {
     ({
       ...button,
       parameters: { ...button.parameters },
-      key: crypto.randomUUID(),
+      key: newId(),
     }));
 }
 
@@ -28,7 +29,7 @@ export function toDraft(buttons: PlayerButton[]): DraftButton[] {
 export function blankButton(): DraftButton {
   return {
     id: '',
-    key: crypto.randomUUID(),
+    key: newId(),
     label: '',
     icon: 'lightning',
     actionType: '',

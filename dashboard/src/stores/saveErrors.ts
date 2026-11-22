@@ -12,6 +12,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+import { newId } from '@/lib/id';
+
 // The change a failed save tried to make, in words: a key under frame.inbox.what and its values.
 export type SaveWhat = {
   key: string;
@@ -55,7 +57,7 @@ export const useSaveErrorsStore = defineStore('saveErrors', () => {
     }
 
     items.value.push({
-      id: crypto.randomUUID(),
+      id: newId(),
       titleKey,
       messageKey,
       what,
