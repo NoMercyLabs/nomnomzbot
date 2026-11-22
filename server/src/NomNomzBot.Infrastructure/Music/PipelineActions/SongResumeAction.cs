@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -30,6 +31,7 @@ public sealed class SongResumeAction : ICommandAction
     private readonly IMusicService _music;
     private readonly IChatProvider _chat;
     private readonly ILogger<SongResumeAction> _logger;
+    private readonly IChannelRegistry? _channels;
 
     public string ActionType => "song_resume";
 
@@ -40,12 +42,14 @@ public sealed class SongResumeAction : ICommandAction
     public SongResumeAction(
         IMusicService music,
         IChatProvider chat,
-        ILogger<SongResumeAction> logger
+        ILogger<SongResumeAction> logger,
+        IChannelRegistry? channels = null
     )
     {
         _music = music;
         _chat = chat;
         _logger = logger;
+        _channels = channels;
     }
 
     public async Task<ActionResult> ExecuteAsync(
@@ -65,7 +69,8 @@ public sealed class SongResumeAction : ICommandAction
                 _chat,
                 ctx,
                 BuiltinResponseSlots.Resume.Key,
-                resumed
+                resumed,
+                _channels
             );
             return ActionResult.Failure(resumed.ErrorMessage ?? "resume failed");
         }

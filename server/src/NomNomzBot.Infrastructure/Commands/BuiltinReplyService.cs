@@ -72,6 +72,7 @@ public sealed class BuiltinReplyService : IBuiltinReplyService
             );
 
         string personality = await PersonalityAsync(broadcaster, ct);
+        string? language = await LanguageAsync(broadcaster, ct);
         Dictionary<string, IReadOnlyDictionary<string, string>> channelTexts =
             await ChannelTextsAsync(broadcaster, ct);
 
@@ -84,7 +85,9 @@ public sealed class BuiltinReplyService : IBuiltinReplyService
         {
             List<BuiltinReplyDto> replies = [];
             foreach ((string _, string slot) in group)
-                replies.Add(await ResolveAsync(group.Key, slot, personality, channelTexts, ct));
+                replies.Add(
+                    await ResolveAsync(group.Key, slot, personality, language, channelTexts, ct)
+                );
 
             groups.Add(new(group.Key, CommandKeysOf(group.Key), replies));
         }
@@ -256,24 +259,28 @@ public sealed class BuiltinReplyService : IBuiltinReplyService
         );
 
         string personality = await PersonalityAsync(broadcaster, ct);
+        string? language = await LanguageAsync(broadcaster, ct);
         Dictionary<string, IReadOnlyDictionary<string, string>> channelTexts = new()
         {
             [replyGroup] = responses,
         };
-        return Result.Success(await ResolveAsync(replyGroup, slot, personality, channelTexts, ct));
+        return Result.Success(
+            await ResolveAsync(replyGroup, slot, personality, language, channelTexts, ct)
+        );
     }
 
     private async Task<BuiltinReplyDto> ResolveAsync(
         string replyGroup,
         string slot,
         string personality,
+        string? language,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> channelTexts,
         CancellationToken ct
     )
     {
         string? platform = await _platformReplies.GetAsync(replyGroup, slot, ct);
         IReadOnlyList<string> toneLines = platform is null
-            ? ToneTemplateCatalog.Get(personality, replyGroup, slot)
+            ? ToneTemplateCatalog.Get(personality, replyGroup, slot, language)
             : [];
         string defaultTemplate = platform ?? toneLines.FirstOrDefault() ?? string.Empty;
 
@@ -362,6 +369,17 @@ public sealed class BuiltinReplyService : IBuiltinReplyService
             .FirstOrDefaultAsync(ct);
         return PersonalityTone.Normalize(stored);
     }
+
+    /// <summary>
+    /// The channel's language, read from the row like the personality (the registry only holds channels with
+    /// chat activity), so the default text listed here is the text the bot speaks.
+    /// </summary>
+    private async Task<string?> LanguageAsync(Guid broadcaster, CancellationToken ct) =>
+        await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcaster)
+            .Select(c => c.Language)
+            .FirstOrDefaultAsync(ct);
 
     /// <summary>The chat triggers that speak with this reply group (empty for the bot's own groups).</summary>
     private IReadOnlyList<string> CommandKeysOf(string replyGroup) =>

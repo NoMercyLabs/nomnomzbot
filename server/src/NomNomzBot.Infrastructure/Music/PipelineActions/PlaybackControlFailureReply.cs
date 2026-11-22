@@ -14,6 +14,7 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -27,14 +28,20 @@ internal static class PlaybackControlFailureReply
         IChatProvider chat,
         PipelineExecutionContext ctx,
         string builtinKey,
-        Result failure
+        Result failure,
+        IChannelRegistry? channels = null
     )
     {
         string slot = BuiltinResponseSlots.PlaybackControl.FailureSlotFor(
             failure.ErrorCode,
             failure.ErrorData
         );
-        string reply = ToneTemplateCatalog.Get(PersonalityTone.Informative, builtinKey, slot)[0];
+        string reply = ToneTemplateCatalog.Get(
+            PersonalityTone.Informative,
+            builtinKey,
+            slot,
+            channels?.Get(ctx.BroadcasterId)?.Language
+        )[0];
         ctx.RepliedToChat |= await chat.SendMessageAsync(
             ctx.BroadcasterId,
             reply,

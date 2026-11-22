@@ -50,7 +50,8 @@ public sealed class BuiltinReplyServiceTests
 
     private static Harness Build(
         string personality = PersonalityTone.Informative,
-        IPlatformBuiltinReplyDefaults? platform = null
+        IPlatformBuiltinReplyDefaults? platform = null,
+        string? language = null
     )
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
@@ -62,6 +63,7 @@ public sealed class BuiltinReplyServiceTests
                 Name = "reply-channel",
                 NameNormalized = "reply-channel",
                 Personality = personality,
+                Language = language,
             }
         );
         db.SaveChanges();
@@ -98,6 +100,33 @@ public sealed class BuiltinReplyServiceTests
             await h.Sut.ListAsync(Channel.ToString())
         ).Value;
         return groups.Single(g => g.BuiltinKey == group).Replies.Single(r => r.Slot == slot);
+    }
+
+    [Fact]
+    public async Task A_Dutch_channel_lists_the_Dutch_default_text_and_an_unset_language_stays_English()
+    {
+        (string key, string slot) = ToneTemplateCatalog.TranslatedSlots("nl")[0];
+        IReadOnlyList<string> dutch = ToneTemplateCatalog.Get(
+            PersonalityTone.Informative,
+            key,
+            slot,
+            "nl"
+        );
+        IReadOnlyList<string> english = ToneTemplateCatalog.Get(
+            PersonalityTone.Informative,
+            key,
+            slot
+        );
+        dutch.Should().NotEqual(english, "the slot under test has a Dutch text");
+
+        BuiltinReplyDto nl = await ReplyAsync(Build(language: "nl"), key, slot);
+        nl.ToneVariations.Should().Equal(dutch);
+        dutch.Should().Contain(nl.DefaultTemplate);
+        nl.EffectiveTemplate.Should().Be(nl.DefaultTemplate);
+
+        BuiltinReplyDto unset = await ReplyAsync(Build(), key, slot);
+        unset.ToneVariations.Should().Equal(english);
+        english.Should().Contain(unset.DefaultTemplate);
     }
 
     [Fact]

@@ -13,10 +13,12 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Music;
@@ -128,9 +130,7 @@ public sealed class MusicPipelineActionsTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("No Spotify app is open");
-        await music
-            .DidNotReceiveWithAnyArgs()
-            .TransferPlaybackAsync(default!, default!, default, default);
+        await music.DidNotReceiveWithAnyArgs().TransferPlaybackAsync(default!, default!);
     }
 
     // ─── song_pause / song_resume / song_previous ─────────────────────────────
@@ -181,6 +181,78 @@ public sealed class MusicPipelineActionsTests
 
     /// <summary>The silent failure this fixes: a pause with the Audio widget closed did nothing and said
     /// nothing, so the streamer could not tell why the music kept playing.</summary>
+    [Fact]
+    public async Task Song_pause_failure_follows_the_channel_language_and_stays_English_without_one()
+    {
+        string key = BuiltinResponseSlots.Pause.Key;
+        string slot = BuiltinResponseSlots.PlaybackControl.NoPlayer;
+        ToneTemplateCatalog.TranslatedSlots("nl").Should().Contain((key, slot));
+        IReadOnlyList<string> dutch = ToneTemplateCatalog.Get(
+            PersonalityTone.Informative,
+            key,
+            slot,
+            "nl"
+        );
+        IReadOnlyList<string> english = ToneTemplateCatalog.Get(
+            PersonalityTone.Informative,
+            key,
+            slot
+        );
+        dutch.Should().NotEqual(english);
+
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure(
+                    "Nothing is playing on any device right now.",
+                    "NO_ACTIVE_DEVICE",
+                    errorData: new NoActivePlayerRefusal("youtube")
+                )
+            );
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(default, default!).ReturnsForAnyArgs(true);
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry
+            .Get(ChannelId)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = ChannelId,
+                    TwitchChannelId = "42",
+                    ChannelName = "music-channel",
+                    Language = "nl",
+                }
+            );
+        SongPauseAction dutchAction = new(
+            music,
+            chat,
+            NullLogger<SongPauseAction>.Instance,
+            registry
+        );
+
+        await dutchAction.ExecuteAsync(Ctx(), Def("song_pause"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(m => dutch.Contains(m) && !english.Contains(m)),
+                Arg.Any<CancellationToken>()
+            );
+
+        chat.ClearReceivedCalls();
+        SongPauseAction plainAction = new(music, chat, NullLogger<SongPauseAction>.Instance);
+
+        await plainAction.ExecuteAsync(Ctx(), Def("song_pause"));
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(m => english.Contains(m)),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task Song_pause_with_no_player_open_tells_chat_the_player_isnt_open()
     {

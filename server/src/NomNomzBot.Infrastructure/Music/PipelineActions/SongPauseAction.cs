@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -30,6 +31,7 @@ public sealed class SongPauseAction : ICommandAction
     private readonly IMusicService _music;
     private readonly IChatProvider _chat;
     private readonly ILogger<SongPauseAction> _logger;
+    private readonly IChannelRegistry? _channels;
 
     public string ActionType => "song_pause";
 
@@ -37,11 +39,17 @@ public sealed class SongPauseAction : ICommandAction
 
     public LocalizedText Description => new("pipeline.song_pause.description");
 
-    public SongPauseAction(IMusicService music, IChatProvider chat, ILogger<SongPauseAction> logger)
+    public SongPauseAction(
+        IMusicService music,
+        IChatProvider chat,
+        ILogger<SongPauseAction> logger,
+        IChannelRegistry? channels = null
+    )
     {
         _music = music;
         _chat = chat;
         _logger = logger;
+        _channels = channels;
     }
 
     public async Task<ActionResult> ExecuteAsync(
@@ -61,7 +69,8 @@ public sealed class SongPauseAction : ICommandAction
                 _chat,
                 ctx,
                 BuiltinResponseSlots.Pause.Key,
-                paused
+                paused,
+                _channels
             );
             return ActionResult.Failure(paused.ErrorMessage ?? "pause failed");
         }
