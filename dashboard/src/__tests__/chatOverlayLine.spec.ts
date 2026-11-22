@@ -585,3 +585,74 @@ describe('the chat overlay bundle draws the bot overlay line', () => {
     expect(wrapper.find('.message-container').classes()).toContain('leaving');
   });
 });
+
+// A viewer's message bought with a Twitch Power-up: a Message Effect (animationId names it) or a Gigantified Emote.
+function viewerLine(extra: Line): Line {
+  return botLine(null, {
+    userId: 'viewer-1',
+    displayName: 'Viewer One',
+    username: 'viewer_one',
+    userType: 'viewer',
+    message: 'hello',
+    fragments: [{ type: 'text', text: 'hello' }],
+    messageType: 'text',
+    ...extra,
+  });
+}
+
+describe.each([
+  {
+    name: 'the chat box widget',
+    widget: ChatBox,
+    row: '.line',
+  },
+  {
+    name: 'the chat overlay bundle',
+    widget: ChatOverlay,
+    row: '.message-container',
+  },
+])('$name draws a Power-up message', ({ widget, row }) => {
+  it.each(['simmer', 'rainbow-eclipse', 'cosmic-abyss'])('draws the %s Message Effect by its name', async (effect) => {
+    const wrapper = show(widget, viewerLine({ messageType: 'power_ups_message_effect', animationId: effect }));
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find(row).attributes('data-effect')).toBe(effect);
+  });
+
+  it('draws an effect Twitch added later as the plain glow', async () => {
+    const wrapper = show(widget, viewerLine({ messageType: 'power_ups_message_effect', animationId: 'next-years-effect' }));
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find(row).attributes('data-effect')).toBe('glow');
+  });
+
+  it('marks a Gigantified Emote message so its emote shows large', async () => {
+    const wrapper = show(widget, viewerLine({ messageType: 'power_ups_gigantified_emote' }));
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find(row).attributes('data-gigantified')).toBe('true');
+    expect(wrapper.find(row).attributes('data-effect')).toBeUndefined();
+  });
+
+  it('draws a Highlight My Message line in the accent highlight', async () => {
+    const wrapper = show(widget, viewerLine({ messageType: 'channel_points_highlighted' }));
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find(row).attributes('data-highlight')).toBe('primary');
+    expect(wrapper.find(row).attributes('style')).toContain('--hl: oklch(0.692953 0.114282 309.045)');
+  });
+
+  it('leaves a plain message unmarked', async () => {
+    const wrapper = show(widget, viewerLine({ animationId: null }));
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.find(row).attributes('data-highlight')).toBeUndefined();
+    expect(wrapper.find(row).attributes('data-effect')).toBeUndefined();
+    expect(wrapper.find(row).attributes('data-gigantified')).toBeUndefined();
+  });
+});

@@ -14,8 +14,8 @@ function lineVars(): Record<string, string> {
     '--user-500': `hsl(from ${base} h calc(s * .50) l)`,
     '--user-700': `hsl(from ${base} h s calc(l * .70))`,
   }
-  // The highlight a channel gave a bot overlay line, as its design token color.
-  if (props.line.look?.color) vars['--hl'] = props.line.look.color
+  // The line's highlight, as its design token color.
+  if (props.line.highlightColor) vars['--hl'] = props.line.highlightColor
   return vars
 }
 
@@ -81,8 +81,10 @@ const ogPreviews: NnzChatLinkPreviewDto[] = props.line.fragments
   <div
     class="message-container"
     :class="[line.state]"
-    :data-highlight="line.look?.highlight || undefined"
+    :data-highlight="line.highlight || undefined"
     :data-size="line.look?.large ? 'large' : undefined"
+    :data-effect="line.effect || undefined"
+    :data-gigantified="line.gigantified ? 'true' : undefined"
     :style="lineVars()"
   >
     <div class="head">
@@ -287,6 +289,57 @@ const ogPreviews: NnzChatLinkPreviewDto[] = props.line.fragments
 .message-container[data-highlight] .message-bubble {
   border-left: 4px solid var(--hl);
   background-image: linear-gradient(color-mix(in srgb, var(--hl) 14%, transparent), color-mix(in srgb, var(--hl) 14%, transparent));
+}
+/* A Message Effect Power-up: a moving ring around the bubble with a soft glow inside it. The bubble clips, so
+   both stay inside its edge. */
+@property --effect-turn {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.message-container[data-effect] .message-bubble {
+  --effect-ring: conic-gradient(from var(--effect-turn), #9146ff, #ff75e6, #9146ff);
+}
+.message-container[data-effect='simmer'] .message-bubble {
+  --effect-ring: conic-gradient(from var(--effect-turn), #ff8a00, #ff3d6e, #a64dff, #ff8a00);
+}
+.message-container[data-effect='rainbow-eclipse'] .message-bubble {
+  --effect-ring: conic-gradient(from var(--effect-turn), #ff4d4d, #ffb84d, #f5f04d, #4dff88, #4dc3ff, #a64dff, #ff4dc4, #ff4d4d);
+}
+.message-container[data-effect='cosmic-abyss'] .message-bubble {
+  --effect-ring: conic-gradient(from var(--effect-turn), #1b0f4d, #5b2bd9, #2bd9d0, #c44dff, #1b0f4d);
+}
+.message-container[data-effect] .message-bubble::before,
+.message-container[data-effect] .message-bubble::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--effect-ring);
+  pointer-events: none;
+  animation: effect-turn 4s linear infinite;
+}
+/* The ring: the gradient shows only in the 3px between the border box and the content box. */
+.message-container[data-effect] .message-bubble::before {
+  padding: 3px;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.message-container[data-effect] .message-bubble::after {
+  filter: blur(18px);
+  opacity: 0.2;
+}
+@keyframes effect-turn {
+  to { --effect-turn: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .message-container[data-effect] .message-bubble::before,
+  .message-container[data-effect] .message-bubble::after {
+    animation: none;
+  }
+}
+/* A Gigantified Emote Power-up shows its emote large, like Twitch does. */
+.message-container[data-gigantified] :deep(.emote) {
+  height: 5rem;
 }
 .message-container[data-size='large'] .message-content {
   font-size: 1.5rem;

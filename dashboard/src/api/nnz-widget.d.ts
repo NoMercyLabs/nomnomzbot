@@ -24,6 +24,8 @@ interface NnzChatMessageReceived {
   colorHex?: string | null;
   /** Message type from EventSub: "text" | "channel_points_highlighted" | "channel_points_sub_only" | "user_intro" | "power_ups_message_effect" | "power_ups_gigantified_emote" */
   messageType: string;
+  /** The Message Effect Power-up bought with this message, from EventSub channel_points_animation_id (for example "simmer", "rainbow-eclipse", "cosmic-abyss"). Kept as Twitch sends it; null when none. */
+  animationId?: string | null;
   /** Parsed badges with their set ID, badge ID, and info field. */
   badges: NnzChatBadge[];
   /** True when the viewer is a subscriber of the channel. */
@@ -256,6 +258,7 @@ interface NnzDashboardChatMessageDto {
   removed?: string | null;
   sourceBadges?: NnzChatBadgeDto[] | null;
   sourceChannelAvatarUrl?: string | null;
+  animationId?: string | null;
 }
 
 interface NnzChatClearedDto {

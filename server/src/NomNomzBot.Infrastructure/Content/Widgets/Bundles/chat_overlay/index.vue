@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import ChatMessage from './components/ChatMessage.vue'
+import { effectOf } from './types'
 import type { ChatLine, Features, LineLook } from './types'
 
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its event payloads
@@ -157,10 +158,17 @@ function lookOf(value: NnzOverlayLineDto | null | undefined): LineLook | null {
   return {
     requestedBy: typeof value.requestedBy === 'string' ? value.requestedBy.trim() : '',
     highlight: token,
-    color: HIGHLIGHT_COLORS[token] ?? '',
     large: value.size === 'large',
     durationSeconds: positive(value.durationSeconds) ?? 0,
   }
+}
+
+// The highlight token of a message: the one a channel gave a bot overlay line, else the accent for a Highlight My
+// Message redemption.
+function highlightOf(m: NnzDashboardChatMessageDto): string {
+  const picked: string = lookOf(m.overlayLine)?.highlight ?? ''
+  if (picked) return picked
+  return m.messageType === 'channel_points_highlighted' ? 'primary' : ''
 }
 
 function onChat(m: NnzDashboardChatMessageDto): void {
@@ -185,6 +193,10 @@ function onChat(m: NnzDashboardChatMessageDto): void {
     card: null,
     paint: paintOf(m),
     look: lookOf(m.overlayLine),
+    highlight: highlightOf(m),
+    highlightColor: HIGHLIGHT_COLORS[highlightOf(m)] ?? '',
+    effect: effectOf(m.animationId),
+    gigantified: m.messageType === 'power_ups_gigantified_emote',
   }
 
   pushLine(line)
@@ -243,6 +255,10 @@ function onEnriched(e: NnzChatMessageEnrichedWidgetPayload): void {
     state: 'entering',
     paint: who?.paint ?? null,
     look: null,
+    highlight: '',
+    highlightColor: '',
+    effect: '',
+    gigantified: false,
     card: {
       title: e.title,
       description: e.description || '',

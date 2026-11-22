@@ -240,10 +240,39 @@ describe('a chat message sent with a Power-up', () => {
     expect(wrapper.find('[data-power-up]').text()).toBe('Message Effect');
   });
 
+  it('draws the Message Effect the chatter bought around the line', () => {
+    const bought = { ...message('power_ups_message_effect'), animationId: 'rainbow-eclipse' };
+    const row = mountLine(bought).find('[data-line-id="m1"]');
+
+    expect(row.attributes('data-effect')).toBe('rainbow-eclipse');
+  });
+
+  it('draws an effect Twitch added later as the plain glow', () => {
+    const bought = { ...message('power_ups_message_effect'), animationId: 'next-years-effect' };
+    const row = mountLine(bought).find('[data-line-id="m1"]');
+
+    expect(row.attributes('data-effect')).toBe('glow');
+  });
+
+  it('marks a Highlight My Message line so it stands out', () => {
+    const row = mountLine(message('channel_points_highlighted')).find('[data-line-id="m1"]');
+
+    expect(row.attributes('data-highlighted')).toBe('true');
+  });
+
+  it('takes the highlight off a removed message', () => {
+    const removed = { ...message('channel_points_highlighted'), removed: 'deleted' };
+    const row = mountLine(removed).find('[data-line-id="m1"]');
+
+    expect(row.attributes('data-highlighted')).toBeUndefined();
+  });
+
   it('shows a plain message with no Power-up label at the normal emote size', () => {
     const wrapper = mountLine(message('text'));
     const row = wrapper.find('[data-line-id="m1"]');
 
+    expect(row.attributes('data-highlighted')).toBeUndefined();
+    expect(row.attributes('data-effect')).toBeUndefined();
     expect(wrapper.find('[data-power-up]').exists()).toBe(false);
     expect(row.attributes('style')).not.toContain(`--emote-h: ${gigantifiedEmoteHeight}`);
   });

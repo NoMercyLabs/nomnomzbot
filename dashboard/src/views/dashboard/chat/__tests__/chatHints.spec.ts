@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { chatDisplayDefaults, lineHints, type ChatDisplay } from '../chatDisplay';
+import { chatDisplayDefaults, lineHints, messageEffect, type ChatDisplay } from '../chatDisplay';
 
 const now = new Date('2026-11-02T12:00:00Z');
 
@@ -117,5 +117,20 @@ describe('lineHints', () => {
       { ...chatDisplayDefaults, hintMessageType: false },
       now,
     )).toEqual([]);
+  });
+});
+
+describe('messageEffect', () => {
+  it('names each Twitch Message Effect the chat can draw', () => {
+    expect(messageEffect('simmer')).toBe('simmer');
+    expect(messageEffect('rainbow-eclipse')).toBe('rainbow-eclipse');
+    expect(messageEffect('cosmic-abyss')).toBe('cosmic-abyss');
+  });
+
+  it('draws an effect it does not know as the plain glow, and a message with no effect as nothing', () => {
+    expect(messageEffect('next-years-effect')).toBe('glow');
+    expect(messageEffect(null)).toBeNull();
+    expect(messageEffect(undefined)).toBeNull();
+    expect(messageEffect('')).toBeNull();
   });
 });

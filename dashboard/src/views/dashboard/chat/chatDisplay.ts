@@ -137,6 +137,18 @@ export const emoteHeights = {
   l: '2.3em',
 } as const satisfies Record<EmoteSize, string>;
 
+// The Message Effect Power-ups the chat draws by name; any other effect Twitch names gets the plain glow.
+const messageEffects = ['simmer', 'rainbow-eclipse', 'cosmic-abyss'] as const;
+
+export type MessageEffect = typeof messageEffects[number] | 'glow';
+
+export function messageEffect(animationId: string | null | undefined): MessageEffect | null {
+  if (!animationId)
+    return null;
+
+  return messageEffects.find((effect) => effect === animationId) ?? 'glow';
+}
+
 // The emote of a Gigantified Emote Power-up.
 export const gigantifiedEmoteHeight = '5rem';
 

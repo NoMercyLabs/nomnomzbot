@@ -46,7 +46,7 @@ import {
   badgeCard as cardOfBadge,
   smallestUrl,
 } from '@/lib/assetCards';
-import { emoteVars, lineHints, shownNameColor, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
+import { emoteVars, lineHints, messageEffect, shownNameColor, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
 import ChatFragments from './ChatFragments.vue';
 import ChatNativeLine from './ChatNativeLine.vue';
 import ChatSourceAvatar from './ChatSourceAvatar.vue';
@@ -204,6 +204,16 @@ const showMarks = computed<boolean>(() => {
 const lineStyle = computed(() =>
   emoteVars(props.line, props.display));
 
+// The Message Effect Power-up the chatter bought; a removed message loses it.
+const effect = computed(() =>
+  props.line.removed
+    ? null
+    : messageEffect(props.line.animationId));
+
+// A Highlight My Message redemption; a removed message loses it.
+const highlighted = computed(() =>
+  !props.line.removed && props.line.messageType === 'channel_points_highlighted');
+
 // What a reply answers: the parent Twitch named on the message, else the parent line still loaded here.
 const replyParent = computed<string | null>(() => {
   const { replyToMessageId, replyParentUserName, replyParentMessageBody } = props.line;
@@ -322,6 +332,8 @@ function pick(event: MouseEvent): void {
     :data-mention="mentionsMe ? 'true' : undefined"
     :data-focus="focus"
     :data-own-channel="ownChannel ? 'true' : undefined"
+    :data-effect="effect ?? undefined"
+    :data-highlighted="highlighted ? 'true' : undefined"
     class="group/line relative flex cursor-pointer gap-2 rounded-lg text-sm leading-(--line-h) hover:bg-muted focus-within:bg-muted"
     :class="rowClass"
     :style="lineStyle"
@@ -547,3 +559,82 @@ function pick(event: MouseEvent): void {
     </Dialog>
   </div>
 </template>
+
+<style scoped>
+/* A Highlight My Message line: an accent edge on the left and a soft accent wash, like Twitch draws it. */
+[data-highlighted] {
+  background-color: color-mix(in oklab, var(--primary) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+/* A Message Effect Power-up: a moving ring around the line with a soft glow under it. The colors are the
+   effect's own, as Twitch draws it, so they stay the same in every theme. */
+@property --effect-turn {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+[data-effect] {
+  --effect-ring: conic-gradient(from var(--effect-turn), #9146ff, #ff75e6, #9146ff);
+  isolation: isolate;
+}
+
+[data-effect='simmer'] {
+  --effect-ring: conic-gradient(from var(--effect-turn), #ff8a00, #ff3d6e, #a64dff, #ff8a00);
+}
+
+[data-effect='rainbow-eclipse'] {
+  --effect-ring: conic-gradient(
+    from var(--effect-turn),
+    #ff4d4d,
+    #ffb84d,
+    #f5f04d,
+    #4dff88,
+    #4dc3ff,
+    #a64dff,
+    #ff4dc4,
+    #ff4d4d
+  );
+}
+
+[data-effect='cosmic-abyss'] {
+  --effect-ring: conic-gradient(from var(--effect-turn), #1b0f4d, #5b2bd9, #2bd9d0, #c44dff, #1b0f4d);
+}
+
+[data-effect]::before,
+[data-effect]::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--effect-ring);
+  content: '';
+  pointer-events: none;
+  animation: effect-turn 4s linear infinite;
+}
+
+/* The ring: the gradient shows only in the 2px between the border box and the content box. */
+[data-effect]::before {
+  padding: 2px;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+[data-effect]::after {
+  filter: blur(10px);
+  opacity: 0.22;
+}
+
+@keyframes effect-turn {
+  to {
+    --effect-turn: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-effect]::before,
+  [data-effect]::after {
+    animation: none;
+  }
+}
+</style>

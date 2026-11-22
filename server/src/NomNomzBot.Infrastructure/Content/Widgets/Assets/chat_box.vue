@@ -210,8 +210,15 @@ function lookOf(value: unknown): LineLook | null {
   }
 }
 
+// The highlight token of a line: the one a channel gave a bot overlay line, else the accent for a Highlight My
+// Message redemption.
+function highlightOf(look: LineLook | null, messageType: unknown): string {
+  if (look && look.highlight) return look.highlight
+  return messageType === 'channel_points_highlighted' ? 'primary' : ''
+}
+
 function lookStyle(l: ChatLine): Record<string, string> {
-  return l.look && l.look.highlight ? { '--hl': HIGHLIGHT_COLORS[l.look.highlight] ?? '' } : {}
+  return l.highlight ? { '--hl': HIGHLIGHT_COLORS[l.highlight] ?? '' } : {}
 }
 
 interface ChatLine {
@@ -242,6 +249,17 @@ interface ChatLine {
   provider: string      // 'twitch' | 'kick' | 'youtube'
   paint: ChatPaint | null
   look: LineLook | null // the bot overlay line's requester, highlight, size and duration
+  highlight: string     // a key of HIGHLIGHT_COLORS drawn on the line; '' = none
+  effect: string        // the Message Effect Power-up drawn around the line; '' = none
+  gigantified: boolean  // a Gigantified Emote Power-up: its emote shows large
+}
+
+// The Message Effect Power-ups this widget draws by name; any other effect Twitch names gets the plain glow.
+const MESSAGE_EFFECTS: string[] = ['simmer', 'rainbow-eclipse', 'cosmic-abyss']
+
+function effectOf(animationId: unknown): string {
+  if (typeof animationId !== 'string' || !animationId) return ''
+  return MESSAGE_EFFECTS.indexOf(animationId) !== -1 ? animationId : 'glow'
 }
 
 const PROVIDER_LABEL: Record<string, string> = { twitch: 'Twitch', kick: 'Kick', youtube: 'YouTube' }
@@ -405,6 +423,9 @@ function onChat(data: unknown): void {
     provider: typeof m.provider === 'string' ? m.provider.toLowerCase() : 'twitch',
     paint: paintOf(m.paint),
     look: lookOf(m.overlayLine),
+    highlight: highlightOf(lookOf(m.overlayLine), m.messageType),
+    effect: effectOf(m.animationId),
+    gigantified: m.messageType === 'power_ups_gigantified_emote',
   }
   held.push(line)
   // The hold starts now, on arrival, so a burst of lines loads its images side by side.
@@ -516,8 +537,10 @@ onUnmounted(() => {
       :key="l.id"
       class="line"
       :class="{ faded: l.faded, [`role-${l.role}`]: !!l.role, cheer: l.isCheer }"
-      :data-highlight="l.look?.highlight || undefined"
+      :data-highlight="l.highlight || undefined"
       :data-size="l.look?.large ? 'large' : undefined"
+      :data-effect="l.effect || undefined"
+      :data-gigantified="l.gigantified ? 'true' : undefined"
       :style="[lineStyle, lookStyle(l)]"
     >
       <span v-if="l.replyMessageBody" class="reply-preview">
@@ -641,6 +664,64 @@ onUnmounted(() => {
 .theme-dark .line[data-highlight],
 .theme-light .line[data-highlight] {
   box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--hl) 12%, transparent), var(--nnz-shadow); /* theme-exempt: the channel's highlight wash over the theme shadow */
+}
+/* A Message Effect Power-up: a moving ring around the line with a soft glow under it. */
+@property --effect-turn {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.line[data-effect] {
+  --effect-ring: conic-gradient(from var(--effect-turn), #9146ff, #ff75e6, #9146ff); /* theme-exempt: Twitch's own effect colors */
+  position: relative;
+  isolation: isolate;
+}
+.line[data-effect='simmer'] {
+  --effect-ring: conic-gradient(from var(--effect-turn), #ff8a00, #ff3d6e, #a64dff, #ff8a00); /* theme-exempt: Twitch's own effect colors */
+}
+.line[data-effect='rainbow-eclipse'] {
+  --effect-ring: conic-gradient(from var(--effect-turn), #ff4d4d, #ffb84d, #f5f04d, #4dff88, #4dc3ff, #a64dff, #ff4dc4, #ff4d4d); /* theme-exempt: Twitch's own effect colors */
+}
+.line[data-effect='cosmic-abyss'] {
+  --effect-ring: conic-gradient(from var(--effect-turn), #1b0f4d, #5b2bd9, #2bd9d0, #c44dff, #1b0f4d); /* theme-exempt: Twitch's own effect colors */
+}
+.line[data-effect]::before,
+.line[data-effect]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--effect-ring);
+  pointer-events: none;
+  animation: effect-turn 4s linear infinite;
+}
+/* The ring: the gradient shows only in the 2px between the border box and the content box. */
+.line[data-effect]::before {
+  padding: 2px;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); /* theme-exempt: a mask, not a color */
+}
+.line[data-effect]::after {
+  filter: blur(10px);
+  opacity: 0.22;
+}
+/* The bare-text theme has no card to ring, so the effect gets room around the text. */
+.theme-transparent .line[data-effect] {
+  padding: 6px 10px;
+  border-radius: var(--nnz-radius-inner);
+}
+@keyframes effect-turn {
+  to { --effect-turn: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .line[data-effect]::before,
+  .line[data-effect]::after {
+    animation: none;
+  }
+}
+/* A Gigantified Emote Power-up shows its emote large, like Twitch does. */
+.line[data-gigantified] .emote {
+  height: 5rem;
 }
 .line[data-size='large'] {
   font-size: 1.35em;
