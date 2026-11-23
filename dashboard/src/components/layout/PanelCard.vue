@@ -225,6 +225,7 @@ watch(
     </div>
     <footer
       v-if="$slots.footer"
+      data-slot="panel-card-footer"
       class="flex flex-none flex-wrap items-center gap-2"
       :class="footerClass"
     >

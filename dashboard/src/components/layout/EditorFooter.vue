@@ -71,8 +71,9 @@ defineEmits<{
 <template>
   <div
     data-slot="editor-footer"
-    class="sticky bottom-0 z-10 flex w-full flex-wrap items-center gap-2 bg-background py-3"
+    class="sticky bottom-0 z-10 flex w-full flex-wrap items-center gap-2 bg-background py-3 in-data-[slot=panel-card-footer]:static in-data-[slot=panel-card-footer]:bg-transparent in-data-[slot=panel-card-footer]:py-0"
   >
+    <!-- Inside a card footer, the card already sticks and paints: no second band. -->
     <!-- Quiet destructive: ghost with the destructive text color; its confirm carries the danger. -->
     <Button
       v-if="deleteLabel"
