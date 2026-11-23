@@ -16,7 +16,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed } from 'vue';
 
 import OptionSelect from '@/components/layout/OptionSelect.vue';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { i18n } from '@/i18n';
+import type { PickedTarget } from '@/lib/bindingTarget';
 
 import ChatFiltersView from '../ChatFiltersView.vue';
 import en from '../i18n/en.json';
@@ -64,7 +66,10 @@ const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, s
 vi.mock('@/api/client', () => ({
   client: {
     use: (): undefined => undefined,
-    GET: async (): Promise<Answer> => ok(store.filters),
+    GET: async (path: string): Promise<Answer> =>
+      path === listPath
+        ? ok(store.filters)
+        : ok([]),
     POST: async (path: string, init: { body: unknown }): Promise<Answer> => {
       calls.push({
         method: 'POST',
@@ -335,6 +340,56 @@ describe('ChatFiltersView', () => {
     ]);
 
     expect(page.get('[data-verdict]').text()).toBe('This message would match.');
+  });
+
+  it('saves the picked also-run target beside the moderation action', async () => {
+    const page = await open();
+    const command: PickedTarget = { kind: 'command', id: 'cmd-1' };
+
+    await page.get('[data-action="new"]').trigger('click');
+    await page.get('[data-field="name"]').setValue('No spoilers');
+    await page.get('[data-field="terms"]').setValue('spoiler');
+    page.getComponent(TargetPicker).vm.$emit('update:target', command);
+    await flushPromises();
+    await page.get('[data-action="save"]').trigger('click');
+    await flushPromises();
+
+    expect(calls[0]?.body).toMatchObject({
+      action: 'Delete',
+      target: { kind: 0, id: 'cmd-1' },
+    });
+  });
+
+  it('shows the saved target when a filter is reopened and sends no target while it is unchanged', async () => {
+    store.filters = [filter('f1', { target: { kind: 0, id: 'cmd-1' } })];
+    const page = await open();
+
+    await page.get('[data-filter-edit="f1"]').trigger('click');
+    await flushPromises();
+
+    expect(page.getComponent(TargetPicker).props('target')).toEqual({
+      kind: 'command',
+      id: 'cmd-1',
+    });
+
+    await page.get('[data-field="terms"]').setValue('spoiler\nleak');
+    await page.get('[data-action="save"]').trigger('click');
+    await flushPromises();
+
+    expect(calls[0]?.body).not.toHaveProperty('target');
+  });
+
+  it('clears the saved target when it is emptied in the editor', async () => {
+    store.filters = [filter('f1', { target: { kind: 0, id: 'cmd-1' } })];
+    const page = await open();
+
+    await page.get('[data-filter-edit="f1"]').trigger('click');
+    page.getComponent(TargetPicker).vm.$emit('update:target', null);
+    await flushPromises();
+    await page.get('[data-action="save"]').trigger('click');
+    await flushPromises();
+
+    expect(calls[0]?.body).toMatchObject({ target: { kind: 1, id: '' } });
   });
 
   it('is read-only without the write action', async () => {

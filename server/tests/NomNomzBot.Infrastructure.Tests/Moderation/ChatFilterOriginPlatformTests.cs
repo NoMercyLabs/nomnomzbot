@@ -130,6 +130,7 @@ public sealed class ChatFilterOriginPlatformTests
             users,
             TestSanction.Held(),
             bus,
+            Substitute.For<NomNomzBot.Application.Commands.Services.ICommandInvoker>(),
             NullLogger<ChatFilterExecutionHandler>.Instance
         );
         return new(handler, db, helix, origin, users, escalation, database, bus);

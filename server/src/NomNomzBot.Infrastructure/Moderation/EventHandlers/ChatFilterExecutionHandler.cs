@@ -15,7 +15,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
@@ -23,6 +25,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.ChatFilters;
@@ -59,9 +62,11 @@ public sealed class ChatFilterExecutionHandler(
     IUserService users,
     IOutboundSanctionAccessor sanctions,
     IEventBus bus,
+    ICommandInvoker invoker,
     ILogger<ChatFilterExecutionHandler> logger
 ) : IEventHandler<ChatMessageReceivedEvent>
 {
+    private const string TargetTriggerSource = "chat_filter";
     private const int DefaultTimeoutSeconds = 600;
     private const int QueueCategoryMaxLength = 50;
 
@@ -88,6 +93,11 @@ public sealed class ChatFilterExecutionHandler(
 
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.Message))
+            return;
+
+        // A line the bot itself wrote (a filter's target can post one) never matches a filter, so a target
+        // can never loop back into the filter that started it.
+        if (BotEmittedLine.IsMarked(@event.Message))
             return;
 
         List<ChatFilter> filters = await db
@@ -131,7 +141,64 @@ public sealed class ChatFilterExecutionHandler(
                 filter.MatchCount++;
                 await db.SaveChangesAsync(cancellationToken);
             }
+
+            await RunTargetAsync(filter, @event, broadcasterId, cancellationToken);
             return; // enforce only the first matching filter
+        }
+    }
+
+    /// <summary>
+    /// Runs the filter's optional target after its moderation action, with the match variables. A filter with
+    /// no target runs nothing. A failed target is logged and never undoes the moderation action.
+    /// </summary>
+    private async Task RunTargetAsync(
+        ChatFilter filter,
+        ChatMessageReceivedEvent @event,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        BindingTarget? target = filter.GetBindingTarget();
+        if (target is null)
+            return;
+
+        InvocationContext context = new(
+            UserId: @event.UserId,
+            DisplayName: @event.UserDisplayName,
+            Args: @event.Message,
+            TriggerSource: TargetTriggerSource,
+            Variables: new Dictionary<string, string>
+            {
+                ["user"] = @event.UserLogin,
+                ["message"] = @event.Message,
+                ["filter.name"] = filter.Name,
+            }
+        );
+
+        try
+        {
+            Result<InvocationOutcome> outcome = await invoker.InvokeAsync(
+                broadcasterId,
+                target,
+                context,
+                ct
+            );
+            if (outcome.IsFailure)
+                logger.LogWarning(
+                    "Chat filter '{Filter}' could not run its target in channel {Channel}: {Error}",
+                    filter.Name,
+                    broadcasterId,
+                    outcome.ErrorMessage
+                );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(
+                ex,
+                "Chat filter '{Filter}' target threw in channel {Channel}",
+                filter.Name,
+                broadcasterId
+            );
         }
     }
 

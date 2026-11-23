@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Enums;
 
@@ -30,7 +31,11 @@ public sealed record ChatFilterDto(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     LinkPolicy? LinkPolicy
-);
+)
+{
+    /// <summary>What the filter also runs after its moderation action: a command, an action or a pipeline. Null when none.</summary>
+    public BindingTarget? Target { get; init; }
+}
 
 /// <summary>Creates a chat filter. A regex filter validates that <see cref="Pattern"/> compiles.</summary>
 public sealed record CreateChatFilterRequest
@@ -46,6 +51,9 @@ public sealed record CreateChatFilterRequest
     public int ExemptMinRoleLevel { get; init; } = 10; // moderator floor
     public bool IsEnabled { get; init; } = true;
     public bool IsCaseSensitive { get; init; }
+
+    /// <summary>What the filter also runs after its moderation action. A command or pipeline target must exist in the channel.</summary>
+    public BindingTarget? Target { get; init; }
 }
 
 /// <summary>Patches an existing chat filter — only the supplied fields change.</summary>
@@ -61,6 +69,12 @@ public sealed record UpdateChatFilterRequest
     public int? ExemptMinRoleLevel { get; init; }
     public bool? IsEnabled { get; init; }
     public bool? IsCaseSensitive { get; init; }
+
+    /// <summary>
+    /// The target the filter also runs. Null leaves it unchanged (older clients keep working); a pipeline target
+    /// with an empty id clears it.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }
 
 /// <summary>Dry-runs a pattern the dashboard editor is not (yet) saving, against one sample message.</summary>

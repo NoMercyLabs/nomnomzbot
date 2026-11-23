@@ -29,8 +29,9 @@ import OptionSelect, { type Choice } from '@/components/layout/OptionSelect.vue'
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { Button } from '@/components/ui/button';
-import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Field, FieldError, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -76,7 +77,7 @@ function submit(): void {
 
   if (found.value.length > 0) return;
 
-  save.mutate({ existing: props.filter, request: toRequest(draft) }, {
+  save.mutate({ existing: props.filter, request: toRequest(draft, props.filter) }, {
     onSuccess: () => {
       toast.success(t('dashboard.settings.chatFilters.saved'));
       emit('close');
@@ -188,6 +189,20 @@ const verdictText = computed<string | null>(() => {
             data-field="action"
             :options="actionChoices"
             :aria-label="$t('dashboard.settings.chatFilters.fields.action')"
+          />
+        </Field>
+
+        <Field>
+          <div class="flex items-center gap-1.5">
+            <FieldLabel>{{ $t("dashboard.settings.chatFilters.fields.target") }}</FieldLabel>
+            <FieldInfo>{{ $t("dashboard.settings.chatFilters.fields.targetHelp") }}</FieldInfo>
+          </div>
+          <TargetPicker
+            v-model:target="draft.target"
+            clearable
+            data-field="target"
+            :kinds="['command', 'pipeline', 'action']"
+            :label="$t('dashboard.settings.chatFilters.fields.target')"
           />
         </Field>
 

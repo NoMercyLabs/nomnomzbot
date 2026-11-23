@@ -16,9 +16,11 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Moderation.ChatFilters;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -110,6 +112,15 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
                 "VALIDATION_FAILED"
             );
 
+        Result targetCheck = await BindingTargetBinder.ValidateAsync(
+            db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetCheck.IsFailure)
+            return targetCheck.ToTyped<ChatFilterDto>();
+
         ChatFilter filter = new()
         {
             BroadcasterId = broadcasterId,
@@ -124,6 +135,7 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             IsEnabled = request.IsEnabled,
             IsCaseSensitive = request.IsCaseSensitive,
         };
+        BindingTargetBinder.ApplyTo(filter, request.Target, filter.PipelineId);
 
         db.ChatFilters.Add(filter);
         await db.SaveChangesAsync(ct);
@@ -160,6 +172,15 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
                 );
         }
 
+        Result targetCheck = await BindingTargetBinder.ValidateAsync(
+            db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetCheck.IsFailure)
+            return targetCheck.ToTyped<ChatFilterDto>();
+
         if (request.Pattern is not null)
         {
             Result compileCheck = ValidateRegex(filter.FilterType, request.Pattern);
@@ -186,6 +207,7 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             filter.IsEnabled = enabled;
         if (request.IsCaseSensitive is { } caseSensitive)
             filter.IsCaseSensitive = caseSensitive;
+        BindingTargetBinder.ApplyTo(filter, request.Target, filter.PipelineId);
 
         await db.SaveChangesAsync(ct);
         return Result.Success(ToDto(filter));
@@ -385,5 +407,8 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             f.FilterType == ChatFilterType.LinkPolicy
                 ? LinkPolicy.FromStoredJson(f.LinkPolicyJson)
                 : null
-        );
+        )
+        {
+            Target = f.GetBindingTarget(),
+        };
 }

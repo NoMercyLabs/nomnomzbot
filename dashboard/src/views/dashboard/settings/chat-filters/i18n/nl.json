@@ -52,6 +52,8 @@
           "bareDomains": "Ook links zonder https vangen",
           "bareDomainsHelp": "Ziet tekst als example.com/x als een link.",
           "action": "Als een bericht past",
+          "target": "Voer ook uit",
+          "targetHelp": "Draait na de actie hierboven, met de persoon, het bericht en de naam van het filter. Laat leeg om niets uit te voeren.",
           "timeout": "Duur van de time-out, in seconden",
           "timeoutHelp": "Hoe lang de persoon niet kan chatten.",
           "exempt": "Nooit filteren",

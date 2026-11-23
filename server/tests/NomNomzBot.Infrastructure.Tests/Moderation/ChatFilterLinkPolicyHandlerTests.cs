@@ -118,6 +118,7 @@ public sealed class ChatFilterLinkPolicyHandlerTests
             users,
             Platform.Security.TestSanction.Held(),
             new RecordingEventBus(),
+            Substitute.For<NomNomzBot.Application.Commands.Services.ICommandInvoker>(),
             NullLogger<ChatFilterExecutionHandler>.Instance
         );
         return new(handler, db, moderation);

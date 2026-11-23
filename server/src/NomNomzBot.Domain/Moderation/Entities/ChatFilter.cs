@@ -10,6 +10,8 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Platform;
 
@@ -21,9 +23,10 @@ namespace NomNomzBot.Domain.Moderation.Entities;
 /// message directly, hold or flag it for review, or <see cref="ChatFilterAction.Escalate"/>, which hands the
 /// punishment to the channel's escalation ladder (§3.11). Senders at or above <see cref="ExemptMinRoleLevel"/>
 /// on the permission ladder are never filtered. Nav-free (convention-mapped) — the tenant is
-/// <see cref="BroadcasterId"/>.
+/// <see cref="BroadcasterId"/>. A filter can also run one target (a pipeline, an action or a command) after
+/// its moderation action; see <see cref="BindingTargetExtensions.GetBindingTarget"/>.
 /// </summary>
-public class ChatFilter : SoftDeletableEntity, ITenantScoped
+public class ChatFilter : SoftDeletableEntity, ITenantScoped, IBindingTargetHolder
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
 
@@ -60,4 +63,26 @@ public class ChatFilter : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Running tally of how often this filter has matched — bumped on every enforcement.</summary>
     public long MatchCount { get; set; }
+
+    /// <summary>The pipeline this filter also runs on a match (the target kind pipeline); null when none.</summary>
+    public Guid? PipelineId { get; set; }
+
+    /// <summary>What this filter also runs after its moderation action. Existing rows read as the pipeline kind with no pipeline, so they run nothing extra.</summary>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId;
+        set => PipelineId = value;
+    }
 }

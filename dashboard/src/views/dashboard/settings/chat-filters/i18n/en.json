@@ -52,6 +52,8 @@
           "bareDomains": "Also catch links without https",
           "bareDomainsHelp": "Treats text like example.com/x as a link.",
           "action": "When a message matches",
+          "target": "Also run",
+          "targetHelp": "Runs after the action above, with the person, the message and the filter name. Leave it empty to run nothing.",
           "timeout": "Timeout length, in seconds",
           "timeoutHelp": "How long the person cannot chat.",
           "exempt": "Never filter",

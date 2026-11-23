@@ -16,12 +16,15 @@ import type {
   ChatFilterType,
 } from '@/api/chatFilters';
 import { levelOf, rungOf, rungs, type RungName } from '@/api/permissions';
+import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 // What the editor edits. A list is one entry per line while it is typed; the role is a name, never a number.
+// The target is what the filter also runs after its moderation action; null is nothing.
 export type ChatFilterDraft = {
   name: string;
   filterType: ChatFilterType;
   action: ChatFilterAction;
+  target: PickedTarget | null;
   pattern: string;
   terms: string;
   allowedDomains: string;
@@ -53,6 +56,7 @@ export function toDraft(filter: ChatFilter | null) {
     name: filter?.name ?? '',
     filterType: filter?.filterType ?? 'Blocklist',
     action: filter?.action ?? 'Delete',
+    target: boundTarget(filter?.target, null),
     pattern: filter?.pattern ?? '',
     terms: lines(filter?.terms),
     allowedDomains: lines(filter?.linkPolicy?.allowedDomains),
@@ -67,11 +71,17 @@ export function toDraft(filter: ChatFilter | null) {
 }
 
 // Only the fields of the chosen type travel; a timeout length travels only with a timeout action.
-export function toRequest(draft: ChatFilterDraft) {
+// The target travels only when it differs from what the bot holds; a cleared target travels as an empty pipeline.
+export function toRequest(draft: ChatFilterDraft, existing: ChatFilter | null = null) {
+  const held = boundTarget(existing?.target, null);
+
   return {
     filterType: draft.filterType,
     name: draft.name.trim(),
     action: draft.action,
+    ...(sameTarget(draft.target, held)
+      ? {}
+      : { target: targetToWire(draft.target) }),
     pattern: draft.filterType === 'Regex'
       ? draft.pattern
       : null,

@@ -93972,6 +93972,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             linkPolicy: null | components["schemas"]["LinkPolicy"];
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /**
          * @description What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout
@@ -94594,6 +94595,7 @@ export interface components {
             exemptMinRoleLevel?: number | string;
             isEnabled?: boolean;
             isCaseSensitive?: boolean;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         CreateChatTriggerRequest: {
             pattern: string;
@@ -108698,6 +108700,7 @@ export interface components {
             exemptMinRoleLevel?: null | number | string;
             isEnabled?: null | boolean;
             isCaseSensitive?: null | boolean;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         UpdateChatTriggerRequest: {
             pattern?: null | string;
