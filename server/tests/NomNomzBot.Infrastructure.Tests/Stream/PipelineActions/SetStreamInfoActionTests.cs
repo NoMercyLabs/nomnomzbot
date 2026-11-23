@@ -407,7 +407,7 @@ public sealed class SetStreamInfoActionTests
                 ("title", "text", true, false),
                 ("category", "stream_category", false, false),
                 ("tags", "text", false, true),
-                ("language", "text", false, false),
+                ("language", "stream_language", false, false),
                 ("labels_on", "enum", false, true),
                 ("labels_off", "enum", false, true),
                 ("branded_content", "enum", false, false)
@@ -551,5 +551,78 @@ public sealed class SetStreamInfoActionTests
 
         result.Value.SourceAvailable.Should().BeFalse();
         result.Value.UnavailableReason.Should().Contain("Twitch is down");
+    }
+
+    [Fact]
+    public void The_language_field_is_a_language_picker_not_free_text()
+    {
+        SetStreamInfoAction action = new(new RecordingPlatform(), Resolver());
+
+        action
+            .Fields.Single(f => f.Name == "language")
+            .Kind.Should()
+            .Be(PipelineActionFieldKind.StreamLanguage);
+        PipelineActionFieldKind.StreamLanguage.IsResourcePicker().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("asl")]
+    [InlineData("zh-hk")]
+    [InlineData("no")]
+    public async Task Every_language_Twitch_offers_reaches_the_platform(string code)
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Step(language: code));
+
+        result.Succeeded.Should().BeTrue();
+        platform.Calls.Should().ContainSingle().Which.Language.Should().Be(code);
+    }
+
+    [Fact]
+    public async Task A_language_Twitch_does_not_offer_is_refused_and_nothing_is_sent()
+    {
+        RecordingPlatform platform = new();
+        SetStreamInfoAction action = new(platform, Resolver());
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Step(language: "xx"));
+
+        result.Succeeded.Should().BeFalse();
+        platform.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_language_picker_lists_every_Twitch_language_by_name_with_the_code_as_the_saved_value()
+    {
+        StreamLanguageOptionProvider provider = new();
+
+        Result<PipelineOptionListResult> all = await provider.GetOptionsAsync(
+            Channel,
+            new(null, null, new())
+        );
+
+        provider.Kind.Should().Be(PipelineActionFieldKind.StreamLanguage);
+        all.Value.Items.Select(o => o.Value).Should().BeEquivalentTo(TwitchStreamLanguages.All);
+        all.Value.Items.Should().Contain(o => o.Value == "nl" && o.Label == "Dutch");
+        all.Value.Items.Should().Contain(o => o.Value == "other" && o.Label == "Other");
+    }
+
+    [Fact]
+    public async Task The_language_picker_searches_by_name_and_answers_a_saved_code_with_that_one_language()
+    {
+        StreamLanguageOptionProvider provider = new();
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Channel,
+            new("dut", null, new())
+        );
+        Result<PipelineOptionListResult> saved = await provider.GetOptionsAsync(
+            Channel,
+            new(null, "zh-hk", new())
+        );
+
+        found.Value.Items.Select(o => o.Value).Should().Equal("nl");
+        saved.Value.Items.Should().ContainSingle().Which.Value.Should().Be("zh-hk");
     }
 }

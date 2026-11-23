@@ -84,7 +84,9 @@ const words = {
     fallback,
 };
 
-const field = (name: string, kind: string, extra: Record<string, boolean | number> = {}) => ({
+type FieldExtra = Record<string, boolean | number | string[]>;
+
+const field = (name: string, kind: string, extra: FieldExtra = {}) => ({
   name,
   kind,
   required: false,
@@ -104,6 +106,8 @@ const descriptor = {
     field('title', 'text', { templated: true }),
     field('category', 'stream_category'),
     field('tags', 'text', { repeatable: true, maxItems: 10 }),
+    field('language', 'stream_language'),
+    field('labels_on', 'enum', { repeatable: true, options: ['Gambling', 'ProfanityVulgarity'] }),
   ],
 } as never;
 
@@ -128,7 +132,13 @@ describe('the Set stream info step form', () => {
     const rows = actionRows(stepOf({}), descriptor, words);
 
     expect(rows.map((row) =>
-      `${row.name}:${row.control}`)).toEqual(['title:lines', 'category:pick', 'tags:list']);
+      `${row.name}:${row.control}`)).toEqual([
+      'title:lines',
+      'category:pick',
+      'tags:list',
+      'language:pick',
+      'labels_on:choices',
+    ]);
 
     const tags = rows.find((row) =>
       row.name === 'tags')!;
@@ -140,6 +150,59 @@ describe('the Set stream info step form', () => {
     });
 
     expect(document.body.querySelector('[data-list-help]')?.textContent?.trim()).toBe('Up to 10 tags, 25 characters each.');
+  });
+
+  it('picks content labels from the fixed list, never typed, and saves the chosen ones as a list', async () => {
+    i18n.global.mergeLocaleMessage('en', en);
+    const row = actionRows(stepOf({ labels_on: ['Gambling'] }), descriptor, words).find((candidate) =>
+      candidate.name === 'labels_on')!;
+
+    mounted = mount(StepField, {
+      attachTo: document.body,
+      props: { row },
+      global: { plugins: [i18n] },
+    });
+
+    expect(document.body.querySelectorAll('[data-step-field="labels_on"] input')).toHaveLength(0);
+
+    const presses = [...document.body.querySelectorAll<HTMLButtonElement>('[data-step-field="labels_on"] button')];
+
+    expect(presses.map((press) =>
+      press.getAttribute('data-state'))).toEqual(['on', 'off']);
+
+    presses[1]!.click();
+    await flushPromises();
+    // The inspector hands the saved value back, as it does after each change.
+    await mounted.setProps({ row: { ...row, value: ['Gambling', 'ProfanityVulgarity'] } });
+    presses[0]!.click();
+    await flushPromises();
+    await mounted.setProps({ row: { ...row, value: ['ProfanityVulgarity'] } });
+    presses[1]!.click();
+    await flushPromises();
+
+    // The last label switched off leaves the setting out, so the step changes no label.
+    expect(mounted.emitted('change')).toEqual([
+      [['Gambling', 'ProfanityVulgarity']],
+      [['ProfanityVulgarity']],
+      [undefined],
+    ]);
+  });
+
+  it('asks the bot for the language list: the language is picked, never typed', async () => {
+    i18n.global.mergeLocaleMessage('en', en);
+    const row = actionRows(stepOf({}), descriptor, words).find((candidate) =>
+      candidate.name === 'language')!;
+
+    mounted = mount(StepField, {
+      attachTo: document.body,
+      props: { row },
+      global: { plugins: [i18n] },
+    });
+
+    document.body.querySelector<HTMLButtonElement>('button[role="combobox"]')!.click();
+    await flushPromises();
+
+    expect(asked.kinds.at(-1)).toBe('stream_language');
   });
 
   const mountTags = (tags: string[]): VueWrapper => {

@@ -905,8 +905,12 @@ describe('AdminContentView', () => {
     await pickDraftVersion();
     await click(byText('button', 'Draft new version')!);
 
+    // Under a loaded full-suite run the editor fields render a tick later than the dialog.
+    await vi.waitFor(() => {
+      expect(first('[data-command-payload-editor] textarea')).toBeInstanceOf(HTMLTextAreaElement);
+    }, { timeout: 5000 });
+
     expect(document.body.querySelector('[data-code-editor]')).toBeNull();
-    expect(first('[data-command-payload-editor] textarea')).toBeInstanceOf(HTMLTextAreaElement);
 
     expect((first('[data-command-payload-editor] textarea') as HTMLTextAreaElement).value).toBe(
       'A big hug for {user}!',

@@ -154,6 +154,9 @@ public enum PipelineActionFieldKind
 
     /// <summary>One stream category (game) found by searching the platform's catalogue; the saved value is the category name.</summary>
     StreamCategory,
+
+    /// <summary>One broadcaster language Twitch offers, picked by name; the saved value is its code ("nl", "asl", "other").</summary>
+    StreamLanguage,
 }
 
 /// <summary>
@@ -271,6 +274,7 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.VtsArtMeshTag => "vts_art_mesh_tag",
             PipelineActionFieldKind.TtsSpeaker => "tts_speaker",
             PipelineActionFieldKind.StreamCategory => "stream_category",
+            PipelineActionFieldKind.StreamLanguage => "stream_language",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
 

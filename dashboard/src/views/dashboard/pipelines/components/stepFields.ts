@@ -24,14 +24,16 @@ import { humanize } from '@/lib/text';
 
 import { fieldHelp, fieldLabel, type Words } from './stepWords';
 
-// line and lines are text, choice is a fixed list, pick searches what the bot lists for the kind, list is a
-// setting with many items, map is names with values; fixed shows the value and is not edited here.
+// line and lines are text, choice is a fixed list, choices is any number from a fixed list, pick searches what
+// the bot lists for the kind, list is a setting with many items, map is names with values; fixed shows the value
+// and is not edited here.
 export type FieldControl =
   | 'line' |
   'lines' |
   'number' |
   'switch' |
   'choice' |
+  'choices' |
   'pick' |
   'list' |
   'map' |
@@ -72,6 +74,10 @@ export function isPickerKind(kind: string): kind is PickerKind {
 function controlOf(field: PipelineActionField): FieldControl {
   if (field.kind === 'key_value_map')
     return 'map';
+
+  // A list of fixed values is picked, never typed: one typo would break the step.
+  if (field.repeatable && field.kind === 'enum')
+    return 'choices';
 
   if (field.repeatable)
     return 'list';

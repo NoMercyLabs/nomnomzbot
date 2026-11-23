@@ -408,6 +408,7 @@ export const PICKER_KINDS = [
   'vts_art_mesh_tag',
   'tts_speaker',
   'stream_category',
+  'stream_language',
 ] as const satisfies string[];
 
 export type PickerKind = (typeof PICKER_KINDS)[number];

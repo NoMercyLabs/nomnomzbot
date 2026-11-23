@@ -43,7 +43,6 @@ public sealed class SetStreamInfoAction : ICommandAction
     internal const int MaxTags = 10;
     internal const int MaxTagLength = 25;
 
-    private const string OtherLanguage = "other";
     private static readonly string[] BrandedOptions = ["on", "off"];
 
     private readonly IPlatformChannelApi _platform;
@@ -79,7 +78,7 @@ public sealed class SetStreamInfoAction : ICommandAction
             ),
             new(
                 "language",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.StreamLanguage,
                 Description: new("pipeline.set_stream_info.language.help")
             ),
             new(
@@ -141,9 +140,9 @@ public sealed class SetStreamInfoAction : ICommandAction
             );
 
         string language = (action.GetString("language") ?? string.Empty).Trim().ToLowerInvariant();
-        if (language.Length > 0 && language != OtherLanguage && !IsTwoLetterCode(language))
+        if (language.Length > 0 && !TwitchStreamLanguages.IsKnown(language))
             return ActionResult.Failure(
-                $"set_stream_info language must be a two-letter code such as 'en' or 'other', but '{language}' was given"
+                $"set_stream_info language must be a language Twitch takes, such as 'en', 'asl' or 'other', but '{language}' was given"
             );
 
         JsonElement labelsOnElement = default;
@@ -218,9 +217,6 @@ public sealed class SetStreamInfoAction : ICommandAction
                 applied.ErrorCode
             );
     }
-
-    private static bool IsTwoLetterCode(string value) =>
-        value.Length == 2 && value.All(c => c is >= 'a' and <= 'z');
 
     // A saved list is a JSON array of text; blank entries are dropped so an empty list means "unchanged".
     // A missing parameter arrives as a default element, which is not an array.

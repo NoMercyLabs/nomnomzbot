@@ -36,6 +36,8 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 import ListField from './ListField.vue';
+import MultiChoice from '@/components/layout/MultiChoice.vue';
+
 import MapField from './MapField.vue';
 import type { FieldRow } from './stepFields';
 import StepPicker from './StepPicker.vue';
@@ -75,6 +77,12 @@ const emit = defineEmits<{ change: [value: JsonValue | undefined] }>();
 
 const id = useId();
 const text = computed(() => valueText(props.row.value) ?? '');
+
+// The chosen values of a choices field; a saved value that is not a list chooses nothing.
+const chosenValues = computed(() =>
+  Array.isArray(props.row.value)
+    ? props.row.value.filter((item): item is string => typeof item === 'string')
+    : []);
 
 // A templated text field edits a local draft and hands it over when focus leaves the field.
 const draft = ref(text.value);
@@ -247,6 +255,13 @@ function typed(event: Event): void {
         </SelectItem>
       </SelectContent>
     </Select>
+    <MultiChoice
+      v-else-if="row.control === 'choices'"
+      :id="id"
+      :options="row.choices"
+      :model-value="chosenValues"
+      @update:model-value="emit('change', $event.length > 0 ? $event : undefined)"
+    />
     <StepPicker
       v-else-if="row.control === 'pick'"
       :id="id"
