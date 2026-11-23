@@ -60396,6 +60396,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/obs/overlays/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put the picked overlays into OBS in one call: a nested "NomNomzBot overlays" scene holds one browser source
+         *     per picked overlay, and that scene is added to the picked scene. The overlay addresses (they carry the secret
+         *     token) are built here and sent to OBS only; the response lists each overlay as created, updated or failed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObsOverlayInstallRequest"];
+                    "text/json": components["schemas"]["ObsOverlayInstallRequest"];
+                    "application/*+json": components["schemas"]["ObsOverlayInstallRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObsOverlayInstallResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/obs/inputs/mute": {
         parameters: {
             query?: never;
@@ -98227,6 +98330,32 @@ export interface components {
             inputName: string;
             action: components["schemas"]["MediaAction"];
         };
+        /** @description The result for one picked overlay. The overlay address (it carries the secret token) never appears here. */
+        ObsOverlayInstallEntry: {
+            key: string;
+            sourceName: string;
+            outcome: components["schemas"]["ObsOverlayInstallOutcome"];
+            error?: null | string;
+        };
+        /**
+         * @description How one picked overlay ended up in OBS.
+         * @enum {unknown}
+         */
+        ObsOverlayInstallOutcome: "Created" | "Updated" | "Failed";
+        /** @description REST body for the overlay install route: the scene to add the overlays to and the overlays picked. */
+        ObsOverlayInstallRequest: {
+            sceneName: string;
+            overlayKeys: string[];
+        };
+        /**
+         * @description The result of one install call: the nested scene that holds the overlays, whether it was added to the picked
+         *     scene by this call, and one entry per picked overlay.
+         */
+        ObsOverlayInstallResult: {
+            nestedSceneName: string;
+            addedToScene: boolean;
+            overlays: components["schemas"]["ObsOverlayInstallEntry"][];
+        };
         /**
          * @description The truthful result of actively probing OBS reachability (obs-control.md §3.2). The passive
          *     state/scenes/inputs reads mask a "not connected yet" as an empty 200 so the dashboard shows its connect
@@ -105325,6 +105454,19 @@ export interface components {
         StatusResponseOfObsConnectionStatus: {
             status?: string;
             data?: null | components["schemas"]["ObsConnectionStatus"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfObsOverlayInstallResult: {
+            status?: string;
+            data?: null | components["schemas"]["ObsOverlayInstallResult"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on

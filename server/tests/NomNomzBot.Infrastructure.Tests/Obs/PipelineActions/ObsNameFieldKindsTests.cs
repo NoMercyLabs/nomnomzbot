@@ -38,6 +38,8 @@ public sealed class ObsNameFieldKindsTests
             new ObsHotkeyAction(Obs),
             new ObsRefreshBrowserAction(Obs),
             new ObsScreenshotAction(Obs),
+            new ObsCreateSceneAction(Obs),
+            new ObsAddBrowserSourceAction(Obs),
         ];
 
     public static TheoryData<string, string, PipelineActionFieldKind> NameFields =>
@@ -45,6 +47,7 @@ public sealed class ObsNameFieldKindsTests
         {
             { "obs_switch_scene", "scene", PipelineActionFieldKind.ObsScene },
             { "obs_set_preview_scene", "scene", PipelineActionFieldKind.ObsScene },
+            { "obs_add_browser_source", "scene", PipelineActionFieldKind.ObsScene },
             { "obs_set_source", "scene", PipelineActionFieldKind.ObsScene },
             { "obs_set_source", "source", PipelineActionFieldKind.ObsSceneItem },
             { "obs_filter", "source", PipelineActionFieldKind.ObsSceneItem },
@@ -90,7 +93,7 @@ public sealed class ObsNameFieldKindsTests
                 .Select(x => $"{x.ActionType}.{x.Field.Name}"),
         ];
 
-        Assert.Equal(13, declared.Count);
+        Assert.Equal(14, declared.Count);
         Assert.Equal(declared.Order(), plainTextNames.Order());
     }
 }

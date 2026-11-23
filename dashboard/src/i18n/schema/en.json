@@ -1890,6 +1890,30 @@
         "help": "How many volume points to raise playback by. Defaults to a small step if left blank."
       }
     },
+    "obs_add_browser_source": {
+      "control_audio": {
+        "help": "Ticks \"Control audio via OBS\", so OBS routes the page's sound to its own mixer. Leave off for a silent page."
+      },
+      "description": "Add a browser source to an OBS scene, or update it if it exists",
+      "height": {
+        "help": "The height of the browser source in pixels. Defaults to 1080."
+      },
+      "scene": {
+        "help": "The scene the browser source is placed in."
+      },
+      "shutdown_when_hidden": {
+        "help": "Ticks \"Shutdown source when not visible\", so OBS unloads the page while it is hidden. Leave off for anything that must keep playing or listening."
+      },
+      "source_name": {
+        "help": "The name of the browser source in OBS. When OBS already has an input with this name, its settings are updated instead of adding a second one."
+      },
+      "url": {
+        "help": "The web address the browser source loads."
+      },
+      "width": {
+        "help": "The width of the browser source in pixels. Defaults to 1920."
+      }
+    },
     "obs_call_vendor": {
       "description": "Call a vendor-specific OBS plugin request",
       "request_data": {
@@ -1900,6 +1924,12 @@
       },
       "vendor": {
         "help": "The name of the OBS plugin (vendor) to call, as registered with obs-websocket."
+      }
+    },
+    "obs_create_scene": {
+      "description": "Create an empty OBS scene",
+      "scene_name": {
+        "help": "The name of the new, empty OBS scene."
       }
     },
     "obs_filter": {
@@ -3596,7 +3626,9 @@
     "music_volume_down": "Music: volume down",
     "music_volume_mute": "Music: mute",
     "music_volume_up": "Music: volume up",
+    "obs_add_browser_source": "OBS: add browser source",
     "obs_call_vendor": "OBS: call plugin",
+    "obs_create_scene": "OBS: create scene",
     "obs_filter": "OBS: turn filter on or off",
     "obs_hotkey": "OBS: press hotkey",
     "obs_input_mute": "OBS: mute input",

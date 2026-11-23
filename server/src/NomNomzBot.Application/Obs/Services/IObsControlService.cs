@@ -256,6 +256,31 @@ public interface IObsControlService
         CancellationToken ct = default
     );
 
+    /// <summary>Create an empty scene (OBS-WS <c>CreateScene</c>).</summary>
+    Task<Result> CreateSceneAsync(
+        Guid broadcasterId,
+        string sceneName,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Create the browser source described by <paramref name="spec"/> in its scene, or rewrite its settings when OBS
+    /// already has an input of that name (<c>GetInputList</c>, then <c>CreateInput</c> or <c>SetInputSettings</c>).
+    /// </summary>
+    Task<Result<ObsBrowserSourceOutcome>> UpsertBrowserSourceAsync(
+        Guid broadcasterId,
+        ObsBrowserSourceSpec spec,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Place an existing source or scene into a scene (OBS-WS <c>CreateSceneItem</c>).</summary>
+    Task<Result> AddSceneItemAsync(
+        Guid broadcasterId,
+        string sceneName,
+        string sourceName,
+        CancellationToken ct = default
+    );
+
     /// <summary>Whether studio mode (preview/program) is currently on.</summary>
     Task<Result<ObsStudioModeStatusDto>> GetStudioModeEnabledAsync(
         Guid broadcasterId,

@@ -78,7 +78,9 @@ public sealed class IntegrationBlastRadiusService : IIntegrationBlastRadiusServi
         ["discord"] = ["send_discord_notification"],
         ["obs"] =
         [
+            "obs_add_browser_source",
             "obs_call_vendor",
+            "obs_create_scene",
             "obs_filter",
             "obs_hotkey",
             "obs_input_mute",

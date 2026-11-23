@@ -3067,6 +3067,8 @@
     <string name="pipelines_block_music_transfer_device">Music: move to another device</string>
     <string name="pipelines_block_obs_switch_scene">OBS: switch scene</string>
     <string name="pipelines_block_obs_set_preview_scene">OBS: set preview scene</string>
+    <string name="pipelines_block_obs_create_scene">OBS: create scene</string>
+    <string name="pipelines_block_obs_add_browser_source">OBS: add browser source</string>
     <string name="pipelines_block_obs_transition">OBS: run transition</string>
     <string name="pipelines_block_obs_set_source">OBS: show or hide source</string>
     <string name="pipelines_block_obs_filter">OBS: turn filter on or off</string>
@@ -5646,9 +5648,17 @@
     <string name="pipeline_music_volume_down_step_help">How many volume points to lower playback by. Defaults to a small step if left blank.</string>
     <string name="pipeline_music_volume_mute_unmuteVolume_help">The volume to restore to when this step un-mutes playback (instead of muting it).</string>
     <string name="pipeline_music_volume_up_step_help">How many volume points to raise playback by. Defaults to a small step if left blank.</string>
+    <string name="pipeline_obs_add_browser_source_control_audio_help">Ticks "Control audio via OBS", so OBS routes the page's sound to its own mixer. Leave off for a silent page.</string>
+    <string name="pipeline_obs_add_browser_source_height_help">The height of the browser source in pixels. Defaults to 1080.</string>
+    <string name="pipeline_obs_add_browser_source_scene_help">The scene the browser source is placed in.</string>
+    <string name="pipeline_obs_add_browser_source_shutdown_when_hidden_help">Ticks "Shutdown source when not visible", so OBS unloads the page while it is hidden. Leave off for anything that must keep playing or listening.</string>
+    <string name="pipeline_obs_add_browser_source_source_name_help">The name of the browser source in OBS. When OBS already has an input with this name, its settings are updated instead of adding a second one.</string>
+    <string name="pipeline_obs_add_browser_source_url_help">The web address the browser source loads.</string>
+    <string name="pipeline_obs_add_browser_source_width_help">The width of the browser source in pixels. Defaults to 1920.</string>
     <string name="pipeline_obs_call_vendor_request_data_help">The JSON payload sent with the vendor request. Leave blank if the vendor request needs no extra data.</string>
     <string name="pipeline_obs_call_vendor_request_type_help">The vendor's request type name, exactly as its plugin documents it.</string>
     <string name="pipeline_obs_call_vendor_vendor_help">The name of the OBS plugin (vendor) to call, as registered with obs-websocket.</string>
+    <string name="pipeline_obs_create_scene_scene_name_help">The name of the new, empty OBS scene.</string>
     <string name="pipeline_obs_filter_enabled_help">Whether the filter is turned on or off. Defaults to enabling it.</string>
     <string name="pipeline_obs_filter_filter_help">The name of the filter on the source to enable or disable.</string>
     <string name="pipeline_obs_filter_source_help">The OBS source the filter is attached to.</string>
@@ -5850,6 +5860,8 @@
     <string name="pipeline_music_volume_down_description">Lower playback volume by a step (default 10)</string>
     <string name="pipeline_music_volume_mute_description">Mute playback, remembering the volume to restore</string>
     <string name="pipeline_music_volume_up_description">Raise playback volume by a step (default 10)</string>
+    <string name="pipeline_obs_add_browser_source_description">Add a browser source to an OBS scene, or update it if it exists</string>
+    <string name="pipeline_obs_create_scene_description">Create an empty OBS scene</string>
     <string name="pipeline_obs_call_vendor_description">Call a vendor-specific OBS plugin request</string>
     <string name="pipeline_obs_filter_description">Enable or disable an OBS source filter</string>
     <string name="pipeline_obs_hotkey_description">Trigger an OBS hotkey by name</string>

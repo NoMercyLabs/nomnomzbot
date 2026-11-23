@@ -212,6 +212,39 @@ public class ObsController(
         CancellationToken ct
     ) => ResultResponse(await control.SwitchSceneAsync(channelId, request.Scene, ct));
 
+    /// <summary>
+    /// Put the picked overlays into OBS in one call: a nested "NomNomzBot overlays" scene holds one browser source
+    /// per picked overlay, and that scene is added to the picked scene. The overlay addresses (they carry the secret
+    /// token) are built here and sent to OBS only; the response lists each overlay as created, updated or failed.
+    /// </summary>
+    [HttpPost("overlays/install")]
+    [RequireAction("obs:control")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
+    [ProducesResponseType<StatusResponseDto<ObsOverlayInstallResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> InstallOverlays(
+        Guid channelId,
+        [FromBody] ObsOverlayInstallRequest request,
+        [FromServices] IObsOverlayInstallService installer,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await installer.InstallAsync(
+                channelId,
+                request.SceneName,
+                request.OverlayKeys,
+                ResolveOverlayOrigin(),
+                ct
+            )
+        );
+
+    private string ResolveOverlayOrigin()
+    {
+        string? explicitBase = configuration["OverlayBaseUrl"];
+        return string.IsNullOrWhiteSpace(explicitBase)
+            ? Request.ResolvePublicOrigin(configuration)
+            : explicitBase.TrimEnd('/');
+    }
+
     /// <summary>Audio mixer — set an input's mute state (obs-control.md §3.1).</summary>
     [HttpPost("inputs/mute")]
     [RequireAction("obs:control")]

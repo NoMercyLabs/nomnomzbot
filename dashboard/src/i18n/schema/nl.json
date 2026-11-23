@@ -1890,6 +1890,30 @@
         "help": "Met hoeveel volumepunten het afspeelvolume wordt verhoogd. Standaard een kleine stap als leeg gelaten."
       }
     },
+    "obs_add_browser_source": {
+      "control_audio": {
+        "help": "Vinkt \"Audio beheren via OBS\" aan, zodat OBS het geluid van de pagina naar de eigen mixer stuurt. Laat uit voor een stille pagina."
+      },
+      "description": "Voeg een browserbron toe aan een OBS-scène, of werk hem bij als hij bestaat",
+      "height": {
+        "help": "De hoogte van de browserbron in pixels. Standaard 1080."
+      },
+      "scene": {
+        "help": "De scène waarin de browserbron wordt geplaatst."
+      },
+      "shutdown_when_hidden": {
+        "help": "Vinkt \"Bron afsluiten wanneer niet zichtbaar\" aan, zodat OBS de pagina sluit zolang hij verborgen is. Laat uit voor alles wat moet blijven afspelen of luisteren."
+      },
+      "source_name": {
+        "help": "De naam van de browserbron in OBS. Heeft OBS al een invoer met deze naam, dan worden de instellingen bijgewerkt in plaats van een tweede toe te voegen."
+      },
+      "url": {
+        "help": "Het webadres dat de browserbron laadt."
+      },
+      "width": {
+        "help": "De breedte van de browserbron in pixels. Standaard 1920."
+      }
+    },
     "obs_call_vendor": {
       "description": "Roep een leveranciersspecifiek OBS-plugin-verzoek aan",
       "request_data": {
@@ -1900,6 +1924,12 @@
       },
       "vendor": {
         "help": "De naam van de OBS-plugin (vendor) die wordt aangeroepen, zoals geregistreerd bij obs-websocket."
+      }
+    },
+    "obs_create_scene": {
+      "description": "Maak een lege OBS-scène",
+      "scene_name": {
+        "help": "De naam van de nieuwe, lege OBS-scène."
       }
     },
     "obs_filter": {
@@ -3596,7 +3626,9 @@
     "music_volume_down": "Muziek: volume omlaag",
     "music_volume_mute": "Muziek: dempen",
     "music_volume_up": "Muziek: volume omhoog",
+    "obs_add_browser_source": "OBS: browserbron toevoegen",
     "obs_call_vendor": "OBS: plug-in aanroepen",
+    "obs_create_scene": "OBS: scène maken",
     "obs_filter": "OBS: filter aan of uit",
     "obs_hotkey": "OBS: sneltoets indrukken",
     "obs_input_mute": "OBS: invoer dempen",

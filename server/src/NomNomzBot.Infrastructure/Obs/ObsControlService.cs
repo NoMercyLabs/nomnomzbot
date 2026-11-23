@@ -1151,6 +1151,117 @@ public class ObsControlService : IObsControlService
         );
     }
 
+    public Task<Result> CreateSceneAsync(
+        Guid broadcasterId,
+        string sceneName,
+        CancellationToken ct = default
+    ) =>
+        SendStatusAsync(
+            broadcasterId,
+            "CreateScene",
+            new Dictionary<string, object?> { ["sceneName"] = sceneName },
+            ct
+        );
+
+    public async Task<Result<ObsBrowserSourceOutcome>> UpsertBrowserSourceAsync(
+        Guid broadcasterId,
+        ObsBrowserSourceSpec spec,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> listed = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new("GetInputList", null),
+            ct
+        );
+        Result listStatus = ToStatus(listed);
+        if (listStatus.IsFailure)
+            return Result.Failure<ObsBrowserSourceOutcome>(
+                listStatus.ErrorMessage!,
+                listStatus.ErrorCode!
+            );
+
+        Dictionary<string, object?> settings = new()
+        {
+            ["url"] = spec.Url,
+            ["width"] = spec.Width,
+            ["height"] = spec.Height,
+            ["reroute_audio"] = spec.RerouteAudio,
+            ["shutdown"] = spec.ShutdownWhenHidden,
+        };
+
+        bool exists = InputNames(listed.Value).Contains(spec.InputName);
+        Result written = exists
+            ? await SendStatusAsync(
+                broadcasterId,
+                "SetInputSettings",
+                new Dictionary<string, object?>
+                {
+                    ["inputName"] = spec.InputName,
+                    ["inputSettings"] = settings,
+                    ["overwrite"] = false,
+                },
+                ct
+            )
+            : await SendStatusAsync(
+                broadcasterId,
+                "CreateInput",
+                new Dictionary<string, object?>
+                {
+                    ["sceneName"] = spec.SceneName,
+                    ["inputName"] = spec.InputName,
+                    ["inputKind"] = "browser_source",
+                    ["inputSettings"] = settings,
+                    ["sceneItemEnabled"] = true,
+                },
+                ct
+            );
+        if (written.IsFailure)
+            return Result.Failure<ObsBrowserSourceOutcome>(
+                written.ErrorMessage!,
+                written.ErrorCode!
+            );
+
+        return Result.Success(
+            exists ? ObsBrowserSourceOutcome.Updated : ObsBrowserSourceOutcome.Created
+        );
+    }
+
+    public Task<Result> AddSceneItemAsync(
+        Guid broadcasterId,
+        string sceneName,
+        string sourceName,
+        CancellationToken ct = default
+    ) =>
+        SendStatusAsync(
+            broadcasterId,
+            "CreateSceneItem",
+            new Dictionary<string, object?>
+            {
+                ["sceneName"] = sceneName,
+                ["sourceName"] = sourceName,
+                ["sceneItemEnabled"] = true,
+            },
+            ct
+        );
+
+    private static HashSet<string> InputNames(ObsResponse response)
+    {
+        HashSet<string> names = [];
+        if (response.ResponseData?.GetValueOrDefault("inputs") is not string json)
+            return names;
+
+        using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+        foreach (System.Text.Json.JsonElement item in doc.RootElement.EnumerateArray())
+            if (
+                item.TryGetProperty("inputName", out System.Text.Json.JsonElement nameEl)
+                && nameEl.GetString() is string name
+            )
+                names.Add(name);
+        return names;
+    }
+
     // ── Plumbing ────────────────────────────────────────────────────────────
 
     private async Task<Result> SendStatusAsync(

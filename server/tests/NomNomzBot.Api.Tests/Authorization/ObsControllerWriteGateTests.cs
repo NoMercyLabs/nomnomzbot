@@ -88,7 +88,7 @@ public sealed class ObsControllerWriteGateTests
         List<(string Action, string Verb, string Key)> routes = Routes();
 
         routes.Count(r => r.Verb == "GET" && r.Key == "obs:scene:read").Should().Be(14);
-        routes.Count(r => r.Key == "obs:control").Should().Be(20);
+        routes.Count(r => r.Key == "obs:control").Should().Be(21);
         routes.Count(r => r.Key == "obs:control:broadcast").Should().Be(5);
         routes.Count(r => r.Key == "obs:config:write").Should().Be(3);
         routes.Count(r => r.Key == "obs:config:read").Should().Be(1);

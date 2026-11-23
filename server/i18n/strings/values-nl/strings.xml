@@ -3062,6 +3062,8 @@
     <string name="pipelines_block_music_transfer_device">Muziek: naar ander apparaat</string>
     <string name="pipelines_block_obs_switch_scene">OBS: scène wisselen</string>
     <string name="pipelines_block_obs_set_preview_scene">OBS: voorbeeldscène instellen</string>
+    <string name="pipelines_block_obs_create_scene">OBS: scène maken</string>
+    <string name="pipelines_block_obs_add_browser_source">OBS: browserbron toevoegen</string>
     <string name="pipelines_block_obs_transition">OBS: overgang uitvoeren</string>
     <string name="pipelines_block_obs_set_source">OBS: bron tonen of verbergen</string>
     <string name="pipelines_block_obs_filter">OBS: filter aan of uit</string>
@@ -5630,9 +5632,17 @@
     <string name="pipeline_music_volume_down_step_help">Met hoeveel volumepunten het afspeelvolume wordt verlaagd. Standaard een kleine stap als leeg gelaten.</string>
     <string name="pipeline_music_volume_mute_unmuteVolume_help">Het volume dat wordt hersteld wanneer deze stap het afspelen dempt opheft (in plaats van dempen).</string>
     <string name="pipeline_music_volume_up_step_help">Met hoeveel volumepunten het afspeelvolume wordt verhoogd. Standaard een kleine stap als leeg gelaten.</string>
+    <string name="pipeline_obs_add_browser_source_control_audio_help">Vinkt "Audio beheren via OBS" aan, zodat OBS het geluid van de pagina naar de eigen mixer stuurt. Laat uit voor een stille pagina.</string>
+    <string name="pipeline_obs_add_browser_source_height_help">De hoogte van de browserbron in pixels. Standaard 1080.</string>
+    <string name="pipeline_obs_add_browser_source_scene_help">De scène waarin de browserbron wordt geplaatst.</string>
+    <string name="pipeline_obs_add_browser_source_shutdown_when_hidden_help">Vinkt "Bron afsluiten wanneer niet zichtbaar" aan, zodat OBS de pagina sluit zolang hij verborgen is. Laat uit voor alles wat moet blijven afspelen of luisteren.</string>
+    <string name="pipeline_obs_add_browser_source_source_name_help">De naam van de browserbron in OBS. Heeft OBS al een invoer met deze naam, dan worden de instellingen bijgewerkt in plaats van een tweede toe te voegen.</string>
+    <string name="pipeline_obs_add_browser_source_url_help">Het webadres dat de browserbron laadt.</string>
+    <string name="pipeline_obs_add_browser_source_width_help">De breedte van de browserbron in pixels. Standaard 1920.</string>
     <string name="pipeline_obs_call_vendor_request_data_help">De JSON-gegevens die met het vendor-verzoek worden meegestuurd. Laat leeg als het vendor-verzoek geen extra gegevens nodig heeft.</string>
     <string name="pipeline_obs_call_vendor_request_type_help">De naam van het verzoektype van de vendor, precies zoals de plugin dit documenteert.</string>
     <string name="pipeline_obs_call_vendor_vendor_help">De naam van de OBS-plugin (vendor) die wordt aangeroepen, zoals geregistreerd bij obs-websocket.</string>
+    <string name="pipeline_obs_create_scene_scene_name_help">De naam van de nieuwe, lege OBS-scène.</string>
     <string name="pipeline_obs_filter_enabled_help">Of het filter aan of uit staat. Standaard wordt het ingeschakeld.</string>
     <string name="pipeline_obs_filter_filter_help">De naam van het filter op de bron dat wordt in- of uitgeschakeld.</string>
     <string name="pipeline_obs_filter_source_help">De OBS-bron waaraan het filter is gekoppeld.</string>
@@ -5834,6 +5844,8 @@
     <string name="pipeline_music_volume_down_description">Verlaag het afspeelvolume met een stap (standaard 10)</string>
     <string name="pipeline_music_volume_mute_description">Dempt het afspelen en onthoudt het volume om te herstellen</string>
     <string name="pipeline_music_volume_up_description">Verhoog het afspeelvolume met een stap (standaard 10)</string>
+    <string name="pipeline_obs_add_browser_source_description">Voeg een browserbron toe aan een OBS-scène, of werk hem bij als hij bestaat</string>
+    <string name="pipeline_obs_create_scene_description">Maak een lege OBS-scène</string>
     <string name="pipeline_obs_call_vendor_description">Roep een leveranciersspecifiek OBS-plugin-verzoek aan</string>
     <string name="pipeline_obs_filter_description">Schakel een OBS-bronfilter in of uit</string>
     <string name="pipeline_obs_hotkey_description">Activeer een OBS-sneltoets op naam</string>

@@ -1654,10 +1654,22 @@ interface NnzActionParams {
   'music_volume_up': {
     step?: number;
   };
+  'obs_add_browser_source': {
+    scene: string;
+    source_name: string;
+    url: string;
+    width?: number;
+    height?: number;
+    control_audio?: boolean;
+    shutdown_when_hidden?: boolean;
+  };
   'obs_call_vendor': {
     vendor: string;
     request_type: string;
     request_data?: string;
+  };
+  'obs_create_scene': {
+    scene_name: string;
   };
   'obs_filter': {
     source: string;
