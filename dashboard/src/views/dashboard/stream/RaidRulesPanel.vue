@@ -10,23 +10,25 @@
 -->
 <script setup lang="ts">
 // How this channel picks who to raid. Every point comes from these rules, per channel; a new channel starts neutral.
-// The form edits a copy. Save is the one primary action and sends the whole set; the server refuses a set that
-// breaks a limit and keeps the old one.
+// Each rule reads as one sentence with labeled controls. The form edits a copy. Save is the one primary action and
+// sends the whole set; the server refuses a set that breaks a limit and keeps the old one.
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { ApiFieldProblem } from '@/api/errors';
 import { useRaidRules, useSaveRaidRules, type RaidRules } from '@/api/schedule';
-import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
-import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { refusalProblems } from '@/lib/errors';
 import CategoryPicker from '@/views/dashboard/stream/CategoryPicker.vue';
+import PointsControl from '@/views/dashboard/stream/raidRules/PointsControl.vue';
+import RuleSection from '@/views/dashboard/stream/raidRules/RuleSection.vue';
+import WordChips from '@/views/dashboard/stream/raidRules/WordChips.vue';
 import RaidProblemLines from '@/views/dashboard/stream/RaidProblemLines.vue';
 import Plus from '~icons/nnz/add';
 import Cross from '~icons/nnz/cross';
@@ -53,13 +55,6 @@ watch(
 );
 
 const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(query.data.value));
-
-function words(text: string): string[] {
-  return text
-    .split(',')
-    .map((word) => word.trim())
-    .filter((word) => word !== '');
-}
 
 function addCategory(): void {
   draft.value?.preferredCategories.push({
@@ -122,44 +117,56 @@ function submit(): void {
     :error-text="t('dashboard.stream.raids.error')"
     @retry="query.refetch()"
   >
-    <div v-if="draft" :inert="!canEdit" class="flex flex-col gap-6">
-      <section class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{
-          t("dashboard.stream.raids.preferredCategories")
-        }}</span>
+    <div v-if="draft" :inert="!canEdit" class="flex flex-col gap-8">
+      <p data-raid-intro class="text-sm">
+        {{ t("dashboard.stream.raids.intro") }}
+      </p>
+
+      <RuleSection
+        :title="t('dashboard.stream.raids.preferredCategories')"
+        :hint="t('dashboard.stream.raids.preferredCategoriesHint')"
+      >
         <template v-for="(rule, index) in draft.preferredCategories" :key="index">
           <div
-            class="flex items-start gap-2"
+            class="flex flex-col gap-3 rounded-lg bg-muted/40 p-3"
             data-category-rule
           >
-            <CategoryPicker
-              v-if="canEdit"
-              v-model="rule.name"
-              class="min-w-0 flex-1"
-              :channel-id="channelId"
-              :recent="[]"
-            />
-            <span v-else class="min-w-0 flex-1 truncate text-sm">{{ rule.name }}</span>
-            <Input
-              v-model.number="rule.weight"
-              type="number"
-              class="w-24"
-              :aria-label="t('dashboard.stream.raids.weight')"
-            />
-            <Input
-              v-model="rule.label"
-              :aria-label="t('dashboard.stream.raids.label')"
-              :placeholder="t('dashboard.stream.raids.label')"
-            />
-            <Button
-              v-if="canEdit"
-              variant="ghost"
-              size="icon"
-              :aria-label="t('dashboard.stream.raids.remove')"
-              @click="removeAt(draft.preferredCategories, index)"
-            >
-              <Cross class="size-5" />
-            </Button>
+            <div class="flex items-start gap-2">
+              <div class="flex min-w-0 flex-1 flex-col gap-1.5" data-category-picker>
+                <span class="text-sm text-muted-foreground">{{ t("dashboard.stream.raids.whenTheyPlay") }}</span>
+                <CategoryPicker
+                  v-if="canEdit"
+                  v-model="rule.name"
+                  :channel-id="channelId"
+                  :recent="[]"
+                />
+                <p v-else class="text-sm font-medium">{{ rule.name }}</p>
+              </div>
+              <Button
+                v-if="canEdit"
+                variant="ghost"
+                size="icon"
+                :aria-label="t('dashboard.stream.raids.remove')"
+                @click="removeAt(draft.preferredCategories, index)"
+              >
+                <Cross class="size-5" />
+              </Button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm">{{ t("dashboard.stream.raids.gives") }}</span>
+              <PointsControl
+                v-model="rule.weight"
+                :label="t('dashboard.stream.raids.weight')"
+                :can-edit="canEdit"
+              />
+              <span class="text-sm">{{ t("dashboard.stream.raids.shownAs") }}</span>
+              <Input
+                v-model="rule.label"
+                class="w-56"
+                :aria-label="t('dashboard.stream.raids.label')"
+                :placeholder="t('dashboard.stream.raids.reasonPlaceholder')"
+              />
+            </div>
           </div>
           <RaidProblemLines :problems="problems" field="category" :subject="rule.name" />
         </template>
@@ -167,68 +174,81 @@ function submit(): void {
                 variant="outline"
                 size="sm"
                 class="w-fit"
+                data-category-add
                 @click="addCategory"
         >
           <Plus class="size-5" />{{ t("dashboard.stream.raids.addCategory") }}
         </Button>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <Field>
-            <FieldLabel for="other-weight">{{ t("dashboard.stream.raids.otherCategoryWeight") }}</FieldLabel>
-            <Input id="other-weight" v-model.number="draft.otherCategoryWeight" type="number" />
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm">{{ t("dashboard.stream.raids.otherCategory") }}</span>
+          <PointsControl
+            id="other-weight"
+            v-model="draft.otherCategoryWeight"
+            :label="t('dashboard.stream.raids.weight')"
+            :can-edit="canEdit"
+          >
             <RaidProblemLines :problems="problems" field="otherCategory" />
-          </Field>
-          <Field>
-            <FieldLabel for="other-label">{{ t("dashboard.stream.raids.otherCategoryLabel") }}</FieldLabel>
-            <Input id="other-label" v-model="draft.otherCategoryLabel" />
-          </Field>
+          </PointsControl>
+          <span class="text-sm">{{ t("dashboard.stream.raids.shownAs") }}</span>
+          <Input
+            id="other-label"
+            v-model="draft.otherCategoryLabel"
+            class="w-56"
+            :aria-label="t('dashboard.stream.raids.label')"
+            :placeholder="t('dashboard.stream.raids.reasonPlaceholder')"
+          />
         </div>
-      </section>
+      </RuleSection>
 
-      <section class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{ t("dashboard.stream.raids.keywords") }}</span>
+      <RuleSection
+        :title="t('dashboard.stream.raids.keywords')"
+        :hint="t('dashboard.stream.raids.keywordsHint')"
+      >
         <template v-for="(rule, index) in draft.keywords" :key="index">
           <div
-            class="flex flex-wrap items-center gap-2"
+            class="flex flex-col gap-3 rounded-lg bg-muted/40 p-3"
             data-keyword-rule
           >
-            <Input
-              v-model="rule.label"
-              class="w-40"
-              :aria-label="t('dashboard.stream.raids.label')"
-              :placeholder="t('dashboard.stream.raids.label')"
-            />
-            <Input
-              v-model.number="rule.weight"
-              type="number"
-              class="w-24"
-              :aria-label="t('dashboard.stream.raids.weight')"
-            />
-            <Input
-              :model-value="rule.words.join(', ')"
-              class="min-w-48 flex-1"
-              :aria-label="t('dashboard.stream.raids.words')"
-              :placeholder="t('dashboard.stream.raids.words')"
-              @update:model-value="rule.words = words(String($event))"
-            />
-            <label class="flex items-center gap-1.5 text-sm">
-              <GatedSwitch v-model="rule.matchTags" action="live-ops:raids:write" />{{
-                t("dashboard.stream.raids.matchTags")
-              }}
-            </label>
-            <label class="flex items-center gap-1.5 text-sm">
-              <GatedSwitch v-model="rule.matchTitle" action="live-ops:raids:write" />{{
-                t("dashboard.stream.raids.matchTitle")
-              }}
-            </label>
-            <Button
-              v-if="canEdit"
-              variant="ghost"
-              size="icon"
-              :aria-label="t('dashboard.stream.raids.remove')"
-              @click="removeAt(draft.keywords, index)"
-            >
-              <Cross class="size-5" />
-            </Button>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span class="text-sm">{{ t("dashboard.stream.raids.whenTheStream") }}</span>
+              <LabeledSwitch
+                v-model="rule.matchTitle"
+                :label="t('dashboard.stream.raids.matchTitle')"
+                action="live-ops:raids:write"
+              />
+              <LabeledSwitch
+                v-model="rule.matchTags"
+                :label="t('dashboard.stream.raids.matchTags')"
+                action="live-ops:raids:write"
+              />
+              <span class="text-sm">{{ t("dashboard.stream.raids.containAny") }}</span>
+              <Button
+                v-if="canEdit"
+                variant="ghost"
+                size="icon"
+                class="ml-auto"
+                :aria-label="t('dashboard.stream.raids.remove')"
+                @click="removeAt(draft.keywords, index)"
+              >
+                <Cross class="size-5" />
+              </Button>
+            </div>
+            <WordChips v-model="rule.words" :can-edit="canEdit" />
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm">{{ t("dashboard.stream.raids.gives") }}</span>
+              <PointsControl
+                v-model="rule.weight"
+                :label="t('dashboard.stream.raids.weight')"
+                :can-edit="canEdit"
+              />
+              <span class="text-sm">{{ t("dashboard.stream.raids.shownAs") }}</span>
+              <Input
+                v-model="rule.label"
+                class="w-56"
+                :aria-label="t('dashboard.stream.raids.label')"
+                :placeholder="t('dashboard.stream.raids.reasonPlaceholder')"
+              />
+            </div>
           </div>
           <RaidProblemLines :problems="problems" field="keyword" :subject="rule.label" />
         </template>
@@ -236,17 +256,20 @@ function submit(): void {
                 variant="outline"
                 size="sm"
                 class="w-fit"
+                data-keyword-add
                 @click="addKeyword"
         >
           <Plus class="size-5" />{{ t("dashboard.stream.raids.addKeyword") }}
         </Button>
-      </section>
+      </RuleSection>
 
-      <section class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{ t("dashboard.stream.raids.viewerBands") }}</span>
+      <RuleSection
+        :title="t('dashboard.stream.raids.viewerBands')"
+        :hint="t('dashboard.stream.raids.viewerBandsHint')"
+      >
         <template v-for="(band, index) in draft.viewerBands" :key="index">
           <div
-            class="flex items-center gap-2"
+            class="flex flex-wrap items-center gap-2"
             data-viewer-band
           >
             <Input
@@ -255,22 +278,25 @@ function submit(): void {
               class="w-24"
               :aria-label="t('dashboard.stream.raids.min')"
             />
+            <span class="text-sm">{{ t("dashboard.stream.raids.to") }}</span>
             <Input
               v-model.number="band.max"
               type="number"
               class="w-24"
               :aria-label="t('dashboard.stream.raids.max')"
             />
-            <Input
-              v-model.number="band.weight"
-              type="number"
-              class="w-24"
-              :aria-label="t('dashboard.stream.raids.weight')"
+            <span class="text-sm">{{ t("dashboard.stream.raids.viewersGive") }}</span>
+            <PointsControl
+              v-model="band.weight"
+              :label="t('dashboard.stream.raids.weight')"
+              :can-edit="canEdit"
             />
+            <span class="text-sm">{{ t("dashboard.stream.raids.shownAs") }}</span>
             <Input
               v-model="band.label"
+              class="w-48"
               :aria-label="t('dashboard.stream.raids.label')"
-              :placeholder="t('dashboard.stream.raids.label')"
+              :placeholder="t('dashboard.stream.raids.reasonPlaceholder')"
             />
             <Button
               v-if="canEdit"
@@ -288,40 +314,52 @@ function submit(): void {
                 variant="outline"
                 size="sm"
                 class="w-fit"
+                data-band-add
                 @click="addBand"
         >
           <Plus class="size-5" />{{ t("dashboard.stream.raids.addBand") }}
         </Button>
-      </section>
+      </RuleSection>
 
-      <section class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{ t("dashboard.stream.raids.recency") }}</span>
-        <Field class="sm:w-1/2">
-          <FieldLabel for="never-raided">{{ t("dashboard.stream.raids.neverRaidedWeight") }}</FieldLabel>
-          <Input id="never-raided" v-model.number="draft.recency.neverRaidedWeight" type="number" />
-          <RaidProblemLines :problems="problems" field="neverRaided" />
-        </Field>
+      <RuleSection
+        :title="t('dashboard.stream.raids.recency')"
+        :hint="t('dashboard.stream.raids.recencyHint')"
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm">{{ t("dashboard.stream.raids.neverRaided") }}</span>
+          <PointsControl
+            id="never-raided"
+            v-model="draft.recency.neverRaidedWeight"
+            :label="t('dashboard.stream.raids.weight')"
+            :can-edit="canEdit"
+          >
+            <RaidProblemLines :problems="problems" field="neverRaided" />
+          </PointsControl>
+        </div>
         <template v-for="(step, index) in draft.recency.steps" :key="index">
           <div
-            class="flex items-center gap-2"
+            class="flex flex-wrap items-center gap-2"
             data-recency-step
           >
+            <span class="text-sm">{{ t("dashboard.stream.raids.raidedLessThan") }}</span>
             <Input
               v-model.number="step.withinDays"
               type="number"
-              class="w-24"
+              class="w-20"
               :aria-label="t('dashboard.stream.raids.withinDays')"
             />
-            <Input
-              v-model.number="step.weight"
-              type="number"
-              class="w-24"
-              :aria-label="t('dashboard.stream.raids.weight')"
+            <span class="text-sm">{{ t("dashboard.stream.raids.daysAgoGives") }}</span>
+            <PointsControl
+              v-model="step.weight"
+              :label="t('dashboard.stream.raids.weight')"
+              :can-edit="canEdit"
             />
+            <span class="text-sm">{{ t("dashboard.stream.raids.shownAs") }}</span>
             <Input
               v-model="step.note"
+              class="w-48"
               :aria-label="t('dashboard.stream.raids.note')"
-              :placeholder="t('dashboard.stream.raids.note')"
+              :placeholder="t('dashboard.stream.raids.reasonPlaceholder')"
             />
             <Button
               v-if="canEdit"
@@ -339,49 +377,81 @@ function submit(): void {
                 variant="outline"
                 size="sm"
                 class="w-fit"
+                data-step-add
                 @click="addStep"
         >
           <Plus class="size-5" />{{ t("dashboard.stream.raids.addStep") }}
         </Button>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <Field>
-            <FieldLabel for="older-weight">{{ t("dashboard.stream.raids.olderWeight") }}</FieldLabel>
-            <Input id="older-weight" v-model.number="draft.recency.olderWeight" type="number" />
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm">{{ t("dashboard.stream.raids.olderRaids") }}</span>
+          <PointsControl
+            id="older-weight"
+            v-model="draft.recency.olderWeight"
+            :label="t('dashboard.stream.raids.weight')"
+            :can-edit="canEdit"
+          >
             <RaidProblemLines :problems="problems" field="olderRaids" />
-          </Field>
-          <Field>
-            <FieldLabel for="older-note">{{ t("dashboard.stream.raids.olderNote") }}</FieldLabel>
-            <Input id="older-note" v-model="draft.recency.olderNote" />
-          </Field>
+          </PointsControl>
+          <span class="text-sm">{{ t("dashboard.stream.raids.shownAs") }}</span>
+          <Input
+            id="older-note"
+            v-model="draft.recency.olderNote"
+            class="w-48"
+            :aria-label="t('dashboard.stream.raids.note')"
+            :placeholder="t('dashboard.stream.raids.reasonPlaceholder')"
+          />
         </div>
-      </section>
+      </RuleSection>
 
-      <section class="flex flex-col gap-2">
-        <span class="text-sm font-medium">{{ t("dashboard.stream.raids.balance") }}</span>
-        <div class="grid gap-3 sm:grid-cols-3">
-          <Field>
-            <FieldLabel for="owed-base">{{ t("dashboard.stream.raids.owedBaseWeight") }}</FieldLabel>
-            <Input id="owed-base" v-model.number="draft.balance.owedBaseWeight" type="number" />
+      <RuleSection
+        :title="t('dashboard.stream.raids.balance')"
+        :hint="t('dashboard.stream.raids.balanceHint')"
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm">{{ t("dashboard.stream.raids.owedBase") }}</span>
+          <PointsControl
+            id="owed-base"
+            v-model="draft.balance.owedBaseWeight"
+            :label="t('dashboard.stream.raids.weight')"
+            :can-edit="canEdit"
+          >
             <RaidProblemLines :problems="problems" field="owedBase" />
-          </Field>
-          <Field>
-            <FieldLabel for="owed-extra">{{ t("dashboard.stream.raids.owedExtraWeight") }}</FieldLabel>
-            <Input id="owed-extra" v-model.number="draft.balance.owedExtraWeight" type="number" />
-            <RaidProblemLines :problems="problems" field="owedExtra" />
-          </Field>
-          <Field>
-            <FieldLabel for="reciprocal">{{ t("dashboard.stream.raids.reciprocalWeight") }}</FieldLabel>
-            <Input id="reciprocal" v-model.number="draft.balance.reciprocalWeight" type="number" />
-            <RaidProblemLines :problems="problems" field="reciprocal" />
-          </Field>
+          </PointsControl>
         </div>
-        <Field class="sm:w-1/3">
-          <FieldLabel for="followed">{{ t("dashboard.stream.raids.followedWeight") }}</FieldLabel>
-          <Input id="followed" v-model.number="draft.followedWeight" type="number" />
-          <RaidProblemLines :problems="problems" field="followed" />
-        </Field>
-      </section>
-
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm">{{ t("dashboard.stream.raids.owedExtra") }}</span>
+          <PointsControl
+            id="owed-extra"
+            v-model="draft.balance.owedExtraWeight"
+            :label="t('dashboard.stream.raids.weight')"
+            :can-edit="canEdit"
+          >
+            <RaidProblemLines :problems="problems" field="owedExtra" />
+          </PointsControl>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm">{{ t("dashboard.stream.raids.reciprocal") }}</span>
+          <PointsControl
+            id="reciprocal"
+            v-model="draft.balance.reciprocalWeight"
+            :label="t('dashboard.stream.raids.weight')"
+            :can-edit="canEdit"
+          >
+            <RaidProblemLines :problems="problems" field="reciprocal" />
+          </PointsControl>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm">{{ t("dashboard.stream.raids.followed") }}</span>
+          <PointsControl
+            id="followed"
+            v-model="draft.followedWeight"
+            :label="t('dashboard.stream.raids.weight')"
+            :can-edit="canEdit"
+          >
+            <RaidProblemLines :problems="problems" field="followed" />
+          </PointsControl>
+        </div>
+      </RuleSection>
     </div>
     <template v-if="draft && canEdit" #footer>
       <Button
