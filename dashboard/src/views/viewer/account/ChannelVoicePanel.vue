@@ -62,6 +62,7 @@ function use(voice: TtsVoice): void {
 
 <template>
   <PanelCard
+    pad
     :title="$t('viewer.account.voice.title')"
     :description="$t('viewer.account.voice.description')"
     :state="state"

@@ -60,13 +60,14 @@ function trigger(): void {
 
 <template>
   <PanelCard
+    pad
     :title="$t('dashboard.vts.hotkeys.title')"
     :state="offline ? 'empty' : panelState"
     :empty-text="$t('dashboard.vts.offline')"
     :error-text="$t('dashboard.vts.hotkeys.loadError')"
     @retry="$emit('retry')"
   >
-    <div class="grid gap-3 p-3">
+    <div class="grid gap-3">
       <div class="grid gap-1 text-sm text-muted-foreground">
         {{ $t("dashboard.vts.hotkeys.model") }}
         <div class="flex gap-2">

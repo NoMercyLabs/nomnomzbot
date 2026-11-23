@@ -96,7 +96,7 @@ function runTransition(): void {
 </script>
 
 <template>
-  <PanelCard :title="$t('dashboard.obs.studio.title')">
+  <PanelCard pad :title="$t('dashboard.obs.studio.title')">
     <template #actions>
       <LabeledSwitch
         data-obs-studio-toggle
@@ -105,7 +105,7 @@ function runTransition(): void {
         @update:model-value="toggleStudio"
       />
     </template>
-    <div v-if="transitions.data.value?.length || studioOn" data-obs-studio-body class="grid gap-4 p-3">
+    <div v-if="transitions.data.value?.length || studioOn" data-obs-studio-body class="grid gap-4">
       <Field v-if="transitions.data.value?.length">
         <FieldLabel for="obs-transition">{{ $t('dashboard.obs.studio.transition') }}</FieldLabel>
         <Select

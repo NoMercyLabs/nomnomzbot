@@ -193,12 +193,13 @@ function submit(): void {
     :title="t('dashboard.stream.info.title')"
     :description="t('dashboard.stream.info.description')"
     tier="lead"
+    pad
     :state="state"
     :empty-text="t('dashboard.stream.info.error')"
     :error-text="t('dashboard.stream.info.error')"
     @retry="infoQuery.refetch()"
   >
-    <div class="flex flex-col gap-6 max-md:px-2" :inert="!canEdit">
+    <div class="flex flex-col gap-6" :inert="!canEdit">
       <div class="flex flex-col gap-2">
         <div class="flex items-baseline justify-between">
           <FieldLabel for="stream-title">{{

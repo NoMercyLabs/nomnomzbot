@@ -189,6 +189,7 @@ function clear(): void {
   <PanelCard
     data-panel="journal-list"
     tier="lead"
+    pad
     :title="$t('dashboard.settings.eventJournal.list.title')"
     :description="$t('dashboard.settings.eventJournal.list.description', { count: $n(total) })"
     :state="panelState"
@@ -201,7 +202,7 @@ function clear(): void {
         {{ $t('dashboard.settings.eventJournal.list.clear') }}
       </Button>
     </template>
-    <div class="flex flex-wrap items-center gap-2 p-3">
+    <div class="flex flex-wrap items-center gap-2 pb-3">
       <FilterBar
         v-model="kindChoice"
         data-filter-type

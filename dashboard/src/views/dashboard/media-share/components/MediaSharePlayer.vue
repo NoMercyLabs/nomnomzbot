@@ -109,6 +109,7 @@ function commitVolume(value: number[]): void {
   <PanelCard
     tier="lead"
     data-media-share-player
+    pad
     :title="$t('dashboard.mediaShare.player.title')"
     :description="$t('dashboard.mediaShare.player.description')"
   >

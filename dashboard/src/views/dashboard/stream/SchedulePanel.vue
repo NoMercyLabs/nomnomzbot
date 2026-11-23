@@ -141,11 +141,12 @@ function toggleCanceled(segment: ScheduleSegment): void {
     :title="t('dashboard.stream.schedule.title')"
     :description="t('dashboard.stream.schedule.description')"
     tier="lead"
+    pad
     :state="state"
     :error-text="t('dashboard.stream.schedule.error')"
     @retry="query.refetch()"
   >
-    <div class="flex flex-col gap-6 max-md:px-2">
+    <div class="flex flex-col gap-6">
       <div v-if="canEdit" class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t('dashboard.stream.schedule.vacation') }}</span>
         <RowGroup>

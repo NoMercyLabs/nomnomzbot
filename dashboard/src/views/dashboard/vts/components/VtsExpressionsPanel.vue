@@ -54,13 +54,14 @@ function set(active: boolean): void {
 
 <template>
   <PanelCard
+    pad
     :title="$t('dashboard.vts.expressions.title')"
     :state="offline ? 'empty' : panelState"
     :empty-text="$t('dashboard.vts.offline')"
     :error-text="$t('dashboard.vts.expressions.loadError')"
     @retry="$emit('retry')"
   >
-    <div class="grid gap-1 p-3 text-sm text-muted-foreground">
+    <div class="grid gap-1 text-sm text-muted-foreground">
       {{ $t("dashboard.vts.expressions.expression") }}
       <div class="flex gap-2">
         <Select v-model="expression">

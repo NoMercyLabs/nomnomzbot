@@ -49,6 +49,7 @@ function submit(): void {
 <template>
   <PanelCard
     data-view="support-contact"
+    pad
     :title="t('dashboard.admin.supportContact.title')"
     :description="t('dashboard.admin.supportContact.description')"
     :state="state"

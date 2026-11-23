@@ -81,8 +81,8 @@ function take(): void {
 </script>
 
 <template>
-  <PanelCard :title="$t('dashboard.obs.screenshot.title')">
-    <div class="grid gap-3 p-3">
+  <PanelCard pad :title="$t('dashboard.obs.screenshot.title')">
+    <div class="grid gap-3">
       <div class="flex flex-wrap items-center gap-2">
         <Select v-model="sourceName" :disabled="offline">
           <SelectTrigger data-obs-shot-source class="w-56" :aria-label="$t('dashboard.obs.screenshot.source')">

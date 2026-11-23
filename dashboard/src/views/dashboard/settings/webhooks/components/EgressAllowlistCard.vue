@@ -114,6 +114,7 @@ function confirmRemove(): void {
 <template>
   <PanelCard
     data-view="egress-allowlist"
+    pad
     :title="$t('dashboard.settings.webhooks.allowlist.title')"
     :description="$t('dashboard.settings.webhooks.allowlist.description')"
     :state="state"

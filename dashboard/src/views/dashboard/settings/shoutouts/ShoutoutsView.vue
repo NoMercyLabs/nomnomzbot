@@ -145,6 +145,7 @@ function useDefault(): void {
     </PanelCard>
     <PanelCard
       tier="lead"
+      pad
       :title="$t('dashboard.settings.shoutouts.message.title')"
       :description="$t('dashboard.settings.shoutouts.message.description')"
       :state="templateState"

@@ -138,6 +138,7 @@ async function add(): Promise<void> {
 <template>
   <PanelCard
     data-panel="person-grants"
+    pad
     :title="$t('dashboard.settings.permissions.grants.title')"
     :description="$t('dashboard.settings.permissions.grants.description')"
     :state="state"

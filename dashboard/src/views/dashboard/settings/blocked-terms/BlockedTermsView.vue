@@ -68,6 +68,7 @@ function drop(term: string): void {
     <PanelCard
       v-if="canEdit"
       tier="lead"
+      pad
       :title="$t('dashboard.settings.blockedTerms.addTitle')"
     >
       <form class="flex gap-2" data-add-form @submit.prevent="submit">

@@ -314,9 +314,10 @@ const whenOf = (entry: FeatureFlagOverride): string =>
     <PanelCard
       v-if="editorOpen && can('featureflag:write')"
       data-editor
+      pad
       :title="isNew ? $t('dashboard.admin.featureFlags.editorNew') : $t('dashboard.admin.featureFlags.editorEdit', { key: editing })"
     >
-      <div class="flex flex-col gap-3 p-4">
+      <div class="flex flex-col gap-3">
         <Field>
           <FieldLabel for="flag-key">{{ $t('dashboard.admin.featureFlags.fields.key') }}</FieldLabel>
           <Input id="flag-key" v-model="draft.key" data-field="key" :disabled="!isNew" />
@@ -400,9 +401,10 @@ const whenOf = (entry: FeatureFlagOverride): string =>
     </PanelCard>
     <PanelCard
       tier="quiet"
+      pad
       :title="editing === null ? $t('dashboard.admin.featureFlags.overridesTitle') : $t('dashboard.admin.featureFlags.overrideFormTitle', { key: editing })"
     >
-      <div class="flex flex-col gap-3 p-4">
+      <div class="flex flex-col gap-3">
         <p v-if="editing === null" class="text-sm text-muted-foreground">
           {{ $t('dashboard.admin.featureFlags.overrideFormHint') }}
         </p>

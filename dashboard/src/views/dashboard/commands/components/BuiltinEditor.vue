@@ -303,6 +303,7 @@ const unsaved = computed<string>(() =>
 <template>
   <PanelCard
     data-builtin-editor
+    pad
     :title="`!${triggerWord(builtin)}`"
     :description="$t('dashboard.commands.list.kindBuiltin')"
   >

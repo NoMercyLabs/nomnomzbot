@@ -86,6 +86,7 @@ function stop(): void {
   <PanelCard
     v-if="can('live-ops:raids:write')"
     data-view="raid-now"
+    pad
     :title="t('dashboard.stream.raidNow.title')"
     :description="t('dashboard.stream.raidNow.description')"
   >

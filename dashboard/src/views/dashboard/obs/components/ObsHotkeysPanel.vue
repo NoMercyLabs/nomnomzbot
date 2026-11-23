@@ -121,6 +121,7 @@ function fire(hotkeyName: string): void {
 
 <template>
   <PanelCard
+    pad
     :title="$t('dashboard.obs.hotkeys.title')"
     :description="$t('dashboard.obs.hotkeys.description')"
     :state="state"
@@ -128,7 +129,7 @@ function fire(hotkeyName: string): void {
     :error-text="$t('dashboard.obs.hotkeys.loadError')"
     @retry="hotkeys.refetch()"
   >
-    <div class="flex flex-col gap-3 p-3">
+    <div class="flex flex-col gap-3">
       <Input
         v-model="search"
         type="search"

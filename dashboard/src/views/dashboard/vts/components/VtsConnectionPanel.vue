@@ -110,12 +110,13 @@ function rotateNow(): void {
 
 <template>
   <PanelCard
+    pad
     :title="$t('dashboard.vts.connection.title')"
     :state="panelState"
     :error-text="$t('dashboard.vts.connection.loadError')"
     @retry="$emit('retry')"
   >
-    <div data-vts-connection class="px-1 py-0.5">
+    <div data-vts-connection>
       <SummaryRow
         :title="$t('dashboard.vts.connection.link')"
         :detail="$t(`dashboard.vts.status.${health.reason}`)"

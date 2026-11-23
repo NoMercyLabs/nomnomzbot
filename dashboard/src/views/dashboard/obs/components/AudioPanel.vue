@@ -127,6 +127,7 @@ function decibels(value: number): string {
 
 <template>
   <PanelCard
+    pad
     :title="$t('dashboard.obs.audio.title')"
     :state="panel"
     :empty-text="$t(emptyText)"
@@ -134,7 +135,7 @@ function decibels(value: number): string {
     @retry="inputs.refetch()"
   >
     <!-- Name on its own line, the slider full width beneath: a narrow panel never squeezes the name. -->
-    <div class="flex flex-col gap-3 px-1 py-0.5">
+    <div class="flex flex-col gap-3">
       <div
         v-for="input in mixer"
         :key="input.name"
