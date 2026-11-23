@@ -923,6 +923,10 @@
           "description": "Bewerk de stappen zoals een kanaal dat doet. Opslaan bewaart ze als nieuwe conceptversie.",
           "editJson": "JSON bewerken"
         },
+        "commandEditor": {
+          "description": "Bewerk het commando zoals een kanaal dat doet. Een veld dat je met rust laat houdt de standaardwaarde van de catalogus. Opslaan bewaart het als nieuwe conceptversie.",
+          "editJson": "JSON bewerken"
+        },
         "widgetEditor": {
           "description": "Bewerk de widget zoals een kanaal dat doet. Opslaan bewaart hem als nieuwe conceptversie.",
           "events": "Gebeurtenissen om op te luisteren",

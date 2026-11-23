@@ -14,14 +14,16 @@
 // A content payload is JSON, so it is written in the project's Monaco editor, never in a plain text box.
 // The editor shows one file. Its Save checks that the text is JSON before the parent keeps it.
 // A pipeline draft opens in the step editor, a code script draft in the script code editor and a widget draft in
-// the widget form.
+// the widget form and a command draft in the built-in command fields.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 
+import AdminCommandPayloadEditor from './AdminCommandPayloadEditor.vue';
 import AdminPipelinePayloadEditor from './AdminPipelinePayloadEditor.vue';
+import { readCommandPayload } from './commandPayload';
 import AdminScriptPayloadEditor from './AdminScriptPayloadEditor.vue';
 import { readPipelinePayload } from './pipelinePayload';
 import AdminWidgetPayloadEditor from './AdminWidgetPayloadEditor.vue';
@@ -34,6 +36,8 @@ const props = defineProps<{
   title: string;
   // The kind of the definition: a pipeline draft opens in the step editor, every other kind in the JSON editor.
   kind: string;
+  // The key of the definition: a command draft shows the defaults of the built-in with this key.
+  commandKey: string;
   initial: string;
   // Keeps a valid payload; resolves to the message the editor shows after Save.
   keep: (payloadJson: string) => Promise<string>;
@@ -57,6 +61,11 @@ const scriptSource = computed(() =>
 const widget = computed(() =>
   props.kind === 'widget'
     ? readWidgetPayload(props.initial)
+    : null);
+// The overrides of a command payload, or null: another kind, or a payload the command form would not hold whole.
+const command = computed(() =>
+  props.kind === 'command'
+    ? readCommandPayload(props.initial)
     : null);
 // Set when the operator leaves a form: the raw editor then starts from the draft as it stood.
 const rawSeed = ref<string | null>(null);
@@ -101,6 +110,15 @@ async function save(files: EditorFiles): Promise<CompileFeedback> {
     v-else-if="widget && rawSeed === null"
     :title="title"
     :payload="widget"
+    :keep="keep"
+    @edit-json="rawSeed = $event"
+    @close="emit('close')"
+  />
+  <AdminCommandPayloadEditor
+    v-else-if="command && rawSeed === null"
+    :title="title"
+    :command-key="commandKey"
+    :payload="command"
     :keep="keep"
     @edit-json="rawSeed = $event"
     @close="emit('close')"

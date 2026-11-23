@@ -103,6 +103,11 @@ const editorKind = computed<string>(() =>
     ? kind.value
     : (picked.value?.definition.kind ?? ''));
 
+const editorKey = computed<string>(() =>
+  editing.value === 'create'
+    ? key.value
+    : (picked.value?.definition.key ?? ''));
+
 const titleKeys = {
   create: 'create.title',
   retire: 'retire.title',
@@ -401,6 +406,7 @@ async function submit(): Promise<void> {
       v-if="editing && can('content:author')"
       :title="editorTitle"
       :kind="editorKind"
+      :command-key="editorKey"
       :initial="editorSeed"
       :keep="keepPayload"
       @close="editing = null"

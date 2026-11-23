@@ -12,17 +12,19 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref, type PropType } from 'vue';
 
 import { fieldLabels, unlinkedLabels } from '@/__tests__/fieldLinks';
 import { queryClient } from '@/api/queryClient';
 import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
-import { i18n } from '@/i18n';
+import { ensureWords, i18n } from '@/i18n';
 import { adminHandlers } from '@/realtime/admin';
 import { dashboardRoutes } from '@/router/dashboard';
 
 import AdminContentView from '../AdminContentView.vue';
+import { commandWords } from '../components/commandPayload';
+import { overlayWords } from '../components/widgetPayload';
 import en from '../i18n/en.json';
 import { adminOnly, dashboardAdminContentRoute } from '../route';
 
@@ -130,6 +132,53 @@ const pipelinePayload = JSON.stringify({ steps: [pipelineStep] });
 const scriptSource = 'const roll = nnz.random.int(1, Number(bot.args[0]) || 6);';
 const scriptPayload = JSON.stringify({ sourceCode: scriptSource });
 
+const hugBuiltin = {
+  builtinKey: 'hug',
+  name: '!hug',
+  isEnabled: true,
+  isReserved: false,
+  isAlwaysOn: false,
+  speakWithTts: false,
+  replyGroup: 'hug',
+  replyOverrideCount: 0,
+  defaultCooldownSeconds: 30,
+  defaultUserCooldownSeconds: 5,
+  defaultMinPermissionLevel: 'Everyone',
+  cooldownSecondsOverride: null,
+  userCooldownSecondsOverride: null,
+  minPermissionLevelOverride: null,
+};
+
+const hugReplies = [
+  {
+    builtinKey: 'hug',
+    commandKeys: ['hug'],
+    replies: [
+      {
+        builtinKey: 'hug',
+        slot: 'reply',
+        label: { text: 'Hug reply' },
+        description: { text: 'What the bot says' },
+        effectiveTemplate: 'Hug {user}',
+        source: 'default',
+        defaultTemplate: 'Hug {user}',
+        toneVariations: [],
+        variables: [],
+        isOverridden: false,
+        isLocked: false,
+      },
+    ],
+  },
+];
+
+const commandOverrides = {
+  responses: { reply: 'A big hug for {user}!', farewell: 'kept slot' },
+  speakWithTts: true,
+  cooldownSeconds: 12,
+  userCooldownSeconds: 3,
+  minPermissionLevel: 10,
+};
+
 const widgetSource = '<template><p>{{ title }}</p></template>';
 const widgetSettings = { title: 'Hello', size: 4 };
 
@@ -157,6 +206,12 @@ vi.mock('@/api/client', () => ({
         path,
         options,
       });
+
+      if (path.endsWith('/builtins/replies'))
+        return { data: { data: hugReplies }, response: { status: 200, ok: true } };
+
+      if (path.endsWith('/builtins'))
+        return { data: { data: [hugBuiltin] }, response: { status: 200, ok: true } };
 
       if (path === audioPath)
         return {
@@ -352,6 +407,12 @@ const editorFrame = defineComponent({
   },
 });
 
+// The forms load the words of the commands and overlays pages themselves; loading them once up front keeps a
+// test from asserting before a first-time import settles.
+beforeAll(async () => {
+  await Promise.all([ensureWords(commandWords), ensureWords(overlayWords)]);
+});
+
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
@@ -520,7 +581,7 @@ describe('AdminContentView', () => {
     await open();
     byText('button', 'New definition')!.click();
     await settle();
-    await chooseKind('Command');
+    await chooseKind('Timer');
     await type('[data-field-key]', 'wave');
     await type('[data-field-name]', 'Wave command');
     await click(first('[data-field-payload]'));
@@ -538,7 +599,7 @@ describe('AdminContentView', () => {
     expect(post.path).toBe('/api/v{version}/platform/content/definitions');
 
     expect(post.options?.body).toMatchObject({
-      kind: 'command',
+      kind: 'timer',
       key: 'wave',
       displayName: 'Wave command',
       payloadJson: '{"reply":"wave"}',
@@ -549,7 +610,7 @@ describe('AdminContentView', () => {
     await open();
     byText('button', 'New definition')!.click();
     await settle();
-    await chooseKind('Command');
+    await chooseKind('Timer');
     await type('[data-field-key]', 'wave');
     await type('[data-field-name]', 'Wave command');
     await click(first('[data-field-payload]'));
@@ -835,6 +896,77 @@ describe('AdminContentView', () => {
     await click(byText('button', 'Draft new version')!);
 
     expect(document.body.querySelector('[data-widget-payload-editor]')).toBeNull();
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens a command draft in the built-in editor fields with the values of the payload', async () => {
+    draftPayload = JSON.stringify(commandOverrides);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+    expect(first('[data-command-payload-editor] textarea')).toBeInstanceOf(HTMLTextAreaElement);
+
+    expect((first('[data-command-payload-editor] textarea') as HTMLTextAreaElement).value).toBe(
+      'A big hug for {user}!',
+    );
+
+    expect((first('[data-command-cooldown]') as HTMLInputElement).value).toBe('0:12');
+    expect((first('[data-command-user-cooldown]') as HTMLInputElement).value).toBe('0:03');
+    expect(first('[role="switch"]').getAttribute('aria-checked')).toBe('true');
+    expect(first('[role="combobox"]').textContent).toContain('Moderator');
+  });
+
+  it('saves a changed cooldown as a new version and keeps every other override', async () => {
+    draftPayload = JSON.stringify(commandOverrides);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+    await type('[data-command-cooldown]', '0:20');
+    await click(first('[data-command-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({
+      ...commandOverrides,
+      cooldownSeconds: 20,
+    });
+  });
+
+  it('opens an empty command payload with the defaults of the built-in', async () => {
+    draftPayload = '{}';
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+    expect((first('[data-command-payload-editor] textarea') as HTMLTextAreaElement).value).toBe(
+      'Hug {user}',
+    );
+
+    const cooldown = first('[data-command-cooldown]') as HTMLInputElement;
+
+    expect(cooldown.value).toBe('0:30');
+    expect(first('[role="switch"]').getAttribute('aria-checked')).toBe('false');
+
+    await click(first('[data-command-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({});
+  });
+
+  it('opens a command payload with an unknown key as JSON, so nothing is lost', async () => {
+    draftPayload = JSON.stringify({ cooldownSeconds: 12, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-command-payload-editor]')).toBeNull();
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });

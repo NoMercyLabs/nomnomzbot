@@ -923,6 +923,10 @@
           "description": "Edit the steps the way a channel does. Save keeps them as a new draft version.",
           "editJson": "Edit JSON"
         },
+        "commandEditor": {
+          "description": "Edit the command the way a channel does. A field you leave alone keeps the catalog default. Save keeps it as a new draft version.",
+          "editJson": "Edit JSON"
+        },
         "widgetEditor": {
           "description": "Edit the widget the way a channel does. Save keeps it as a new draft version.",
           "events": "Events to listen to",
