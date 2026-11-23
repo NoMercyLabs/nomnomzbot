@@ -4811,6 +4811,19 @@ than each consumer needing their own clone-and-customize pass.
   wall-clock time, `{time.New_York}` six hours earlier, `{time.offset.+3}` three hours after `{time}`; saving a
   command with `{time.Atlantis}` is refused with the helper named.
 
+- **S-CHAT-MENTION-TODAY — the chat "@" list offers everyone seen today (backlog, low priority).**
+  Owner, 2026-11-23: "The chat is missing @username autocomplete for anyone in stream and chat of today" and
+  then "Put the @username on the backlog, not important".
+  Today: `ChatView.vue` feeds the composer only the names of the chat lines loaded in the page, so lurkers and
+  earlier speakers are missing.
+  Proposal, not settled: one read of this channel's viewers whose `ViewerProfile.LastSeenAt` (stamped by
+  `ChatterPresencePollService` from Helix Get Chatters) is within 24 hours, latest first, merged after the
+  loaded speakers, no duplicates. Work in progress (untested, ungated) is saved as
+  `C:/Projects/.work/patches/chat-mentionable-wip.patch` (ChatController, ChatMentionableService + test,
+  ChatView + spec).
+  Done-when: a server test proves tenant isolation and the time window; a dashboard spec proves "@" offers a
+  viewer who is present but in no loaded line.
+
 ## 🔒 Owner calls still open
 - SignalR/Redis backplane for multi-replica (S035) — single-instance acceptable for now?
 - Cooldown DB write-through (S040) — scaling investment, defer?
