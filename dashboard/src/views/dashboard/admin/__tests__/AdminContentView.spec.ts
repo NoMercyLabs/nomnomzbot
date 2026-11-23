@@ -38,6 +38,27 @@ type Call = {
 
 const calls: Call[] = [];
 
+const audioPath = '/api/v{version}/platform/content/audio-assets';
+const audioItemPath = `${audioPath}/{id}`;
+
+type AudioAsset = {
+  id: string;
+  displayName: string;
+  fileName: string;
+  sizeBytes: number;
+  usedByTemplates: string[];
+};
+
+const stinger: AudioAsset = {
+  id: 'asset1',
+  displayName: 'Raid stinger',
+  fileName: 'raid.mp3',
+  sizeBytes: 2_097_152,
+  usedByTemplates: [],
+};
+
+let audioAssets: AudioAsset[] = [];
+
 const definition = {
   id: 'def1',
   kind: 'command',
@@ -65,6 +86,16 @@ vi.mock('@/api/client', () => ({
         path,
         options,
       });
+
+      if (path === audioPath)
+        return {
+          data: {
+            data: audioAssets,
+            hasMore: false,
+            total: audioAssets.length,
+          },
+          response: { status: 200, ok: true },
+        };
 
       if (path.endsWith('/versions/{versionId}'))
         return {
@@ -145,6 +176,22 @@ vi.mock('@/api/client', () => ({
         options,
       });
 
+      if (path === audioPath) {
+        const form = (options as { bodySerializer?: () => FormData }).bodySerializer?.();
+        const file = form?.get('file') as File;
+        const created: AudioAsset = {
+          id: 'asset2',
+          displayName: String(form?.get('displayName') ?? ''),
+          fileName: file.name,
+          sizeBytes: file.size,
+          usedByTemplates: [],
+        };
+
+        audioAssets = [...audioAssets, created];
+
+        return { data: { data: created }, response: { status: 200, ok: true } };
+      }
+
       if (path.endsWith('/publish-preview'))
         return {
           data: {
@@ -185,6 +232,10 @@ vi.mock('@/api/client', () => ({
         path,
         options,
       });
+
+      if (path === audioItemPath) {
+        audioAssets = audioAssets.filter((row) => row.id !== options?.params?.path?.id);
+      }
 
       return { data: undefined, response: { status: 200, ok: true } };
     },
@@ -232,6 +283,7 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  audioAssets = [{ ...stinger }];
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -538,5 +590,75 @@ describe('AdminContentView publishing', () => {
 
     expect(first('[data-publish-confirm]').dataset.variant).toBe('destructive');
     expect(first('[data-publish-force-warning]').textContent).toContain('overwrites edits');
+  });
+});
+
+describe('AdminContentView audio assets', () => {
+  it('lists each platform audio asset with its name, file and size', async () => {
+    audioAssets = [
+      { ...stinger },
+      {
+        id: 'asset3',
+        displayName: 'Subscriber chime',
+        fileName: 'chime.ogg',
+        sizeBytes: 512_000,
+        usedByTemplates: ['welcome'],
+      },
+    ];
+
+    await open();
+
+    const rows = [...document.body.querySelectorAll<HTMLElement>('[data-audio-row]')];
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain('Raid stinger');
+    expect(rows[0]!.textContent).toContain('2 MB');
+    expect(rows[1]!.textContent).toContain('Subscriber chime');
+    expect(rows[1]!.textContent).toContain('chime.ogg');
+    expect(calls.some((call) => call.method === 'GET' && call.path === audioPath)).toBe(true);
+  });
+
+  it('says so when there are no audio assets', async () => {
+    audioAssets = [];
+    await open();
+
+    expect(document.body.querySelectorAll('[data-audio-row]')).toHaveLength(0);
+    expect(text()).toContain('No audio files yet.');
+  });
+
+  it('uploads the chosen file as multipart and shows the new asset', async () => {
+    await open();
+
+    const input = first('[data-audio-file]') as HTMLInputElement;
+    const file = new File(['sound'], 'win.wav', { type: 'audio/wav' });
+
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.dispatchEvent(new Event('change'));
+    await settle();
+
+    const post = calls.find((call) => call.method === 'POST' && call.path === audioPath)!;
+    const form = (post.options as { bodySerializer: () => FormData }).bodySerializer();
+
+    expect((form.get('file') as File).name).toBe('win.wav');
+    expect(document.body.querySelectorAll('[data-audio-row]')).toHaveLength(2);
+    expect(text()).toContain('win.wav');
+  });
+
+  it('asks before deleting, then sends DELETE with the id and removes the row', async () => {
+    await open();
+    first('[data-row-delete]').click();
+    await settle();
+
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+    expect(first('[role="alertdialog"]').textContent).toContain('Raid stinger');
+
+    first('[data-confirm-action]').click();
+    await settle();
+
+    const removal = calls.find((call) => call.method === 'DELETE')!;
+
+    expect(removal.path).toBe(audioItemPath);
+    expect(removal.options?.params?.path?.id).toBe('asset1');
+    expect(document.body.querySelectorAll('[data-audio-row]')).toHaveLength(0);
   });
 });

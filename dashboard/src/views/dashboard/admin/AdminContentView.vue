@@ -41,6 +41,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
+import AdminAudioAssetsPanel from './components/AdminAudioAssetsPanel.vue';
 import AdminContentPayloadEditor from './components/AdminContentPayloadEditor.vue';
 import AdminContentPublishPanel from './components/AdminContentPublishPanel.vue';
 
@@ -327,6 +328,8 @@ async function submit(): Promise<void> {
         </div>
       </template>
     </PanelCard>
+
+    <AdminAudioAssetsPanel />
 
     <FormDialog
       :open="step !== null"

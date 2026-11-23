@@ -28,6 +28,7 @@ export type ContentVersion = components['schemas']['PlatformContentVersion'];
 export type CreateContentDefinitionBody = components['schemas']['CreateContentDefinitionRequest'];
 export type PublishPreview = components['schemas']['PublishPreview'];
 export type PublishJob = components['schemas']['PlatformContentPublishJob'];
+export type AudioAsset = components['schemas']['PlatformAudioAsset'];
 
 export type DraftTarget = {
   definitionId: string;
@@ -258,6 +259,66 @@ export function useDraftContentVersion() {
 
       if (error !== undefined)
         throw problemError('content version draft', response.status, error);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: contentPrefix }),
+  });
+}
+
+export function useAudioAssets(): UseQueryReturnType<AudioAsset[], Error> {
+  return useQuery({
+    queryKey: ['admin', 'content', 'audio'] as const satisfies KeyParts,
+    queryFn: async (): Promise<AudioAsset[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/platform/content/audio-assets',
+        { params: { path: { version }, query: { Take: DEFINITION_TAKE } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform audio assets', response.status, error);
+
+      return data?.data ?? [];
+    },
+  });
+}
+
+// The multipart body is built here: the generated type names the file part, the form carries the real file.
+export function useUploadAudioAsset() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (file: File): Promise<void> => {
+      const form = new FormData();
+
+      form.append('file', file);
+
+      const { error, response } = await client.POST(
+        '/api/v{version}/platform/content/audio-assets',
+        {
+          params: { path: { version } },
+          body: {},
+          bodySerializer: () => form,
+        },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform audio asset upload', response.status, error);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: contentPrefix }),
+  });
+}
+
+export function useDeleteAudioAsset() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (assetId: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/platform/content/audio-assets/{id}',
+        { params: { path: { version, id: assetId } } },
+      );
+
+      if (error !== undefined)
+        throw problemError('platform audio asset delete', response.status, error);
     },
     onSuccess: () => queries.invalidateQueries({ queryKey: contentPrefix }),
   });

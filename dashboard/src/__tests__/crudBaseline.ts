@@ -67,10 +67,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
   'music/repeat': ['PATCH /channels/{channelId}/music/repeat'],
   'music/shuffle': ['PATCH /channels/{channelId}/music/shuffle'],
   'music/volume': ['PUT /channels/{channelId}/music/volume'],
-  'platform/content/audio-assets': [
-    'POST /platform/content/audio-assets',
-    'DELETE /platform/content/audio-assets/{id}',
-  ],
   'platform/iam/principals': ['POST /platform/iam/principals'],
   'spam-defense/lockdown': ['POST /channels/{channelId}/spam-defense/lockdown'],
   'system/ipc/keys': ['POST /system/ipc/keys', 'DELETE /system/ipc/keys/{keyId}'],

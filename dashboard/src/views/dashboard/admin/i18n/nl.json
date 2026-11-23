@@ -983,7 +983,21 @@
           "action": "Definitie intrekken",
           "consequence": "Als je {name} intrekt, wordt het niet meer aangeboden. {installed} geinstalleerde kopieen blijven draaien ({behind} achter, {edited} aangepast). In geen enkel kanaal verandert iets."
         },
-        "kindKey": "{kind} / {key}"
+        "kindKey": "{kind} / {key}",
+        "audio": {
+          "title": "Audiobibliotheek",
+          "description": "Geluidsbestanden die geen kanaal bezit. Sjablonen noemen ze. mp3, ogg of wav, tot 10 MB en 3 minuten.",
+          "empty": "Nog geen audiobestanden.",
+          "error": "De audiobibliotheek kon niet laden.",
+          "upload": "Audio uploaden",
+          "usedBy": "Gebruikt door {count} sjabloon | Gebruikt door {count} sjablonen",
+          "delete": {
+            "open": "{name} verwijderen",
+            "title": "{name} verwijderen",
+            "description": "Het bestand verdwijnt uit de platformbibliotheek. Kanalen die al een sjabloon hebben geinstalleerd houden hun eigen kopie.",
+            "action": "Bestand verwijderen"
+          }
+        }
       },
       "audit": {
         "title": "Auditlog",

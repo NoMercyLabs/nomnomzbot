@@ -983,7 +983,21 @@
           "action": "Retire definition",
           "consequence": "Retiring {name} stops it being offered. {installed} installed copies keep running ({behind} behind, {edited} edited). Nothing in any channel changes."
         },
-        "kindKey": "{kind} / {key}"
+        "kindKey": "{kind} / {key}",
+        "audio": {
+          "title": "Audio library",
+          "description": "Sound files no channel owns. Templates name them. mp3, ogg or wav, up to 10 MB and 3 minutes.",
+          "empty": "No audio files yet.",
+          "error": "The audio library could not load.",
+          "upload": "Upload audio",
+          "usedBy": "Used by {count} template | Used by {count} templates",
+          "delete": {
+            "open": "Delete {name}",
+            "title": "Delete {name}",
+            "description": "The file is removed from the platform library. Channels that already installed a template keep their own copy.",
+            "action": "Delete file"
+          }
+        }
       },
       "audit": {
         "title": "Audit log",
