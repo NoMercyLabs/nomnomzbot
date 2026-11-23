@@ -13,13 +13,16 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -40,14 +43,18 @@ public sealed class ShoutoutSender : IShoutoutSender
     private readonly IApplicationDbContext _db;
     private readonly ITtsDispatchService _tts;
     private readonly TimeProvider _timeProvider;
+    private readonly IServiceProvider _services;
     private readonly ILogger<ShoutoutSender> _logger;
 
+    // The invoker reaches the pipeline engine, which reaches the shoutout action and so this sender, so it is
+    // resolved on first use instead of being injected.
     public ShoutoutSender(
         ITwitchChatApi chat,
         IChannelRegistry registry,
         IApplicationDbContext db,
         ITtsDispatchService tts,
         TimeProvider timeProvider,
+        IServiceProvider services,
         ILogger<ShoutoutSender> logger
     )
     {
@@ -56,6 +63,7 @@ public sealed class ShoutoutSender : IShoutoutSender
         _db = db;
         _tts = tts;
         _timeProvider = timeProvider;
+        _services = services;
         _logger = logger;
     }
 
@@ -91,15 +99,27 @@ public sealed class ShoutoutSender : IShoutoutSender
                 cancellationToken
             );
 
-        string? template =
+        string? chosen =
             !string.IsNullOrWhiteSpace(templateOverride) ? templateOverride
             : !string.IsNullOrWhiteSpace(perTargetOverride?.MessageTemplate)
                 ? perTargetOverride.MessageTemplate
-            : !string.IsNullOrWhiteSpace(targetChannel?.ShoutoutTemplate)
-                ? targetChannel.ShoutoutTemplate
-            : !string.IsNullOrWhiteSpace(channel?.ShoutoutTemplate) ? channel.ShoutoutTemplate
             : null;
-        return new(template, PersonalityTone.Normalize(channel?.Personality));
+
+        // The shouting channel's own choice to run a target replaces its reply text, so it also wins over the
+        // shouted channel's self-managed template. Only this channel's row is read: another tenant's target
+        // never runs here.
+        BindingTarget? response = chosen is null ? channel?.GetBindingTarget() : null;
+
+        string? template =
+            chosen
+            ?? (
+                response is not null ? null
+                : !string.IsNullOrWhiteSpace(targetChannel?.ShoutoutTemplate)
+                    ? targetChannel.ShoutoutTemplate
+                : !string.IsNullOrWhiteSpace(channel?.ShoutoutTemplate) ? channel.ShoutoutTemplate
+                : null
+            );
+        return new(template, PersonalityTone.Normalize(channel?.Personality), response);
     }
 
     public async Task<ActionResult> SendAsync(
@@ -174,14 +194,7 @@ public sealed class ShoutoutSender : IShoutoutSender
             .Channels.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.BroadcasterId, cancellationToken);
 
-        Result announceResult = string.IsNullOrEmpty(request.Announcement)
-            ? Result.Success()
-            : await _chat.SendAnnouncementAsync(
-                request.BroadcasterId,
-                request.Announcement,
-                color: null,
-                cancellationToken
-            );
+        Result announceResult = await RespondAsync(request, cancellationToken);
         if (announceResult.IsFailure)
             _logger.LogWarning(
                 "Shoutout announcement failed for {UserId}: {Error}",
@@ -203,7 +216,11 @@ public sealed class ShoutoutSender : IShoutoutSender
         // synthesis/dispatch failure never fails the shoutout itself. The announcement is the bot's own text, so
         // it speaks in the channel's one bot voice (the default TtsSpeaker.Bot); the target is only the
         // attribution on the request, never the voice. A raid speaks by default (old-bot parity); an explicit tts:false still wins.
-        if (announceResult.IsSuccess && request.Speak && channel is not null)
+        if (
+            announceResult.IsSuccess
+            && request is { Speak: true, Response: null }
+            && channel is not null
+        )
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
                 SpeakRequest(
@@ -237,6 +254,49 @@ public sealed class ShoutoutSender : IShoutoutSender
             : request.SkipNative ? "announced (per-user cooldown)"
             : $"shoutout sent to {rawUserId}"
         );
+    }
+
+    // The channel's reply: the target it chose to run, else the announcement text.
+    private async Task<Result> RespondAsync(
+        ShoutoutRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (request.Response is not null)
+            return await RunResponseAsync(request, cancellationToken);
+
+        if (string.IsNullOrEmpty(request.Announcement))
+            return Result.Success();
+
+        return await _chat.SendAnnouncementAsync(
+            request.BroadcasterId,
+            request.Announcement,
+            color: null,
+            cancellationToken
+        );
+    }
+
+    /// <summary>Runs the target the channel chose instead of a reply text, with the shoutout's variables. A failed
+    /// run is permanent: the native shoutout already went out, so a retry would send it twice.</summary>
+    private async Task<Result> RunResponseAsync(
+        ShoutoutRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        ICommandInvoker invoker = _services.GetRequiredService<ICommandInvoker>();
+        Result<InvocationOutcome> run = await invoker.InvokeAsync(
+            request.BroadcasterId,
+            request.Response!,
+            new(
+                UserId: null,
+                DisplayName: null,
+                Args: string.Empty,
+                TriggerSource: "shoutout",
+                Variables: request.ResponseVariables
+            ),
+            cancellationToken
+        );
+        return run.IsFailure ? Result.Failure(run.ErrorMessage, run.ErrorCode) : Result.Success();
     }
 
     /// <summary>The spoken form of a shoutout announcement, in the channel's one bot voice. The sender and a

@@ -54636,8 +54636,8 @@ export interface paths {
         };
         /**
          * The channel's custom shoutout announcement template (the `shoutout` pipeline action posts this,
-         *     resolved via the normal template-variable engine, alongside every native Twitch shoutout). Null/empty
-         *     means the built-in default is used.
+         *     resolved via the normal template-variable engine, alongside every native Twitch shoutout) and the target
+         *     it runs instead, if one is set. Null/empty means the built-in default is used.
          */
         get: {
             parameters: {
@@ -101310,8 +101310,14 @@ export interface components {
             /** @description The chatter's Twitch profile picture (Get Users), or null when Twitch gave none. */
             profileImageUrl?: null | string;
         };
+        /**
+         * @description The shoutout response: the announcement text and, optionally, the one target (pipeline, action or
+         *     command) that runs instead of posting it. A request without Target leaves the stored
+         *     target as it is, so older clients keep working.
+         */
         ShoutoutTemplate: {
             template?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         Shuffle: {
             enabled: boolean;

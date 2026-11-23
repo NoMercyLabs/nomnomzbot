@@ -26,10 +26,12 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Trust.Dtos;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Entities;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -2001,12 +2003,17 @@ public class ModerationController : BaseController
         return NoContent();
     }
 
-    public record ShoutoutTemplateDto(string? Template);
+    /// <summary>
+    /// The shoutout response: the announcement text and, optionally, the one target (pipeline, action or
+    /// command) that runs instead of posting it. A request without <paramref name="Target"/> leaves the stored
+    /// target as it is, so older clients keep working.
+    /// </summary>
+    public record ShoutoutTemplateDto(string? Template, BindingTarget? Target = null);
 
     /// <summary>
     /// The channel's custom shoutout announcement template (the <c>shoutout</c> pipeline action posts this,
-    /// resolved via the normal template-variable engine, alongside every native Twitch shoutout). Null/empty
-    /// means the built-in default is used.
+    /// resolved via the normal template-variable engine, alongside every native Twitch shoutout) and the target
+    /// it runs instead, if one is set. Null/empty means the built-in default is used.
     /// </summary>
     [RequireAction("moderation:read")]
     [HttpGet("shoutout-template")]
@@ -2016,12 +2023,15 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? template = await _db
+        Channel? channel = await _db
             .Channels.AsNoTracking()
-            .Where(c => c.Id == broadcasterId)
-            .Select(c => c.ShoutoutTemplate)
-            .FirstOrDefaultAsync(ct);
-        return Ok(new StatusResponseDto<ShoutoutTemplateDto> { Data = new(template) });
+            .FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
+        return Ok(
+            new StatusResponseDto<ShoutoutTemplateDto>
+            {
+                Data = new(channel?.ShoutoutTemplate, channel?.GetBindingTarget()),
+            }
+        );
     }
 
     public record AutoShoutoutDto(bool Enabled);
@@ -2195,7 +2205,17 @@ public class ModerationController : BaseController
         if (helperValidation.IsFailure)
             return ResultResponse(helperValidation);
 
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetOk.IsFailure)
+            return ResultResponse(targetOk);
+
         channel.ShoutoutTemplate = normalizedTemplate;
+        BindingTargetBinder.ApplyTo(channel, request.Target, channel.ShoutoutPipelineId);
         await _db.SaveChangesAsync(ct);
         await PublishShoutoutsChangedAsync(broadcasterId, null, "updated", ct);
         return NoContent();

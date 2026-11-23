@@ -10,7 +10,8 @@
 -->
 <script setup lang="ts">
 // How the channel gives a shoutout: whether the bot shouts out a known streamer on their first chat of a stream,
-// and the message it announces. The switch saves at once. Save sends the message; Use the default clears it.
+// and what it answers with: a message, or one target (pipeline, action or command) that runs instead. The
+// switch saves at once. Save sends the message and the target; Use the default clears the message.
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
@@ -22,6 +23,8 @@ import {
   useShoutoutTemplate,
 } from '@/api/shoutoutSettings';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import ReplyModeField from '@/components/layout/ReplyModeField.vue';
+import type { ReplyMode } from '@/components/layout/replyMode';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
@@ -29,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { sameTarget, targetFromWire, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 import { errorText } from '@/lib/errors';
 
 import SettingsPageFrame from '../components/SettingsPageFrame.vue';
@@ -60,7 +64,12 @@ function changeAuto(on: boolean): void {
 }
 
 const stored = computed<string>(() => template.data.value?.template ?? '');
+const storedTarget = computed<PickedTarget | null>(() =>
+  targetFromWire(template.data.value?.target),
+);
 const text = ref('');
+const mode = ref<ReplyMode>('simple');
+const picked = ref<PickedTarget | null>(null);
 
 // A fresh read replaces the text only when the person has not edited it.
 watch(
@@ -73,10 +82,36 @@ watch(
   { immediate: true },
 );
 
-const dirty = computed<boolean>(() => text.value.trim() !== stored.value);
+// The same for the target: a fresh read replaces the choice only when the person has not changed it.
+watch(
+  storedTarget,
+  (next, previous) => {
+    if (sameTarget(picked.value, previous ?? null)) {
+      picked.value = next;
 
+      mode.value = next === null
+        ? 'simple'
+        : 'full';
+    }
+  },
+  { immediate: true },
+);
+
+// A simple reply runs no target, so the choice sent is the picked target only in the full mode.
+const chosen = computed<PickedTarget | null>(() =>
+  mode.value === 'full'
+    ? picked.value
+    : null);
+const targetChanged = computed<boolean>(() => !sameTarget(chosen.value, storedTarget.value));
+const dirty = computed<boolean>(() => text.value.trim() !== stored.value || targetChanged.value);
+
+// The target is sent only when it changed: a request without one leaves the saved target as it is.
 function submit(message: string): void {
-  saveTemplate.mutate({ template: message }, {
+  const change = targetChanged.value
+    ? { template: message, target: targetToWire(chosen.value) }
+    : { template: message };
+
+  saveTemplate.mutate(change, {
     onSuccess: () => toast.success(t('dashboard.settings.shoutouts.saved')),
     onError: (error: Error) => toast.error(errorText(error, t)),
   });
@@ -116,7 +151,13 @@ function useDefault(): void {
       :error-text="$t('dashboard.settings.shoutouts.message.loadError')"
       @retry="template.refetch()"
     >
-      <div class="grid gap-3">
+      <ReplyModeField
+        v-model:mode="mode"
+        v-model:target="picked"
+        :kinds="['command', 'pipeline', 'action']"
+        :new-pipeline-name="$t('dashboard.settings.shoutouts.message.title')"
+        :disabled="!canEdit"
+      >
         <TemplateField
           v-model="text"
           context="eventResponse"
@@ -127,7 +168,7 @@ function useDefault(): void {
           :rows="4"
           :disabled="!canEdit"
         />
-      </div>
+      </ReplyModeField>
       <template v-if="canEdit && templateState === 'ready'" #footer>
         <Button
           size="sm"

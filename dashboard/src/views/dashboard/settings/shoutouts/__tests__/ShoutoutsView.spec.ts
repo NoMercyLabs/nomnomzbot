@@ -10,11 +10,12 @@
 // -----------------------------------------------------------------------------
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed } from 'vue';
 
+import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -28,8 +29,13 @@ type Answer = {
 
 const autoPath = '/api/v{version}/channels/{channelId}/moderation/auto-shoutout';
 const templatePath = '/api/v{version}/channels/{channelId}/moderation/shoutout-template';
+const commandsPath = '/api/v{version}/channels/{channelId}/commands';
 
-const store = vi.hoisted(() => ({ enabled: false, template: null as string | null }));
+const store = vi.hoisted(() => ({
+  enabled: false,
+  template: null as string | null,
+  target: null as { kind: number; id: string } | null,
+}));
 const access = vi.hoisted(() => ({ write: true }));
 const puts = vi.hoisted(() => [] as { path: string; body: unknown }[]);
 
@@ -39,7 +45,8 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string): Promise<Answer> => {
       const answers = new Map<string, unknown>([
         [autoPath, { enabled: store.enabled }],
-        [templatePath, { template: store.template }],
+        [templatePath, { template: store.template, target: store.target }],
+        [commandsPath, [{ id: 'c1', name: 'hello' }]],
       ]);
 
       // Anything else is the helper list the template field asks for: none.
@@ -54,6 +61,15 @@ vi.mock('@/api/client', () => ({
         store.template = (init.body.template as string) === ''
           ? null
           : (init.body.template as string);
+
+        // The server clears a binding with a pipeline that has no id; a missing target leaves it as it is.
+        const sent = init.body.target as { kind: number; id: string } | undefined;
+
+        if (sent !== undefined) {
+          store.target = sent.kind === 1 && sent.id === ''
+            ? null
+            : sent;
+        }
       }
 
       return { response: { ok: true, status: 204 } };
@@ -87,6 +103,9 @@ async function open(): Promise<VueWrapper> {
   return wrapper;
 }
 
+const modeButton = (page: VueWrapper, label: string): DOMWrapper<Element> =>
+  page.findAll('[data-reply-mode] button').find((b) => b.text().trim() === label)!;
+
 const area = (page: VueWrapper): HTMLTextAreaElement =>
   page.get('[data-field="shoutoutTemplate"]').element as HTMLTextAreaElement;
 
@@ -94,6 +113,7 @@ beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   store.enabled = false;
   store.template = 'Go follow {target.displayname}!';
+  store.target = null;
   access.write = true;
   puts.length = 0;
 });
@@ -145,6 +165,56 @@ describe('ShoutoutsView', () => {
     expect(puts).toEqual([{ path: templatePath, body: { template: '' } }]);
     expect(store.template).toBeNull();
     expect(page.get('[data-action="use-default"]').attributes('disabled')).toBeDefined();
+  });
+
+  it('saves a picked command as the shoutout target and shows it after the refetch', async () => {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+    const page = await open();
+
+    await modeButton(page, 'Pipeline').trigger('click');
+    await openTargetPicker(page.element);
+    await chooseTarget('!hello');
+    await page.get('[data-action="save"]').trigger('click');
+    await flushPromises();
+
+    expect(puts).toEqual([
+      {
+        path: templatePath,
+        body: { template: 'Go follow {target.displayname}!', target: { kind: 0, id: 'c1' } },
+      },
+    ]);
+
+    expect(store.target).toEqual({ kind: 0, id: 'c1' });
+    expect(page.find('[data-field="shoutoutTemplate"]').exists()).toBe(false);
+    expect(page.get('[data-target-picker]').text()).toContain('!hello');
+  });
+
+  it('opens a shoutout that runs a target on that target and hides the message', async () => {
+    store.target = { kind: 0, id: 'c1' };
+    const page = await open();
+
+    expect(page.find('[data-field="shoutoutTemplate"]').exists()).toBe(false);
+    expect(page.get('[data-target-picker]').text()).toContain('!hello');
+  });
+
+  it('clears the target when the person switches back to the message and saves', async () => {
+    store.target = { kind: 0, id: 'c1' };
+    const page = await open();
+
+    await modeButton(page, 'Simple reply').trigger('click');
+    await page.get('[data-action="save"]').trigger('click');
+    await flushPromises();
+
+    expect(puts).toEqual([
+      {
+        path: templatePath,
+        body: { template: 'Go follow {target.displayname}!', target: { kind: 1, id: '' } },
+      },
+    ]);
+
+    expect(store.target).toBeNull();
   });
 
   it('turns automatic shoutouts on at once', async () => {

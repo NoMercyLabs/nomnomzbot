@@ -19,6 +19,7 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -64,6 +65,9 @@ public sealed class ShoutoutAction : ICommandAction
     private const string DefaultTemplate =
         "Go check out {target.displayname}! Follow the channel to catch the next stream.";
     private const string QueuedFallback = "Shoutout for {target.displayname} is queued.";
+
+    // Set in the variables of a run the channel's shoutout target started, so that run cannot start it again.
+    private const string ResponseMarker = "shoutout.response";
 
     // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is
     // what a viewer reads. Fixed, not a tone slot: a failure has no target, so no personality is resolved.
@@ -251,9 +255,17 @@ public sealed class ShoutoutAction : ICommandAction
                 }
             }
 
-            string announcement = await ComposeAnnouncementAsync(ctx, action, target);
+            ShoutoutReply reply = await ComposeAnnouncementAsync(ctx, action, target);
             ActionResult announced = await _sender.SendAsync(
-                new(ctx.BroadcasterId, target, announcement, Speak: true, SkipNative: true),
+                new(
+                    ctx.BroadcasterId,
+                    target,
+                    reply.Announcement,
+                    Speak: true,
+                    SkipNative: true,
+                    Response: reply.Response,
+                    ResponseVariables: reply.Variables
+                ),
                 ctx.CancellationToken
             );
             if (!announced.Succeeded && channelCtx is not null)
@@ -268,7 +280,7 @@ public sealed class ShoutoutAction : ICommandAction
             || _queue.Peek(ctx.BroadcasterId) is not null
         )
         {
-            string announcement = await ComposeAnnouncementAsync(ctx, action, target);
+            ShoutoutReply reply = await ComposeAnnouncementAsync(ctx, action, target);
             bool added = await _queue.EnqueueAsync(
                 new QueuedShoutout(
                     ctx.BroadcasterId,
@@ -278,9 +290,11 @@ public sealed class ShoutoutAction : ICommandAction
                     globalCooldown,
                     perUserCooldown,
                     now,
-                    Announcement: announcement,
+                    Announcement: reply.Announcement,
                     Speak: action.GetBool("tts"),
-                    ActorUserId: ctx.ActorUserId
+                    ActorUserId: ctx.ActorUserId,
+                    Response: reply.Response,
+                    ResponseVariables: reply.Variables
                 ),
                 ctx.CancellationToken
             );
@@ -289,18 +303,20 @@ public sealed class ShoutoutAction : ICommandAction
             return ActionResult.Success(added ? "queued (cooldown)" : "already queued (cooldown)");
         }
 
-        string immediateAnnouncement = await ComposeAnnouncementAsync(ctx, action, target);
+        ShoutoutReply immediate = await ComposeAnnouncementAsync(ctx, action, target);
         ActionResult sent = await _sender.SendAsync(
             new(
                 ctx.BroadcasterId,
                 target,
-                immediateAnnouncement,
+                immediate.Announcement,
                 action.GetBool("tts"),
-                DeliveryKey: ShoutoutSender.DeliveryKey(ctx.BroadcasterId, target.Id, now)
+                DeliveryKey: ShoutoutSender.DeliveryKey(ctx.BroadcasterId, target.Id, now),
+                Response: immediate.Response,
+                ResponseVariables: immediate.Variables
             ),
             ctx.CancellationToken
         );
-        ctx.RepliedToChat |= sent.Succeeded && !string.IsNullOrEmpty(immediateAnnouncement);
+        ctx.RepliedToChat |= sent.Succeeded && !string.IsNullOrEmpty(immediate.Announcement);
         if (!sent.Retryable)
             return sent;
 
@@ -313,9 +329,11 @@ public sealed class ShoutoutAction : ICommandAction
                 globalCooldown,
                 perUserCooldown,
                 now,
-                Announcement: immediateAnnouncement,
+                Announcement: immediate.Announcement,
                 Speak: action.GetBool("tts"),
-                ActorUserId: ctx.ActorUserId
+                ActorUserId: ctx.ActorUserId,
+                Response: immediate.Response,
+                ResponseVariables: immediate.Variables
             ),
             ctx.CancellationToken
         );
@@ -405,7 +423,14 @@ public sealed class ShoutoutAction : ICommandAction
         );
     }
 
-    private async Task<string> ComposeAnnouncementAsync(
+    // What the channel answers a shoutout with: the announcement text, or the target to run with its variables.
+    private sealed record ShoutoutReply(
+        string Announcement,
+        BindingTarget? Response,
+        IReadOnlyDictionary<string, string>? Variables
+    );
+
+    private async Task<ShoutoutReply> ComposeAnnouncementAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action,
         TwitchUser target
@@ -421,6 +446,11 @@ public sealed class ShoutoutAction : ICommandAction
             templateOverride,
             ctx.CancellationToken
         );
+
+        // A target that itself shouts someone out must not run the channel's target again, or it would loop.
+        BindingTarget? response = ctx.Variables.ContainsKey(ResponseMarker)
+            ? null
+            : selection.Response;
         TargetState state = await ResolveTargetStateAsync(target, ctx.CancellationToken);
         Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
         {
@@ -436,24 +466,38 @@ public sealed class ShoutoutAction : ICommandAction
             ["title"] = state.Title,
             ["status"] = state.IsLive ? "live" : "offline",
         };
+        if (response is not null)
+        {
+            seed[ResponseMarker] = "true";
+            return new(string.Empty, response, seed);
+        }
+
         if (selection.Template is null)
-            return await _composer.ComposeAsync(
-                new()
-                {
-                    BroadcasterId = ctx.BroadcasterId,
-                    Personality = selection.Personality,
-                    BuiltinKey = BuiltinResponseSlots.Shoutout.Key,
-                    Slot = BuiltinResponseSlots.Shoutout.Announcement,
-                    NeutralFallback = DefaultTemplate,
-                    Variables = seed,
-                },
-                ctx.CancellationToken
+            return new(
+                await _composer.ComposeAsync(
+                    new()
+                    {
+                        BroadcasterId = ctx.BroadcasterId,
+                        Personality = selection.Personality,
+                        BuiltinKey = BuiltinResponseSlots.Shoutout.Key,
+                        Slot = BuiltinResponseSlots.Shoutout.Announcement,
+                        NeutralFallback = DefaultTemplate,
+                        Variables = seed,
+                    },
+                    ctx.CancellationToken
+                ),
+                null,
+                null
             );
-        return await _templateResolver.ResolveAsync(
-            selection.Template,
-            seed,
-            ctx.BroadcasterId,
-            ctx.CancellationToken
+        return new(
+            await _templateResolver.ResolveAsync(
+                selection.Template,
+                seed,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            ),
+            null,
+            null
         );
     }
 }

@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
@@ -45,7 +46,8 @@ internal static class ShoutoutTestFactory
         IShoutoutQueue? queue = null,
         ITwitchChannelsApi? channels = null,
         IChatProvider? botChat = null,
-        ITwitchStreamsApi? streams = null
+        ITwitchStreamsApi? streams = null,
+        ICommandInvoker? invoker = null
     ) =>
         new(
             users,
@@ -53,7 +55,7 @@ internal static class ShoutoutTestFactory
             streams ?? NoStream(),
             registry,
             queue ?? new ShoutoutQueue(),
-            Sender(chat, registry, db, tts, time),
+            Sender(chat, registry, db, tts, time, invoker),
             botChat ?? Substitute.For<IChatProvider>(),
             resolver,
             Composer(resolver),
@@ -111,8 +113,25 @@ internal static class ShoutoutTestFactory
         IChannelRegistry registry,
         IApplicationDbContext db,
         ITtsDispatchService tts,
-        TimeProvider time
-    ) => new(chat, registry, db, tts, time, NullLogger<ShoutoutSender>.Instance);
+        TimeProvider time,
+        ICommandInvoker? invoker = null
+    )
+    {
+        ServiceCollection services = new();
+
+        if (invoker is not null)
+            services.AddSingleton(invoker);
+
+        return new(
+            chat,
+            registry,
+            db,
+            tts,
+            time,
+            services.BuildServiceProvider(),
+            NullLogger<ShoutoutSender>.Instance
+        );
+    }
 
     public static ShoutoutQueueWorker Worker(
         IShoutoutQueue queue,

@@ -10,11 +10,13 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
 /// <summary>
-/// A complete shoutout waiting for Twitch's cooldowns to pass.
+/// A complete shoutout waiting for Twitch's cooldowns to pass. A shoutout whose channel runs a target carries
+/// that target and its variables, so the choice survives the wait and a restart.
 /// </summary>
 public sealed record QueuedShoutout(
     Guid BroadcasterId,
@@ -27,5 +29,7 @@ public sealed record QueuedShoutout(
     string Announcement = "",
     bool Speak = false,
     Guid? ActorUserId = null,
-    DateTimeOffset? NotBefore = null
+    DateTimeOffset? NotBefore = null,
+    BindingTarget? Response = null,
+    IReadOnlyDictionary<string, string>? ResponseVariables = null
 );

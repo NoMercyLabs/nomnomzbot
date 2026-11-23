@@ -5745,6 +5745,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(10);
 
+                    b.Property<Guid?>("ShoutoutPipelineId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.Property<string>("ShoutoutTemplate")
                         .HasMaxLength(450)
                         .HasColumnType("TEXT");
@@ -5771,6 +5775,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.PrimitiveCollection<string>("Tags")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("Title")
                         .HasMaxLength(255)

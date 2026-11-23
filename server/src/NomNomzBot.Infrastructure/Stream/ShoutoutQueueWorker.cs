@@ -204,7 +204,9 @@ public sealed class ShoutoutQueueWorker : BackgroundService
                         item.BroadcasterId,
                         item.Target.Id,
                         item.EnqueuedAt
-                    )
+                    ),
+                    Response: item.Response,
+                    ResponseVariables: item.ResponseVariables
                 ),
                 cancellationToken
             );

@@ -65827,7 +65827,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "The channel's custom shoutout announcement template (the `shoutout` pipeline action posts this,\r\nresolved via the normal template-variable engine, alongside every native Twitch shoutout). Null/empty\r\nmeans the built-in default is used.",
+        "summary": "The channel's custom shoutout announcement template (the `shoutout` pipeline action posts this,\r\nresolved via the normal template-variable engine, alongside every native Twitch shoutout) and the target\r\nit runs instead, if one is set. Null/empty means the built-in default is used.",
         "parameters": [
           {
             "name": "channelId",
@@ -138176,8 +138176,19 @@
               "null",
               "string"
             ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
-        }
+        },
+        "description": "The shoutout response: the announcement text and, optionally, the one target (pipeline, action or\r\ncommand) that runs instead of posting it. A request without Target leaves the stored\r\ntarget as it is, so older clients keep working."
       },
       "Shuffle": {
         "required": [

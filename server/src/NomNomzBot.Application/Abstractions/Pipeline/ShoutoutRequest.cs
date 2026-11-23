@@ -10,15 +10,21 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
-/// <summary>One complete shoutout run: native Helix, resolved announcement, and optional TTS.</summary>
+/// <summary>
+/// One complete shoutout run: native Helix, then either the resolved announcement with optional TTS, or the
+/// <paramref name="Response"/> the channel chose to run instead of posting text.
+/// </summary>
 public sealed record ShoutoutRequest(
     Guid BroadcasterId,
     TwitchUser Target,
     string Announcement,
     bool Speak,
     bool SkipNative = false,
-    string? DeliveryKey = null
+    string? DeliveryKey = null,
+    BindingTarget? Response = null,
+    IReadOnlyDictionary<string, string>? ResponseVariables = null
 );

@@ -5477,6 +5477,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(10);
 
+                    b.Property<Guid?>("ShoutoutPipelineId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ShoutoutTemplate")
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
@@ -5505,6 +5508,21 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
                         .HasDefaultValueSql("'[]'::jsonb");
+
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("Title")
                         .HasMaxLength(255)

@@ -11,12 +11,14 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Identity.Entities;
 
-public class Channel : SoftDeletableEntity
+public class Channel : SoftDeletableEntity, IBindingTargetHolder
 {
     // Surrogate UUIDv7 PK (schema §1.1, A.2) = the tenant id used in every BroadcasterId + RLS.
     // Generated app-side; never DB-default; never sent to Twitch.
@@ -71,6 +73,28 @@ public class Channel : SoftDeletableEntity
     [MaxLength(450)]
     [TemplatedUserContent]
     public string? ShoutoutTemplate { get; set; }
+
+    /// <summary>The pipeline a shoutout runs instead of posting <see cref="ShoutoutTemplate"/> (the target kind pipeline).</summary>
+    public Guid? ShoutoutPipelineId { get; set; }
+
+    /// <summary>What a shoutout from this channel runs instead of its text. Existing rows read as the pipeline kind with no pipeline, so they keep posting their text.</summary>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => ShoutoutPipelineId;
+        set => ShoutoutPipelineId = value;
+    }
 
     public DateTime? LastShoutout { get; set; }
 

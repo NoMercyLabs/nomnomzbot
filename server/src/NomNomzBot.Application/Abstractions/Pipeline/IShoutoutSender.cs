@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
@@ -37,6 +38,12 @@ public interface IShoutoutSender
 
 /// <summary>
 /// The announcement template a shoutout picked, or <see langword="null"/> when no custom template is set, plus
-/// the shouting channel's personality tone for composing the default line.
+/// the shouting channel's personality tone for composing the default line. <paramref name="Response"/> is the
+/// target the channel runs instead of posting text; it is set only when no step override or personal note
+/// picked a template.
 /// </summary>
-public sealed record ShoutoutTemplateSelection(string? Template, string Personality);
+public sealed record ShoutoutTemplateSelection(
+    string? Template,
+    string Personality,
+    BindingTarget? Response = null
+);
