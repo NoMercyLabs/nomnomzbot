@@ -80,10 +80,26 @@ const recaps = [
   recap('s0', '2026-10-02', 'Longest', undefined, 86_400),
 ];
 
+// The channel's installed widgets; the recap overlay is the one that listens for raid_recap.show.
+const recapWidget = (settings: Record<string, unknown>) => ({
+  id: 'w-recap',
+  name: 'Stream recap',
+  framework: 'vue',
+  source: 'gallery',
+  isEnabled: true,
+  eventSubscriptions: ['raid_recap.show'],
+  settings,
+}) as const satisfies Record<string, unknown>;
+
+let widgets: Record<string, unknown>[] = [];
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (_path: string, options?: Options) => {
+    GET: async (path: string, options?: Options) => {
+      if (path.endsWith('/widgets'))
+        return { data: { data: widgets, hasMore: false }, response: { ok: true, status: 200 } };
+
       queries.push(options?.params?.query);
 
       return {
@@ -135,6 +151,7 @@ beforeEach(() => {
   queries.length = 0;
   extra.length = 0;
   saved.length = 0;
+  widgets = [recapWidget({})];
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -345,7 +362,7 @@ describe('the Recaps tab', () => {
     expect(frame.style.height).toBe('1440px');
     expect(frame.querySelector('.recap')).not.toBeNull();
     expect(frame.querySelector('.recap')?.getAttribute('data-layout')).toBe('credits');
-    expect(frame.querySelector('.recap')?.getAttribute('data-motion')).toBe('still');
+    expect(frame.querySelector('.recap')?.getAttribute('data-motion')).toBe('fit');
     expect(frame.querySelector('header.top .live')?.textContent).toContain('Time live');
     expect(frame.querySelectorAll('.roll .track')).toHaveLength(1);
     expect(frame.querySelector('[data-block="streamer"]')).toBeNull();
@@ -401,5 +418,120 @@ describe('the Recaps tab', () => {
     await flushPromises();
 
     expect(pngSize(saved[1]!)).toEqual({ width: 1920, height: 1080 });
+  });
+});
+
+// A long stream: far more names than a 1080 frame holds at the credits type size.
+const longStats = () => {
+  const base = recap('s-long', '2026-10-20', 'Marathon');
+  const names = (prefix: string, count: number) =>
+    Array.from({ length: count }, (_, i) => ({ name: `${prefix}${i + 1}`, count: 100 - i }));
+
+  return {
+    ...base,
+    stats: {
+      ...base.stats,
+      subs: { total: 14 },
+      gifters: names('gifter', 8),
+      selfSubs: ['selfsub1', 'selfsub2'],
+      topChatters: names('chatter', 40),
+      redemptions: { total: 31, top: names('reward', 10) },
+      bits: { total: 500, top: names('cheerer', 3) },
+    },
+  } as const satisfies Record<string, unknown>;
+};
+
+async function openLong(): Promise<void> {
+  extra.push(longStats());
+  await open('/?sort=started&dir=desc');
+
+  const index = titles().indexOf('Marathon');
+
+  document.body.querySelectorAll<HTMLButtonElement>('[data-recap-open]')[index]!.click();
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
+}
+
+describe('the recap dialog follows the channel recap overlay', () => {
+  it('draws the still recap with the theme, the layout and the toggles of the installed recap overlay, every section whole', async () => {
+    widgets = [
+      recapWidget({
+        overlayTheme: 'ink',
+        layout: 'credits',
+        accentColor: '#ff0066',
+        showRedemptions: false,
+      }),
+    ];
+
+    // jsdom has no layout: the credits column is 3000 px tall at the 1080 frame.
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('credits')
+        ? 3000
+        : 0;
+    });
+
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('recap')
+        ? 1080
+        : 0;
+    });
+
+    await openLong();
+
+    const frame = document.body.querySelector<HTMLElement>('[data-recap-frame]')!;
+    const root = frame.querySelector<HTMLElement>('.recap')!;
+    const sections = [...frame.querySelectorAll('.credit')].map((section) => section.getAttribute('data-section'));
+    const chatters = frame.querySelectorAll('[data-section="chatters"] .entry');
+
+    expect(frame.getAttribute('data-nnz-theme')).toBe('ink');
+    expect(frame.style.getPropertyValue('--nnz-accent')).toBe('#ff0066');
+    expect(root.getAttribute('data-layout')).toBe('credits');
+    expect(root.getAttribute('data-motion')).toBe('fit');
+    expect(sections).toEqual(['chatters', 'subs', 'bits']);
+    expect(chatters).toHaveLength(40);
+    expect(frame.textContent).toContain('chatter40');
+    expect(frame.textContent).not.toContain('reward1');
+    expect(Number.parseFloat(root.style.getPropertyValue('--fit'))).toBeCloseTo((1080 - 128) / 3000, 3);
+  });
+
+  it('draws the grid layout when the channel chose it', async () => {
+    widgets = [recapWidget({ layout: 'grid', overlayTheme: 'print' })];
+    await openLong();
+
+    const frame = document.body.querySelector<HTMLElement>('[data-recap-frame]')!;
+
+    expect(frame.querySelector('.recap')?.getAttribute('data-layout')).toBe('grid');
+    expect(frame.getAttribute('data-nnz-theme')).toBe('print');
+  });
+
+  it('falls back to the first theme and the theme accent for an unknown theme and a legacy accent', async () => {
+    widgets = [recapWidget({ overlayTheme: 'nope', accentColor: '#9146ff' })];
+    await openLong();
+
+    const frame = document.body.querySelector<HTMLElement>('[data-recap-frame]')!;
+
+    expect(frame.getAttribute('data-nnz-theme')).toBe('sticker');
+    expect(frame.style.getPropertyValue('--nnz-accent')).toBe('');
+  });
+
+  it('with no recap overlay installed shows a details modal with every recap section and its values', async () => {
+    widgets = [];
+    await openLong();
+
+    const details = document.body.querySelector('[data-recap-details]')!;
+    const keys = [...details.querySelectorAll('[data-recap-section]')].map((section) => section.getAttribute('data-recap-section'));
+
+    expect(document.body.querySelector('[data-recap-frame]')).toBeNull();
+    expect(document.body.querySelector('[data-recap-save]')).toBeNull();
+    expect(keys).toEqual(['stream', 'subs', 'followers', 'raids', 'chatters', 'songs', 'bits', 'redemptions', 'commands']);
+    expect(details.querySelectorAll('[data-recap-section="chatters"] [data-recap-entry]')).toHaveLength(40);
+    expect(details.querySelector('[data-recap-section="chatters"]')?.textContent).toContain('chatter40');
+    expect(details.querySelector('[data-recap-section="redemptions"]')?.textContent).toContain('reward10');
+    expect(details.querySelector('[data-recap-section="subs"]')?.textContent).toContain('gifter8');
+    expect(details.querySelector('[data-recap-section="subs"]')?.textContent).toContain('selfsub2');
+    expect(details.querySelector('[data-recap-section="stream"]')?.textContent).toContain('87');
+    expect(details.querySelector('[data-recap-section="raids"]')?.textContent).toContain('None');
+    expect(document.body.textContent).toContain('No recap overlay is installed');
   });
 });

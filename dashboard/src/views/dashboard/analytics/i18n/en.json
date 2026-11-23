@@ -100,6 +100,27 @@
         "page": "Page {current} of {pages}",
         "save": "Save as PNG",
         "failed": "The PNG could not be made. Try again.",
+        "close": "Close",
+        "details": {
+          "noOverlay": "No recap overlay is installed for this channel, so here are the details of this stream. Install the recap overlay to get a picture you can save.",
+          "none": "None",
+          "peak": "Peak viewers",
+          "messages": "Chat messages",
+          "chatters": "Chatters",
+          "gifted": "Gifted",
+          "subscribed": "Subscribed on Twitch",
+          "sections": {
+            "stream": "Time live",
+            "subs": "Twitch subscriptions",
+            "followers": "New followers",
+            "raids": "Raids in",
+            "chatters": "Top chatters",
+            "songs": "Song requests",
+            "bits": "Bits",
+            "redemptions": "Redemptions",
+            "commands": "Top commands"
+          }
+        },
         "size": "{width} x {height}",
         "sizeAssumed": "{width} x {height} (assumed, this recap stored no stream size)"
       },

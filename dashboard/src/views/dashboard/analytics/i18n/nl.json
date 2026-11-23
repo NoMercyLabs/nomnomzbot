@@ -100,6 +100,27 @@
         "page": "Pagina {current} van {pages}",
         "save": "Opslaan als PNG",
         "failed": "De PNG kon niet worden gemaakt. Probeer het opnieuw.",
+        "close": "Sluiten",
+        "details": {
+          "noOverlay": "Dit kanaal heeft geen terugblik-overlay geïnstalleerd, dus hier staan de details van deze stream. Installeer de terugblik-overlay om een plaatje te krijgen dat je kunt opslaan.",
+          "none": "Geen",
+          "peak": "Piek kijkers",
+          "messages": "Chatberichten",
+          "chatters": "Chatters",
+          "gifted": "Cadeau gedaan",
+          "subscribed": "Geabonneerd op Twitch",
+          "sections": {
+            "stream": "Tijd live",
+            "subs": "Twitch-abonnementen",
+            "followers": "Nieuwe volgers",
+            "raids": "Raids binnen",
+            "chatters": "Top chatters",
+            "songs": "Nummerverzoeken",
+            "bits": "Bits",
+            "redemptions": "Beloningen",
+            "commands": "Top commando's"
+          }
+        },
         "size": "{width} x {height}",
         "sizeAssumed": "{width} x {height} (aangenomen, deze terugblik bewaarde geen streamformaat)"
       },

@@ -11,6 +11,8 @@
 
 import { toPng } from 'html-to-image';
 
+import type { WidgetSettings } from '@/api/widgets';
+
 export type RecapSize = { width: number; height: number };
 
 export type RecapResolution = RecapSize & { assumed: boolean };
@@ -35,6 +37,28 @@ export function recapResolution(recap: {
         assumed: false,
       }
     : { ...FALLBACK, assumed: true };
+}
+
+// The looks of /overlay/theme.css; the first is the default. An unknown theme is the default.
+const THEMES = ['sticker', 'ink', 'print', 'classic'] as const;
+
+// Accents saved before the themes existed mean "the theme's own accent" (the overlay SDK treats them the same way).
+const LEGACY_ACCENTS = ['#9146ff', '#f4b942'] as const;
+
+export type RecapLook = { theme: (typeof THEMES)[number]; accent: string };
+
+// The theme and the accent the channel's recap overlay would draw with, read from its saved settings.
+export function recapLook(settings: WidgetSettings) {
+  const wanted = settings.overlayTheme;
+  const theme = THEMES.find((known) => known === wanted) ?? THEMES[0];
+  const chosen = typeof settings.accentColor === 'string'
+    ? settings.accentColor.trim().toLowerCase()
+    : '';
+  const accent = LEGACY_ACCENTS.some((legacy) => legacy === chosen)
+    ? ''
+    : chosen;
+
+  return { theme, accent } as const satisfies RecapLook;
 }
 
 export function pngSize(dataUrl: string) {

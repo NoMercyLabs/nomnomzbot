@@ -18,17 +18,20 @@ import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
 import ArrowUp from '~icons/nnz/arrow-up';
 
 import { RECAP_PAGE_SIZE, useStreamRecaps, withChannel, type StreamRecap, type StreamRecapPage } from '@/api/streamRecaps';
+import { useWidgets } from '@/api/widgets';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTableSort } from '@/composables/useTableSort';
 import { useTime } from '@/composables/useTime';
 
+import { overlayKind } from '../overlays/components/overlayKind';
+import RecapDetails from './RecapDetails.vue';
 import RecapPreview from './RecapPreview.vue';
 import { exportRecapPng, recapResolution } from './recapExport';
 
@@ -115,6 +118,12 @@ const saving = ref(false);
 const failed = ref(false);
 
 const resolution = computed(() => recapResolution(opened.value ?? {}));
+
+// The channel's own recap overlay: the widget that listens for the recap event. Its settings dress the preview.
+const widgets = useWidgets(channelId);
+const recapWidget = computed(() =>
+  (widgets.data.value ?? []).find((widget) =>
+    overlayKind(widget.eventSubscriptions).key === 'raid'));
 
 function started(recap: StreamRecap): string {
   return time.weekdayDate(recap.fromAt);
@@ -242,10 +251,22 @@ async function save(): Promise<void> {
             {{ t(`${page}.${resolution.assumed ? 'sizeAssumed' : 'size'}`, { width: resolution.width, height: resolution.height }) }}
           </DialogDescription>
         </DialogHeader>
-        <RecapPreview v-if="opened" ref="preview" :recap="opened" :size="resolution" />
+        <RecapPreview v-if="opened && recapWidget"
+                      ref="preview"
+                      :recap="opened"
+                      :size="resolution"
+                      :settings="recapWidget.settings"
+        />
+        <template v-else-if="opened">
+          <p class="text-sm text-muted-foreground">{{ t(`${page}.details.noOverlay`) }}</p>
+          <RecapDetails :recap="opened" />
+        </template>
         <InlineNotice v-if="failed" tone="error" compact>{{ t(`${page}.failed`) }}</InlineNotice>
         <DialogFooter>
-          <Button :disabled="saving" data-recap-save @click="save">{{ t(`${page}.save`) }}</Button>
+          <Button v-if="recapWidget" :disabled="saving" data-recap-save @click="save">{{ t(`${page}.save`) }}</Button>
+          <DialogClose v-else as-child>
+            <Button variant="outline">{{ t(`${page}.close`) }}</Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

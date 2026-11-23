@@ -81,6 +81,7 @@ const cfg = reactive({
   timeZone: '',
   rollSeconds: 40,
   roll: true,
+  fit: false,
   showSubs: true,
   showRaids: true,
   showChatters: true,
@@ -108,6 +109,7 @@ function applySettings(s: Record<string, unknown>): void {
   if (LAYOUTS.some((layout) => layout === s.layout)) cfg.layout = s.layout as Layout;
   if (typeof s.hueByDay === 'boolean') cfg.hueByDay = s.hueByDay;
   if (typeof s.roll === 'boolean') cfg.roll = s.roll;
+  if (typeof s.fit === 'boolean') cfg.fit = s.fit;
   if (typeof s.accentColor === 'string') cfg.accentColor = s.accentColor;
   if (typeof s.timeZone === 'string') cfg.timeZone = knownZone(s.timeZone);
   if (typeof s.rollSeconds === 'number' && isFinite(s.rollSeconds)) {
@@ -220,6 +222,7 @@ const baseHue = computed<number>(() => {
 const rootStyle = computed<Record<string, string>>(() => {
   const style: Record<string, string> = { '--base': `${baseHue.value}deg` };
   if (cfg.accentColor) style['--nnz-accent'] = cfg.accentColor;
+  if (motion.value === 'fit') style['--fit'] = String(fitScale.value);
   return style;
 });
 
@@ -333,8 +336,10 @@ const hype = computed<string>(() => (recap.value && cfg.showSubs ? hypeLine(reca
 const liveText = computed<string>(() => `${label('kpi.duration')} ${formatDuration(recap.value?.duration)}`);
 
 // The roll: `roll` moves the column, `still` holds the first screenful (a still image), `reduced` follows the viewer's
-// prefers-reduced-motion and shows the sections as a plain list that scrolls by hand.
-type Motion = 'roll' | 'still' | 'reduced';
+// prefers-reduced-motion and shows the sections as a plain list that scrolls by hand. `fit` is a host-only setting (the
+// dashboard preview and its PNG set it, the overlay never does): the whole credits column as one still, scaled down to
+// fit the frame, so no section is cut off.
+type Motion = 'roll' | 'still' | 'reduced' | 'fit';
 
 const reducedMotion = ref(false);
 let motionQuery: MediaQueryList | undefined;
@@ -344,6 +349,7 @@ function syncMotion(): void {
 }
 
 const motion = computed<Motion>(() => {
+  if (cfg.fit && cfg.layout === 'credits') return 'fit';
   if (reducedMotion.value) return 'reduced';
 
   return cfg.roll ? 'roll' : 'still';
@@ -357,6 +363,19 @@ const rollStyle = computed<Record<string, string>>(() => {
   if (motion.value === 'roll') style['--roll-seconds'] = `${cfg.rollSeconds}s`;
   return style;
 });
+
+// The fit scale: the credits column at its natural height, divided into the room the frame leaves inside its page padding.
+const FALLBACK_PAGE_PAD = 64;
+const fitScale = ref(1);
+
+function measureFit(): void {
+  const frame = root.value;
+  const column = frame?.querySelector<HTMLElement>('.credits');
+  if (!frame || !column || motion.value !== 'fit') return;
+  const pad = Number.parseFloat(getComputedStyle(frame).getPropertyValue('--page-pad')) || FALLBACK_PAGE_PAD;
+  const room = frame.clientHeight - 2 * pad;
+  fitScale.value = room > 0 && column.offsetHeight > room ? room / column.offsetHeight : 1;
+}
 
 // ── Cards (grid layout): Stoney's own look, kept as it was ───────────────────────────────────────────────────────
 
@@ -456,6 +475,8 @@ async function refit(): Promise<void> {
   shown.value = {};
   await nextTick();
   measure();
+  measureFit();
+  void document.fonts?.ready.then(measureFit);
 }
 
 watch(recap, refit);
@@ -641,6 +662,11 @@ onUnmounted(() => {
 .recap[data-motion='roll'] .roll { animation: roll var(--roll-seconds) linear infinite; will-change: transform; }
 .recap[data-motion='still'] .stage { mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%); } /* theme-exempt: a fade mask, not a visible color */
 .recap[data-motion='reduced'] .stage { overflow-y: auto; mask-image: none; scrollbar-width: none; }
+/* Fit (the dashboard preview and its PNG): the column keeps its natural height and is scaled down into the frame. */
+.recap[data-motion='fit'] .credits { bottom: auto; display: block; transform: scale(var(--fit, 1)); transform-origin: top center; }
+.recap[data-motion='fit'] .top { width: fit-content; margin: 0 auto 32px; }
+.recap[data-motion='fit'] .stage { overflow: visible; container-type: normal; mask-image: none; }
+.recap[data-motion='fit'] .track { min-height: 0; }
 .stage::-webkit-scrollbar { display: none; }
 @keyframes roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
 

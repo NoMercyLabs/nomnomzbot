@@ -12,21 +12,28 @@
 // One kept recap drawn by the real raid_recap widget (the same file the overlay serves), not a copy. The widget
 // talks to the overlay host's global `NomNomz`; this page is that host for one recap. The widget draws on a fixed
 // frame of the stream's output size, and the frame is scaled down to fit the dialog; the export reads the unscaled frame.
+// The widget gets the channel's own recap overlay settings (layout, toggles, labels, colors) and the overlay theme
+// goes on the frame; `fit` makes the credits layout one still that holds every section.
 import { useElementSize } from '@vueuse/core';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import type { StreamRecap } from '@/api/streamRecaps';
+import type { WidgetSettings } from '@/api/widgets';
 
 import RaidRecap from '../../../../../server/src/NomNomzBot.Infrastructure/Content/Widgets/Assets/raid_recap.vue';
-import type { RecapSize } from './recapExport';
+import { recapLook, type RecapSize } from './recapExport';
 
-const props = defineProps<{ recap: StreamRecap; size: RecapSize }>();
+const props = defineProps<{
+  recap: StreamRecap;
+  size: RecapSize;
+  settings: WidgetSettings;
+}>();
 
 type Handler = (data: { stream: { id: string } }) => void;
 
 // The part of the overlay host's `NomNomz` this widget uses.
 type Host = {
-  onSettings: (callback: (settings: { holdSeconds: number; roll: boolean }) => void) => void;
+  onSettings: (callback: (settings: WidgetSettings) => void) => void;
   on: (type: string, callback: Handler) => void;
   off: (type: string) => void;
   data: { streamStats: () => Promise<StreamRecap['stats']> };
@@ -38,9 +45,37 @@ const previous = scope.NomNomz;
 // The widget hides itself after its hold; a saved recap stays up for as long as the page is open.
 const HOLD_SECONDS = 86_400;
 
-// A preview and its PNG are a still: the credits layout holds the header and the top of the list instead of rolling.
+// The theme stylesheet the overlay serves; the widget uses only its --nnz-* tokens and .nnz-* parts.
+const THEME_LINK = 'data-recap-theme';
+
+function linkTheme(): void {
+  if (document.head.querySelector(`link[${THEME_LINK}]`)) return;
+
+  const link = document.createElement('link');
+
+  link.rel = 'stylesheet';
+  link.href = '/overlay/theme.css';
+  link.setAttribute(THEME_LINK, '');
+  document.head.append(link);
+}
+
+linkTheme();
+
+const look = computed(() => recapLook(props.settings));
+const lookStyle = computed(() =>
+  look.value.accent
+    ? { '--nnz-accent': look.value.accent }
+    : {});
+
+// A preview and its PNG are a still: the credits layout is scaled to hold every section instead of rolling.
 scope.NomNomz = {
-  onSettings: (callback) => callback({ holdSeconds: HOLD_SECONDS, roll: false }),
+  onSettings: (callback) =>
+    callback({
+      ...props.settings,
+      holdSeconds: HOLD_SECONDS,
+      roll: false,
+      fit: true,
+    }),
   on: (type, callback) => {
     handlers[type] = callback;
   },
@@ -73,7 +108,8 @@ defineExpose({ frame });
       ref="frame"
       data-recap-frame
       class="relative origin-top-left overflow-hidden bg-black"
-      :style="{ width: `${size.width}px`, height: `${size.height}px`, transform: `scale(${scale})`, contain: 'layout paint' }"
+      :data-nnz-theme="look.theme"
+      :style="{ ...lookStyle, width: `${size.width}px`, height: `${size.height}px`, transform: `scale(${scale})`, contain: 'layout paint' }"
     >
       <RaidRecap />
     </div>
