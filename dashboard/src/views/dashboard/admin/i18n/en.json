@@ -138,6 +138,7 @@
           "stored": "Stored status: {status}",
           "missing": "Missing: {scopes}",
           "granted": "Granted: {scopes}",
+          "grantedCount": "{count} granted scopes",
           "failures": "{count} failures in a row"
         },
         "tts": {

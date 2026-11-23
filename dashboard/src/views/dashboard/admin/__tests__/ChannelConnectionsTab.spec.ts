@@ -35,6 +35,7 @@ const calls: Call[] = [];
 let missing: boolean = false;
 let empty: boolean = false;
 let undecryptable: boolean = false;
+let broad: boolean = false;
 
 const detail = {
   id: 't1',
@@ -142,6 +143,22 @@ vi.mock('@/api/client', () => {
     if (undecryptable)
       return [garbled];
 
+    if (broad)
+      return [
+        {
+          ...healthy,
+          grantedScopes: [
+            'bits:read',
+            'channel:bot',
+            'channel:manage:raids',
+            'channel:read:ads',
+            'clips:edit',
+            'moderation:read',
+            'moderator:read:followers',
+          ],
+        },
+      ];
+
     return [healthy, reauth, lacking];
   };
 
@@ -203,6 +220,7 @@ beforeEach(() => {
   missing = false;
   empty = false;
   undecryptable = false;
+  broad = false;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -348,6 +366,29 @@ describe('Connections tab rows', () => {
     const marked = document.body.querySelectorAll('[data-connection-row] [data-slot="status-badge"]');
 
     expect(marked).toHaveLength(2);
+  });
+
+  it('folds a long granted list behind its count and shows the scopes after a press', async () => {
+    broad = true;
+    await open('/app/admin/channels/t1/connections');
+
+    const row = rows()[0]!;
+    const toggle = row.querySelector<HTMLElement>('[data-scopes-toggle]')!;
+
+    expect(toggle.textContent).toContain('7 granted scopes');
+    expect(row.textContent).not.toContain('moderator:read:followers');
+
+    toggle.click();
+    await settle();
+
+    expect(row.textContent).toContain('moderator:read:followers');
+    expect(row.textContent).toContain('bits:read');
+  });
+
+  it('keeps a short granted list in plain sight with no fold', async () => {
+    await open('/app/admin/channels/t1/connections');
+
+    expect(rows()[0]!.querySelector('[data-scopes-toggle]')).toBeNull();
   });
 });
 

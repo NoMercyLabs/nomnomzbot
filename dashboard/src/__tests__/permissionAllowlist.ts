@@ -33,6 +33,7 @@ export const permissionAllowlist = [
       'admin/components/AuditFilterPicker.vue': 2,
       'admin/components/AuditFilters.vue': 1,
       'admin/components/BillingInvitesPanel.vue': 1,
+      'admin/components/ChannelConnectionsTable.vue': 1,
       'admin/components/ChannelConsoleHeader.vue': 1,
       'admin/components/ChannelRunsTable.vue': 1,
       'admin/components/PlatformDefaultPreview.vue': 2,

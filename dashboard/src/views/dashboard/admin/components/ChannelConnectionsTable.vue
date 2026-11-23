@@ -15,10 +15,13 @@
 import { useI18n } from 'vue-i18n';
 
 import AlertTriangle from '~icons/nnz/alert-triangle';
+import ChevronDown from '~icons/nnz/chevron-down';
 
 import type { ChannelConnection } from '@/api/adminDiagnostics';
 import DateTime from '@/components/layout/DateTime.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Table,
   TableBody,
@@ -31,6 +34,9 @@ import {
 defineProps<{ connections: readonly ChannelConnection[] }>();
 
 const { t, te } = useI18n();
+
+// A granted list longer than this folds behind its count, so one broad sign-in does not fill the screen.
+const FOLD_ABOVE = 6;
 
 type ConnectionState = { key: string; tone: StatusTone | null };
 
@@ -116,11 +122,25 @@ function kindText(kind: string): string {
             {{ t('dashboard.admin.console.connections.stored', { status: connection.status }) }}
           </div>
         </TableCell>
-        <TableCell class="text-sm" :label="$t('dashboard.admin.console.connections.columns.scopes')">
+        <TableCell
+          class="w-full min-w-64 text-sm whitespace-normal"
+          :label="$t('dashboard.admin.console.connections.columns.scopes')"
+        >
           <div v-if="connection.missingScopes?.length" class="font-mono wrap-anywhere">
             {{ t('dashboard.admin.console.connections.missing', { scopes: connection.missingScopes.join(', ') }) }}
           </div>
-          <div v-if="connection.grantedScopes?.length" class="font-mono text-muted-foreground wrap-anywhere">
+          <Collapsible v-if="(connection.grantedScopes?.length ?? 0) > FOLD_ABOVE">
+            <CollapsibleTrigger as-child>
+              <Button variant="ghost" size="sm" class="-ml-2 text-muted-foreground" data-scopes-toggle>
+                {{ t('dashboard.admin.console.connections.grantedCount', { count: connection.grantedScopes!.length }) }}
+                <ChevronDown class="size-4 transition-transform in-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent class="font-mono text-muted-foreground wrap-anywhere">
+              {{ connection.grantedScopes!.join(', ') }}
+            </CollapsibleContent>
+          </Collapsible>
+          <div v-else-if="connection.grantedScopes?.length" class="font-mono text-muted-foreground wrap-anywhere">
             {{ t('dashboard.admin.console.connections.granted', { scopes: connection.grantedScopes.join(', ') }) }}
           </div>
           <span v-if="!connection.missingScopes?.length && !connection.grantedScopes?.length">
@@ -135,7 +155,10 @@ function kindText(kind: string): string {
           <DateTime v-if="connection.lastActivityAt" :value="connection.lastActivityAt" variant="dateTime" />
           <span v-else>{{ t('dashboard.admin.console.connections.none') }}</span>
         </TableCell>
-        <TableCell class="text-sm" :label="$t('dashboard.admin.console.connections.columns.problem')">
+        <TableCell
+          class="max-w-64 text-sm whitespace-normal"
+          :label="$t('dashboard.admin.console.connections.columns.problem')"
+        >
           <template v-if="connection.lastError || Number(connection.consecutiveFailures ?? 0) > 0">
             <div v-if="connection.lastError" class="wrap-anywhere">{{ connection.lastError }}</div>
             <DateTime v-if="connection.lastErrorAt" :value="connection.lastErrorAt" variant="dateTime" />

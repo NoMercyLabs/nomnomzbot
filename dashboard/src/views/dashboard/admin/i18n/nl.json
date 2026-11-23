@@ -138,6 +138,7 @@
           "stored": "Opgeslagen status: {status}",
           "missing": "Ontbreekt: {scopes}",
           "granted": "Toegekend: {scopes}",
+          "grantedCount": "{count} toegekende scopes",
           "failures": "{count} mislukkingen op rij"
         },
         "tts": {
