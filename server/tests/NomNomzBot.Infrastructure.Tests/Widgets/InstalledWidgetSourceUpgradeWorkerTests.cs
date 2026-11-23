@@ -191,6 +191,38 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
         await host.StopAsync();
     }
 
+    [Fact]
+    public async Task Leaves_a_widget_the_channel_deleted_on_its_old_revision()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        GatedBuild build = new();
+        IEventBus bus = Substitute.For<IEventBus>();
+        Guid channel = await SeedChannelAsync(database, "tok-a");
+        Guid item = await SeedGalleryItemAsync(database, "alerts", "Alerts");
+        Guid live = await InstallAsync(database, build, bus, channel, item);
+        Guid deleted = await InstallAsync(database, build, bus, channel, item);
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget row = await db.Widgets.IgnoreQueryFilters().SingleAsync(w => w.Id == deleted);
+            row.DeletedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+        await MoveCatalogueToV2Async(database, item);
+
+        using IHost host = NewHost(
+            database,
+            build,
+            bus,
+            new ListLogger<InstalledWidgetSourceUpgradeWorker>()
+        );
+        await host.StartAsync().WaitAsync(Patience);
+        await WorkerOf(host).ExecuteTask!.WaitAsync(Patience);
+
+        (await InstalledRevisionAsync(database, live)).Should().Be(2);
+        (await InstalledRevisionAsync(database, deleted)).Should().Be(1);
+        await host.StopAsync();
+    }
+
     private static InstalledWidgetSourceUpgradeWorker WorkerOf(IHost host) =>
         host
             .Services.GetServices<IHostedService>()

@@ -230,8 +230,16 @@ internal sealed class RecordingEventBus : IEventBus
     {
         if (ThrowOnPublish)
             throw new InvalidOperationException("publish failed (test double)");
-        Published.Add(@event);
+        lock (Published)
+            Published.Add(@event);
         return Task.CompletedTask;
+    }
+
+    /// <summary>A copy of what was published so far, safe to read while another thread still publishes.</summary>
+    public IReadOnlyList<IDomainEvent> Snapshot()
+    {
+        lock (Published)
+            return [.. Published];
     }
 
     public void PublishFireAndForget<TEvent>(TEvent @event)
@@ -239,7 +247,8 @@ internal sealed class RecordingEventBus : IEventBus
     {
         if (ThrowOnPublish)
             throw new InvalidOperationException("publish failed (test double)");
-        Published.Add(@event);
+        lock (Published)
+            Published.Add(@event);
     }
 }
 

@@ -245,7 +245,7 @@ public sealed class DirectObsTransportTests
         );
 
         ObsEventReceivedEvent received = await WaitForAsync(() =>
-            h.Bus.Published.OfType<ObsEventReceivedEvent>().FirstOrDefault()
+            h.Bus.Snapshot().OfType<ObsEventReceivedEvent>().FirstOrDefault()
         );
         received.BroadcasterId.Should().Be(Channel);
         received.ObsEventType.Should().Be("CurrentProgramSceneChanged");
@@ -294,7 +294,7 @@ public sealed class DirectObsTransportTests
         (await send.WaitAsync(TimeSpan.FromSeconds(20))).IsSuccess.Should().BeTrue();
 
         ObsConnectionEstablishedEvent published = await WaitForAsync(() =>
-            h.Bus.Published.OfType<ObsConnectionEstablishedEvent>().FirstOrDefault()
+            h.Bus.Snapshot().OfType<ObsConnectionEstablishedEvent>().FirstOrDefault()
         );
         published.BroadcasterId.Should().Be(Channel);
         published.Streaming.Should().BeTrue();
