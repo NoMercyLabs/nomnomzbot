@@ -438,6 +438,16 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         }
     }
 
+    /// <summary>
+    /// The command or action a command row runs directly, read through the one binding-target reader; null when
+    /// the row runs a pipeline, a template or a script.
+    /// </summary>
+    private static BindingTarget? DirectTargetOf(Domain.Commands.Entities.Command columns) =>
+        columns.GetBindingTarget()
+            is { Kind: BindingTargetKind.Command or BindingTargetKind.Action } direct
+            ? direct
+            : null;
+
     private async Task LoadCommandsAsync(ChannelContext ctx, CancellationToken ct)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
@@ -474,6 +484,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.CustomPrefix,
                 c.MatchMode,
                 c.MatchPattern,
+                c.TargetKind,
+                c.TargetCommandId,
+                c.TargetActionType,
+                c.TargetActionParamsJson,
             })
             .ToListAsync(ct);
 
@@ -551,6 +565,15 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     CustomPrefix = c.CustomPrefix,
                     MatchMode = c.MatchMode,
                     CompiledRegex = compiledRegex,
+                    Target = DirectTargetOf(
+                        new()
+                        {
+                            TargetKind = c.TargetKind,
+                            TargetCommandId = c.TargetCommandId,
+                            TargetActionType = c.TargetActionType,
+                            TargetActionParamsJson = c.TargetActionParamsJson,
+                        }
+                    ),
                 }
             );
         }

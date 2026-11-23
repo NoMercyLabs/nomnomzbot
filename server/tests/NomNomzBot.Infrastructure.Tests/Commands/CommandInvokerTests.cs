@@ -70,28 +70,30 @@ public sealed class CommandInvokerTests
         Guid? pipelineId = null,
         Guid? channel = null,
         bool enabled = true,
-        ReplyDelivery? delivery = null
+        ReplyDelivery? delivery = null,
+        BindingTarget? bound = null
     )
     {
         Guid id = Guid.NewGuid();
-        h.Db.Commands.Add(
-            new Command
-            {
-                Id = id,
-                BroadcasterId = channel ?? Channel,
-                Name = "hug",
-                NameNormalized = "hug",
-                Tier = tier,
-                TemplateResponses = responses?.ToList(),
-                SpeakWithTts = tts,
-                ReplyDelivery = delivery,
-                PipelineId = pipelineId,
-                IsEnabled = enabled,
-                CooldownSeconds = 60,
-                UserCooldownSeconds = 60,
-                MinPermissionLevel = 100,
-            }
-        );
+        Command command = new()
+        {
+            Id = id,
+            BroadcasterId = channel ?? Channel,
+            Name = "hug",
+            NameNormalized = "hug",
+            Tier = tier,
+            TemplateResponses = responses?.ToList(),
+            SpeakWithTts = tts,
+            ReplyDelivery = delivery,
+            PipelineId = pipelineId,
+            IsEnabled = enabled,
+            CooldownSeconds = 60,
+            UserCooldownSeconds = 60,
+            MinPermissionLevel = 100,
+        };
+        if (bound is not null)
+            command.SetBindingTarget(bound);
+        h.Db.Commands.Add(command);
         h.Db.SaveChanges();
         return id;
     }
@@ -750,5 +752,114 @@ public sealed class CommandInvokerTests
         await h
             .Chat.Received(2)
             .SendMessageAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Command_bound_to_an_action_runs_that_action_with_its_saved_params_and_no_pipeline()
+    {
+        Harness h = Build();
+        Dictionary<string, JsonElement> saved = new()
+        {
+            ["name"] = JsonSerializer.SerializeToElement("airhorn"),
+        };
+        Guid id = AddCommand(
+            h,
+            "pipeline",
+            bound: new BindingTarget(BindingTargetKind.Action, null, "play_sound", saved)
+        );
+        h.Actions.RunAsync(Arg.Any<OwnerActionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new WidgetActionOutcome(true, "played", null, new Dictionary<string, string>())
+                )
+            );
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, id.ToString()),
+            new InvocationContext("u-1", "Viewer One", "loud", "chat", "viewer")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(new InvocationOutcome(true, "played", null));
+        OwnerActionRequest sent = (OwnerActionRequest)
+            h.Actions.ReceivedCalls().Single().GetArguments()[0]!;
+        sent.BroadcasterId.Should().Be(Channel);
+        sent.ActionType.Should().Be("play_sound");
+        sent.Parameters!["name"].GetString().Should().Be("airhorn");
+        sent.Variables!["args"].Should().Be("loud");
+        sent.Variables["trigger.source"].Should().Be("chat");
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task Command_bound_to_another_command_runs_that_command_and_not_its_own_pipeline()
+    {
+        Harness h = Build();
+        Guid other = AddCommand(h, "template", ["hug {user}"]);
+        Guid id = AddCommand(
+            h,
+            "pipeline",
+            pipelineId: PipelineId,
+            bound: new BindingTarget(BindingTargetKind.Command, other.ToString())
+        );
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, id.ToString()),
+            new InvocationContext(null, null, "@kitte", "chat")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Output.Should().Be("resolved:hug {user}");
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "resolved:hug {user}", Arg.Any<CancellationToken>());
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+    }
+
+    [Fact]
+    public async Task A_chain_of_commands_that_returns_to_a_command_in_the_chain_fails_and_runs_nothing()
+    {
+        Harness h = Build();
+        Guid first = AddCommand(h, "pipeline");
+        Guid second = AddCommand(
+            h,
+            "pipeline",
+            bound: new BindingTarget(BindingTargetKind.Command, first.ToString())
+        );
+        Command firstRow = h.Db.Commands.Single(c => c.Id == first);
+        firstRow.SetBindingTarget(new BindingTarget(BindingTargetKind.Command, second.ToString()));
+        h.Db.SaveChanges();
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, first.ToString()),
+            new InvocationContext(null, null, "", "chat")
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+        await h.Actions.DidNotReceiveWithAnyArgs().RunAsync(default!);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task Command_with_only_a_pipeline_id_still_runs_its_pipeline_and_no_action()
+    {
+        Harness h = Build();
+        Guid id = AddCommand(h, "pipeline", pipelineId: PipelineId);
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, id.ToString()),
+            new InvocationContext(null, null, "", "chat")
+        );
+
+        result.Value.Succeeded.Should().BeTrue();
+        SentToEngine(h).PipelineId.Should().Be(PipelineId);
+        await h.Actions.DidNotReceiveWithAnyArgs().RunAsync(default!);
     }
 }

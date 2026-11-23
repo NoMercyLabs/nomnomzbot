@@ -509,6 +509,22 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 return;
             }
 
+            // A command bound straight to an action or to another command runs it through the one invoker, as
+            // the sender. A command with a pipeline has no direct target and keeps the path below.
+            if (command.Target is { } target)
+            {
+                await RunCommandTargetAsync(
+                    @event,
+                    ctx,
+                    command,
+                    target,
+                    args,
+                    level,
+                    cancellationToken
+                );
+                return;
+            }
+
             bool isPipelineBound = command.Tier is "pipeline" or "code";
 
             // A pipeline-bound command with no executable graph used to fall silently through to the template
@@ -1064,6 +1080,60 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             IScriptRunner runner = scope.ServiceProvider.GetRequiredService<IScriptRunner>();
             Result<ScriptRunResult> run = await runner.RunAsync(codeScriptId, invocation, ct);
             succeeded = run is { IsSuccess: true, Value.Outcome: ScriptExecutionOutcome.Success };
+        }
+
+        if (!succeeded)
+            await SendPipelineFailureNoticeAsync(@event, ctx, ct);
+
+        await PublishExecutedAsync(@event, command.Name, succeeded, ct);
+    }
+
+    /// <summary>
+    /// Runs the action or command a chat command is bound to directly. The invoker sends the reply itself; a run
+    /// that does not succeed gets the one failure notice.
+    /// </summary>
+    private async Task RunCommandTargetAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
+        CachedCommand command,
+        BindingTarget target,
+        string args,
+        EffectiveLevelLookup level,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, string> variables = await BuildInterpretedVariablesAsync(
+            @event,
+            args,
+            ct
+        );
+        variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
+
+        bool succeeded;
+        using (IServiceScope scope = _scopeFactory.CreateScope())
+        {
+            ICommandInvoker invoker = scope.ServiceProvider.GetRequiredService<ICommandInvoker>();
+            Result<InvocationOutcome> run = await invoker.InvokeAsync(
+                @event.BroadcasterId,
+                target,
+                new(
+                    @event.UserId,
+                    @event.UserDisplayName,
+                    args,
+                    "chat-command",
+                    Variables: variables
+                ),
+                ct
+            );
+            succeeded = run is { IsSuccess: true, Value.Succeeded: true };
+            if (!succeeded)
+                _logger.LogWarning(
+                    "Command !{Command} in {Channel} could not run its {Kind} target: {Error}",
+                    command.Name,
+                    @event.BroadcasterId,
+                    target.Kind,
+                    run.IsFailure ? run.ErrorMessage : run.Value.Error
+                );
         }
 
         if (!succeeded)

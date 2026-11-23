@@ -12,6 +12,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Billing;
+using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
@@ -23,7 +24,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// Schema: G.2 (commands-pipelines.md §1).
 /// </summary>
 [CountedResource("custom_commands", ResourceClass.NearFree)]
-public class Command : SoftDeletableEntity, ITenantScoped
+public class Command : SoftDeletableEntity, ITenantScoped, IBindingTargetHolder
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -74,6 +75,25 @@ public class Command : SoftDeletableEntity, ITenantScoped
 
     /// <summary>FK to a named <see cref="Pipeline"/> entity that this command executes.</summary>
     public Guid? PipelineId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetKind"/>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId;
+        set => PipelineId = value;
+    }
 
     [ForeignKey(nameof(PipelineId))]
     public virtual Pipeline? Pipeline { get; set; }

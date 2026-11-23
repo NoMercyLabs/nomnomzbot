@@ -48,6 +48,9 @@ public sealed record CommandDto(
 
     /// <summary>Where the reply goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
     public ReplyDelivery? ReplyDelivery { get; init; }
+
+    /// <summary>What the command runs when bound directly: another command, an action or a pipeline. Null when nothing is bound.</summary>
+    public BindingTarget? Target { get; init; }
 }
 
 /// <summary>Lightweight command info for list views — includes the response text and pipeline id so the edit
@@ -83,6 +86,9 @@ public sealed record CommandListItem(
 
     /// <summary>Where the reply goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
     public ReplyDelivery? ReplyDelivery { get; init; }
+
+    /// <summary>What the command runs when bound directly: another command, an action or a pipeline. Null when nothing is bound.</summary>
+    public BindingTarget? Target { get; init; }
 }
 
 /// <summary>Request to create a new command.</summary>
@@ -151,6 +157,12 @@ public sealed record CreateCommandDto
 
     /// <summary>Where the reply goes and whether the overlay line is HTML; omitted = the platform chat as plain text.</summary>
     public ReplyDelivery? ReplyDelivery { get; init; }
+
+    /// <summary>
+    /// What the command runs: another command (by id), a pipeline or an action. Wins over <see cref="PipelineId"/>
+    /// when both are sent. The command must exist in the channel.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }
 
 /// <summary>Request to update an existing command.</summary>
@@ -210,4 +222,11 @@ public sealed record UpdateCommandDto
 
     /// <summary>Where the reply goes and whether the overlay line is HTML; omitted leaves the current setting.</summary>
     public ReplyDelivery? ReplyDelivery { get; init; }
+
+    /// <summary>
+    /// The new target; absent leaves the binding unchanged. A pipeline target with no id clears the binding.
+    /// Wins over <see cref="PipelineId"/> when both are sent. A command target must exist in the channel and
+    /// cannot be the command itself.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }

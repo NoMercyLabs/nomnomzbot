@@ -369,7 +369,7 @@ public class CachedChatTrigger
     /// A command or action the trigger runs directly through the command invoker; null for a pipeline or
     /// template trigger (those keep <see cref="PipelineGraphJson"/> / <see cref="Response"/>).
     /// </summary>
-    public Commands.ValueObjects.BindingTarget? Target { get; init; }
+    public BindingTarget? Target { get; init; }
 
     public required int CooldownSeconds { get; init; }
     public required int MinPermissionLevel { get; init; }
@@ -431,6 +431,12 @@ public class CachedCommand
 
     /// <summary>The code script a <c>code</c>-tier command runs directly (no pipeline in between); null otherwise.</summary>
     public Guid? CodeScriptId { get; init; }
+
+    /// <summary>
+    /// A command or action this command runs directly through the command invoker; null for a template, pipeline
+    /// or code command (those keep their own path).
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 
     public string[] Aliases { get; init; } = [];
 

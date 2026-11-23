@@ -9,10 +9,14 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
@@ -519,5 +523,212 @@ public sealed class CommandServiceTests
 
         (await sut.GetAsync(Channel.ToString(), "first")).IsSuccess.Should().BeTrue();
         (await sut.GetAsync(Channel.ToString(), "second")).IsSuccess.Should().BeTrue();
+    }
+
+    private static BindingTarget SoundTarget() =>
+        new(
+            BindingTargetKind.Action,
+            ActionType: "play_sound",
+            Params: new Dictionary<string, JsonElement>
+            {
+                ["name"] = JsonSerializer.SerializeToElement("airhorn"),
+                ["volume"] = JsonSerializer.SerializeToElement(40),
+            }
+        );
+
+    private static void ShouldBeTheSoundTarget(BindingTarget? target)
+    {
+        target.Should().NotBeNull();
+        target.Kind.Should().Be(BindingTargetKind.Action);
+        target.ActionType.Should().Be("play_sound");
+        target.Id.Should().BeNull();
+        target.Params!["name"].GetString().Should().Be("airhorn");
+        target.Params["volume"].GetInt32().Should().Be(40);
+    }
+
+    [Fact]
+    public async Task Create_with_an_action_target_persists_it_and_returns_it_on_every_read()
+    {
+        (CommandService sut, RecordingEventBus _) = Build();
+
+        CommandDto created = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateCommandDto
+                {
+                    Name = "airhorn",
+                    Tier = "pipeline",
+                    Target = SoundTarget(),
+                }
+            )
+        ).Value;
+
+        ShouldBeTheSoundTarget(created.Target);
+        created.PipelineId.Should().BeNull();
+        ShouldBeTheSoundTarget((await sut.GetAsync(Channel.ToString(), "airhorn")).Value.Target);
+        CommandListItem listed = (
+            await sut.ListAsync(Channel.ToString(), new PaginationParams())
+        ).Value.Items.Single();
+        ShouldBeTheSoundTarget(listed.Target);
+    }
+
+    [Fact]
+    public async Task Create_with_a_command_target_persists_the_target_command_id()
+    {
+        (CommandService sut, RecordingEventBus _) = Build();
+        CommandDto hug = (await sut.CreateAsync(Channel.ToString(), Req("hug"))).Value;
+
+        CommandDto created = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateCommandDto
+                {
+                    Name = "cuddle",
+                    Tier = "pipeline",
+                    Target = new BindingTarget(BindingTargetKind.Command, hug.Id.ToString()),
+                }
+            )
+        ).Value;
+
+        created.Target.Should().NotBeNull();
+        created.Target!.Kind.Should().Be(BindingTargetKind.Command);
+        created.Target.Id.Should().Be(hug.Id.ToString());
+        created.Target.ActionType.Should().BeNull();
+        BindingTarget? read = (await sut.GetAsync(Channel.ToString(), "cuddle")).Value.Target;
+        read!.Kind.Should().Be(BindingTargetKind.Command);
+        read.Id.Should().Be(hug.Id.ToString());
+    }
+
+    [Fact]
+    public async Task Update_swaps_the_target_kind_and_leaves_no_trace_of_the_old_one()
+    {
+        (CommandService sut, RecordingEventBus _) = Build();
+        CommandDto hug = (await sut.CreateAsync(Channel.ToString(), Req("hug"))).Value;
+        await sut.CreateAsync(
+            Channel.ToString(),
+            new CreateCommandDto { Name = "bound", Tier = "pipeline" }
+        );
+
+        CommandDto toCommand = (
+            await sut.UpdateAsync(
+                Channel.ToString(),
+                "bound",
+                new UpdateCommandDto
+                {
+                    Target = new BindingTarget(BindingTargetKind.Command, hug.Id.ToString()),
+                }
+            )
+        ).Value;
+        toCommand.Target!.Kind.Should().Be(BindingTargetKind.Command);
+        toCommand.Target.Id.Should().Be(hug.Id.ToString());
+
+        CommandDto toAction = (
+            await sut.UpdateAsync(
+                Channel.ToString(),
+                "bound",
+                new UpdateCommandDto { Target = SoundTarget() }
+            )
+        ).Value;
+        ShouldBeTheSoundTarget(toAction.Target);
+        ShouldBeTheSoundTarget((await sut.GetAsync(Channel.ToString(), "bound")).Value.Target);
+
+        CommandDto untouched = (
+            await sut.UpdateAsync(
+                Channel.ToString(),
+                "bound",
+                new UpdateCommandDto { Description = "renamed nothing" }
+            )
+        ).Value;
+        ShouldBeTheSoundTarget(untouched.Target);
+    }
+
+    [Fact]
+    public async Task Update_that_targets_the_command_itself_is_refused_and_keeps_the_old_binding()
+    {
+        (CommandService sut, RecordingEventBus bus) = Build();
+        CommandDto self = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateCommandDto
+                {
+                    Name = "loop",
+                    Tier = "pipeline",
+                    Target = SoundTarget(),
+                }
+            )
+        ).Value;
+        bus.Published.Clear();
+
+        Result<CommandDto> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            "loop",
+            new UpdateCommandDto
+            {
+                Target = new BindingTarget(BindingTargetKind.Command, self.Id.ToString()),
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        bus.Published.Should().BeEmpty();
+        ShouldBeTheSoundTarget((await sut.GetAsync(Channel.ToString(), "loop")).Value.Target);
+    }
+
+    [Fact]
+    public async Task Create_with_a_target_command_that_does_not_exist_is_refused()
+    {
+        (CommandService sut, RecordingEventBus _) = Build();
+
+        Result<CommandDto> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new CreateCommandDto
+            {
+                Name = "ghost",
+                Tier = "pipeline",
+                Target = new BindingTarget(BindingTargetKind.Command, Guid.NewGuid().ToString()),
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await sut.GetAsync(Channel.ToString(), "ghost")).IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Deleting_a_command_another_command_runs_is_refused_and_lists_that_command()
+    {
+        CommandsTestDbContext db = NewDb();
+        CommandService sut = new(
+            db,
+            Substitute.For<IChannelRegistry>(),
+            new RecordingEventBus(),
+            Billing.TestQuota.Unlimited(),
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([new CommandChainBindingUsageSource(db)])
+        );
+        CommandDto hug = (await sut.CreateAsync(Channel.ToString(), Req("hug"))).Value;
+        await sut.CreateAsync(Channel.ToString(), Req("unrelated"));
+        CommandDto cuddle = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateCommandDto
+                {
+                    Name = "cuddle",
+                    Tier = "pipeline",
+                    Target = new BindingTarget(BindingTargetKind.Command, hug.Id.ToString()),
+                }
+            )
+        ).Value;
+
+        Result result = await sut.DeleteAsync(Channel.ToString(), "hug", "actor");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("COMMAND_IN_USE");
+        result
+            .ErrorData.Should()
+            .BeOfType<CommandInUse>()
+            .Which.Usages.Should()
+            .Equal(new BindingUsage("commands", cuddle.Id.ToString(), "cuddle"));
+        (await sut.GetAsync(Channel.ToString(), "hug")).IsSuccess.Should().BeTrue();
     }
 }

@@ -19,6 +19,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -147,6 +149,15 @@ public class CommandService : ICommandService
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<CommandDto>();
 
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcaster,
+            request.Target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<CommandDto>();
+
         Result codeScriptOk = await ValidateCodeScriptAsync(
             broadcaster,
             request.Tier,
@@ -192,6 +203,10 @@ public class CommandService : ICommandService
             SpeakWithTts = request.SpeakWithTts,
             ReplyDelivery = request.ReplyDelivery,
         };
+        BindingTargetBinder.ApplyTo(command, request.Target, command.PipelineId);
+        // A code command holds its script itself; it never also carries a pipeline or a target.
+        if (request.Tier == CodeTier)
+            command.SetBindingTarget(null);
 
         _db.Commands.Add(command);
         await _db.SaveChangesAsync(cancellationToken);
@@ -260,6 +275,21 @@ public class CommandService : ICommandService
             if (codeScriptOk.IsFailure)
                 return codeScriptOk.ToTyped<CommandDto>();
         }
+
+        if (
+            request.Target is { Kind: BindingTargetKind.Command } selfTarget
+            && selfTarget.Id == command.Id.ToString()
+        )
+            return Errors.ValidationFailed("A command cannot run itself.").ToTyped<CommandDto>();
+
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcaster,
+            request.Target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<CommandDto>();
 
         if (request.Name is not null)
         {
@@ -334,15 +364,18 @@ public class CommandService : ICommandService
             );
             if (pipelineOk.IsFailure)
                 return pipelineOk.ToTyped<CommandDto>();
+            // Setting a pipeline directly makes the row a pipeline row again; a Target in the same request wins below.
+            command.SetBindingTarget(null);
             command.PipelineId = request.PipelineId.Value;
         }
-        // The tier decides which reaction the row carries: a code command holds its script and no pipeline, any
-        // other tier lets go of the script.
+        BindingTargetBinder.ApplyTo(command, request.Target, command.PipelineId);
+        // The tier decides which reaction the row carries: a code command holds its script and no pipeline or
+        // target, any other tier lets go of the script.
         if (changesReaction)
         {
             command.CodeScriptId = mergedTier == CodeTier ? mergedScript : null;
             if (mergedTier == CodeTier)
-                command.PipelineId = null;
+                command.SetBindingTarget(null);
         }
         if (request.CooldownSeconds.HasValue)
             command.CooldownSeconds = request.CooldownSeconds.Value;
@@ -534,37 +567,14 @@ public class CommandService : ICommandService
         IQueryable<Command> query = _db.Commands.Where(c => c.BroadcasterId == broadcaster);
         int total = await query.CountAsync(cancellationToken);
 
-        List<CommandListItem> items = await query
+        // GetBindingTarget is not translatable to SQL, so the rows load first and map in memory.
+        List<Command> rows = await query
+            .AsNoTracking()
             .OrderBy(c => c.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(c => new CommandListItem(
-                c.Id,
-                c.Name,
-                c.Tier,
-                PermissionLevelNames.ToName(c.MinPermissionLevel),
-                c.IsEnabled,
-                c.PrefixMode,
-                c.CustomPrefix,
-                c.MatchMode,
-                c.MatchPattern,
-                c.CooldownSeconds,
-                c.UserCooldownSeconds,
-                c.Description,
-                c.Aliases,
-                c.UseCount,
-                c.CreatedAt,
-                c.TemplateResponse,
-                c.TemplateResponses,
-                c.PipelineId
-            )
-            {
-                PresetKey = c.PresetKey,
-                SpeakWithTts = c.SpeakWithTts,
-                CodeScriptId = c.CodeScriptId,
-                ReplyDelivery = c.ReplyDelivery,
-            })
             .ToListAsync(cancellationToken);
+        List<CommandListItem> items = rows.Select(ToListItem).ToList();
 
         return Result.Success(
             new PagedList<CommandListItem>(items, pagination.Page, pagination.PageSize, total)
@@ -758,6 +768,36 @@ public class CommandService : ICommandService
             SpeakWithTts = c.SpeakWithTts,
             CodeScriptId = c.CodeScriptId,
             ReplyDelivery = c.ReplyDelivery,
+            Target = c.GetBindingTarget(),
+        };
+
+    private static CommandListItem ToListItem(Command c) =>
+        new(
+            c.Id,
+            c.Name,
+            c.Tier,
+            PermissionLevelNames.ToName(c.MinPermissionLevel),
+            c.IsEnabled,
+            c.PrefixMode,
+            c.CustomPrefix,
+            c.MatchMode,
+            c.MatchPattern,
+            c.CooldownSeconds,
+            c.UserCooldownSeconds,
+            c.Description,
+            c.Aliases,
+            c.UseCount,
+            c.CreatedAt,
+            c.TemplateResponse,
+            c.TemplateResponses,
+            c.PipelineId
+        )
+        {
+            PresetKey = c.PresetKey,
+            SpeakWithTts = c.SpeakWithTts,
+            CodeScriptId = c.CodeScriptId,
+            ReplyDelivery = c.ReplyDelivery,
+            Target = c.GetBindingTarget(),
         };
 
     /// <summary>A code command needs a script of its own channel; every other tier has nothing to check.</summary>

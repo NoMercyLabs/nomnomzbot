@@ -79,6 +79,7 @@ public sealed class CommandInvoker(
                 broadcasterId,
                 target,
                 context,
+                [],
                 cancellationToken
             ),
             _ => Task.FromResult(
@@ -126,6 +127,7 @@ public sealed class CommandInvoker(
         Guid broadcasterId,
         BindingTarget target,
         InvocationContext context,
+        HashSet<Guid> visited,
         CancellationToken cancellationToken
     )
     {
@@ -147,6 +149,21 @@ public sealed class CommandInvoker(
             );
         if (command is null)
             return Errors.NotFound<InvocationOutcome>("Command", target.Id!);
+
+        // A command bound straight to an action or another command runs that, whatever its tier says. The chain
+        // remembers each command it passed, so a loop fails once instead of running forever.
+        if (command.GetBindingTarget() is { Kind: not BindingTargetKind.Pipeline } bound)
+        {
+            if (!visited.Add(command.Id))
+                return Result.Failure<InvocationOutcome>(
+                    $"The command '{command.Name}' runs itself through a chain of commands.",
+                    "VALIDATION_FAILED"
+                );
+
+            return bound.Kind == BindingTargetKind.Command
+                ? await RunCommandAsync(broadcasterId, bound, context, visited, cancellationToken)
+                : await RunActionAsync(broadcasterId, bound, context, cancellationToken);
+        }
 
         return command.Tier switch
         {
