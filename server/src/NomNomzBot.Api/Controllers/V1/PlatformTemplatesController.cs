@@ -82,9 +82,7 @@ public class PlatformTemplatesController(
     [HttpGet]
     [RequireAction("dashboard:read")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
-    [ProducesResponseType<StatusResponseDto<PaginatedResponse<PlatformTemplateDto>>>(
-        StatusCodes.Status200OK
-    )]
+    [ProducesResponseType<PaginatedResponse<PlatformTemplateDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
         string channelId,
         [FromQuery] string kind,

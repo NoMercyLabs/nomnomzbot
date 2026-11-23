@@ -82331,7 +82331,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfPaginatedResponseOfPlatformAudioAsset"
+                  "$ref": "#/components/schemas/PaginatedResponseOfPlatformAudioAsset"
                 }
               }
             }
@@ -82692,7 +82692,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfPaginatedResponseOfPlatformContentDefinition"
+                  "$ref": "#/components/schemas/PaginatedResponseOfPlatformContentDefinition"
                 }
               }
             }
@@ -84929,7 +84929,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfPaginatedResponseOfPlatformTemplate"
+                  "$ref": "#/components/schemas/PaginatedResponseOfPlatformTemplate"
                 }
               }
             }
@@ -117344,6 +117344,17 @@
                 "$ref": "#/components/schemas/ReplyDelivery"
               }
             ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What the command runs when bound directly: another command, an action or a pipeline. Null when nothing is bound.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
         },
         "description": "Full command detail for viewing/editing."
@@ -117489,6 +117500,17 @@
               {
                 "description": "Where the reply goes and whether the overlay line is HTML; null = the platform chat as plain text.",
                 "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What the command runs when bound directly: another command, an action or a pipeline. Null when nothing is bound.",
+                "$ref": "#/components/schemas/BindingTarget"
               }
             ]
           }
@@ -118351,6 +118373,17 @@
               {
                 "description": "Where the reply goes and whether the overlay line is HTML; omitted = the platform chat as plain text.",
                 "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What the command runs: another command (by id), a pipeline or an action. Wins over Guid? CreateCommandDto.PipelineId\r\nwhen both are sent. The command must exist in the channel.",
+                "$ref": "#/components/schemas/BindingTarget"
               }
             ]
           }
@@ -149600,117 +149633,6 @@
           }
         }
       },
-      "StatusResponseOfPaginatedResponseOfPlatformAudioAsset": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PaginatedResponseOfPlatformAudioAsset"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseOfPaginatedResponseOfPlatformContentDefinition": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PaginatedResponseOfPlatformContentDefinition"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseOfPaginatedResponseOfPlatformTemplate": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PaginatedResponseOfPlatformTemplate"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "StatusResponseOfPairingCode": {
         "type": "object",
         "properties": {
@@ -159450,6 +159372,17 @@
               {
                 "description": "Where the reply goes and whether the overlay line is HTML; omitted leaves the current setting.",
                 "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The new target; absent leaves the binding unchanged. A pipeline target with no id clears the binding.\r\nWins over Guid? UpdateCommandDto.PipelineId when both are sent. A command target must exist in the channel and\r\ncannot be the command itself.",
+                "$ref": "#/components/schemas/BindingTarget"
               }
             ]
           }

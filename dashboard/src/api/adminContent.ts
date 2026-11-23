@@ -59,7 +59,7 @@ export function useContentDefinitions(
       if (error !== undefined)
         throw problemError('content definitions', response.status, error);
 
-      return data?.data?.data ?? [];
+      return data?.data ?? [];
     },
   });
 }

@@ -68436,7 +68436,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfPaginatedResponseOfPlatformAudioAsset"];
+                        "application/json": components["schemas"]["PaginatedResponseOfPlatformAudioAsset"];
                     };
                 };
                 /** @description Bad Request */
@@ -68718,7 +68718,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfPaginatedResponseOfPlatformContentDefinition"];
+                        "application/json": components["schemas"]["PaginatedResponseOfPlatformContentDefinition"];
                     };
                 };
                 /** @description Bad Request */
@@ -70583,7 +70583,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfPaginatedResponseOfPlatformTemplate"];
+                        "application/json": components["schemas"]["PaginatedResponseOfPlatformTemplate"];
                     };
                 };
                 /** @description Bad Request */
@@ -94377,6 +94377,7 @@ export interface components {
              */
             codeScriptId?: null | string;
             replyDelivery?: null | components["schemas"]["ReplyDelivery"];
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /**
          * @description Lightweight command info for list views — includes the response text and pipeline id so the edit
@@ -94422,6 +94423,7 @@ export interface components {
              */
             codeScriptId?: null | string;
             replyDelivery?: null | components["schemas"]["ReplyDelivery"];
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /**
          * @description One fun-command preset exactly as a reset writes it back — every field a reset restores, so the dashboard
@@ -94683,6 +94685,7 @@ export interface components {
             isEnabled?: boolean;
             speakWithTts?: boolean;
             replyDelivery?: null | components["schemas"]["ReplyDelivery"];
+            target?: null | components["schemas"]["BindingTarget"];
         };
         CreateContentDefinitionRequest: {
             kind: string;
@@ -105439,45 +105442,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfPaginatedResponseOfPlatformAudioAsset: {
-            status?: string;
-            data?: null | components["schemas"]["PaginatedResponseOfPlatformAudioAsset"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        StatusResponseOfPaginatedResponseOfPlatformContentDefinition: {
-            status?: string;
-            data?: null | components["schemas"]["PaginatedResponseOfPlatformContentDefinition"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        StatusResponseOfPaginatedResponseOfPlatformTemplate: {
-            status?: string;
-            data?: null | components["schemas"]["PaginatedResponseOfPlatformTemplate"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
         StatusResponseOfPairingCode: {
             status?: string;
             data?: null | components["schemas"]["PairingCode"];
@@ -108789,6 +108753,7 @@ export interface components {
             isEnabled?: null | boolean;
             speakWithTts?: null | boolean;
             replyDelivery?: null | components["schemas"]["ReplyDelivery"];
+            target?: null | components["schemas"]["BindingTarget"];
         };
         UpdateDiscordLiveRoleConfigRequest: {
             roleId: string;

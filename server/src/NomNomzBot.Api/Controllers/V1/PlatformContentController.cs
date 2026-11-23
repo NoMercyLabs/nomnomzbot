@@ -50,9 +50,7 @@ public class PlatformContentController(
     [HttpGet("definitions")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.ContentRead)]
-    [ProducesResponseType<StatusResponseDto<PaginatedResponse<PlatformContentDefinitionDto>>>(
-        StatusCodes.Status200OK
-    )]
+    [ProducesResponseType<PaginatedResponse<PlatformContentDefinitionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListDefinitions(
         [FromQuery] string? kind,
         [FromQuery] PageRequestDto page,

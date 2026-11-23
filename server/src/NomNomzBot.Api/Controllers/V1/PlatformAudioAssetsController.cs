@@ -45,9 +45,7 @@ public class PlatformAudioAssetsController(
     [HttpGet]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.ContentRead)]
-    [ProducesResponseType<StatusResponseDto<PaginatedResponse<PlatformAudioAssetDto>>>(
-        StatusCodes.Status200OK
-    )]
+    [ProducesResponseType<PaginatedResponse<PlatformAudioAssetDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List([FromQuery] PageRequestDto page, CancellationToken ct)
     {
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);

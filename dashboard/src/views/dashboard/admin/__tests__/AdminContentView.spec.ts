@@ -91,7 +91,11 @@ vi.mock('@/api/client', () => ({
         };
 
       return {
-        data: { data: { data: [definition] } },
+        data: {
+          data: [definition],
+          hasMore: false,
+          total: 1,
+        },
         response: { status: 200, ok: true },
       };
     },
