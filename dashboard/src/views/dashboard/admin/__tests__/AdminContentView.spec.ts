@@ -130,6 +130,15 @@ const pipelinePayload = JSON.stringify({ steps: [pipelineStep] });
 const scriptSource = 'const roll = nnz.random.int(1, Number(bot.args[0]) || 6);';
 const scriptPayload = JSON.stringify({ sourceCode: scriptSource });
 
+const widgetSource = '<template><p>{{ title }}</p></template>';
+const widgetSettings = { title: 'Hello', size: 4 };
+
+const widgetPayload = JSON.stringify({
+  sourceCode: widgetSource,
+  defaultSettings: widgetSettings,
+  defaultEventSubscriptions: ['channel.follow'],
+});
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('chan-1') }),
 }));
@@ -324,7 +333,7 @@ const editorFrame = defineComponent({
     const message = ref('');
 
     async function saveFile(): Promise<void> {
-      const feedback = await props.save({ [props.entry]: source.value });
+      const feedback = await props.save({ ...props.files, [props.entry]: source.value });
 
       message.value = feedback.message;
     }
@@ -766,6 +775,66 @@ describe('AdminContentView', () => {
     await pickDraftVersion();
     await click(byText('button', 'Draft new version')!);
 
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens a widget draft with its event subscriptions and the source in the code editor', async () => {
+    definition.kind = 'widget';
+    draftPayload = widgetPayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+    const items = [...document.body.querySelectorAll<HTMLInputElement>('[data-list-item] input')];
+
+    expect(items.map((item) => item.value)).toEqual(['channel.follow']);
+
+    await click(first('[data-widget-open-code]'));
+
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('index.vue');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(widgetSource);
+  });
+
+  it('saves a widget draft with the edited source and a new subscription, keeping the settings', async () => {
+    definition.kind = 'widget';
+    draftPayload = widgetPayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+    await click(first('[data-list-add]'));
+
+    const rows = [...document.body.querySelectorAll<HTMLInputElement>('[data-list-item] input')];
+
+    rows[1]!.value = 'channel.raid';
+    rows[1]!.dispatchEvent(new Event('input'));
+    await settle();
+    await click(first('[data-widget-open-code]'));
+    await type('[data-editor-source]', '<template><p>edited</p></template>');
+    await click(first('[data-editor-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({
+      sourceCode: '<template><p>edited</p></template>',
+      defaultSettings: widgetSettings,
+      defaultEventSubscriptions: ['channel.follow', 'channel.raid'],
+    });
+
+    expect(first('[data-editor-message]').textContent).toBe('The draft is saved as a new version.');
+  });
+
+  it('opens a widget payload with an unknown key as JSON, so nothing is lost', async () => {
+    definition.kind = 'widget';
+    draftPayload = JSON.stringify({ sourceCode: widgetSource, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-widget-payload-editor]')).toBeNull();
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });

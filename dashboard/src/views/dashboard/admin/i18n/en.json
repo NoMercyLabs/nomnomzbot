@@ -923,6 +923,16 @@
           "description": "Edit the steps the way a channel does. Save keeps them as a new draft version.",
           "editJson": "Edit JSON"
         },
+        "widgetEditor": {
+          "description": "Edit the widget the way a channel does. Save keeps it as a new draft version.",
+          "events": "Events to listen to",
+          "eventsHint": "The events a new copy of this widget listens to.",
+          "code": "Source and settings",
+          "codeHint": "The Vue source and the starting settings open in the code editor.",
+          "openCode": "Open the code editor",
+          "editJson": "Edit JSON",
+          "invalidSettings": "The settings file must be a JSON object."
+        },
         "error": "The catalog could not load.",
         "failed": "The change failed. Nothing was saved.",
         "invalidPayload": "The payload must be valid JSON.",

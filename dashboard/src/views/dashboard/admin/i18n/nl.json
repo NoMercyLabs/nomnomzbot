@@ -923,6 +923,16 @@
           "description": "Bewerk de stappen zoals een kanaal dat doet. Opslaan bewaart ze als nieuwe conceptversie.",
           "editJson": "JSON bewerken"
         },
+        "widgetEditor": {
+          "description": "Bewerk de widget zoals een kanaal dat doet. Opslaan bewaart hem als nieuwe conceptversie.",
+          "events": "Gebeurtenissen om op te luisteren",
+          "eventsHint": "De gebeurtenissen waarop een nieuwe kopie van deze widget luistert.",
+          "code": "Broncode en instellingen",
+          "codeHint": "De Vue-broncode en de startinstellingen openen in de code-editor.",
+          "openCode": "Open de code-editor",
+          "editJson": "JSON bewerken",
+          "invalidSettings": "Het instellingenbestand moet een JSON-object zijn."
+        },
         "error": "De catalogus kon niet laden.",
         "failed": "De wijziging is mislukt. Er is niets opgeslagen.",
         "invalidPayload": "De payload moet geldige JSON zijn.",
