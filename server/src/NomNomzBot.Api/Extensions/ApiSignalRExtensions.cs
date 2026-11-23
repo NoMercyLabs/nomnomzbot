@@ -10,8 +10,11 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Identifiers;
+using StackExchange.Redis;
 
 namespace NomNomzBot.Api.Extensions;
 
@@ -21,12 +24,14 @@ namespace NomNomzBot.Api.Extensions;
 /// </summary>
 public static class ApiSignalRExtensions
 {
+    private const string BackplaneChannelPrefix = "nomnomzbot";
+
     public static IServiceCollection AddApiSignalR(
         this IServiceCollection services,
         bool enableDetailedErrors
     )
     {
-        services
+        ISignalRServerBuilder signalR = services
             .AddSignalR(options =>
             {
                 options.EnableDetailedErrors = enableDetailedErrors;
@@ -44,7 +49,34 @@ public static class ApiSignalRExtensions
             // synthesizes several speech lines would wait for each before the next even starts.
             .AddHubOptions<OverlayHub>(options => options.MaximumParallelInvocationsPerClient = 4);
 
+        AddRedisBackplane(services, signalR);
+
         return services;
+    }
+
+    /// <summary>
+    /// A blue/green deploy runs two colors at once, and the draining one still publishes hub messages. When
+    /// Infrastructure registered the shared Redis multiplexer, the official SignalR Redis backplane carries
+    /// every hub fan-out to clients on both colors. Both colors share one channel prefix. Without Redis
+    /// (self-host SQLite) the in-memory default stays.
+    /// </summary>
+    private static void AddRedisBackplane(
+        IServiceCollection services,
+        ISignalRServerBuilder signalR
+    )
+    {
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(IConnectionMultiplexer)))
+            return;
+
+        signalR.AddStackExchangeRedis(options =>
+            options.Configuration.ChannelPrefix = RedisChannel.Literal(BackplaneChannelPrefix)
+        );
+        services
+            .AddOptions<RedisOptions>()
+            .Configure<IConnectionMultiplexer>(
+                (options, multiplexer) =>
+                    options.ConnectionFactory = _ => Task.FromResult(multiplexer)
+            );
     }
 
     /// <summary>

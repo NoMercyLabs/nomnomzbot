@@ -25,6 +25,7 @@
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.15" />
     <!-- PasswordHasher<TUser> for native email+password login (identity-auth — never hand-rolled hashing).
          The lightweight core package only — no EF stores, no UI, no cookie auth. -->
   </ItemGroup>
@@ -103,6 +104,12 @@
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.3" />
+  </ItemGroup>
+  <!-- MessagePack: the 2.5.187 transitively pulled by Microsoft.AspNetCore.SignalR.StackExchangeRedis carries
+       several GHSA advisories (NU1902/NU1903). Pin to the patched 2.5.x line; transitive pinning applies it
+       without an explicit ref. -->
+  <ItemGroup Label="MessagePack (CVE-patched transitive pin)">
+    <PackageVersion Include="MessagePack" Version="2.5.307" />
   </ItemGroup>
   <!-- Microsoft.OpenApi: the 2.0.0 transitively pulled by Microsoft.AspNetCore.OpenApi 10.0.8 carries
        GHSA-v5pm-xwqc-g5wc / CVE-2026-49451 (high — stack overflow on circular schema $refs). Pin to the
