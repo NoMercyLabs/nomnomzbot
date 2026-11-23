@@ -907,6 +907,22 @@
         "title": "Inhoud",
         "kindFilter": "Soort",
         "kindPlaceholder": "Alle soorten",
+        "kindChoose": "Kies een soort",
+        "kinds": {
+          "command": "Commando",
+          "widget": "Widget",
+          "pipeline": "Pipeline",
+          "code_script": "Codescript",
+          "event_response": "Gebeurtenisreactie",
+          "timer": "Timer",
+          "reward": "Beloning",
+          "pick_list": "Keuzelijst",
+          "sound_clip": "Geluidsclip"
+        },
+        "pipelineEditor": {
+          "description": "Bewerk de stappen zoals een kanaal dat doet. Opslaan bewaart ze als nieuwe conceptversie.",
+          "editJson": "JSON bewerken"
+        },
         "error": "De catalogus kon niet laden.",
         "failed": "De wijziging is mislukt. Er is niets opgeslagen.",
         "invalidPayload": "De payload moet geldige JSON zijn.",
@@ -916,6 +932,7 @@
         "draft": {
           "open": "Nieuwe versie opstellen",
           "title": "Een nieuwe versie opstellen",
+          "save": "Concept opslaan",
           "saved": "Het concept is opgeslagen als nieuwe versie."
         },
         "publish": {

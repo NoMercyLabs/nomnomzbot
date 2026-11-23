@@ -69,8 +69,66 @@ const definition = {
   createdAt: '2026-10-01T00:00:00Z',
 };
 
-const draftPayload = '{"reply":"draft hug"}';
+const defaultDraftPayload = '{"reply":"draft hug"}';
+let draftPayload = defaultDraftPayload;
 const previewedCount = 7;
+
+const catalog = {
+  actions: [
+    {
+      type: 'send_message',
+      category: { key: 'pipeline.category.chat' },
+      description: { key: 'pipeline.send_message.description' },
+      fields: [
+        {
+          name: 'message',
+          kind: 'text',
+          required: true,
+          repeatable: false,
+          description: null,
+          templated: false,
+          declaresVariable: false,
+        },
+      ],
+    },
+    {
+      type: 'play_sound',
+      category: { key: 'pipeline.category.media' },
+      description: { key: 'pipeline.play_sound.description' },
+      fields: [
+        {
+          name: 'volume',
+          kind: 'number',
+          required: false,
+          repeatable: false,
+          description: null,
+          templated: false,
+          declaresVariable: false,
+        },
+      ],
+    },
+  ],
+  conditions: [],
+};
+
+const pipelineStep = {
+  id: 'step-a',
+  parent_step_id: null,
+  branch: null,
+  block_kind: null,
+  block_config: null,
+  order: 0,
+  action: { type: 'send_message', message: 'welcome in' },
+  condition: null,
+  continue_on_error: false,
+  stop_on_match: false,
+};
+
+const pipelinePayload = JSON.stringify({ steps: [pipelineStep] });
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('chan-1') }),
+}));
 
 // The signed-in admin holds every platform key, so every action button shows.
 vi.mock('@/composables/usePlatformCan', () => ({
@@ -96,6 +154,9 @@ vi.mock('@/api/client', () => ({
           },
           response: { status: 200, ok: true },
         };
+
+      if (path.endsWith('/pipelines/actions'))
+        return { data: { data: catalog }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/versions/{versionId}'))
         return {
@@ -283,7 +344,13 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  definition.kind = 'command';
+  draftPayload = defaultDraftPayload;
   audioAssets = [{ ...stinger }];
+
+  Element.prototype.hasPointerCapture = (): boolean => false;
+  Element.prototype.releasePointerCapture = (): void => undefined;
+  Element.prototype.scrollIntoView = (): void => undefined;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -340,6 +407,33 @@ async function type(selector: string, value: string): Promise<void> {
 
 async function click(target: HTMLElement): Promise<void> {
   target.click();
+  await settle();
+}
+
+async function chooseKind(label: string): Promise<void> {
+  first('[data-field-kind]').dispatchEvent(
+    new PointerEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  await settle();
+
+  const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    (node) => node.textContent?.trim() === label,
+  )!;
+
+  option.dispatchEvent(
+    new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  option.click();
   await settle();
 }
 
@@ -413,7 +507,7 @@ describe('AdminContentView', () => {
     await open();
     byText('button', 'New definition')!.click();
     await settle();
-    await type('[data-field-kind]', 'command');
+    await chooseKind('Command');
     await type('[data-field-key]', 'wave');
     await type('[data-field-name]', 'Wave command');
     await click(first('[data-field-payload]'));
@@ -442,7 +536,7 @@ describe('AdminContentView', () => {
     await open();
     byText('button', 'New definition')!.click();
     await settle();
-    await type('[data-field-kind]', 'command');
+    await chooseKind('Command');
     await type('[data-field-key]', 'wave');
     await type('[data-field-name]', 'Wave command');
     await click(first('[data-field-payload]'));
@@ -479,6 +573,157 @@ describe('AdminContentView', () => {
     expect(post.options?.params?.path?.id).toBe('def1');
     expect(post.options?.body).toEqual({ payloadJson: '{"reply":"big hug"}' });
     expect(first('[data-editor-message]').textContent).toBe('The draft is saved as a new version.');
+  });
+
+  it('offers the server kinds as a Select and creates with the chosen kind', async () => {
+    await open();
+    byText('button', 'New definition')!.click();
+    await settle();
+
+    expect(document.body.querySelector('input[data-field-kind]')).toBeNull();
+
+    first('[data-field-kind]').dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
+
+    await settle();
+
+    const labels = [...document.body.querySelectorAll('[role="option"]')].map((node) =>
+      node.textContent?.trim());
+
+    expect(labels).toEqual([
+      'Command',
+      'Widget',
+      'Pipeline',
+      'Code script',
+      'Event response',
+      'Timer',
+      'Reward',
+      'Pick list',
+      'Sound clip',
+    ]);
+
+    document.body.querySelector<HTMLElement>('[role="option"]')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+
+    await settle();
+    await chooseKind('Widget');
+    await type('[data-field-key]', 'clock');
+    await type('[data-field-name]', 'Clock widget');
+    byText('[role="dialog"] button', 'Create')!.click();
+    await settle();
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.options?.body).toMatchObject({
+      kind: 'widget',
+      key: 'clock',
+      displayName: 'Clock widget',
+    });
+  });
+
+  it('opens a command draft in the JSON editor, not the step editor', async () => {
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-code-editor]')).not.toBeNull();
+    expect(document.body.querySelector('[data-pipeline-payload-editor]')).toBeNull();
+  });
+
+  it('opens a pipeline draft in the step editor with the steps of the payload', async () => {
+    definition.kind = 'pipeline';
+    draftPayload = pipelinePayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+    expect(first('[data-pipeline-payload-editor]')).not.toBeNull();
+
+    await vi.waitFor(() => {
+      expect(document.body.querySelectorAll('[data-step]')).toHaveLength(1);
+    }, { timeout: 5000 });
+
+    const cards = [...document.body.querySelectorAll('[data-step]')];
+
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.getAttribute('data-step-id')).toBe('step-a');
+  });
+
+  it('saves a pipeline draft with an added step in the shape the server reads', async () => {
+    definition.kind = 'pipeline';
+    draftPayload = pipelinePayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[data-steps-add]')).not.toBeNull();
+    }, { timeout: 5000 });
+
+    await click(first('[data-steps-add]'));
+
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[data-palette-action="play_sound"]')).not.toBeNull();
+    }, { timeout: 5000 });
+
+    await click(first('[data-palette-action="play_sound"]'));
+    await click(first('[data-pipeline-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+    expect(post.options?.params?.path?.id).toBe('def1');
+
+    const body = post.options?.body as { payloadJson: string };
+    const saved = JSON.parse(body.payloadJson) as {
+      steps: Record<string, unknown>[];
+    };
+
+    expect(Object.keys(saved)).toEqual(['steps']);
+    expect(saved.steps).toHaveLength(2);
+    expect(saved.steps[0]).toEqual(pipelineStep);
+
+    expect(saved.steps[1]).toMatchObject({
+      parent_step_id: null,
+      branch: null,
+      block_kind: null,
+      order: 1,
+      action: { type: 'play_sound' },
+      condition: null,
+      continue_on_error: false,
+      stop_on_match: false,
+    });
+
+    expect(typeof saved.steps[1]!.id).toBe('string');
+    expect(first('[data-pipeline-message]').textContent).toBe('The draft is saved as a new version.');
+  });
+
+  it('keeps the raw JSON editor one press away on a pipeline draft', async () => {
+    definition.kind = 'pipeline';
+    draftPayload = pipelinePayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+    await click(first('[data-pipeline-edit-json]'));
+
+    expect(document.body.querySelector('[data-pipeline-payload-editor]')).toBeNull();
+
+    expect(JSON.parse((first('[data-editor-source]') as HTMLInputElement).value)).toEqual({
+      steps: [pipelineStep],
+    });
+  });
+
+  it('opens a pipeline payload the step model cannot hold as JSON, so nothing is lost', async () => {
+    definition.kind = 'pipeline';
+    draftPayload = '{"steps":[],"note":"keep me"}';
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-pipeline-payload-editor]')).toBeNull();
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });
 
   it('shows what retiring touches before it deletes, then retires', async () => {

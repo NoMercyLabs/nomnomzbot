@@ -907,6 +907,22 @@
         "title": "Content",
         "kindFilter": "Kind",
         "kindPlaceholder": "All kinds",
+        "kindChoose": "Choose a kind",
+        "kinds": {
+          "command": "Command",
+          "widget": "Widget",
+          "pipeline": "Pipeline",
+          "code_script": "Code script",
+          "event_response": "Event response",
+          "timer": "Timer",
+          "reward": "Reward",
+          "pick_list": "Pick list",
+          "sound_clip": "Sound clip"
+        },
+        "pipelineEditor": {
+          "description": "Edit the steps the way a channel does. Save keeps them as a new draft version.",
+          "editJson": "Edit JSON"
+        },
         "error": "The catalog could not load.",
         "failed": "The change failed. Nothing was saved.",
         "invalidPayload": "The payload must be valid JSON.",
@@ -916,6 +932,7 @@
         "draft": {
           "open": "Draft new version",
           "title": "Draft a new version",
+          "save": "Save draft",
           "saved": "The draft is saved as a new version."
         },
         "publish": {

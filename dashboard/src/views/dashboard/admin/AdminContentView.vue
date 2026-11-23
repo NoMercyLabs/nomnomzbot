@@ -19,6 +19,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  CONTENT_KINDS,
   useContentDefinition,
   useContentDefinitions,
   useContentVersion,
@@ -28,6 +29,7 @@ import {
   type ContentDefinition,
 } from '@/api/adminContent';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -89,6 +91,18 @@ const editorTitle = computed<string>(() =>
     ? t('dashboard.admin.content.create.title')
     : t('dashboard.admin.content.draft.title'));
 
+const kindChoices = computed(() =>
+  CONTENT_KINDS.map((value) => ({
+    value,
+    label: t(`dashboard.admin.content.kinds.${value}`),
+  })));
+
+// A draft belongs to the picked definition; a new definition has the kind the operator chose.
+const editorKind = computed<string>(() =>
+  editing.value === 'create'
+    ? kind.value
+    : (picked.value?.definition.kind ?? ''));
+
 const titleKeys = {
   create: 'create.title',
   retire: 'retire.title',
@@ -146,8 +160,12 @@ function openCreate(): void {
   step.value = 'create';
 }
 
+// A new pipeline starts as an empty step list, the shape its step editor reads.
 function openCreateEditor(): void {
-  editorSeed.value = payload.value;
+  editorSeed.value = kind.value === 'pipeline' && payload.value === '{}'
+    ? '{"steps":[]}'
+    : payload.value;
+
   editing.value = 'create';
 }
 
@@ -344,7 +362,13 @@ async function submit(): Promise<void> {
       <div v-if="step === 'create'" class="grid gap-3">
         <Field>
           <FieldLabel for="content-new-kind">{{ $t("dashboard.admin.content.fields.kind") }}</FieldLabel>
-          <Input id="content-new-kind" v-model="kind" data-field-kind />
+          <OptionSelect
+            id="content-new-kind"
+            v-model="kind"
+            data-field-kind
+            :options="kindChoices"
+            :placeholder="$t('dashboard.admin.content.kindChoose')"
+          />
         </Field>
         <Field>
           <FieldLabel for="content-new-key">{{ $t("dashboard.admin.content.fields.key") }}</FieldLabel>
@@ -374,8 +398,9 @@ async function submit(): Promise<void> {
       </Field>
     </FormDialog>
     <AdminContentPayloadEditor
-      v-if="editing"
+      v-if="editing && can('content:author')"
       :title="editorTitle"
+      :kind="editorKind"
       :initial="editorSeed"
       :keep="keepPayload"
       @close="editing = null"

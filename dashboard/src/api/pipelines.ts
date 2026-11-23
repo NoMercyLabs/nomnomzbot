@@ -156,7 +156,7 @@ function parseStep(step: WireStep) {
   } as const satisfies PipelineStep;
 }
 
-function parseGraph(graph: components['schemas']['Pipeline']['graph']) {
+export function parseGraph(graph: components['schemas']['Pipeline']['graph']) {
   const steps = (graph as { steps?: WireStep[] } | null)?.steps ?? [];
 
   return { steps: steps.map(parseStep) } as const satisfies PipelineGraph;

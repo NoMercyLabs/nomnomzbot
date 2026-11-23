@@ -57,6 +57,21 @@ export const PUBLISH_MODES = [
 
 export type PublishMode = (typeof PUBLISH_MODES)[number];
 
+// The kinds of platform content the server publishes, in the order the create form offers them.
+export const CONTENT_KINDS = [
+  'command',
+  'widget',
+  'pipeline',
+  'code_script',
+  'event_response',
+  'timer',
+  'reward',
+  'pick_list',
+  'sound_clip',
+] as const;
+
+export type ContentKind = (typeof CONTENT_KINDS)[number];
+
 const version = '1';
 const DEFINITION_TAKE: number = 100;
 const JOB_POLL_MS = 2000;

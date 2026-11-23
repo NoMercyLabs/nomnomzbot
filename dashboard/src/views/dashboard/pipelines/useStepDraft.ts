@@ -53,7 +53,10 @@ export type StepDraft = {
 
 const mint = newId;
 
-export function useStepDraft(saved: Ref<Pipeline | undefined>) {
+// What the draft reads of a saved list: a pipeline, or any owner of one graph (a platform definition's payload).
+export type SavedSteps = Pick<Pipeline, 'id' | 'graph'>;
+
+export function useStepDraft(saved: Ref<SavedSteps | undefined>) {
   // Vue's deep unwrap of the recursive JSON value type is unbounded, so the ref is typed as the list it holds.
   const steps = ref([]) as Ref<PipelineStep[]>;
   const baseline = ref('[]');
