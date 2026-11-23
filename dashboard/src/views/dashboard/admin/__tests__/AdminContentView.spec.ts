@@ -126,6 +126,10 @@ const pipelineStep = {
 
 const pipelinePayload = JSON.stringify({ steps: [pipelineStep] });
 
+// One line: the stand-in editor holds the file in a one-line input.
+const scriptSource = 'const roll = nnz.random.int(1, Number(bot.args[0]) || 6);';
+const scriptPayload = JSON.stringify({ sourceCode: scriptSource });
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('chan-1') }),
 }));
@@ -723,6 +727,46 @@ describe('AdminContentView', () => {
     await click(byText('button', 'Draft new version')!);
 
     expect(document.body.querySelector('[data-pipeline-payload-editor]')).toBeNull();
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens a code script draft in the script code editor with the source of the payload', async () => {
+    definition.kind = 'code_script';
+    draftPayload = scriptPayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-code-editor="payload.json"]')).toBeNull();
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('index.ts');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(scriptSource);
+  });
+
+  it('saves a code script draft as the payload shape the server reads, with the edited source', async () => {
+    definition.kind = 'code_script';
+    draftPayload = scriptPayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+    await type('[data-editor-source]', 'nnz.api.chat.send("hello");');
+    await click(first('[data-editor-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+    expect(post.options?.params?.path?.id).toBe('def1');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ sourceCode: 'nnz.api.chat.send("hello");' });
+    expect(first('[data-editor-message]').textContent).toBe('The draft is saved as a new version.');
+  });
+
+  it('opens a code script payload with an unknown key as JSON, so nothing is lost', async () => {
+    definition.kind = 'code_script';
+    draftPayload = JSON.stringify({ sourceCode: scriptSource, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });
 

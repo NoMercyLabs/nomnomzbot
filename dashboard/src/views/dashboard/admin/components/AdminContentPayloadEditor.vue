@@ -13,6 +13,7 @@
 <script setup lang="ts">
 // A content payload is JSON, so it is written in the project's Monaco editor, never in a plain text box.
 // The editor shows one file. Its Save checks that the text is JSON before the parent keeps it.
+// A pipeline draft opens in the step editor and a code script draft in the script code editor.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -20,7 +21,9 @@ import CodeEditor from '@/components/layout/CodeEditor.vue';
 import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 
 import AdminPipelinePayloadEditor from './AdminPipelinePayloadEditor.vue';
+import AdminScriptPayloadEditor from './AdminScriptPayloadEditor.vue';
 import { readPipelinePayload } from './pipelinePayload';
+import { readScriptPayload } from './scriptPayload';
 
 const ENTRY = 'payload.json';
 
@@ -41,6 +44,11 @@ const { t } = useI18n();
 const graph = computed(() =>
   props.kind === 'pipeline'
     ? readPipelinePayload(props.initial)
+    : null);
+// The source of a code script payload, or null: another kind, or a payload the code editor would not hold whole.
+const scriptSource = computed(() =>
+  props.kind === 'code_script'
+    ? readScriptPayload(props.initial)
     : null);
 // Set when the operator leaves the step editor: the raw editor then starts from the steps as they stood.
 const rawSeed = ref<string | null>(null);
@@ -72,6 +80,13 @@ async function save(files: EditorFiles): Promise<CompileFeedback> {
     :graph="graph"
     :keep="keep"
     @edit-json="rawSeed = $event"
+    @close="emit('close')"
+  />
+  <AdminScriptPayloadEditor
+    v-else-if="scriptSource !== null"
+    :title="title"
+    :source-code="scriptSource"
+    :keep="keep"
     @close="emit('close')"
   />
   <CodeEditor

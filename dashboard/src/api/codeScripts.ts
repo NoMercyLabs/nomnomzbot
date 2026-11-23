@@ -377,7 +377,8 @@ export async function saveScriptProject(
 }
 
 // The typed `nnz` declarations that make the editor complete and check the script. Null when they cannot load.
-export async function fetchScriptSdkTypes(id: string): Promise<string | null> {
+// Without an id they are the general script declarations, for a script that is not a channel's own yet.
+export async function fetchScriptSdkTypes(id?: string): Promise<string | null> {
   const { data, response } = await client.GET('/api/v{version}/sdk/types.d.ts', {
     params: { path: { version: '1' }, query: { context: 'script', script: id } },
     parseAs: 'text',
