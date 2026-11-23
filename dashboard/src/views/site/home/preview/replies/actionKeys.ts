@@ -29,6 +29,8 @@ export const ownerActionKeys = [
   'commands:write',
   'community:read',
   'content:author',
+  'content:publish',
+  'content:publish:force',
   'customdata:read',
   'customdata:write',
   'dashboard:read',

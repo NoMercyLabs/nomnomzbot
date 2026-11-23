@@ -916,7 +916,43 @@
         "draft": {
           "open": "Nieuwe versie opstellen",
           "title": "Een nieuwe versie opstellen",
-          "action": "Versie opstellen"
+          "saved": "Het concept is opgeslagen als nieuwe versie."
+        },
+        "publish": {
+          "mode": "Publicatiemodus",
+          "modes": {
+            "publish_as_new": {
+              "label": "Als nieuw publiceren",
+              "hint": "Kanalen krijgen deze versie als nieuwe kopie. Hun eigen kopieen blijven zoals ze zijn."
+            },
+            "update_in_place_where_untouched": {
+              "label": "Kopieen bijwerken die niemand aanpaste",
+              "hint": "Kopieen die een kanaal nooit aanpaste gaan naar deze versie. Aangepaste kopieen worden overgeslagen."
+            },
+            "force": {
+              "label": "Forceren",
+              "hint": "Elke kopie gaat naar deze versie, aangepast of niet."
+            }
+          },
+          "forceWarning": "Forceren overschrijft aanpassingen die kanalen in hun eigen kopie maakten. Die aanpassingen gaan verloren.",
+          "preview": "Voorbeeld",
+          "confirm": "Publiceren",
+          "confirmForce": "Geforceerd publiceren",
+          "affected": "{count} kanaal | {count} kanalen",
+          "skipped": "{count} overgeslagen",
+          "samples": "Bijvoorbeeld {names}",
+          "updated": "{count} kanaal bijgewerkt | {count} kanalen bijgewerkt",
+          "status": {
+            "running": "Bezig",
+            "completed": "Voltooid",
+            "failed": "Mislukt"
+          },
+          "failed": {
+            "widgets": "{count} widget is niet opnieuw gebouwd | {count} widgets zijn niet opnieuw gebouwd",
+            "pipelines": "{count} pipeline faalde bij validatie | {count} pipelines faalden bij validatie",
+            "scripts": "{count} script faalde bij validatie | {count} scripts faalden bij validatie",
+            "templates": "{count} sjabloonrij is niet bijgewerkt | {count} sjabloonrijen zijn niet bijgewerkt"
+          }
         },
         "version": "Versie {version}",
         "list": {
@@ -938,7 +974,8 @@
         "create": {
           "open": "Nieuwe definitie",
           "title": "Nieuwe definitie",
-          "action": "Aanmaken"
+          "action": "Aanmaken",
+          "kept": "De payload is bewaard voor de nieuwe definitie."
         },
         "retire": {
           "open": "Intrekken",

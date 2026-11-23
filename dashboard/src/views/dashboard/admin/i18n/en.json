@@ -916,7 +916,43 @@
         "draft": {
           "open": "Draft new version",
           "title": "Draft a new version",
-          "action": "Draft version"
+          "saved": "The draft is saved as a new version."
+        },
+        "publish": {
+          "mode": "Publish mode",
+          "modes": {
+            "publish_as_new": {
+              "label": "Publish as new",
+              "hint": "Channels get this version as a new copy. Their own copies stay as they are."
+            },
+            "update_in_place_where_untouched": {
+              "label": "Update copies nobody edited",
+              "hint": "Copies a channel never edited move to this version. Edited copies are skipped."
+            },
+            "force": {
+              "label": "Force",
+              "hint": "Every copy moves to this version, edited or not."
+            }
+          },
+          "forceWarning": "Force overwrites edits channels made to their own copy. Those edits are lost.",
+          "preview": "Preview",
+          "confirm": "Publish",
+          "confirmForce": "Force publish",
+          "affected": "{count} channel | {count} channels",
+          "skipped": "{count} skipped",
+          "samples": "For example {names}",
+          "updated": "{count} channel updated | {count} channels updated",
+          "status": {
+            "running": "Running",
+            "completed": "Completed",
+            "failed": "Failed"
+          },
+          "failed": {
+            "widgets": "{count} widget did not rebuild | {count} widgets did not rebuild",
+            "pipelines": "{count} pipeline failed validation | {count} pipelines failed validation",
+            "scripts": "{count} script failed validation | {count} scripts failed validation",
+            "templates": "{count} template row did not update | {count} template rows did not update"
+          }
         },
         "version": "Version {version}",
         "list": {
@@ -938,7 +974,8 @@
         "create": {
           "open": "New definition",
           "title": "New definition",
-          "action": "Create"
+          "action": "Create",
+          "kept": "The payload is kept for the new definition."
         },
         "retire": {
           "open": "Retire",

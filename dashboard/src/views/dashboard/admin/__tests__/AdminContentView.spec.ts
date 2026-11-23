@@ -13,9 +13,11 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, ref, type PropType } from 'vue';
 
 import { fieldLabels, unlinkedLabels } from '@/__tests__/fieldLinks';
 import { queryClient } from '@/api/queryClient';
+import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 import { i18n } from '@/i18n';
 import { adminHandlers } from '@/realtime/admin';
 import { dashboardRoutes } from '@/router/dashboard';
@@ -46,6 +48,9 @@ const definition = {
   createdAt: '2026-10-01T00:00:00Z',
 };
 
+const draftPayload = '{"reply":"draft hug"}';
+const previewedCount = 7;
+
 // The signed-in admin holds every platform key, so every action button shows.
 vi.mock('@/composables/usePlatformCan', () => ({
   usePlatformCan: () => ({ known: { value: true }, can: () => true }),
@@ -60,6 +65,40 @@ vi.mock('@/api/client', () => ({
         path,
         options,
       });
+
+      if (path.endsWith('/versions/{versionId}'))
+        return {
+          data: {
+            data: {
+              id: options?.params?.path?.versionId,
+              version: 1,
+              payloadJson: draftPayload,
+              publishedAt: null,
+            },
+          },
+          response: { status: 200, ok: true },
+        };
+
+      if (path.endsWith('/publish-jobs/{id}'))
+        return {
+          data: {
+            data: {
+              id: 'job1',
+              definitionId: 'def1',
+              toVersion: 1,
+              mode: 'update_in_place_where_untouched',
+              status: 'completed',
+              previewAffectedCount: previewedCount,
+              previewSkippedCount: 2,
+              confirmedAffectedCount: previewedCount,
+              rebuildFailedWidgetIds: [],
+              validationFailedPipelineIds: [],
+              validationFailedCodeScriptIds: [],
+              updateFailedTemplateRowIds: [],
+            },
+          },
+          response: { status: 200, ok: true },
+        };
 
       if (path.endsWith('/definitions/{id}'))
         return {
@@ -106,6 +145,38 @@ vi.mock('@/api/client', () => ({
         options,
       });
 
+      if (path.endsWith('/publish-preview'))
+        return {
+          data: {
+            data: {
+              affectedCount: previewedCount,
+              skippedCount: 2,
+              sampleTenantNames: ['alpha_channel', 'beta_channel'],
+            },
+          },
+          response: { status: 200, ok: true },
+        };
+
+      if (path.endsWith('/publish'))
+        return {
+          data: {
+            data: {
+              id: 'job1',
+              definitionId: 'def1',
+              toVersion: 1,
+              mode: 'update_in_place_where_untouched',
+              status: 'running',
+              previewAffectedCount: previewedCount,
+              previewSkippedCount: 2,
+              rebuildFailedWidgetIds: [],
+              validationFailedPipelineIds: [],
+              validationFailedCodeScriptIds: [],
+              updateFailedTemplateRowIds: [],
+            },
+          },
+          response: { status: 200, ok: true },
+        };
+
       return { data: { data: {} }, response: { status: 200, ok: true } };
     },
     DELETE: async (path: string, options?: Options) => {
@@ -119,6 +190,42 @@ vi.mock('@/api/client', () => ({
     },
   },
 }));
+
+// The real editor is a full-window page in a frame. This stands in for that frame only: it shows the one file,
+// lets the test change its text, and answers the page's Save through the same callback the real bridge calls.
+const editorFrame = defineComponent({
+  name: 'CodeEditor',
+  props: {
+    entry: { type: String, required: true },
+    files: { type: Object as PropType<EditorFiles>, required: true },
+    save: {
+      type: Function as PropType<(files: EditorFiles) => Promise<CompileFeedback>>,
+      required: true,
+    },
+  },
+  setup(props) {
+    const source = ref(props.files[props.entry] ?? '');
+    const message = ref('');
+
+    async function saveFile(): Promise<void> {
+      const feedback = await props.save({ [props.entry]: source.value });
+
+      message.value = feedback.message;
+    }
+
+    return () => h('div', { 'data-code-editor': props.entry }, [
+      h('input', {
+        'data-editor-source': '',
+        value: source.value,
+        onInput: (event: Event) => {
+          source.value = (event.target as HTMLInputElement).value;
+        },
+      }),
+      h('button', { 'data-editor-save': '', onClick: saveFile }, 'Save'),
+      h('p', { 'data-editor-message': '' }, message.value),
+    ]);
+  },
+});
 
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
@@ -147,6 +254,7 @@ async function open(): Promise<void> {
   mounted = mount(AdminContentView, {
     attachTo: document.body,
     global: {
+      stubs: { CodeEditor: editorFrame },
       plugins: [
         i18n,
         pinia,
@@ -167,12 +275,29 @@ const byText = (selector: string, label: string): HTMLElement | undefined =>
     (node) => node.textContent?.trim() === label,
   );
 
+const first = (selector: string): HTMLElement =>
+  document.body.querySelector<HTMLElement>(selector)!;
+
 async function type(selector: string, value: string): Promise<void> {
   const field = document.body.querySelector<HTMLInputElement>(selector)!;
 
   field.value = value;
   field.dispatchEvent(new Event('input'));
   await settle();
+}
+
+async function click(target: HTMLElement): Promise<void> {
+  target.click();
+  await settle();
+}
+
+async function pickDraftVersion(): Promise<void> {
+  await open();
+  await click(first('[data-definition-row]'));
+
+  const versions = [...document.body.querySelectorAll<HTMLElement>('[data-version-row]')];
+
+  await click(versions[1]!);
 }
 
 describe('AdminContentView', () => {
@@ -232,14 +357,20 @@ describe('AdminContentView', () => {
     expect(unlinkedLabels(document.body)).toEqual([]);
   });
 
-  it('creates a definition with the typed fields', async () => {
+  it('creates a definition with the typed fields and the payload written in the editor', async () => {
     await open();
     byText('button', 'New definition')!.click();
     await settle();
     await type('[data-field-kind]', 'command');
     await type('[data-field-key]', 'wave');
     await type('[data-field-name]', 'Wave command');
-    await type('[data-field-payload]', '{"reply":"wave"}');
+    await click(first('[data-field-payload]'));
+
+    expect(first('[data-code-editor]').dataset.codeEditor).toBe('payload.json');
+    expect(document.body.querySelector('textarea')).toBeNull();
+
+    await type('[data-editor-source]', '{"reply":"wave"}');
+    await click(first('[data-editor-save]'));
     byText('[role="dialog"] button', 'Create')!.click();
     await settle();
 
@@ -255,41 +386,47 @@ describe('AdminContentView', () => {
     });
   });
 
-  it('refuses a payload that is not JSON and posts nothing', async () => {
+  it('refuses a payload that is not JSON in the editor and keeps it from the create request', async () => {
     await open();
     byText('button', 'New definition')!.click();
     await settle();
     await type('[data-field-kind]', 'command');
     await type('[data-field-key]', 'wave');
     await type('[data-field-name]', 'Wave command');
-    await type('[data-field-payload]', 'not json');
+    await click(first('[data-field-payload]'));
+    await type('[data-editor-source]', 'not json');
+    await click(first('[data-editor-save]'));
+
+    expect(first('[data-editor-message]').textContent).toBe('The payload must be valid JSON.');
+
     byText('[role="dialog"] button', 'Create')!.click();
     await settle();
 
-    expect(calls.some((call) => call.method === 'POST')).toBe(false);
-    expect(text()).toContain('The payload must be valid JSON.');
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.options?.body).toMatchObject({ payloadJson: '{}' });
   });
 
-  it('drafts a new version from the current payload', async () => {
-    await open();
-    (document.body.querySelector('[data-definition-row]') as HTMLElement).click();
-    await settle();
-    byText('button', 'Draft new version')!.click();
-    await settle();
+  it('drafts a new version in the editor, seeded from the picked version and saved as the draft body', async () => {
+    await pickDraftVersion();
 
-    const payload = document.body.querySelector<HTMLTextAreaElement>('[data-field-payload]')!;
+    const read = calls.find((call) => call.path.endsWith('/versions/{versionId}'))!;
 
-    expect(payload.value).toBe('{"reply":"hug"}');
+    expect(read.options?.params?.path).toMatchObject({ id: 'def1', versionId: 'v1' });
 
-    await type('[data-field-payload]', '{"reply":"big hug"}');
-    byText('[role="dialog"] button', 'Draft version')!.click();
-    await settle();
+    await click(byText('button', 'Draft new version')!);
+
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+
+    await type('[data-editor-source]', '{"reply":"big hug"}');
+    await click(first('[data-editor-save]'));
 
     const post = calls.find((call) => call.method === 'POST')!;
 
     expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
     expect(post.options?.params?.path?.id).toBe('def1');
-    expect(post.options?.body).toMatchObject({ payloadJson: '{"reply":"big hug"}' });
+    expect(post.options?.body).toEqual({ payloadJson: '{"reply":"big hug"}' });
+    expect(first('[data-editor-message]').textContent).toBe('The draft is saved as a new version.');
   });
 
   it('shows what retiring touches before it deletes, then retires', async () => {
@@ -331,5 +468,75 @@ describe('AdminContentView', () => {
     expect(registered?.beforeEnter).toBe(adminOnly);
     expect(registered?.component).toBe(dashboardAdminContentRoute.component);
     expect(registered?.meta?.comingSoon).toBeUndefined();
+  });
+});
+
+describe('AdminContentView publishing', () => {
+  it('keeps confirm disabled until the preview count shows, then publishes with that count and the chosen mode', async () => {
+    await pickDraftVersion();
+
+    expect(first('[data-publish-confirm]').hasAttribute('disabled')).toBe(true);
+    expect(document.body.querySelector('[data-publish-count]')).toBeNull();
+
+    await click(first('[data-publish-mode="update_in_place_where_untouched"]'));
+    await click(first('[data-publish-preview]'));
+
+    const preview = calls.find((call) => call.path.endsWith('/publish-preview'))!;
+
+    expect(preview.options?.params?.path).toMatchObject({ id: 'def1', versionId: 'v1' });
+    expect(preview.options?.body).toEqual({ mode: 'update_in_place_where_untouched' });
+    expect(first('[data-publish-count]').textContent).toContain('7 channels');
+    expect(first('[data-publish-count]').textContent).toContain('2 skipped');
+    expect(text()).toContain('alpha_channel');
+    expect(first('[data-publish-confirm]').hasAttribute('disabled')).toBe(false);
+    expect(calls.some((call) => call.path.endsWith('/publish'))).toBe(false);
+
+    await click(first('[data-publish-confirm]'));
+
+    const publish = calls.find((call) => call.path.endsWith('/publish'))!;
+
+    expect(publish.options?.params?.path).toMatchObject({ id: 'def1', versionId: 'v1' });
+
+    expect(publish.options?.body).toEqual({
+      mode: 'update_in_place_where_untouched',
+      confirmedPreviewAffectedCount: previewedCount,
+    });
+  });
+
+  it('renders the job the publish started, then its result read from the job route', async () => {
+    await pickDraftVersion();
+    await click(first('[data-publish-preview]'));
+    await click(first('[data-publish-confirm]'));
+
+    const read = calls.find((call) => call.path.endsWith('/publish-jobs/{id}'))!;
+
+    expect(read.options?.params?.path).toMatchObject({ id: 'job1' });
+    expect(first('[data-publish-job]').dataset.status).toBe('completed');
+    expect(first('[data-publish-job]').textContent).toContain('Completed');
+    expect(first('[data-publish-job]').textContent).toContain('7 channels updated');
+  });
+
+  it('drops the preview when the mode changes, so confirm needs a fresh count', async () => {
+    await pickDraftVersion();
+    await click(first('[data-publish-preview]'));
+
+    expect(first('[data-publish-confirm]').hasAttribute('disabled')).toBe(false);
+
+    await click(first('[data-publish-mode="force"]'));
+
+    expect(document.body.querySelector('[data-publish-count]')).toBeNull();
+    expect(first('[data-publish-confirm]').hasAttribute('disabled')).toBe(true);
+  });
+
+  it('keeps one primary action and gives force publishing a destructive confirm', async () => {
+    await pickDraftVersion();
+
+    expect(first('[data-publish-confirm]').dataset.variant).toBe('default');
+    expect(first('[data-publish-preview]').dataset.variant).toBe('outline');
+
+    await click(first('[data-publish-mode="force"]'));
+
+    expect(first('[data-publish-confirm]').dataset.variant).toBe('destructive');
+    expect(first('[data-publish-force-warning]').textContent).toContain('overwrites edits');
   });
 });

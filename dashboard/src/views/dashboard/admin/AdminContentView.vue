@@ -12,14 +12,16 @@
 -->
 <script setup lang="ts">
 // The platform content catalog: the definitions every channel can install, their version history and
-// how many channel copies exist. An operator creates a definition, drafts a new version of it, or retires
-// it. Other operators' changes arrive over the admin hub.
-import { computed, ref } from 'vue';
+// how many channel copies exist. An operator creates a definition, edits a draft in the JSON editor, publishes
+// a version through preview and confirm, or retires a definition. Other operators' changes arrive over the
+// admin hub.
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
   useContentDefinition,
   useContentDefinitions,
+  useContentVersion,
   useCreateContentDefinition,
   useDraftContentVersion,
   useRetireContentDefinition,
@@ -38,15 +40,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 
-type Step = 'create' | 'draft' | 'retire';
+import AdminContentPayloadEditor from './components/AdminContentPayloadEditor.vue';
+import AdminContentPublishPanel from './components/AdminContentPublishPanel.vue';
+
+type Step = 'create' | 'retire';
+type EditorTarget = 'create' | 'draft';
 
 const { t } = useI18n();
 const { can } = usePlatformCan();
 
 const kindFilter = ref('');
 const pickedId = ref<string | null>(null);
+const pickedVersionId = ref<string | null>(null);
+const editing = ref<EditorTarget | null>(null);
+const editorSeed = ref('{}');
 const step = ref<Step | null>(null);
 const failure = ref<string | null>(null);
 const kind = ref('');
@@ -57,6 +65,7 @@ const payload = ref('');
 
 const definitions = useContentDefinitions(kindFilter);
 const detail = useContentDefinition(pickedId);
+const version = useContentVersion(pickedId, pickedVersionId);
 const create = useCreateContentDefinition();
 const draft = useDraftContentVersion();
 const retire = useRetireContentDefinition();
@@ -68,19 +77,24 @@ const detailState = usePanelState(detail, (row) =>
 
 const picked = computed(() => detail.data.value);
 const installs = computed(() => picked.value?.installs);
-const pending = computed(
-  () => create.isPending.value || draft.isPending.value || retire.isPending.value,
+const pickedVersion = computed(() => version.data.value ?? null);
+const publishable = computed(
+  () => pickedVersion.value !== null && !pickedVersion.value.publishedAt,
 );
+const pending = computed(() => create.isPending.value || retire.isPending.value);
+
+const editorTitle = computed<string>(() =>
+  editing.value === 'create'
+    ? t('dashboard.admin.content.create.title')
+    : t('dashboard.admin.content.draft.title'));
 
 const titleKeys = {
   create: 'create.title',
-  draft: 'draft.title',
   retire: 'retire.title',
 } as const satisfies Record<Step, string>;
 
 const actionKeys = {
   create: 'create.action',
-  draft: 'draft.action',
   retire: 'retire.action',
 } as const satisfies Record<Step, string>;
 
@@ -111,18 +125,14 @@ const consequence = computed<string | undefined>(() => {
 
 const error = computed<string | undefined>(() => failure.value ?? undefined);
 
+// A version belongs to one definition: another definition starts with no version picked.
+watch(pickedId, () => {
+  pickedVersionId.value = null;
+  editing.value = null;
+});
+
 function pick(row: ContentDefinition): void {
   pickedId.value = row.id;
-}
-
-function isJson(value: string): boolean {
-  try {
-    JSON.parse(value);
-
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function openCreate(): void {
@@ -135,14 +145,35 @@ function openCreate(): void {
   step.value = 'create';
 }
 
+function openCreateEditor(): void {
+  editorSeed.value = payload.value;
+  editing.value = 'create';
+}
+
+// The draft starts from the picked version; with none picked it starts from the current one.
 function openDraft(): void {
   const current = picked.value;
   const currentId = current?.definition.currentVersionId;
   const latest = current?.versions.find((row) => row.id === currentId) ?? current?.versions[0];
 
-  payload.value = latest?.payloadJson ?? '{}';
-  failure.value = null;
-  step.value = 'draft';
+  editorSeed.value = pickedVersion.value?.payloadJson ?? latest?.payloadJson ?? '{}';
+  editing.value = 'draft';
+}
+
+async function keepPayload(payloadJson: string): Promise<string> {
+  if (editing.value === 'create') {
+    payload.value = payloadJson;
+
+    return t('dashboard.admin.content.create.kept');
+  }
+
+  try {
+    await draft.mutateAsync({ definitionId: pickedId.value!, payloadJson });
+
+    return t('dashboard.admin.content.draft.saved');
+  } catch {
+    return t('dashboard.admin.content.failed');
+  }
 }
 
 function openRetire(): void {
@@ -166,9 +197,6 @@ function run(current: Step): Promise<void> {
       payloadJson: payload.value,
     });
 
-  if (current === 'draft')
-    return draft.mutateAsync({ definitionId: pickedId.value!, payloadJson: payload.value });
-
   return retire.mutateAsync(pickedId.value!);
 }
 
@@ -176,12 +204,6 @@ async function submit(): Promise<void> {
   const current = step.value;
 
   if (current === null) return;
-
-  if (current !== 'retire' && !isJson(payload.value)) {
-    failure.value = t('dashboard.admin.content.invalidPayload');
-
-    return;
-  }
 
   try {
     await run(current);
@@ -268,8 +290,11 @@ async function submit(): Promise<void> {
           v-for="row in picked?.versions ?? []"
           :key="row.id"
           data-version-row
+          pick
           truncate
+          :selected="row.id === pickedVersionId"
           :title="$t('dashboard.admin.content.version', { version: Number(row.version) })"
+          @click="pickedVersionId = row.id"
         >
           <template #meta>
             <span class="block truncate font-mono">{{ row.payloadJson }}</span>
@@ -283,6 +308,12 @@ async function submit(): Promise<void> {
           </template>
         </SummaryRow>
       </RowGroup>
+      <AdminContentPublishPanel
+        v-if="publishable && pickedId && pickedVersionId && can('content:publish')"
+        class="mt-4"
+        :definition-id="pickedId"
+        :version-id="pickedVersionId"
+      />
       <template v-if="can('content:author')" #footer>
         <div class="flex w-full justify-end gap-2">
           <Button variant="outline" @click="openDraft">{{
@@ -327,15 +358,24 @@ async function submit(): Promise<void> {
           <Input id="content-new-description" v-model="description" data-field-description />
         </Field>
       </div>
-      <Field v-if="step === 'create' || step === 'draft'" class="mt-3">
+      <Field v-if="step === 'create' && can('content:author')" class="mt-3">
         <FieldLabel for="content-payload">{{ $t("dashboard.admin.content.fields.payload") }}</FieldLabel>
-        <Textarea
+        <Button
           id="content-payload"
-          v-model="payload"
-          class="min-h-40 font-mono text-xs"
+          variant="outline"
+          type="button"
+          class="justify-start truncate font-mono text-xs"
           data-field-payload
-        />
+          @click="openCreateEditor"
+        >{{ payload }}</Button>
       </Field>
     </FormDialog>
+    <AdminContentPayloadEditor
+      v-if="editing"
+      :title="editorTitle"
+      :initial="editorSeed"
+      :keep="keepPayload"
+      @close="editing = null"
+    />
   </PageBody>
 </template>
