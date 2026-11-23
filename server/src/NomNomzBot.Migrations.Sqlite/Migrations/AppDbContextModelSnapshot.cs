@@ -12390,9 +12390,25 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<long>("ReceiveCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.Property<string>("TargetEventType")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
                     b.Property<Guid?>("TargetPipelineId")
                         .HasColumnType("TEXT")

@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
@@ -214,9 +215,7 @@ public sealed class InboundWebhookEndpointServiceTests
     public async Task Get_leaves_the_generic_config_null_for_a_provider_adapter()
     {
         (InboundWebhookEndpointService sut, _, _, _) = Build();
-        InboundWebhookEndpointDto created = (
-            await sut.CreateAsync(Channel, Actor, Req(WebhookAdapterKind.Kofi))
-        ).Value;
+        InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
 
         InboundWebhookEndpointDto fetched = (await sut.GetAsync(Channel, created.Id)).Value;
 
@@ -284,6 +283,105 @@ public sealed class InboundWebhookEndpointServiceTests
         result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
         bus.Published.Should().BeEmpty();
         db.InboundWebhookEndpoints.Single().TargetPipelineId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Create_stores_an_action_target_and_the_dto_reads_it_back()
+    {
+        (InboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
+
+        InboundWebhookEndpointDto dto = (
+            await sut.CreateAsync(
+                Channel,
+                Actor,
+                Req() with
+                {
+                    Target = new(BindingTargetKind.Action, ActionType: "chat_message"),
+                }
+            )
+        ).Value;
+
+        dto.Target.Should().NotBeNull();
+        dto.Target!.Kind.Should().Be(BindingTargetKind.Action);
+        dto.Target.ActionType.Should().Be("chat_message");
+        InboundWebhookEndpoint stored = db.InboundWebhookEndpoints.Single();
+        stored.TargetKind.Should().Be(BindingTargetKind.Action);
+        stored.TargetActionType.Should().Be("chat_message");
+        stored.TargetPipelineId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Update_switches_a_legacy_pipeline_webhook_to_a_command_target()
+    {
+        (InboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
+        Guid pipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = pipelineId,
+                BroadcasterId = Channel,
+                Name = "mine",
+                TriggerKind = "webhook",
+            }
+        );
+        Guid commandId = Guid.NewGuid();
+        db.Commands.Add(
+            new()
+            {
+                Id = commandId,
+                BroadcasterId = Channel,
+                Name = "hello",
+                NameNormalized = "hello",
+            }
+        );
+        await db.SaveChangesAsync();
+        InboundWebhookEndpointDto created = (
+            await sut.CreateAsync(Channel, Actor, Req() with { TargetPipelineId = pipelineId })
+        ).Value;
+        created.Target!.Kind.Should().Be(BindingTargetKind.Pipeline);
+        created.Target.Id.Should().Be(pipelineId.ToString());
+
+        InboundWebhookEndpointDto updated = (
+            await sut.UpdateAsync(
+                Channel,
+                created.Id,
+                new() { Target = new(BindingTargetKind.Command, commandId.ToString()) }
+            )
+        ).Value;
+
+        updated.Target!.Kind.Should().Be(BindingTargetKind.Command);
+        updated.Target.Id.Should().Be(commandId.ToString());
+        InboundWebhookEndpoint stored = db.InboundWebhookEndpoints.Single();
+        stored.TargetCommandId.Should().Be(commandId);
+        stored.TargetPipelineId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_command_target_from_another_channel()
+    {
+        (InboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
+        InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
+        Guid foreignCommandId = Guid.NewGuid();
+        db.Commands.Add(
+            new()
+            {
+                Id = foreignCommandId,
+                BroadcasterId = Guid.NewGuid(),
+                Name = "theirs",
+                NameNormalized = "theirs",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<InboundWebhookEndpointDto> result = await sut.UpdateAsync(
+            Channel,
+            created.Id,
+            new() { Target = new(BindingTargetKind.Command, foreignCommandId.ToString()) }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        db.InboundWebhookEndpoints.Single().TargetCommandId.Should().BeNull();
     }
 
     [Fact]

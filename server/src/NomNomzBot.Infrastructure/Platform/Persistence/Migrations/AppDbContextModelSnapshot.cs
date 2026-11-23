@@ -11848,9 +11848,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<long>("ReceiveCount")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("TargetEventType")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<Guid?>("TargetPipelineId")
                         .HasColumnType("uuid");

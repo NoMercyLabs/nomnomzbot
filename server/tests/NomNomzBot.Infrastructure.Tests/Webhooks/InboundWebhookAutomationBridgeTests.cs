@@ -11,15 +11,18 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
+using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Domain.Webhooks.Events;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Webhooks.EventHandlers;
 using NSubstitute;
+using NSubstitute.Core;
 
 namespace NomNomzBot.Infrastructure.Tests.Webhooks;
 
@@ -44,7 +47,7 @@ public sealed class InboundWebhookAutomationBridgeTests
     private static (
         InboundWebhookAutomationBridge Sut,
         AuthDbContext Db,
-        IPipelineEngine Pipeline,
+        ICommandInvoker Invoker,
         IEventResponseExecutor Responses
     ) Build(string payloadJson)
     {
@@ -53,26 +56,33 @@ public sealed class InboundWebhookAutomationBridgeTests
         journal
             .GetByEventIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(Record(payloadJson)));
-        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
-        pipeline
-            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
-            .Returns(
-                new PipelineExecutionResult
-                {
-                    ExecutionId = "x",
-                    Outcome = PipelineOutcome.Completed,
-                    Duration = TimeSpan.Zero,
-                }
-            );
+        ICommandInvoker invoker = Substitute.For<ICommandInvoker>();
+        invoker
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new InvocationOutcome(true, null, null)));
         IEventResponseExecutor responses = Substitute.For<IEventResponseExecutor>();
         InboundWebhookAutomationBridge sut = new(
             db,
             journal,
-            pipeline,
+            invoker,
             responses,
             NullLogger<InboundWebhookAutomationBridge>.Instance
         );
-        return (sut, db, pipeline, responses);
+        return (sut, db, invoker, responses);
+    }
+
+    private static (BindingTarget Target, InvocationContext Context, Guid Channel) OnlyInvocation(
+        ICommandInvoker invoker
+    )
+    {
+        ICall call = invoker.ReceivedCalls().Single();
+        object?[] args = call.GetArguments();
+        return ((BindingTarget)args[1]!, (InvocationContext)args[2]!, (Guid)args[0]!);
     }
 
     private static EventRecord Record(string payloadJson) =>
@@ -100,26 +110,28 @@ public sealed class InboundWebhookAutomationBridgeTests
     private static async Task SeedEndpointAsync(
         AuthDbContext db,
         Guid? targetPipelineId,
-        string? targetEventType
+        string? targetEventType,
+        BindingTarget? target = null
     )
     {
-        db.InboundWebhookEndpoints.Add(
-            new()
-            {
-                Id = Endpoint,
-                BroadcasterId = Channel,
-                Name = "gh",
-                Token = "tok",
-                AdapterKind = WebhookAdapterKind.Github,
-                VerificationSecretEnvelope = "sealed",
-                EncryptionKeyId = Guid.Parse("0192a000-0000-7000-8000-000000000cbb"),
-                IsEnabled = true,
-                TargetPipelineId = targetPipelineId,
-                TargetEventType = targetEventType,
-                CreatedAt = When,
-                UpdatedAt = When,
-            }
-        );
+        InboundWebhookEndpoint endpoint = new()
+        {
+            Id = Endpoint,
+            BroadcasterId = Channel,
+            Name = "gh",
+            Token = "tok",
+            AdapterKind = WebhookAdapterKind.Github,
+            VerificationSecretEnvelope = "sealed",
+            EncryptionKeyId = Guid.Parse("0192a000-0000-7000-8000-000000000cbb"),
+            IsEnabled = true,
+            TargetPipelineId = targetPipelineId,
+            TargetEventType = targetEventType,
+            CreatedAt = When,
+            UpdatedAt = When,
+        };
+        if (target is not null)
+            endpoint.SetBindingTarget(target);
+        db.InboundWebhookEndpoints.Add(endpoint);
         await db.SaveChangesAsync();
     }
 
@@ -137,25 +149,26 @@ public sealed class InboundWebhookAutomationBridgeTests
         };
 
     [Fact]
-    public async Task Pipeline_target_runs_the_bound_pipeline_with_namespaced_variables()
+    public async Task A_pipeline_only_webhook_still_runs_its_pipeline_with_namespaced_variables()
     {
         (
             InboundWebhookAutomationBridge sut,
             AuthDbContext db,
-            IPipelineEngine pipeline,
+            ICommandInvoker invoker,
             IEventResponseExecutor responses
         ) = Build("{\"amount\":\"5\",\"from\":\"bob\"}");
         await SeedEndpointAsync(db, TargetPipeline, targetEventType: null);
 
         await sut.HandleAsync(Received());
 
-        PipelineRequest req = (PipelineRequest)pipeline.ReceivedCalls().Single().GetArguments()[0]!;
-        req.PipelineId.Should().Be(TargetPipeline);
-        req.BroadcasterId.Should().Be(Channel);
-        req.InitialVariables.Should().Contain("payload.amount", "5");
-        req.InitialVariables.Should().Contain("payload.from", "bob");
-        req.InitialVariables.Should().Contain("webhook.event_type", "webhook.github.push");
-        req.InitialVariables.Should().Contain("webhook.provider", "github");
+        (BindingTarget target, InvocationContext context, Guid channel) = OnlyInvocation(invoker);
+        target.Kind.Should().Be(BindingTargetKind.Pipeline);
+        target.Id.Should().Be(TargetPipeline.ToString());
+        channel.Should().Be(Channel);
+        context.Variables.Should().Contain("payload.amount", "5");
+        context.Variables.Should().Contain("payload.from", "bob");
+        context.Variables.Should().Contain("webhook.event_type", "webhook.github.push");
+        context.Variables.Should().Contain("webhook.provider", "github");
         await responses
             .DidNotReceive()
             .ExecuteAsync(
@@ -169,12 +182,80 @@ public sealed class InboundWebhookAutomationBridgeTests
     }
 
     [Fact]
+    public async Task An_action_target_runs_that_action_with_the_payload_variables()
+    {
+        (InboundWebhookAutomationBridge sut, AuthDbContext db, ICommandInvoker invoker, _) = Build(
+            "{\"amount\":\"5\",\"from\":\"bob\"}"
+        );
+        await SeedEndpointAsync(
+            db,
+            targetPipelineId: null,
+            targetEventType: null,
+            new BindingTarget(BindingTargetKind.Action, ActionType: "chat_message")
+        );
+
+        await sut.HandleAsync(Received());
+
+        (BindingTarget target, InvocationContext context, Guid channel) = OnlyInvocation(invoker);
+        target.Kind.Should().Be(BindingTargetKind.Action);
+        target.ActionType.Should().Be("chat_message");
+        channel.Should().Be(Channel);
+        context.TriggerSource.Should().Be("webhook");
+        context.Variables.Should().Contain("payload.amount", "5");
+        context.Variables.Should().Contain("payload.from", "bob");
+        context.Variables.Should().Contain("webhook.provider", "github");
+    }
+
+    [Fact]
+    public async Task A_command_target_runs_that_command_with_the_payload_variables()
+    {
+        (InboundWebhookAutomationBridge sut, AuthDbContext db, ICommandInvoker invoker, _) = Build(
+            "{\"stars\":\"42\"}"
+        );
+        Guid commandId = Guid.Parse("0192a000-0000-7000-8000-000000000c05");
+        await SeedEndpointAsync(
+            db,
+            targetPipelineId: null,
+            targetEventType: null,
+            new BindingTarget(BindingTargetKind.Command, commandId.ToString())
+        );
+
+        await sut.HandleAsync(Received());
+
+        (BindingTarget target, InvocationContext context, _) = OnlyInvocation(invoker);
+        target.Kind.Should().Be(BindingTargetKind.Command);
+        target.Id.Should().Be(commandId.ToString());
+        context.Variables.Should().Contain("payload.stars", "42");
+    }
+
+    [Fact]
+    public async Task A_target_that_fails_to_run_never_throws_into_the_event_bus()
+    {
+        (InboundWebhookAutomationBridge sut, AuthDbContext db, ICommandInvoker invoker, _) = Build(
+            "{\"stars\":\"42\"}"
+        );
+        invoker
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns<Result<InvocationOutcome>>(_ => throw new InvalidOperationException("boom"));
+        await SeedEndpointAsync(db, TargetPipeline, targetEventType: null);
+
+        Func<Task> act = () => sut.HandleAsync(Received());
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
     public async Task Event_type_target_triggers_the_event_response_with_the_payload()
     {
         (
             InboundWebhookAutomationBridge sut,
             AuthDbContext db,
-            IPipelineEngine pipeline,
+            ICommandInvoker invoker,
             IEventResponseExecutor responses
         ) = Build("{\"stars\":\"42\"}");
         await SeedEndpointAsync(db, targetPipelineId: null, targetEventType: "custom.github.star");
@@ -191,9 +272,14 @@ public sealed class InboundWebhookAutomationBridgeTests
                 Arg.Is<Dictionary<string, string>>(v => v["payload.stars"] == "42"),
                 Arg.Any<CancellationToken>()
             );
-        await pipeline
+        await invoker
             .DidNotReceive()
-            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -202,16 +288,21 @@ public sealed class InboundWebhookAutomationBridgeTests
         (
             InboundWebhookAutomationBridge sut,
             AuthDbContext db,
-            IPipelineEngine pipeline,
+            ICommandInvoker invoker,
             IEventResponseExecutor responses
         ) = Build("{\"amount\":\"5\"}");
         await SeedEndpointAsync(db, targetPipelineId: null, targetEventType: null);
 
         await sut.HandleAsync(Received());
 
-        await pipeline
+        await invoker
             .DidNotReceive()
-            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            );
         await responses
             .DidNotReceive()
             .ExecuteAsync(
@@ -227,15 +318,20 @@ public sealed class InboundWebhookAutomationBridgeTests
     [Fact]
     public async Task A_duplicate_delivery_is_ignored()
     {
-        (InboundWebhookAutomationBridge sut, AuthDbContext db, IPipelineEngine pipeline, _) = Build(
+        (InboundWebhookAutomationBridge sut, AuthDbContext db, ICommandInvoker invoker, _) = Build(
             "{\"amount\":\"5\"}"
         );
         await SeedEndpointAsync(db, TargetPipeline, targetEventType: null);
 
         await sut.HandleAsync(Received(wasDuplicate: true));
 
-        await pipeline
+        await invoker
             .DidNotReceive()
-            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

@@ -13,7 +13,6 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -276,7 +275,7 @@ public sealed class AutomationTriggerSampleTests
         InboundWebhookAutomationBridge bridge = new(
             db,
             journal,
-            Substitute.For<IPipelineEngine>(),
+            Substitute.For<ICommandInvoker>(),
             responses,
             NullLogger<InboundWebhookAutomationBridge>.Instance
         );

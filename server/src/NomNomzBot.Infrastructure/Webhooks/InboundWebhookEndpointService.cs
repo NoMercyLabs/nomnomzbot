@@ -21,6 +21,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
@@ -104,6 +106,15 @@ public sealed class InboundWebhookEndpointService(
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<InboundWebhookEndpointDto>();
 
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<InboundWebhookEndpointDto>();
+
         DateTime now = clock.GetUtcNow().UtcDateTime;
         InboundWebhookEndpoint endpoint = new()
         {
@@ -121,6 +132,7 @@ public sealed class InboundWebhookEndpointService(
             CreatedAt = now,
             UpdatedAt = now,
         };
+        BindingTargetBinder.ApplyTo(endpoint, request.Target, endpoint.TargetPipelineId);
         await SealSecretAsync(endpoint, request.VerificationSecret, broadcasterId, ct);
         db.InboundWebhookEndpoints.Add(endpoint);
         await db.SaveChangesAsync(ct);
@@ -150,8 +162,21 @@ public sealed class InboundWebhookEndpointService(
             );
             if (pipelineOk.IsFailure)
                 return pipelineOk.ToTyped<InboundWebhookEndpointDto>();
-            endpoint.TargetPipelineId = request.TargetPipelineId;
+            // An older client names only the pipeline: it replaces whatever target the endpoint held.
+            if (request.Target is null)
+                endpoint.SetBindingTarget(
+                    new(BindingTargetKind.Pipeline, request.TargetPipelineId.ToString())
+                );
         }
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<InboundWebhookEndpointDto>();
+        BindingTargetBinder.ApplyTo(endpoint, request.Target, endpoint.TargetPipelineId);
         if (request.TargetEventType is not null)
             endpoint.TargetEventType = request.TargetEventType;
         if (request.GenericConfig is not null)
@@ -278,7 +303,10 @@ public sealed class InboundWebhookEndpointService(
             string.IsNullOrEmpty(e.GenericConfigJson)
                 ? null
                 : JsonConvert.DeserializeObject<GenericInboundConfig>(e.GenericConfigJson)
-        );
+        )
+        {
+            Target = e.GetBindingTarget(),
+        };
 
     /// <summary>
     /// Counts what stops receiving when this ingest URL is retired. Both dependents carry a real

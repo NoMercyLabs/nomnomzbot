@@ -37,7 +37,6 @@ import {
   type WebhookBlastRadius,
   type WebhookTestResult,
 } from '@/api/webhooks';
-import { usePipelines } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
@@ -76,7 +75,6 @@ const saveInbound = useSaveInboundWebhook(channelId);
 const rotateInbound = useRotateInboundWebhookLink(channelId);
 const rotateOutbound = useRotateOutboundWebhookSecret(channelId);
 const testOutbound = useTestOutboundWebhook(channelId);
-const pipelines = usePipelines(channelId);
 
 const outboundState = usePanelState(outbound, (rows) =>
   rows.length === 0);
@@ -408,7 +406,6 @@ async function confirmDelete(): Promise<void> {
     v-if="can('webhooks:inbound:write')"
     v-model:open="inboundEditorOpen"
     :endpoint="editingInbound"
-    :pipelines="pipelines.data.value ?? []"
     :pending="saveInbound.isPending.value"
     :error="inboundSaveError"
     @submit="submitInbound"

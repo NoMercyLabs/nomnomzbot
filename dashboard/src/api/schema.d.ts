@@ -94743,6 +94743,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             targetPipelineId?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
             targetEventType?: null | string;
             genericConfig?: null | components["schemas"]["GenericInboundConfig"];
             isEnabled?: boolean;
@@ -96901,6 +96902,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             genericConfig: null | components["schemas"]["GenericInboundConfig"];
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description One row of the channel's installed-bundle ledger. */
         InstalledBundle: {
@@ -108841,6 +108843,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             targetPipelineId?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
             targetEventType?: null | string;
             genericConfig?: null | components["schemas"]["GenericInboundConfig"];
             isEnabled?: null | boolean;

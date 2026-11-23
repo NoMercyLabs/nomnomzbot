@@ -118596,6 +118596,17 @@
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
           },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What a verified call runs. Wins over Guid? CreateInboundWebhookRequest.TargetPipelineId, which older clients still send.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
+          },
           "targetEventType": {
             "type": [
               "null",
@@ -124768,6 +124779,17 @@
               },
               {
                 "$ref": "#/components/schemas/GenericInboundConfig"
+              }
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What a verified call runs: a command, an action or a pipeline. Null when none.",
+                "$ref": "#/components/schemas/BindingTarget"
               }
             ]
           }
@@ -159718,6 +159740,17 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The target a verified call runs. Null leaves it unchanged (older clients keep working); a pipeline target\r\nwith an empty id clears it. Wins over Guid? UpdateInboundWebhookRequest.TargetPipelineId.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           },
           "targetEventType": {
             "type": [

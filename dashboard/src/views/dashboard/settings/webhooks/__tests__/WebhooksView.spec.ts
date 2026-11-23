@@ -11,11 +11,14 @@
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { i18n } from '@/i18n';
 import { merge } from '@/lib/array';
+import type { PickedTarget } from '@/lib/bindingTarget';
 import { dashboardSettingsRoutes } from '../../route';
 import en from '../i18n/en.json';
 import nl from '../i18n/nl.json';
@@ -31,7 +34,15 @@ type Call = {
 
 const calls: Call[] = [];
 
-const held = vi.hoisted(() => ({ keys: null as Set<string> | null, oldCatalog: false }));
+const held = vi.hoisted(() => ({
+  keys: null as Set<string> | null,
+  oldCatalog: false,
+  target: null as {
+    kind: number;
+    id?: string;
+    actionType?: string;
+  } | null,
+}));
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
@@ -195,8 +206,17 @@ vi.mock('@/api/client', () => {
             },
           ]);
 
+        if (path.endsWith('/commands'))
+          return ok([]);
+
         return path.endsWith('/inbound')
-          ? ok([inboundRow])
+          ? ok([held.target === null
+              ? inboundRow
+              : {
+                  ...inboundRow,
+                  targetPipelineId: null,
+                  target: held.target,
+                }])
           : ok([outboundRow]);
       };
 
@@ -221,6 +241,8 @@ beforeEach(() => {
   calls.length = 0;
   held.keys = null;
   held.oldCatalog = false;
+  held.target = null;
+  setActivePinia(createPinia());
 
   vi.stubGlobal(
     'ResizeObserver',
@@ -706,12 +728,12 @@ describe('Webhooks inbound editor', () => {
 
     expect(fieldsShown()).toBeLessThanOrEqual(5);
     expect(document.querySelector('[data-field="signature-header"]')).toBeNull();
-    expect(document.querySelector('[data-field="inbound-pipeline"]')).toBeNull();
+    expect(document.querySelector('[data-field="inbound-target"]')).toBeNull();
 
     await click(q('[data-advanced-trigger]'));
 
     expect(document.querySelector('[data-field="signature-header"]')).not.toBeNull();
-    expect(document.querySelector('[data-field="inbound-pipeline"]')).not.toBeNull();
+    expect(document.querySelector('[data-field="inbound-target"]')).not.toBeNull();
     expect(document.querySelector('[data-field="inbound-event-type"]')).not.toBeNull();
   });
 
@@ -753,7 +775,6 @@ describe('Webhooks inbound editor', () => {
       name: 'Shop',
       adapter: 'Generic',
       verificationSecret: 'shh',
-      targetPipelineId: null,
       targetEventType: null,
       genericConfig: {
         signatureHeaderName: 'X-Sig',
@@ -778,12 +799,88 @@ describe('Webhooks inbound editor', () => {
 
     expect(body).toMatchObject({
       name: 'Shop 2',
-      targetPipelineId: 'p1',
       isEnabled: true,
       genericConfig: { signatureHeaderName: 'X-Sig', eventKindJsonPath: '$.kind' },
     });
 
     expect(body).not.toHaveProperty('verificationSecret');
+    expect(body).not.toHaveProperty('target');
+  });
+
+  it('shows the pipeline an old webhook already runs and keeps it when the edit leaves it alone', async () => {
+    await open();
+    await click(q('[data-inbound-actions] [data-row-edit]'));
+
+    expect(mounted?.getComponent(TargetPicker).props('target')).toEqual({
+      kind: 'pipeline',
+      id: 'p1',
+    });
+  });
+
+  it('saves a picked action target with its settings when a webhook is created', async () => {
+    await open();
+    await click(q('[data-new-inbound]'));
+    await typeInto('[data-field="inbound-name"]', 'Shop');
+    await typeInto('[data-field="inbound-secret"]', 'shh');
+    await typeInto('[data-field="event-kind-path"]', '$.kind');
+    await typeInto('[data-field="event-id-path"]', '$.id');
+    await click(q('[data-advanced-trigger]'));
+
+    const action: PickedTarget = {
+      kind: 'action',
+      id: '',
+      actionType: 'send_chat_message',
+      params: { message: 'Thanks {{payload.from}}' },
+    };
+
+    mounted?.getComponent(TargetPicker).vm.$emit('update:target', action);
+    await settle();
+    await click(q('[data-form-action]'));
+
+    expect(callTo('POST', '/webhooks/inbound')?.body).toMatchObject({
+      target: {
+        kind: 2,
+        id: '',
+        actionType: 'send_chat_message',
+        params: { message: 'Thanks {{payload.from}}' },
+      },
+    });
+  });
+
+  it('saves a picked command target when an edit swaps the pipeline for it', async () => {
+    await open();
+    await click(q('[data-inbound-actions] [data-row-edit]'));
+    mounted?.getComponent(TargetPicker).vm.$emit('update:target', { kind: 'command', id: 'cmd-1' });
+    await settle();
+    await click(q('[data-form-action]'));
+
+    expect(callTo('PUT', '/inbound/{endpointId}')?.body).toMatchObject({
+      target: { kind: 0, id: 'cmd-1' },
+    });
+  });
+
+  it('shows the saved action target when the webhook is reopened', async () => {
+    held.target = { kind: 2, actionType: 'send_chat_message' };
+    await open();
+    await click(q('[data-inbound-actions] [data-row-edit]'));
+
+    expect(mounted?.getComponent(TargetPicker).props('target')).toEqual({
+      kind: 'action',
+      id: '',
+      actionType: 'send_chat_message',
+    });
+  });
+
+  it('clears the target as an empty pipeline when the picker is emptied', async () => {
+    await open();
+    await click(q('[data-inbound-actions] [data-row-edit]'));
+    mounted?.getComponent(TargetPicker).vm.$emit('update:target', null);
+    await settle();
+    await click(q('[data-form-action]'));
+
+    expect(callTo('PUT', '/inbound/{endpointId}')?.body).toMatchObject({
+      target: { kind: 1, id: '' },
+    });
   });
 
   it('rotates the link only after a confirm that says the old link stops', async () => {

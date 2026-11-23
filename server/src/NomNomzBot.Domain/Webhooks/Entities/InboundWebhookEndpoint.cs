@@ -9,6 +9,9 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Webhooks.Enums;
 
@@ -17,9 +20,10 @@ namespace NomNomzBot.Domain.Webhooks.Entities;
 /// <summary>
 /// A tenant-configured inbound webhook endpoint (webhooks.md §1, schema H.10). The opaque <see cref="Token"/> is
 /// the unguessable URL path segment; the per-provider verification secret is AEAD-wrapped. A verified hit runs
-/// <see cref="TargetPipelineId"/> or fans out via the event-response service.
+/// one target (a pipeline, an action or a command; see <see cref="BindingTargetExtensions.GetBindingTarget"/>)
+/// or fans out via the event-response service.
 /// </summary>
-public class InboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped
+public class InboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped, IBindingTargetHolder
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid BroadcasterId { get; set; }
@@ -36,7 +40,28 @@ public class InboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped
     /// <summary>Generic-adapter config (signature header / signing-string / shared-secret field) as JSON.</summary>
     public string? GenericConfigJson { get; set; }
 
+    /// <summary>The pipeline this endpoint runs (the target kind pipeline). Older rows keep it here; null when none.</summary>
     public Guid? TargetPipelineId { get; set; }
+
+    /// <summary>What a verified hit runs. Existing rows read as the pipeline kind, so they keep running <see cref="TargetPipelineId"/>.</summary>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => TargetPipelineId;
+        set => TargetPipelineId = value;
+    }
+
     public string? TargetEventType { get; set; }
     public bool IsEnabled { get; set; }
     public DateTime? LastReceivedAt { get; set; }

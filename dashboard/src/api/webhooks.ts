@@ -356,7 +356,9 @@ export function useSaveInboundWebhook(
                 ...(draft.verificationSecret === ''
                   ? {}
                   : { verificationSecret: draft.verificationSecret }),
-                targetPipelineId: draft.targetPipelineId,
+                ...(draft.target === undefined
+                  ? {}
+                  : { target: draft.target }),
                 targetEventType: draft.targetEventType,
                 genericConfig: draft.genericConfig,
                 isEnabled: draft.isEnabled,

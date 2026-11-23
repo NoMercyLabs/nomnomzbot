@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Webhooks.Enums;
 
 namespace NomNomzBot.Application.DTOs.Webhooks;
@@ -28,7 +29,11 @@ public sealed record InboundWebhookEndpointDto(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     GenericInboundConfig? GenericConfig
-);
+)
+{
+    /// <summary>What a verified call runs: a command, an action or a pipeline. Null when none.</summary>
+    public BindingTarget? Target { get; init; }
+}
 
 /// <summary>A buffered inbound webhook request the dispatcher hands to the adapter (webhooks.md §4). Raw bytes are exact.</summary>
 public sealed record InboundWebhookRequest
@@ -191,6 +196,9 @@ public sealed record CreateInboundWebhookRequest
     /// <summary>The provider token / shared secret. AEAD-encrypted on store, never persisted in plaintext.</summary>
     public required string VerificationSecret { get; init; }
     public Guid? TargetPipelineId { get; init; }
+
+    /// <summary>What a verified call runs. Wins over <see cref="TargetPipelineId"/>, which older clients still send.</summary>
+    public BindingTarget? Target { get; init; }
     public string? TargetEventType { get; init; }
     public GenericInboundConfig? GenericConfig { get; init; }
     public bool IsEnabled { get; init; } = true;
@@ -203,6 +211,12 @@ public sealed record UpdateInboundWebhookRequest
     /// <summary>When present, rotates (re-encrypts) the verification secret.</summary>
     public string? VerificationSecret { get; init; }
     public Guid? TargetPipelineId { get; init; }
+
+    /// <summary>
+    /// The target a verified call runs. Null leaves it unchanged (older clients keep working); a pipeline target
+    /// with an empty id clears it. Wins over <see cref="TargetPipelineId"/>.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
     public string? TargetEventType { get; init; }
     public GenericInboundConfig? GenericConfig { get; init; }
     public bool? IsEnabled { get; init; }

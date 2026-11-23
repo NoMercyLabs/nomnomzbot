@@ -10,14 +10,14 @@
 -->
 <script setup lang="ts">
 // Makes or edits one inbound webhook: the name, the provider kind (fixed once made), the secret that proves a call
-// is real, what the call starts (a pipeline or an event) and, for a generic provider, where its signature and
-// event fields sit. The secret is never read back: an empty box on an edit keeps the stored one.
+// is real, what the call runs (one command, action or pipeline, or an event) and, for a generic provider, where
+// its signature and event fields sit. The secret is never read back: an empty box on an edit keeps the stored one.
 import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import type { PipelineListItem } from '@/api/pipelines';
 import type { InboundWebhook, InboundWebhookDraft } from '@/api/webhooks';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -28,13 +28,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 import ChevronDown from '~icons/nnz/chevron-down';
 
 type Adapter = InboundWebhookDraft['adapter'];
 
 const props = defineProps<{
   endpoint: InboundWebhook | null;
-  pipelines: PipelineListItem[];
   pending: boolean;
   error?: string;
 }>();
@@ -53,13 +53,12 @@ const adapters = [
   'Buymeacoffee',
 ] as const satisfies readonly Adapter[];
 
-// The select cannot hold an empty value, so "no pipeline" is a word that no pipeline id can be.
-const noPipeline = '__none';
-
 const name = ref('');
 const adapter = ref<Adapter>('Generic');
 const secret = ref('');
-const pipelineId = ref(noPipeline);
+// What the webhook ran when the dialog opened, so a save sends a target only when the pick changed.
+const bound = ref<PickedTarget | null>(null);
+const target = ref<PickedTarget | null>(null);
 const eventType = ref('');
 const signatureHeader = ref('');
 const signaturePrefix = ref('');
@@ -109,7 +108,8 @@ watch(open, (isOpen) => {
   name.value = props.endpoint?.name ?? '';
   adapter.value = props.endpoint?.adapter ?? 'Generic';
   secret.value = '';
-  pipelineId.value = props.endpoint?.targetPipelineId ?? noPipeline;
+  bound.value = boundTarget(props.endpoint?.target, props.endpoint?.targetPipelineId);
+  target.value = bound.value;
   eventType.value = props.endpoint?.targetEventType ?? '';
   signatureHeader.value = config?.signatureHeaderName ?? '';
   signaturePrefix.value = config?.signaturePrefix ?? '';
@@ -120,7 +120,7 @@ watch(open, (isOpen) => {
   idPath.value = config?.providerEventIdJsonPath ?? '';
 
   advancedOpen.value = [
-    props.endpoint?.targetPipelineId,
+    bound.value,
     props.endpoint?.targetEventType,
     config?.signatureHeaderName,
     config?.signaturePrefix,
@@ -153,14 +153,21 @@ function genericConfig(): InboundWebhookDraft['genericConfig'] {
   };
 }
 
+// The bot reads a missing target as "unchanged" and an empty pipeline as "clear", so a target travels only when
+// the pick differs from what the webhook ran on open.
+function targetChange() {
+  if (sameTarget(target.value, bound.value))
+    return {} as const satisfies Pick<InboundWebhookDraft, 'target'>;
+
+  return { target: targetToWire(target.value) } as const satisfies Pick<InboundWebhookDraft, 'target'>;
+}
+
 function submit(): void {
   emit('submit', {
     name: name.value.trim(),
     adapter: adapter.value,
     verificationSecret: secret.value,
-    targetPipelineId: pipelineId.value === noPipeline
-      ? null
-      : pipelineId.value,
+    ...targetChange(),
     targetEventType: orNull(eventType.value),
     genericConfig: genericConfig(),
     isEnabled: props.endpoint?.isEnabled ?? true,
@@ -273,22 +280,18 @@ function submit(): void {
       <CollapsibleContent>
         <div class="grid gap-4 border-t border-border p-3">
           <Field>
-            <FieldLabel :for="`${base}-pipeline`">
-              {{ $t("dashboard.settings.webhooks.inbound.pipeline") }}
+            <FieldLabel :for="`${base}-target`">
+              {{ $t("dashboard.settings.webhooks.inbound.target") }}
+              <FieldInfo>{{ $t("dashboard.settings.webhooks.inbound.targetHelp") }}</FieldInfo>
             </FieldLabel>
-            <Select v-model="pipelineId">
-              <SelectTrigger :id="`${base}-pipeline`" class="w-full" data-field="inbound-pipeline">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem :value="noPipeline">{{
-                  $t("dashboard.settings.webhooks.inbound.noPipeline")
-                }}</SelectItem>
-                <SelectItem v-for="pipeline in pipelines" :key="pipeline.id" :value="pipeline.id">
-                  {{ pipeline.name }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <TargetPicker
+              v-model:target="target"
+              clearable
+              data-field="inbound-target"
+              :trigger-id="`${base}-target`"
+              :kinds="['command', 'pipeline', 'action']"
+              :label="$t('dashboard.settings.webhooks.inbound.target')"
+            />
           </Field>
           <Field>
             <FieldLabel :for="`${base}-event-type`">
