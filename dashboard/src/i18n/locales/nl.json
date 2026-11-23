@@ -147,8 +147,11 @@
     "replyMode": {
       "label": "Reactie",
       "simple": "Eenvoudig antwoord",
-      "full": "Pipeline",
-      "pipeline": "Pipeline",
+      "full": "Acties",
+      "pipeline": "Acties",
+      "existing": "Een bestaande pipeline of opdracht gebruiken",
+      "addActions": "Liever acties toevoegen",
+      "createFailed": "De pipeline kon niet worden gemaakt.",
       "pipelinePlaceholder": "Kies of maak een pipeline",
       "none": "De pipeline heeft zijn eigen antwoordstap. Er wordt niets beantwoord tot je er een kiest.",
       "open": "Open in de pipeline-editor",

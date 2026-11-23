@@ -485,7 +485,6 @@ async function duplicate(): Promise<void> {
         <ReplyModeField
           v-model:mode="mode"
           v-model:target="target"
-          :kinds="['command', 'pipeline', 'action']"
           :new-pipeline-name="reward.title"
           :disabled="!reward.isManageable"
         >

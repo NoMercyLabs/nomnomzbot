@@ -306,7 +306,7 @@ describe('Triggers and timers page', () => {
     await open();
     await click(rowOf('Follow reminder'));
 
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
     await openTargetPicker(editor()!);
     await chooseTarget('!hello');
     await settle();
@@ -382,7 +382,7 @@ describe('Triggers and timers page', () => {
     await open();
     await click(buttonByText('New timer'));
     await type(field('Name'), 'Hydrate');
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
 
     await openTargetPicker();
     await chooseTarget('!hello');

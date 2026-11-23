@@ -123,7 +123,6 @@ async function submit(): Promise<void> {
     <ReplyModeField
       v-model:mode="mode"
       v-model:target="target"
-      :kinds="['command', 'pipeline', 'action']"
       :new-pipeline-name="pattern"
     >
       <TemplateField

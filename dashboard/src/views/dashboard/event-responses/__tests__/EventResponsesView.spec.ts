@@ -289,7 +289,7 @@ describe('Event responses page', () => {
     expect(editor()!.querySelector('textarea')).not.toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
 
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
 
     expect(editor()!.querySelector('textarea')).toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).not.toBeNull();
@@ -300,7 +300,7 @@ describe('Event responses page', () => {
     await click(rowOf('channel.follow'));
     expect(switchOf('Read it aloud')).toBeDefined();
 
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
 
     expect(switchOf('Read it aloud')).toBeUndefined();
   });
@@ -328,7 +328,7 @@ describe('Event responses page', () => {
 
     await open();
     await click(rowOf('channel.follow'));
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
     await click(buttonByText('Save changes'));
 
     expect(writes('PUT')[0]!.body).toEqual({
@@ -356,7 +356,7 @@ describe('Event responses page', () => {
 
     await open();
     await click(rowOf('channel.follow'));
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
 
     await openTargetPicker(editor()!);
     await chooseTarget('!hello');

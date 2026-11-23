@@ -147,8 +147,11 @@
     "replyMode": {
       "label": "Reaction",
       "simple": "Simple reply",
-      "full": "Pipeline",
-      "pipeline": "Pipeline",
+      "full": "Actions",
+      "pipeline": "Actions",
+      "existing": "Use an existing pipeline or command",
+      "addActions": "Add actions instead",
+      "createFailed": "The pipeline could not be created.",
       "pipelinePlaceholder": "Choose or create a pipeline",
       "none": "This answers nothing until you pick a pipeline. The pipeline has its own reply step.",
       "open": "Open in the pipeline editor",

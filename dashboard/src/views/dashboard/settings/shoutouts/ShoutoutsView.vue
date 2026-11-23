@@ -155,7 +155,6 @@ function useDefault(): void {
       <ReplyModeField
         v-model:mode="mode"
         v-model:target="picked"
-        :kinds="['command', 'pipeline', 'action']"
         :new-pipeline-name="$t('dashboard.settings.shoutouts.message.title')"
         :disabled="!canEdit"
       >

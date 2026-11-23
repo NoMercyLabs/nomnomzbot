@@ -232,7 +232,7 @@ describe('Chat triggers tab', () => {
     expect(document.body.querySelector('#trigger-response')).not.toBeNull();
     expect(document.body.querySelector('[data-reply-pipeline]')).toBeNull();
 
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
 
     expect(document.body.querySelector('#trigger-response')).toBeNull();
     expect(document.body.querySelector('[data-reply-pipeline]')).not.toBeNull();
@@ -300,7 +300,7 @@ describe('Chat triggers tab', () => {
     await open();
     await click(buttonByText('New trigger'));
     await type(field('Words to watch for'), 'play it');
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
     await openTargetPicker();
 
     await vi.waitFor(() => {
@@ -333,7 +333,7 @@ describe('Chat triggers tab', () => {
     await open();
     await click(buttonByText('New trigger'));
     await type(field('Words to watch for'), 'play it');
-    await click(buttonByText('Pipeline'));
+    await click(buttonByText('Actions'));
     await click(buttonByText('Create trigger'));
 
     expect(document.body.textContent).toContain(en.dashboard.timers.triggers.dialog.targetRequired);

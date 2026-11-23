@@ -173,7 +173,7 @@ describe('ShoutoutsView', () => {
     Element.prototype.scrollIntoView = (): void => undefined;
     const page = await open();
 
-    await modeButton(page, 'Pipeline').trigger('click');
+    await modeButton(page, 'Actions').trigger('click');
     await openTargetPicker(page.element);
     await chooseTarget('!hello');
     await page.get('[data-action="save"]').trigger('click');

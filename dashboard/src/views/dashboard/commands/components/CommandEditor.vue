@@ -28,6 +28,7 @@ import {
   type CommandChange,
   type CommandListItem,
 } from '@/api/commands';
+import type { PickedTarget } from '@/lib/bindingTarget';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
 import InlineNotice from '@/components/layout/InlineNotice.vue';
@@ -252,6 +253,26 @@ async function askDelete(): Promise<void> {
   }
 }
 
+// A command saves a pipeline id only, so the shared reaction field binds through it: a pipeline pick sets the
+// id, clearing it empties the id.
+const reaction = computed<PickedTarget | null>({
+  get: () =>
+    draft.value.pipelineId === ''
+      ? null
+      : { kind: 'pipeline' as const, id: draft.value.pipelineId },
+  set: (picked: PickedTarget | null): void => {
+    if (picked === null) {
+      draft.value.pipelineId = '';
+
+      return;
+    }
+
+    if (picked.kind === 'pipeline') {
+      draft.value.pipelineId = picked.id;
+    }
+  },
+});
+
 // The copy has the saved settings of this command, starts switched off, and takes no aliases: an alias belongs
 // to one command, so the copy would be refused for the same one.
 async function duplicate(): Promise<void> {
@@ -324,7 +345,7 @@ function remove(): void {
 
       <ReplyModeField
         v-model:mode="draft.mode"
-        v-model:pipeline-id="draft.pipelineId"
+        v-model:target="reaction"
         v-model:simple-kind="replyType"
         :simple-options="replyTypes"
         :new-pipeline-name="`!${row.name}`"

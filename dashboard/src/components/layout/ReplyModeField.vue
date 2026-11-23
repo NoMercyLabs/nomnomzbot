@@ -9,25 +9,42 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// The reply section of an editor: one switch between a simple reply and a full pipeline. The simple reply
-// is the default slot. The full pipeline is a picker, because the pipeline has its own reply step.
-// Only one of the two shows at a time, so an editor never carries both. An editor with more than one kind
-// of simple reply (text, random) passes them as simpleOptions; they sit in the same one switch as the pipeline.
-// The picker chooses a pipeline or creates a new empty one in place.
+// The reaction section of every responder: one switch between a simple reply and Actions. The simple reply
+// is the default slot. Actions shows the whole step palette in place, so any action type is one press away;
+// the first pick creates a pipeline with that step, binds it and then shows its steps for editing.
+// A link keeps the way to an existing pipeline or command (the shared target picker).
+// Every responder gets the same options: no editor passes its own list of kinds.
+// An editor with more than one kind of simple reply (text, random) passes them as simpleOptions; they sit in
+// the same one switch as Actions.
 import { useElementSize } from '@vueuse/core';
 import { computed, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 
+import { useChannelAccess } from '@/api/access';
+import {
+  useCreatePipeline,
+  usePipelineCatalog,
+  useSavePipeline,
+  type PipelineStep,
+} from '@/api/pipelines';
 import type { ReplyMode } from '@/components/layout/replyMode';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import TargetPicker from '@/components/layout/TargetPicker.vue';
+import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { ensureWords, schemaWords } from '@/i18n';
 import type { PickedTarget, TargetKind } from '@/lib/bindingTarget';
+import { errorText } from '@/lib/errors';
+import { newId } from '@/lib/id';
+import { newAction, newBlock, type AddableBlock } from '@/views/dashboard/pipelines/components/newSteps';
+import StepPalette from '@/views/dashboard/pipelines/components/StepPalette.vue';
+import { pipelineWords } from '@/views/dashboard/pipelines/components/stepWords';
 
 type Option = { value: string; label: string };
 
 const mode = defineModel<ReplyMode>('mode', { required: true });
-const pipelineId = defineModel<string>('pipelineId', { default: '' });
 const target = defineModel<PickedTarget | null>('target', { default: null });
 const simpleKind = defineModel<string>('simpleKind', { default: '' });
 
@@ -37,19 +54,35 @@ const props = withDefaults(
     disabled?: boolean;
     simpleOptions?: readonly Option[];
     newPipelineName?: string;
-    kinds?: readonly TargetKind[];
   }>(),
   {
     disabled: false,
     simpleOptions: () => [],
     newPipelineName: '',
-    kinds: () => ['pipeline'],
   },
 );
 
 const FULL = 'full';
+const kinds = ['command', 'pipeline', 'action'] as const satisfies readonly TargetKind[];
 
 const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const catalog = usePipelineCatalog(channelId);
+const create = useCreatePipeline(channelId);
+const save = useSavePipeline(channelId);
+const access = useChannelAccess(channelId);
+const locked = computed<boolean>(() => props.disabled || !access.can('pipelines:write'));
+
+// The palette titles are words of the pipelines pages; a form elsewhere loads them itself. The translation
+// lookup does not notify a computed, so the words arriving flips this flag.
+const wordsReady = ref(false);
+
+void Promise.all([
+  ensureWords(pipelineWords),
+  ensureWords(schemaWords),
+]).then(() => {
+  wordsReady.value = true;
+});
 
 // Every mode keeps the tallest height any mode has had (text, random reply, pipeline), so a switch never
 // moves what sits below (owner 2026-10-17: "its a huge layout shift").
@@ -95,29 +128,35 @@ const choice = computed<string>({
   },
 });
 
-// A surface that binds commands too passes `target`; the others keep binding a pipeline id.
-const bindsTarget = computed<boolean>(() => props.kinds.includes('command'));
-const picker = computed<PickedTarget | null>({
-  get: () => {
-    if (bindsTarget.value)
-      return target.value;
+// The first action (or block) a person picks makes the pipeline: it is created, given that step and bound.
+const starting = ref(false);
+const existing = ref(false);
+const showPalette = computed<boolean>(() => target.value === null && !existing.value);
 
-    return pipelineId.value === ''
-      ? null
-      : { kind: 'pipeline' as const, id: pipelineId.value };
-  },
-  set: (value: PickedTarget | null): void => {
-    if (bindsTarget.value) {
-      target.value = value;
+async function start(make: (mint: () => string) => PipelineStep[]): Promise<void> {
+  starting.value = true;
 
-      return;
-    }
+  try {
+    const made = await create.mutateAsync({ name: props.newPipelineName || t('common.replyMode.newName') });
 
-    pipelineId.value = value?.kind === 'pipeline'
-      ? value.id
-      : '';
-  },
-});
+    await save.mutateAsync({ id: made.id, graph: { steps: make(newId) } });
+    target.value = { kind: 'pipeline', id: made.id };
+  } catch (error: unknown) {
+    toast.error(error instanceof Error
+      ? errorText(error, t)
+      : t('common.replyMode.createFailed'));
+  } finally {
+    starting.value = false;
+  }
+}
+
+function startWithAction(type: string): Promise<void> {
+  return start((mint) => newAction(type, mint));
+}
+
+function startWithBlock(kind: AddableBlock): Promise<void> {
+  return start((mint) => newBlock(kind, mint));
+}
 </script>
 
 <template>
@@ -148,15 +187,40 @@ const picker = computed<PickedTarget | null>({
     >
       <div class="flex items-center gap-1.5">
         <FieldLabel>{{ $t('common.replyMode.pipeline') }}</FieldLabel>
-        <FieldInfo v-if="picker === null">{{ $t('common.replyMode.none') }}</FieldInfo>
+        <FieldInfo v-if="target === null">{{ $t('common.replyMode.none') }}</FieldInfo>
       </div>
+      <StepPalette
+        v-if="showPalette && wordsReady"
+        data-reply-palette
+        class="h-80"
+        :actions="catalog.data.value?.actions ?? []"
+        :read-only="locked || starting"
+        :target="null"
+        @action="startWithAction"
+        @block="startWithBlock"
+      />
       <TargetPicker
-        v-model:target="picker"
+        v-else-if="!showPalette"
+        v-model:target="target"
+        clearable
         :kinds="kinds"
         :create-name="newPipelineName"
         :disabled="disabled"
         :label="$t('common.replyMode.pipeline')"
       />
+      <!-- Actions are the main path; the existing pipeline or command is the quiet way around it. -->
+      <Button
+        v-if="target === null"
+        data-reply-existing
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="w-fit"
+        :disabled="disabled"
+        @click="existing = !existing"
+      >
+        {{ existing ? $t('common.replyMode.addActions') : $t('common.replyMode.existing') }}
+      </Button>
     </Field>
   </div>
 </template>

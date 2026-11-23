@@ -210,7 +210,6 @@ async function useDefault(): Promise<void> {
       <ReplyModeField
         v-model:mode="draft.mode"
         v-model:target="draft.target"
-        :kinds="['command', 'pipeline', 'action']"
         :new-pipeline-name="eventName(row.eventType)"
       >
         <section class="grid gap-2" data-reply-lines>

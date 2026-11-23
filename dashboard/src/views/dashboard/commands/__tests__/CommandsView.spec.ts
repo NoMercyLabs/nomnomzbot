@@ -732,7 +732,7 @@ describe('CommandsView editor', () => {
     rows[0] = command('hello', { pipelineId: 'p1' });
 
     await open('/app/commands?command=hello');
-    buttonByText('Pipeline', editor()!).click();
+    buttonByText('Actions', editor()!).click();
     await settle();
 
     expect(editor()!.querySelector('[data-reply-delivery]')).toBeNull();
@@ -1077,7 +1077,7 @@ describe('CommandsView editor', () => {
     expect(reply()).not.toBeNull();
     expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
 
-    buttonByText('Pipeline').click();
+    buttonByText('Actions').click();
     await settle();
 
     expect(editor()!.querySelector('textarea')).toBeNull();
@@ -1099,12 +1099,12 @@ describe('CommandsView editor', () => {
     );
 
     expect(controls).toHaveLength(1);
-    expect(labels).toEqual(['Text', 'Random reply', 'Code script', 'Pipeline']);
+    expect(labels).toEqual(['Text', 'Random reply', 'Code script', 'Actions']);
   });
 
   it('creates a new pipeline from the picker and saves the command with it', async () => {
     await open('/app/commands?command=hello');
-    buttonByText('Pipeline').click();
+    buttonByText('Actions').click();
     await settle();
     Element.prototype.hasPointerCapture = (): boolean => false;
     Element.prototype.releasePointerCapture = (): void => undefined;
@@ -1127,7 +1127,7 @@ describe('CommandsView editor', () => {
     rows[0] = command('hello', { pipelineId: 'p1' });
 
     await open('/app/commands?command=hello');
-    buttonByText('Pipeline').click();
+    buttonByText('Actions').click();
     await settle();
     buttonByText('Save changes').click();
     await settle();
@@ -1378,7 +1378,7 @@ describe('CommandsView trigger options', () => {
     await open('/app/commands?command=hello');
     expect(switchOf('Read it aloud')).toBeDefined();
 
-    inEditor('Pipeline').click();
+    inEditor('Actions').click();
     await settle();
     expect(switchOf('Read it aloud')).toBeUndefined();
 
@@ -1809,7 +1809,7 @@ describe('CommandsView code script reaction', () => {
       (button) => button.textContent?.trim(),
     );
 
-    expect(labels).toEqual(['Text', 'Random reply', 'Code script', 'Pipeline']);
+    expect(labels).toEqual(['Text', 'Random reply', 'Code script', 'Actions']);
     expect(editor()!.querySelector('[data-code-script]')).toBeNull();
 
     buttonByText('Code script', editor()!).click();

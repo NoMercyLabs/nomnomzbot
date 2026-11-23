@@ -13,6 +13,13 @@
 import { flushPromises } from '@vue/test-utils';
 
 export async function openTargetPicker(root: ParentNode = document.body): Promise<void> {
+  // Actions mode with nothing bound shows the palette; the picker sits behind the "existing" link.
+  if (root.querySelector('[data-target-picker]') === null) {
+    root.querySelector<HTMLElement>('[data-reply-existing]')?.click();
+
+    await flushPromises();
+  }
+
   root.querySelector<HTMLElement>('[data-target-picker] [role="combobox"]')!.click();
 
   await flushPromises();
