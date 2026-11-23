@@ -24,6 +24,7 @@ import { dashboardRoutes } from '@/router/dashboard';
 
 import AdminContentView from '../AdminContentView.vue';
 import { commandWords } from '../components/commandPayload';
+import { eventResponseWords } from '../components/eventResponsePayload';
 import { overlayWords } from '../components/widgetPayload';
 import en from '../i18n/en.json';
 import { adminOnly, dashboardAdminContentRoute } from '../route';
@@ -177,6 +178,14 @@ const commandOverrides = {
   cooldownSeconds: 12,
   userCooldownSeconds: 3,
   minPermissionLevel: 10,
+};
+
+const eventResponseBody = {
+  eventType: 'channel.follow',
+  responseType: 'chat_message',
+  message: 'Welcome {user}!',
+  metadata: { tone: 'warm' },
+  isEnabled: true,
 };
 
 const widgetSource = '<template><p>{{ title }}</p></template>';
@@ -410,7 +419,11 @@ const editorFrame = defineComponent({
 // The forms load the words of the commands and overlays pages themselves; loading them once up front keeps a
 // test from asserting before a first-time import settles.
 beforeAll(async () => {
-  await Promise.all([ensureWords(commandWords), ensureWords(overlayWords)]);
+  await Promise.all([
+    ensureWords(commandWords),
+    ensureWords(overlayWords),
+    ensureWords(eventResponseWords),
+  ]);
 });
 
 let mounted: VueWrapper | null = null;
@@ -971,6 +984,95 @@ describe('AdminContentView', () => {
     await click(byText('button', 'Draft new version')!);
 
     expect(document.body.querySelector('[data-command-payload-editor]')).toBeNull();
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens an event response draft in the channel editor fields with the values of the payload', async () => {
+    definition.kind = 'event_response';
+    draftPayload = JSON.stringify(eventResponseBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-event-response-payload-editor] textarea')).toBeInstanceOf(
+        HTMLTextAreaElement,
+      );
+    }, { timeout: 5000 });
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+    expect(
+      (first('[data-event-response-payload-editor] textarea') as HTMLTextAreaElement).value,
+    ).toBe('Welcome {user}!');
+
+    expect(first('[data-event-response-payload-editor] [role="combobox"]').textContent).toContain(
+      'Chat message',
+    );
+
+    expect(first('[data-event-response-payload-editor] [role="switch"]').getAttribute('aria-checked')).toBe(
+      'true',
+    );
+
+    expect(first('[data-event-response-payload-editor]').textContent).toContain('New follower');
+  });
+
+  it('saves a changed message as a new version and keeps every other key', async () => {
+    definition.kind = 'event_response';
+    draftPayload = JSON.stringify(eventResponseBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+    await type('[data-event-response-payload-editor] textarea', 'Hello {user}, welcome!');
+    await click(first('[data-event-response-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({
+      ...eventResponseBody,
+      message: 'Hello {user}, welcome!',
+    });
+  });
+
+  it('keeps the pipeline response type of a pipeline payload when another field changes', async () => {
+    definition.kind = 'event_response';
+    draftPayload = JSON.stringify({ ...eventResponseBody, responseType: 'pipeline' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-event-response-payload-editor] [role="switch"]')).toBeInstanceOf(
+        HTMLElement,
+      );
+    }, { timeout: 5000 });
+
+    expect(first('[data-event-response-payload-editor] [role="combobox"]').textContent).toContain(
+      'Pipeline',
+    );
+
+    await click(first('[data-event-response-payload-editor] [role="switch"]'));
+    await click(first('[data-event-response-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({
+      ...eventResponseBody,
+      responseType: 'pipeline',
+      isEnabled: false,
+    });
+  });
+
+  it('opens an event response payload with an unknown key as JSON, so nothing is lost', async () => {
+    definition.kind = 'event_response';
+    draftPayload = JSON.stringify({ ...eventResponseBody, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-event-response-payload-editor]')).toBeNull();
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });

@@ -927,6 +927,19 @@
           "description": "Edit the command the way a channel does. A field you leave alone keeps the catalog default. Save keeps it as a new draft version.",
           "editJson": "Edit JSON"
         },
+        "eventResponseEditor": {
+          "description": "Edit the event response the way a channel does. A pipeline response binds the pipeline of the channel that installs it. Save keeps it as a new draft version.",
+          "event": "Responds to",
+          "responseType": "Answer with",
+          "enabled": "Enabled",
+          "types": {
+            "chat_message": "Chat message",
+            "overlay": "Overlay",
+            "pipeline": "Pipeline",
+            "none": "Nothing"
+          },
+          "editJson": "Edit JSON"
+        },
         "widgetEditor": {
           "description": "Edit the widget the way a channel does. Save keeps it as a new draft version.",
           "events": "Events to listen to",

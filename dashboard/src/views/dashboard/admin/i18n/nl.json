@@ -927,6 +927,19 @@
           "description": "Bewerk het commando zoals een kanaal dat doet. Een veld dat je met rust laat houdt de standaardwaarde van de catalogus. Opslaan bewaart het als nieuwe conceptversie.",
           "editJson": "JSON bewerken"
         },
+        "eventResponseEditor": {
+          "description": "Bewerk de gebeurtenisreactie zoals een kanaal dat doet. Een pipeline-reactie koppelt de pipeline van het kanaal dat haar installeert. Opslaan bewaart haar als nieuwe conceptversie.",
+          "event": "Reageert op",
+          "responseType": "Antwoord met",
+          "enabled": "Ingeschakeld",
+          "types": {
+            "chat_message": "Chatbericht",
+            "overlay": "Overlay",
+            "pipeline": "Pipeline",
+            "none": "Niets"
+          },
+          "editJson": "JSON bewerken"
+        },
         "widgetEditor": {
           "description": "Bewerk de widget zoals een kanaal dat doet. Opslaan bewaart hem als nieuwe conceptversie.",
           "events": "Gebeurtenissen om op te luisteren",
