@@ -339,7 +339,7 @@ describe('TTS tab in the console', () => {
     const labels = [...document.body.querySelectorAll('[role="tab"]')].map((tab) =>
       tab.textContent?.trim());
 
-    expect(labels).toEqual(['Summary', 'Runs', 'TTS', 'Billing', 'People', 'Limits', 'Audit', 'Data']);
+    expect(labels).toEqual(['Summary', 'Runs', 'TTS', 'Connections', 'Billing', 'People', 'Limits', 'Audit', 'Data']);
   });
 
   it('keeps the same text keys in Dutch as in English for the tab', () => {

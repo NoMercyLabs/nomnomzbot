@@ -26,6 +26,7 @@ import { usePanelState } from '@/composables/usePanelState';
 
 import BillingChannelPanel from './components/BillingChannelPanel.vue';
 import ChannelAuditPanel from './components/ChannelAuditPanel.vue';
+import ChannelConnectionsPanel from './components/ChannelConnectionsPanel.vue';
 import ChannelConsoleHeader from './components/ChannelConsoleHeader.vue';
 import ChannelRunsPanel from './components/ChannelRunsPanel.vue';
 import ChannelSummaryPanel from './components/ChannelSummaryPanel.vue';
@@ -39,6 +40,7 @@ const TABS = [
   'summary',
   'runs',
   'tts',
+  'connections',
   'billing',
   'people',
   'limits',
@@ -102,6 +104,9 @@ function openTab(tab: string | number): void {
         </TabsContent>
         <TabsContent value="tts">
           <ChannelTtsPanel :channel-id="channelId" />
+        </TabsContent>
+        <TabsContent value="connections">
+          <ChannelConnectionsPanel :channel-id="channelId" />
         </TabsContent>
         <TabsContent value="billing">
           <BillingChannelPanel :channel="channelId" />

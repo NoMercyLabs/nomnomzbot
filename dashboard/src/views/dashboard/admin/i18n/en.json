@@ -30,6 +30,7 @@
           "summary": "Summary",
           "runs": "Runs",
           "tts": "TTS",
+          "connections": "Connections",
           "billing": "Billing",
           "people": "People",
           "limits": "Limits",
@@ -102,6 +103,42 @@
             "worked": "Worked",
             "failed": "Failed"
           }
+        },
+        "connections": {
+          "title": "Connections",
+          "description": "Every platform and integration link of this channel, with its state. No token value is ever shown.",
+          "empty": "This channel has no connection yet.",
+          "error": "The connections could not load.",
+          "none": "-",
+          "columns": {
+            "provider": "Provider",
+            "state": "State",
+            "scopes": "Scopes",
+            "token": "Token expires",
+            "activity": "Last activity",
+            "problem": "Last problem"
+          },
+          "kind": {
+            "platform": "Platform",
+            "integration": "Integration",
+            "discordGuild": "Discord server",
+            "obs": "OBS",
+            "vts": "VTube Studio",
+            "automationToken": "Automation token",
+            "supporter": "Supporter link",
+            "webhook": "Webhook",
+            "service": "Service"
+          },
+          "state": {
+            "needsReauth": "Sign in again",
+            "decryptFailed": "Cannot decrypt token",
+            "missingScopes": "Missing scopes"
+          },
+          "account": "{name} ({id})",
+          "stored": "Stored status: {status}",
+          "missing": "Missing: {scopes}",
+          "granted": "Granted: {scopes}",
+          "failures": "{count} failures in a row"
         },
         "tts": {
           "title": "TTS clips",

@@ -30,6 +30,7 @@
           "summary": "Overzicht",
           "runs": "Runs",
           "tts": "TTS",
+          "connections": "Koppelingen",
           "billing": "Facturatie",
           "people": "Mensen",
           "limits": "Limieten",
@@ -102,6 +103,42 @@
             "worked": "Gelukt",
             "failed": "Mislukt"
           }
+        },
+        "connections": {
+          "title": "Koppelingen",
+          "description": "Elke platform- en integratiekoppeling van dit kanaal, met de staat ervan. Er wordt nooit een tokenwaarde getoond.",
+          "empty": "Dit kanaal heeft nog geen koppeling.",
+          "error": "De koppelingen konden niet laden.",
+          "none": "-",
+          "columns": {
+            "provider": "Aanbieder",
+            "state": "Staat",
+            "scopes": "Scopes",
+            "token": "Token verloopt",
+            "activity": "Laatste activiteit",
+            "problem": "Laatste probleem"
+          },
+          "kind": {
+            "platform": "Platform",
+            "integration": "Integratie",
+            "discordGuild": "Discord-server",
+            "obs": "OBS",
+            "vts": "VTube Studio",
+            "automationToken": "Automatiseringstoken",
+            "supporter": "Supporterkoppeling",
+            "webhook": "Webhook",
+            "service": "Dienst"
+          },
+          "state": {
+            "needsReauth": "Opnieuw inloggen",
+            "decryptFailed": "Token niet te ontsleutelen",
+            "missingScopes": "Scopes ontbreken"
+          },
+          "account": "{name} ({id})",
+          "stored": "Opgeslagen status: {status}",
+          "missing": "Ontbreekt: {scopes}",
+          "granted": "Toegekend: {scopes}",
+          "failures": "{count} mislukkingen op rij"
         },
         "tts": {
           "title": "TTS-clips",
