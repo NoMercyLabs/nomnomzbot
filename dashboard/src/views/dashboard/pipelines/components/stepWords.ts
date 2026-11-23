@@ -93,6 +93,15 @@ export function fieldLabel(name: string, { t, te }: Words): string {
     : humanize(name);
 }
 
+// A fixed choice's name (pipelineOption.<value>), humanized when it has no name.
+export function optionLabel(value: string, { t, te }: Words): string {
+  const key = `pipelineOption.${value}`;
+
+  return te(key)
+    ? t(key)
+    : humanize(value);
+}
+
 // The required fields the step still leaves empty: the card says "Not set up yet" for them.
 export function missingFields(
   step: PipelineStep,

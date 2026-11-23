@@ -20,9 +20,13 @@ import {
   type PipelineStep,
 } from '@/api/pipelines';
 import type { TextOf } from '@/composables/useLocalizedText';
-import { humanize } from '@/lib/text';
 
-import { fieldHelp, fieldLabel, type Words } from './stepWords';
+import {
+  fieldHelp,
+  fieldLabel,
+  optionLabel,
+  type Words,
+} from './stepWords';
 
 // line and lines are text, choice is a fixed list, choices is any number from a fixed list, pick searches what
 // the bot lists for the kind, list is a setting with many items, map is names with values; fixed shows the value
@@ -199,7 +203,7 @@ export function settingRows(
         : saved,
       help: fieldHelp(type, field, words.text),
       choices: (field.options ?? []).map((option) =>
-        ({ value: option, label: humanize(option) })),
+        ({ value: option, label: optionLabel(option, words) })),
       required: field.required,
       templated: field.templated,
       maxItems: field.maxItems == null

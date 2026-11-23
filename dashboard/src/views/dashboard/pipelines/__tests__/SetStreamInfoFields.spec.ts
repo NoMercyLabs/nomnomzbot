@@ -15,6 +15,7 @@ import { computed, ref } from 'vue';
 
 import type { PipelineOptionList, PipelineStep } from '@/api/pipelines';
 import { i18n } from '@/i18n';
+import schemaEn from '@/i18n/schema/en.json';
 
 import StepField from '../components/StepField.vue';
 import { actionRows, settingsAfter } from '../components/stepFields';
@@ -185,6 +186,30 @@ describe('the Set stream info step form', () => {
       [['Gambling', 'ProfanityVulgarity']],
       [['ProfanityVulgarity']],
       [undefined],
+    ]);
+  });
+
+  it('names each content label in plain words, never the machine name', () => {
+    i18n.global.mergeLocaleMessage('en', schemaEn);
+    const schemaWords = {
+      t: (key: string) =>
+        i18n.global.t(key),
+      te: (key: string) =>
+        i18n.global.te(key),
+      text: words.text,
+    };
+    const row = actionRows(stepOf({}), descriptor, schemaWords).find((candidate) =>
+      candidate.name === 'labels_on')!;
+
+    expect(row.choices).toEqual([
+      {
+        value: 'Gambling',
+        label: 'Gambling',
+      },
+      {
+        value: 'ProfanityVulgarity',
+        label: 'Strong language',
+      },
     ]);
   });
 

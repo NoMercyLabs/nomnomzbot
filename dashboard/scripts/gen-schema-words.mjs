@@ -85,11 +85,13 @@ function place(tree, key, value) {
 }
 
 // The step titles and field labels the KMP editor shows: pipelines_block_<action type> becomes
-// pipelineBlock.<action type>, pipelines_field_<field> becomes pipelineField.<field>. A word with a Compose
+// pipelineBlock.<action type>, pipelines_field_<field> becomes pipelineField.<field>, pipelines_option_<value>
+// becomes pipelineOption.<value> (the name of a fixed choice). A word with a Compose
 // format argument (%1$s) is a sentence for another place, so it stays out.
 const editorWords = {
   pipelines_block_: 'pipelineBlock',
   pipelines_field_: 'pipelineField',
+  pipelines_option_: 'pipelineOption',
 };
 
 function editorTitles(words) {
