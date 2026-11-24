@@ -156,6 +156,68 @@ public sealed class MusicStatePollingServiceTests
             .Be("Next song");
     }
 
+    // Stoney 2026-11-24: "my overlay does not show the current track when switching to youtube music,
+    // streamdeck is doing it right" and "also not seeing my name after it refreshed".
+    [Fact]
+    public async Task While_another_engine_plays_the_overlay_gets_the_heard_song_with_its_requester()
+    {
+        IPlaybackStateReader director = Substitute.For<IPlaybackStateReader>();
+        IEngineFeed feed = Substitute.For<IEngineFeed>();
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingInputSink _,
+            RegisteredSpotifyStub _
+        ) = BuildWithProvider([ChannelA], engineFeed: feed, playbackState: director);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Own song", true, 1_000, trackUri: "spotify:track:own")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        PlaybackItem video = new(
+            "yt1",
+            "Stoney_Eagle",
+            EngineKind.YouTube,
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "A video",
+            ["Artist"],
+            null,
+            180_000,
+            "Stoney_Eagle"
+        );
+        director.StateOf(ChannelA).Returns(PlaybackState.Playing(EngineKind.YouTube, video));
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Own song", false, 195_000, trackUri: "spotify:track:own")
+        );
+        music.SetHeard(
+            ChannelA,
+            NowPlayingState(
+                "A video",
+                true,
+                2_000,
+                trackUri: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                requestedBy: "Stoney_Eagle"
+            ) with
+            {
+                Provider = "youtube",
+            }
+        );
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        PlaybackStateChangedEvent last = bus.Published.OfType<PlaybackStateChangedEvent>().Last();
+        last.TrackName.Should().Be("A video", "the overlay shows the song that is heard");
+        last.Provider.Should().Be("youtube");
+        last.RequestedBy.Should().Be("Stoney_Eagle");
+        last.FedToEngine.Should().BeFalse("the heard song was not fed to the Spotify engine");
+        await feed.Received(2)
+            .ObservePollAsync(ChannelA, Arg.Any<TrackInfo?>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task Same_state_observed_twice_publishes_only_once()
     {
@@ -1458,6 +1520,12 @@ public sealed class MusicStatePollingServiceTests
         public void SetResponse(Guid broadcasterId, NowPlaying? nowPlaying) =>
             _responses[broadcasterId] = nowPlaying;
 
+        private readonly Dictionary<Guid, NowPlaying?> _heard = new();
+
+        /// <summary>What a reader (not the background poll) gets: the song that is heard.</summary>
+        public void SetHeard(Guid broadcasterId, NowPlaying? nowPlaying) =>
+            _heard[broadcasterId] = nowPlaying;
+
         public void SetThrows(Guid broadcasterId) => _throwing.Add(broadcasterId);
 
         /// <summary>Reproduces an HttpClient TIMEOUT, which surfaces as TaskCanceledException — a
@@ -1481,6 +1549,9 @@ public sealed class MusicStatePollingServiceTests
                 throw new TaskCanceledException(
                     "The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
                 );
+
+            if (!isBackgroundPoll && _heard.TryGetValue(channelId, out NowPlaying? heard))
+                return Task.FromResult(heard);
 
             return Task.FromResult(
                 _responses.TryGetValue(channelId, out NowPlaying? np) ? np : null

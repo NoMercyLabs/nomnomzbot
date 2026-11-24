@@ -273,9 +273,18 @@ public sealed class MusicStatePollingService : BackgroundService
                     isBackgroundPoll: true
                 );
                 _backoff.TryRemove(channelId, out _);
+                // A request plays on another engine: the overlay gets the song that is heard, with its
+                // requester, from the same reader read the Stream Deck uses.
+                NowPlaying? heard = WaitsBehindAnotherEngine(
+                    playbackState?.StateOf(channelId),
+                    nowPlaying
+                )
+                    ? await musicService.GetNowPlayingAsync(channelId.ToString(), cancellationToken)
+                    : null;
                 await ProcessChannelStateAsync(
                     channelId,
                     nowPlaying,
+                    heard,
                     now,
                     playbackState,
                     cancellationToken
@@ -488,12 +497,14 @@ public sealed class MusicStatePollingService : BackgroundService
 
     private async Task ProcessChannelStateAsync(
         Guid channelId,
-        NowPlaying? nowPlaying,
+        NowPlaying? polled,
+        NowPlaying? heard,
         DateTimeOffset observedAt,
         IPlaybackStateReader? playbackState,
         CancellationToken cancellationToken
     )
     {
+        NowPlaying? nowPlaying = polled;
         if (nowPlaying is null)
         {
             int consecutiveNulls = _consecutiveNullPolls.AddOrUpdate(
@@ -518,8 +529,14 @@ public sealed class MusicStatePollingService : BackgroundService
 
         // A request plays on another engine (a video over a held Spotify): the polled track is the one that
         // waits, not the one that is heard. Its engine got it above; it is never published as now playing.
+        // The heard song is published in its place, unless the read gave the waiting track again.
         if (WaitsBehindAnotherEngine(playbackState?.StateOf(channelId), nowPlaying))
-            return;
+        {
+            if (heard is null || WaitsBehindAnotherEngine(playbackState?.StateOf(channelId), heard))
+                return;
+            nowPlaying = heard;
+            fedToEngine = false;
+        }
 
         ChannelPlaybackSnapshot next = nowPlaying is null
             ? new(
