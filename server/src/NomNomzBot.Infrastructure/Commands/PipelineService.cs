@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -30,13 +31,15 @@ public class PipelineService : IPipelineService
     private readonly IEventBus _eventBus;
     private readonly ICommandConfigValidator _validator;
     private readonly IChannelRegistry _registry;
+    private readonly IOverlayPresenceRegistry _presence;
 
     public PipelineService(
         IApplicationDbContext db,
         IUnitOfWork unitOfWork,
         IEventBus eventBus,
         ICommandConfigValidator validator,
-        IChannelRegistry registry
+        IChannelRegistry registry,
+        IOverlayPresenceRegistry presence
     )
     {
         _db = db;
@@ -44,6 +47,7 @@ public class PipelineService : IPipelineService
         _eventBus = eventBus;
         _validator = validator;
         _registry = registry;
+        _presence = presence;
     }
 
     public async Task<Result<PagedList<PipelineListItemDto>>> ListAsync(
@@ -191,7 +195,7 @@ public class PipelineService : IPipelineService
         await PublishConfigChangedAsync(broadcaster, entity.Id, "created", ct);
         await InvalidateBoundCachesAsync(broadcaster, ct);
 
-        return Result.Success(ToDto(entity));
+        return Result.Success(ToDto(entity) with { MissingSources = MissingSourcesFor(entity) });
     }
 
     public async Task<Result<PipelineDto>> UpdateAsync(
@@ -274,7 +278,27 @@ public class PipelineService : IPipelineService
         await PublishConfigChangedAsync(broadcaster, entity.Id, "updated", ct);
         await InvalidateBoundCachesAsync(broadcaster, ct);
 
-        return Result.Success(ToDto(entity));
+        return Result.Success(ToDto(entity) with { MissingSources = MissingSourcesFor(entity) });
+    }
+
+    /// <summary>
+    /// The browser sources the saved graph needs that are not open for the channel now. It only informs the
+    /// dashboard: the save already succeeded, and a step that finds its source missing is skipped when it runs.
+    /// </summary>
+    private IReadOnlyList<MissingSourceDto> MissingSourcesFor(PipelineEntity entity)
+    {
+        if (entity.GraphJsonCache is null)
+            return [];
+
+        PipelineDefinition? definition = JsonSerializer.Deserialize<PipelineDefinition>(
+            entity.GraphJsonCache
+        );
+
+        return Platform.Pipeline.OverlayOutputActions.MissingFor(
+            (definition?.Steps ?? []).Select(step => step.Action.Type),
+            _presence,
+            entity.BroadcasterId
+        );
     }
 
     /// <summary>

@@ -42,7 +42,20 @@ public sealed record PipelineDto(
 )
 {
     public IReadOnlyList<PipelineInputDefinition> Inputs { get; init; } = [];
+
+    /// <summary>
+    /// Set by a save only: each browser source the saved steps need that is not open now. Informs the person
+    /// who saved; the save itself always succeeds, and a step that finds its source missing is skipped at run
+    /// time as before.
+    /// </summary>
+    public IReadOnlyList<MissingSourceDto> MissingSources { get; init; } = [];
 }
+
+/// <summary>One required browser source a saved pipeline needs but that is not open now.</summary>
+/// <param name="SurfaceKey">The gallery key of the required overlay (for example <c>tts_caption</c>), the key the
+/// OBS page's required overlays are named by.</param>
+/// <param name="ActionTypes">The distinct action types in the pipeline that need it.</param>
+public sealed record MissingSourceDto(string SurfaceKey, IReadOnlyList<string> ActionTypes);
 
 /// <summary>Lightweight pipeline summary for list views.</summary>
 /// <param name="ParameterNames">See <see cref="PipelineDto.ParameterNames"/> — carried on the list item too so

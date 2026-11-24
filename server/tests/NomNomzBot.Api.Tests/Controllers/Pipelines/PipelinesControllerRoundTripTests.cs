@@ -30,6 +30,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
@@ -121,8 +122,9 @@ public sealed class PipelinesControllerRoundTripTests : IAsyncDisposable
 
                     services.AddSingleton<IApplicationDbContext>(db);
                     services.AddSingleton<IUnitOfWork, PassThroughUnitOfWorkDouble>();
-                    services.AddSingleton<IEventBus>(Substitute.For<IEventBus>());
-                    services.AddSingleton<IChannelRegistry>(Substitute.For<IChannelRegistry>());
+                    services.AddSingleton(Substitute.For<IEventBus>());
+                    services.AddSingleton(Substitute.For<IChannelRegistry>());
+                    services.AddSingleton(Substitute.For<IOverlayPresenceRegistry>());
                     services.AddSingleton<IEnumerable<ICommandAction>>(actions);
                     services.AddSingleton<IEnumerable<ICommandCondition>>([]);
                     services.AddSingleton<

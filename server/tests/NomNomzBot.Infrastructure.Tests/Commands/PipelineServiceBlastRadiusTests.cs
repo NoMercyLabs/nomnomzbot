@@ -63,7 +63,8 @@ public sealed class PipelineServiceBlastRadiusTests
                 [new FakeAction { ActionType = "send_message" }],
                 new TemplateHelperValidator()
             ),
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IOverlayPresenceRegistry>()
         );
 
     [Fact]

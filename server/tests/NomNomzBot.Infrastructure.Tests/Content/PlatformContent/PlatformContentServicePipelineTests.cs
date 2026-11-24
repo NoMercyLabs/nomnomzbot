@@ -78,7 +78,8 @@ public sealed class PlatformContentServicePipelineTests : IAsyncDisposable
             new TestUnitOfWork(_db),
             Substitute.For<IEventBus>(),
             CreateValidator(),
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
 
     private PlatformContentService CreateService() =>

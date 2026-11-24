@@ -21,6 +21,7 @@ import {
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
+import { useMissingSources } from '@/composables/useMissingSources';
 
 import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
@@ -262,6 +263,7 @@ export function useSavePipeline(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<Pipeline, Error, PipelineChange, number> {
   const queries = useQueryClient();
+  const missing = useMissingSources();
 
   return useOptimisticSave<Pipeline, PipelineChange>({
     describe: ({ id, name }) => ({ key: 'savePipeline', params: { name: name ?? id } }),
@@ -269,6 +271,8 @@ export function useSavePipeline(
     mutationFn: async (change: PipelineChange): Promise<Pipeline> => {
       const saved = await writePipeline(toValue(channelId) as string, change);
 
+      // The save worked; the one shared dialog tells the user which browser sources its steps still need.
+      missing.announce(saved.missingSources ?? []);
       void queries.invalidateQueries({ queryKey: pipelinesKey(toValue(channelId)) });
 
       return saved;

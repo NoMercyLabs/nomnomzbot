@@ -123,7 +123,8 @@ public sealed class BundleParityTypesTests
             new PassThroughUnitOfWork(),
             bus,
             permissiveValidator,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
         CustomDataSourceService dataSources = new(
             db,

@@ -126801,6 +126801,27 @@
         },
         "description": "The channel's outstanding Twitch scope gaps (identity-auth §3.4a) — the read model the dashboard banner\r\nrenders and the one-click re-grant acts on. IReadOnlyList&lt;MissingScopeDto&gt; MissingScopesDto.Scopes is the deduplicated set of scopes the\r\nstreamer token is missing (proactive feature-gated gaps the connection never held + reactive gaps a real\r\nHelix call surfaced); empty when the connection holds everything every offered feature needs."
       },
+      "MissingSource": {
+        "required": [
+          "surfaceKey",
+          "actionTypes"
+        ],
+        "type": "object",
+        "properties": {
+          "surfaceKey": {
+            "type": "string",
+            "description": "The gallery key of the required overlay (for example `tts_caption`), the key the\r\n            OBS page's required overlays are named by."
+          },
+          "actionTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The distinct action types in the pipeline that need it."
+          }
+        },
+        "description": "One required browser source a saved pipeline needs but that is not open now."
+      },
       "ModeratedChannel": {
         "required": [
           "id",
@@ -132975,6 +132996,13 @@
             "items": {
               "$ref": "#/components/schemas/PipelineInputDefinition"
             }
+          },
+          "missingSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MissingSource"
+            },
+            "description": "Set by a save only: each browser source the saved steps need that is not open now. Informs the person\r\nwho saved; the save itself always succeeds, and a step that finds its source missing is skipped at run\r\ntime as before."
           }
         },
         "description": "Full pipeline details including the deserialized node graph cache."

@@ -69,7 +69,8 @@ public sealed class PipelineServiceResourceIdNormalizationTests
                 new PassThroughUnitOfWork(),
                 Substitute.For<IEventBus>(),
                 validator,
-                Substitute.For<IChannelRegistry>()
+                Substitute.For<IChannelRegistry>(),
+                Substitute.For<NomNomzBot.Application.Widgets.Services.IOverlayPresenceRegistry>()
             ),
             db
         );

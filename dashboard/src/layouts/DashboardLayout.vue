@@ -12,6 +12,7 @@
 import { computed, provide, watchEffect } from 'vue';
 
 import { frameActionsKey } from '@/components/layout/frameActions';
+import MissingSourcesDialog from '@/components/layout/MissingSourcesDialog.vue';
 import ProfileDialog from '@/components/layout/ProfileDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -112,6 +113,8 @@ useReadableRedirect();
       <!-- The one profile dialog of the frame; every UserName opens it. -->
       <ProfileDialog v-if="channelId" :key="channelId" />
       <ShortcutsDialog />
+      <!-- The one notice after a pipeline save that needs a browser source which is not open. -->
+      <MissingSourcesDialog />
     </div>
     <Toaster />
   </TooltipProvider>

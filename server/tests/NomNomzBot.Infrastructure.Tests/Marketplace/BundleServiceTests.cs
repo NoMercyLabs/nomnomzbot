@@ -119,7 +119,8 @@ public sealed class BundleServiceTests
             new PassThroughUnitOfWork(),
             bus,
             permissiveValidator,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
         CustomDataSourceService dataSources = new(
             db,

@@ -97723,6 +97723,16 @@ export interface components {
             connectionStatus: string;
             scopes: components["schemas"]["MissingScope"][];
         };
+        /** @description One required browser source a saved pipeline needs but that is not open now. */
+        MissingSource: {
+            /**
+             * @description The gallery key of the required overlay (for example `tts_caption`), the key the
+             *                 OBS page's required overlays are named by.
+             */
+            surfaceKey: string;
+            /** @description The distinct action types in the pipeline that need it. */
+            actionTypes: string[];
+        };
         /** @description One Twitch channel the caller moderates. */
         ModeratedChannel: {
             /** @description The Twitch channel id. */
@@ -99546,6 +99556,12 @@ export interface components {
              */
             parameterNames?: null | string[];
             inputs?: components["schemas"]["PipelineInputDefinition"][];
+            /**
+             * @description Set by a save only: each browser source the saved steps need that is not open now. Informs the person
+             *     who saved; the save itself always succeeds, and a step that finds its source missing is skipped at run
+             *     time as before.
+             */
+            missingSources?: components["schemas"]["MissingSource"][];
         };
         /** @description One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13). */
         PipelineActionDescriptor: {

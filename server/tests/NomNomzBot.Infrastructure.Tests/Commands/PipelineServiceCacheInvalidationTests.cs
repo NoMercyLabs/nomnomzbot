@@ -129,7 +129,8 @@ public sealed class PipelineServiceCacheInvalidationTests
                 [new FakeAction { ActionType = "send_message" }],
                 new TemplateHelperValidator()
             ),
-            registry
+            registry,
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IOverlayPresenceRegistry>()
         );
 
     [Fact]

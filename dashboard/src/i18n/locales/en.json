@@ -40,6 +40,19 @@
     "showMore": "Show more ({count} left)",
     "fieldInfo": "More about this field",
     "readOnly": "You can view this, but your role cannot change it.",
+    "missingSources": {
+      "titleOne": "One thing is missing",
+      "titleMany": "Some things are missing",
+      "line": "{surface}: this pipeline uses it, but it is not open in OBS. Those steps are skipped until you add it.",
+      "setUp": "Set it up",
+      "later": "Later",
+      "surfaces": {
+        "tts_caption": "Text to speech",
+        "audio": "Sound",
+        "stage": "Stage effects",
+        "media_share": "Media share"
+      }
+    },
     "state": {
       "on": "On",
       "off": "Off"

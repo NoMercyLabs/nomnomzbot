@@ -20,19 +20,6 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 /// </summary>
 internal static class LiveRunOverlayWarnings
 {
-    private static readonly HashSet<string> OverlayOutputActionTypes = new(
-        StringComparer.OrdinalIgnoreCase
-    )
-    {
-        "widget_event",
-        "play_sound",
-        "stop_sound",
-        "play_tts",
-        "tts_synthesize",
-        "media_playback",
-        "stage_effect",
-    };
-
     /// <summary>One warning per executed overlay step when no browser source is attached; empty when one is.</summary>
     public static List<string> For(IEnumerable<StepExecutionLog> stepLogs, bool overlayConnected) =>
         overlayConnected
@@ -40,7 +27,7 @@ internal static class LiveRunOverlayWarnings
             :
             [
                 .. stepLogs
-                    .Where(l => OverlayOutputActionTypes.Contains(l.ActionType))
+                    .Where(l => OverlayOutputActions.IsOverlayOutput(l.ActionType))
                     .Select(l =>
                         $"Step {l.StepIndex} ({l.ActionType}) shows on a browser source, and none is attached to this channel, so its output could not be seen."
                     ),

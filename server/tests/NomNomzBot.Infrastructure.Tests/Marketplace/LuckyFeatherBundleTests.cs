@@ -109,7 +109,8 @@ public sealed class LuckyFeatherBundleTests
             new PassThroughUnitOfWork(),
             Substitute.For<IEventBus>(),
             permissiveValidator,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
 
         IWidgetDependencyAllowlist allowlist = Substitute.For<IWidgetDependencyAllowlist>();

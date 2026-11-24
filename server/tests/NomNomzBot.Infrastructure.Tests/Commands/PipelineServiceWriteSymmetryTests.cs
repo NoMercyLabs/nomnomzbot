@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
@@ -73,7 +74,8 @@ public sealed class PipelineServiceWriteSymmetryTests
                 new PassThroughUnitOfWork(),
                 Substitute.For<IEventBus>(),
                 validator,
-                Substitute.For<IChannelRegistry>()
+                Substitute.For<IChannelRegistry>(),
+                Substitute.For<IOverlayPresenceRegistry>()
             ),
             db
         );
@@ -89,8 +91,8 @@ public sealed class PipelineServiceWriteSymmetryTests
                 new FakeAction { ActionType = "shoutout" },
             ],
             [],
-            NSubstitute.Substitute.For<NomNomzBot.Application.Abstractions.Templating.ITemplateResolver>(),
-            NSubstitute.Substitute.For<Microsoft.Extensions.Logging.ILogger<PipelineEngine>>(),
+            Substitute.For<Application.Abstractions.Templating.ITemplateResolver>(),
+            Substitute.For<Microsoft.Extensions.Logging.ILogger<PipelineEngine>>(),
             TimeProvider.System
         );
 
@@ -580,7 +582,8 @@ public sealed class PipelineServiceWriteSymmetryTests
                     ],
                     new TemplateHelperValidator()
                 ),
-                Substitute.For<IChannelRegistry>()
+                Substitute.For<IChannelRegistry>(),
+                Substitute.For<IOverlayPresenceRegistry>()
             ),
             db
         );

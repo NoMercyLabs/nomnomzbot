@@ -90,7 +90,8 @@ public sealed class PlatformDefaultRestoreServiceTests : IAsyncDisposable
             new TestUnitOfWork(_h.Db),
             Substitute.For<IEventBus>(),
             new CommandConfigValidator([new MarkerAction()], new TemplateHelperValidator()),
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IOverlayPresenceRegistry>()
         );
         _sut = new(_h.Db, new TestUnitOfWork(_h.Db), _pipelines, [_timerInstaller]);
     }

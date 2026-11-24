@@ -98,7 +98,8 @@ public sealed class MarketplaceServiceTests
             new PassThroughUnitOfWork(),
             bus,
             permissiveValidator,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
         CustomDataSourceService dataSources = new(
             db,

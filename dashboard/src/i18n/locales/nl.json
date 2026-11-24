@@ -40,6 +40,19 @@
     "showMore": "Meer tonen ({count} over)",
     "fieldInfo": "Meer over dit veld",
     "readOnly": "Je kunt dit bekijken, maar je rol kan het niet wijzigen.",
+    "missingSources": {
+      "titleOne": "Er ontbreekt één ding",
+      "titleMany": "Er ontbreken een paar dingen",
+      "line": "{surface}: deze pipeline gebruikt het, maar het staat niet open in OBS. Die stappen worden overgeslagen tot je het toevoegt.",
+      "setUp": "Instellen",
+      "later": "Later",
+      "surfaces": {
+        "tts_caption": "Tekst-naar-spraak",
+        "audio": "Geluid",
+        "stage": "Podiumeffecten",
+        "media_share": "Media delen"
+      }
+    },
     "state": {
       "on": "Aan",
       "off": "Uit"
