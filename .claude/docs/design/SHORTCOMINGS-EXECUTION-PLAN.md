@@ -1721,9 +1721,6 @@ draft a version, retire). There are 9 content kinds (`PlatformContentKinds`: com
 code_script, event_response, timer, reward, pick_list, sound_clip). `AdminContentView.vue` edits all 9 the
 same way: the kind is typed as free text and the content is one raw JSON text box. 0 of 9 kinds have an editor.
 
-- **S-ADMIN-CONTENT-KINDS** The kind is a picker of the 9 kinds by plain name, in the filter and in the
-  create dialog; the list groups by kind. Done-when: a test picks each kind and the list and the create
-  request carry that kind; no free-text kind field is left.
 - **S-ADMIN-CONTENT-CODE** A `widget` and a `code_script` definition open in the code editor
   (`components/layout/CodeEditor.vue`, the one the Overlays and Scripts pages use), with the preview and
   the fire bar. A widget's default settings and events are fields beside it. Save drafts a new version; a
