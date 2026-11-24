@@ -36,4 +36,15 @@ public interface IObsOverlayInstallService
         string overlayOrigin,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Puts each overlay where the person placed it: its own scene and source name, with no scene made and no name
+    /// prefix. A source that already exists is updated and added to the picked scene when it is not there yet.
+    /// </summary>
+    Task<Result<ObsOverlayInstallResult>> PlaceAsync(
+        Guid broadcasterId,
+        IReadOnlyList<ObsOverlayPlacement> placements,
+        string overlayOrigin,
+        CancellationToken ct = default
+    );
 }

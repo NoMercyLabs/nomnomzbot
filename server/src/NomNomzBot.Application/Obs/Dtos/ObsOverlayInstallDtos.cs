@@ -40,7 +40,21 @@ public enum ObsBrowserSourceOutcome
 }
 
 /// <summary>REST body for the overlay install route: the scene to add the overlays to and the overlays picked.</summary>
-public sealed record ObsOverlayInstallRequest(string SceneName, IReadOnlyList<string> OverlayKeys);
+/// <summary>
+/// Where the person puts one overlay: the scene they picked and the source name they typed. A null or blank name
+/// uses the overlay's own name.
+/// </summary>
+public sealed record ObsOverlayPlacement(string Key, string SceneName, string? SourceName);
+
+/// <summary>
+/// With <see cref="Placements"/>, each overlay goes where the person put it and no scene is made. Without it, the
+/// older call shape still works: one nested scene, added to <see cref="SceneName"/>.
+/// </summary>
+public sealed record ObsOverlayInstallRequest(
+    string SceneName,
+    IReadOnlyList<string> OverlayKeys,
+    IReadOnlyList<ObsOverlayPlacement>? Placements = null
+);
 
 /// <summary>How one picked overlay ended up in OBS.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -66,7 +80,7 @@ public sealed record ObsOverlayInstallEntry(
 /// scene by this call, and one entry per picked overlay.
 /// </summary>
 public sealed record ObsOverlayInstallResult(
-    string NestedSceneName,
+    string? NestedSceneName,
     bool AddedToScene,
     IReadOnlyList<ObsOverlayInstallEntry> Overlays
 );

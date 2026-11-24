@@ -72529,7 +72529,7 @@
         "tags": [
           "OBS"
         ],
-        "summary": "Put the picked overlays into OBS in one call: a nested \"NomNomzBot overlays\" scene holds one browser source\r\nper picked overlay, and that scene is added to the picked scene. The overlay addresses (they carry the secret\r\ntoken) are built here and sent to OBS only; the response lists each overlay as created, updated or failed.",
+        "summary": "Put the picked overlays into OBS in one call. With placements, each overlay becomes a browser source in the\r\nscene and under the name the person chose. Without them, the older shape makes one nested scene. The overlay\r\naddresses (they carry the secret token) go to OBS only; the response lists each overlay's outcome.",
         "parameters": [
           {
             "name": "channelId",
@@ -128765,20 +128765,31 @@
             "items": {
               "type": "string"
             }
+          },
+          "placements": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ObsOverlayPlacement"
+            }
           }
         },
-        "description": "REST body for the overlay install route: the scene to add the overlays to and the overlays picked."
+        "description": "With IReadOnlyList&lt;ObsOverlayPlacement&gt;? ObsOverlayInstallRequest.Placements, each overlay goes where the person put it and no scene is made. Without it, the\r\nolder call shape still works: one nested scene, added to string ObsOverlayInstallRequest.SceneName."
       },
       "ObsOverlayInstallResult": {
         "required": [
-          "nestedSceneName",
           "addedToScene",
           "overlays"
         ],
         "type": "object",
         "properties": {
           "nestedSceneName": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "addedToScene": {
             "type": "boolean"
@@ -128791,6 +128802,28 @@
           }
         },
         "description": "The result of one install call: the nested scene that holds the overlays, whether it was added to the picked\r\nscene by this call, and one entry per picked overlay."
+      },
+      "ObsOverlayPlacement": {
+        "required": [
+          "key",
+          "sceneName"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "sceneName": {
+            "type": "string"
+          },
+          "sourceName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "REST body for the overlay install route: the scene to add the overlays to and the overlays picked."
       },
       "ObsProbe": {
         "required": [

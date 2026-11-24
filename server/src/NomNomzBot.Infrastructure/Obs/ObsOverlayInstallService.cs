@@ -57,9 +57,23 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
 
         List<ObsOverlayInstallEntry> entries = [];
         foreach (string key in overlayKeys.Distinct())
-            entries.Add(await InstallOneAsync(broadcasterId, key, overlayOrigin, ct));
+            entries.Add(
+                await InstallOneAsync(
+                    broadcasterId,
+                    key,
+                    IObsOverlayInstallService.NestedSceneName,
+                    name => SourcePrefix + name,
+                    overlayOrigin,
+                    ct
+                )
+            );
 
-        Result<bool> added = await EnsureNestedSceneInAsync(broadcasterId, sceneName, ct);
+        Result<bool> added = await EnsureSourceInAsync(
+            broadcasterId,
+            sceneName,
+            IObsOverlayInstallService.NestedSceneName,
+            ct
+        );
         if (added.IsFailure)
             return Result.Failure<ObsOverlayInstallResult>(added.ErrorMessage!, added.ErrorCode!);
 
@@ -72,9 +86,70 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         );
     }
 
+    public async Task<Result<ObsOverlayInstallResult>> PlaceAsync(
+        Guid broadcasterId,
+        IReadOnlyList<ObsOverlayPlacement> placements,
+        string overlayOrigin,
+        CancellationToken ct = default
+    )
+    {
+        Result<IReadOnlyList<ObsSceneDto>> scenes = await obs.GetScenesAsync(broadcasterId, ct);
+        if (scenes.IsFailure)
+            return Result.Failure<ObsOverlayInstallResult>(scenes.ErrorMessage!, scenes.ErrorCode!);
+
+        HashSet<string> known = scenes.Value.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
+        List<ObsOverlayInstallEntry> entries = [];
+        foreach (ObsOverlayPlacement placement in placements.DistinctBy(p => p.Key))
+            entries.Add(
+                known.Contains(placement.SceneName)
+                    ? await PlaceOneAsync(broadcasterId, placement, overlayOrigin, ct)
+                    : Failed(
+                        placement.Key,
+                        placement.SourceName ?? placement.Key,
+                        $"OBS has no scene named \"{placement.SceneName}\"."
+                    )
+            );
+
+        return Result.Success(new ObsOverlayInstallResult(null, false, entries));
+    }
+
+    // A source that already existed may sit in another scene; the person's pick decides where it shows, so it is
+    // added there once.
+    private async Task<ObsOverlayInstallEntry> PlaceOneAsync(
+        Guid broadcasterId,
+        ObsOverlayPlacement placement,
+        string overlayOrigin,
+        CancellationToken ct
+    )
+    {
+        string? chosen = string.IsNullOrWhiteSpace(placement.SourceName)
+            ? null
+            : placement.SourceName.Trim();
+        ObsOverlayInstallEntry entry = await InstallOneAsync(
+            broadcasterId,
+            placement.Key,
+            placement.SceneName,
+            name => chosen ?? name,
+            overlayOrigin,
+            ct
+        );
+        if (entry.Outcome != ObsOverlayInstallOutcome.Updated)
+            return entry;
+
+        Result<bool> shown = await EnsureSourceInAsync(
+            broadcasterId,
+            placement.SceneName,
+            entry.SourceName,
+            ct
+        );
+        return shown.IsFailure ? Failed(entry.Key, entry.SourceName, shown.ErrorMessage!) : entry;
+    }
+
     private async Task<ObsOverlayInstallEntry> InstallOneAsync(
         Guid broadcasterId,
         string key,
+        string sceneName,
+        Func<string, string> nameFor,
         string overlayOrigin,
         CancellationToken ct
     )
@@ -91,7 +166,7 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         if (widget.IsFailure)
             return Failed(key, key, widget.ErrorMessage!);
 
-        string sourceName = SourcePrefix + widget.Value.Name;
+        string sourceName = nameFor(widget.Value.Name);
         if (!TryBuildUrl(widget.Value.OverlayUrl, overlayOrigin, out string url))
             return Failed(key, sourceName, "The overlay has no address yet.");
 
@@ -103,7 +178,7 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         Result<ObsBrowserSourceOutcome> result = await obs.UpsertBrowserSourceAsync(
             broadcasterId,
             new(
-                IObsOverlayInstallService.NestedSceneName,
+                sceneName,
                 sourceName,
                 url,
                 setup.Width,
@@ -126,10 +201,11 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         );
     }
 
-    // Puts the nested scene into the picked scene once; a second run finds it there and adds nothing.
-    private async Task<Result<bool>> EnsureNestedSceneInAsync(
+    // Puts the source into the scene once; a second run finds it there and adds nothing.
+    private async Task<Result<bool>> EnsureSourceInAsync(
         Guid broadcasterId,
         string sceneName,
+        string sourceName,
         CancellationToken ct
     )
     {
@@ -140,15 +216,10 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         );
         if (items.IsFailure)
             return Result.Failure<bool>(items.ErrorMessage!, items.ErrorCode!);
-        if (items.Value.Any(i => i.SourceName == IObsOverlayInstallService.NestedSceneName))
+        if (items.Value.Any(i => i.SourceName == sourceName))
             return Result.Success(false);
 
-        Result added = await obs.AddSceneItemAsync(
-            broadcasterId,
-            sceneName,
-            IObsOverlayInstallService.NestedSceneName,
-            ct
-        );
+        Result added = await obs.AddSceneItemAsync(broadcasterId, sceneName, sourceName, ct);
         return added.IsFailure
             ? Result.Failure<bool>(added.ErrorMessage!, added.ErrorCode!)
             : Result.Success(true);

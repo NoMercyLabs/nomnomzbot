@@ -389,4 +389,77 @@ public sealed class ObsOverlayInstallServiceTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("OBS_NOT_CONNECTED");
     }
+
+    [Fact]
+    public async Task Placements_put_each_source_in_its_own_scene_with_the_chosen_name_and_make_no_scene()
+    {
+        FakeObs fake = new();
+        fake.Scenes.Add("Starting");
+        (ObsOverlayInstallService service, FakeObs obs) = Build(obs: fake);
+
+        Result<ObsOverlayInstallResult> result = await service.PlaceAsync(
+            Channel,
+            [new("alerts", "Main", "My alerts"), new("audio", "Starting", null)],
+            Origin
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        obs.Requests.Select(Type).Should().NotContain("CreateScene");
+        obs.Scenes.Should().Equal("Main", "Starting");
+        obs.Items["Main"].Should().Equal("My alerts");
+        obs.Items["Starting"].Should().Equal("Bot Audio");
+        result.Value.NestedSceneName.Should().BeNull();
+        result.Value.AddedToScene.Should().BeFalse();
+        result
+            .Value.Overlays.Select(o => (o.Key, o.SourceName, o.Outcome))
+            .Should()
+            .Equal(
+                ("alerts", "My alerts", ObsOverlayInstallOutcome.Created),
+                ("audio", "Bot Audio", ObsOverlayInstallOutcome.Created)
+            );
+    }
+
+    [Fact]
+    public async Task A_placed_source_that_already_exists_is_updated_and_added_to_the_chosen_scene_once()
+    {
+        FakeObs fake = new();
+        fake.Scenes.Add("Starting");
+        (ObsOverlayInstallService service, FakeObs obs) = Build(obs: fake);
+        await service.PlaceAsync(Channel, [new("alerts", "Main", "Alerts")], Origin);
+
+        await service.PlaceAsync(Channel, [new("alerts", "Starting", "Alerts")], Origin);
+        Result<ObsOverlayInstallResult> again = await service.PlaceAsync(
+            Channel,
+            [new("alerts", "Starting", "Alerts")],
+            Origin
+        );
+
+        obs.Inputs.Keys.Should().Equal("Alerts");
+        obs.Items["Main"].Should().Equal("Alerts");
+        obs.Items["Starting"].Should().Equal("Alerts");
+        again.Value.Overlays.Single().Outcome.Should().Be(ObsOverlayInstallOutcome.Updated);
+    }
+
+    [Fact]
+    public async Task A_placement_into_a_scene_OBS_does_not_have_fails_only_that_overlay()
+    {
+        (ObsOverlayInstallService service, FakeObs obs) = Build();
+
+        Result<ObsOverlayInstallResult> result = await service.PlaceAsync(
+            Channel,
+            [new("alerts", "Gone", null), new("audio", "Main", null)],
+            Origin
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Overlays.Select(o => (o.Key, o.Outcome))
+            .Should()
+            .Equal(
+                ("alerts", ObsOverlayInstallOutcome.Failed),
+                ("audio", ObsOverlayInstallOutcome.Created)
+            );
+        obs.Items["Main"].Should().Equal("Bot Audio");
+        obs.Inputs.Keys.Should().Equal("Bot Audio");
+    }
 }

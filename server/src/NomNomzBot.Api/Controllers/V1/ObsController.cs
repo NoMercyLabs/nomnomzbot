@@ -213,9 +213,9 @@ public class ObsController(
     ) => ResultResponse(await control.SwitchSceneAsync(channelId, request.Scene, ct));
 
     /// <summary>
-    /// Put the picked overlays into OBS in one call: a nested "NomNomzBot overlays" scene holds one browser source
-    /// per picked overlay, and that scene is added to the picked scene. The overlay addresses (they carry the secret
-    /// token) are built here and sent to OBS only; the response lists each overlay as created, updated or failed.
+    /// Put the picked overlays into OBS in one call. With placements, each overlay becomes a browser source in the
+    /// scene and under the name the person chose. Without them, the older shape makes one nested scene. The overlay
+    /// addresses (they carry the secret token) go to OBS only; the response lists each overlay's outcome.
     /// </summary>
     [HttpPost("overlays/install")]
     [RequireAction("obs:control")]
@@ -228,13 +228,15 @@ public class ObsController(
         CancellationToken ct
     ) =>
         ResultResponse(
-            await installer.InstallAsync(
-                channelId,
-                request.SceneName,
-                request.OverlayKeys,
-                ResolveOverlayOrigin(),
-                ct
-            )
+            request.Placements is { Count: > 0 } placements
+                ? await installer.PlaceAsync(channelId, placements, ResolveOverlayOrigin(), ct)
+                : await installer.InstallAsync(
+                    channelId,
+                    request.SceneName,
+                    request.OverlayKeys,
+                    ResolveOverlayOrigin(),
+                    ct
+                )
         );
 
     private string ResolveOverlayOrigin()
