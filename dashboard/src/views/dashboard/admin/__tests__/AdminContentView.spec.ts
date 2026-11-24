@@ -255,6 +255,9 @@ vi.mock('@/api/client', () => ({
         options,
       });
 
+      if (path.endsWith('/widgets/test-event/samples'))
+        return { data: { data: { follow: { userName: 'sample' } } }, response: { status: 200, ok: true } };
+
       if (path.endsWith('/builtins/replies'))
         return { data: { data: hugReplies }, response: { status: 200, ok: true } };
 
@@ -430,6 +433,7 @@ const editorFrame = defineComponent({
       type: Function as PropType<(files: EditorFiles) => Promise<CompileFeedback>>,
       required: true,
     },
+    fireSamples: { type: Object as PropType<Record<string, unknown>>, default: undefined },
   },
   setup(props) {
     const source = ref(props.files[props.entry] ?? '');
@@ -441,7 +445,10 @@ const editorFrame = defineComponent({
       message.value = feedback.message;
     }
 
-    return () => h('div', { 'data-code-editor': props.entry }, [
+    return () => h('div', {
+      'data-code-editor': props.entry,
+      'data-editor-samples': JSON.stringify(props.fireSamples ?? null),
+    }, [
       h('input', {
         'data-editor-source': '',
         value: source.value,
@@ -1106,6 +1113,21 @@ describe('AdminContentView', () => {
 
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('index.vue');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(widgetSource);
+  });
+
+  it('hands the code editor the channel sample events, so its fire bar can fire them', async () => {
+    definition.kind = 'widget';
+    draftPayload = widgetPayload;
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+    await click(first('[data-widget-open-code]'));
+
+    const samplesCall = calls.find((call) => call.path.endsWith('/widgets/test-event/samples'));
+
+    expect(samplesCall?.options?.params?.path).toMatchObject({ channelId: 'chan-1' });
+
+    expect(JSON.parse(first('[data-code-editor]').getAttribute('data-editor-samples')!))
+      .toEqual({ follow: { userName: 'sample' } });
   });
 
   it('saves a widget draft with the edited source and a new subscription, keeping the settings', async () => {

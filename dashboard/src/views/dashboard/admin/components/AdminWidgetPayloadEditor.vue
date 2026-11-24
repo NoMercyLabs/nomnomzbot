@@ -18,6 +18,7 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { fetchWidgetSamples } from '@/api/widgetCode';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +26,7 @@ import {
   DialogContent,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 import { ensureWords } from '@/i18n';
 import type { JsonObject } from '@/lib/json';
@@ -55,6 +57,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const { channelId } = useCurrentChannel();
 
 const sourceCode = ref(props.payload.sourceCode);
 const settings = ref<JsonObject>(props.payload.defaultSettings);
@@ -64,10 +67,24 @@ const wordsReady = ref(false);
 const coding = ref(false);
 const message = ref('');
 const saving = ref(false);
+const samples = ref<JsonObject>({});
+const samplesError = ref<string>();
 
 void ensureWords(overlayWords).then(() => {
   wordsReady.value = true;
 });
+
+// The fire bar sends the channel's sample events; a failed read still opens the editor, and the bar says so.
+async function openCode(): Promise<void> {
+  try {
+    samples.value = await fetchWidgetSamples(channelId.value as string);
+    samplesError.value = undefined;
+  } catch {
+    samplesError.value = t('dashboard.overlays.editor.samplesFailed');
+  }
+
+  coding.value = true;
+}
 
 function currentJson(): string {
   return writeWidgetPayload({
@@ -105,6 +122,8 @@ async function saveFiles(files: EditorFiles): Promise<CompileFeedback> {
     :files="{ [WIDGET_ENTRY]: sourceCode, [WIDGET_SETTINGS]: settingsText(settings) }"
     language="vue"
     :event-subscriptions="events"
+    :fire-samples="samples"
+    :fire-samples-error="samplesError"
     :save="saveFiles"
     @close="coding = false"
   />
@@ -140,7 +159,7 @@ async function saveFiles(files: EditorFiles): Promise<CompileFeedback> {
             type="button"
             variant="outline"
             class="w-fit"
-            @click="coding = true"
+            @click="openCode"
           >
             {{ $t("dashboard.admin.content.widgetEditor.openCode") }}
           </Button>
