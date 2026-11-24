@@ -11,10 +11,12 @@
 <script setup lang="ts">
 // Raids another channel now. The channel is looked up on Twitch by name first, and Twitch's own answer names who
 // the raid goes to in the confirm. Raid is the one primary action; Cancel raid stops a raid that has not begun.
-import { ref } from 'vue';
+import { refDebounced } from '@vueuse/core';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
+import { useChannelSearch, type ChannelSearch } from '@/api/channels';
 import { TwitchUserNotFoundError, useTwitchLookup, type TwitchViewer } from '@/api/community';
 import { useCancelRaid, useStartRaid } from '@/api/raids';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
@@ -22,6 +24,7 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTargetOpen } from '@/composables/useTargetOpen';
@@ -35,9 +38,21 @@ const start = useStartRaid(channelId);
 const cancel = useCancelRaid(channelId);
 
 const login = ref('');
-const target = ref<TwitchViewer | null>(null);
+const target = ref<Pick<TwitchViewer, 'id' | 'displayName'> | null>(null);
 const missing = ref('');
 const confirmOpen = useTargetOpen(target);
+
+// Twitch is asked once the typing pauses, so each key press does not cost a search.
+const typed = refDebounced(computed(() => login.value.trim().replace(/^@/, '')), 300);
+const found = useChannelSearch(channelId, typed);
+const listOpen = computed<boolean>(
+  () => login.value.trim() !== '' && target.value === null && (found.data.value?.length ?? 0) > 0,
+);
+
+function pick(channel: ChannelSearch): void {
+  missing.value = '';
+  target.value = { id: channel.id, displayName: channel.displayName };
+}
 
 async function find(): Promise<void> {
   const name = login.value.trim().replace(/^@/, '');
@@ -91,12 +106,35 @@ function stop(): void {
     :description="t('dashboard.stream.raidNow.description')"
   >
     <form class="flex gap-2" data-raid-form @submit.prevent="find">
-      <Input
-        v-model="login"
-        data-raid-input
-        :aria-label="t('dashboard.stream.raidNow.channelLabel')"
-        :placeholder="t('dashboard.stream.raidNow.channelPlaceholder')"
-      />
+      <!-- The list opens in a portal: the card around the box clips anything drawn inside it. -->
+      <Popover :open="listOpen">
+        <PopoverAnchor as-child>
+          <Input
+            v-model="login"
+            data-raid-input
+            autocomplete="off"
+            :aria-label="t('dashboard.stream.raidNow.channelLabel')"
+            :placeholder="t('dashboard.stream.raidNow.channelPlaceholder')"
+          />
+        </PopoverAnchor>
+        <PopoverContent
+          align="start"
+          class="max-h-64 w-72 gap-0 overflow-auto p-1"
+          @open-auto-focus.prevent
+        >
+          <button
+            v-for="channel in found.data.value"
+            :key="channel.id"
+            type="button"
+            data-raid-option
+            class="flex w-full items-baseline gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+            @click="pick(channel)"
+          >
+            <span>{{ channel.displayName }}</span>
+            <span class="text-xs text-muted-foreground">{{ channel.login }}</span>
+          </button>
+        </PopoverContent>
+      </Popover>
       <Button type="submit" data-raid-start :disabled="login.trim() === '' || lookup.isPending.value">
         {{ t("dashboard.stream.raidNow.raid") }}
       </Button>

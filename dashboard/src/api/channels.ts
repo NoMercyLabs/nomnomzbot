@@ -29,6 +29,11 @@ export type ChannelSuspension = components['schemas']['ChannelSuspension'];
 // Any channel this bot serves, with what every visitor already sees (chat-client.md 9a "Reaching any channel").
 // onBot is false for a Twitch channel this deployment does not serve.
 export type PublicChannel = components['schemas']['PublicChannel'];
+// One Twitch channel a name search found.
+export type ChannelSearch = components['schemas']['ChannelSearch'];
+
+// How many suggestions a channel search shows.
+const CHANNEL_SEARCH_LIMIT = 8;
 
 const version = { path: { version: '1' } };
 // The server's largest page, and a ceiling so a list that never ends cannot loop forever.
@@ -118,6 +123,34 @@ export function useChannelDirectory(
   search: MaybeRefOrGetter<string>,
 ): UseQueryReturnType<PublicChannel[], Error> {
   return useQuery(computed(() => channelDirectoryOptions(toValue(search))));
+}
+
+// Twitch channels whose name starts like the search, for a raid, invite or trust target. Empty text asks nothing.
+export function useChannelSearch(
+  channelId: MaybeRefOrGetter<string | null>,
+  search: MaybeRefOrGetter<string>,
+): UseQueryReturnType<ChannelSearch[], Error> {
+  return useQuery({
+    queryKey: computed(() => ['channels', toValue(channelId), 'search', toValue(search).trim()] as const),
+    queryFn: async (): Promise<ChannelSearch[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/stream/channels',
+        {
+          params: {
+            path: { version: '1', channelId: toValue(channelId)! },
+            query: { query: toValue(search).trim(), take: CHANNEL_SEARCH_LIMIT },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw problemError('channel search', response.status, error);
+
+      return data?.data ?? [];
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(search).trim() !== ''),
+    staleTime: 30_000,
+  });
 }
 
 // A channel the person moderates on Twitch, where the bot is not installed yet, opens in moderator mode.

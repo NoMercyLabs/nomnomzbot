@@ -33,6 +33,8 @@ type Call = {
 };
 
 const calls = vi.hoisted(() => [] as Call[]);
+const searches = vi.hoisted(() => [] as unknown[]);
+const searchPath = '/api/v{version}/channels/{channelId}/stream/channels';
 const access = vi.hoisted(() => ({
   write: true,
   unknownLogin: false,
@@ -46,6 +48,30 @@ vi.mock('@/api/client', () => ({
       path: string,
       init: { params: { query: { login: string } } },
     ): Promise<Answer> => {
+      if (path === searchPath) {
+        searches.push(init.params.query);
+
+        return {
+          data: {
+            data: [
+              {
+                id: '777',
+                login: 'friendly',
+                displayName: 'Friendly',
+                thumbnailUrl: null,
+              },
+              {
+                id: '778',
+                login: 'friendship',
+                displayName: 'FriendShip',
+                thumbnailUrl: null,
+              },
+            ],
+          },
+          response: { ok: true, status: 200 },
+        };
+      }
+
       calls.push({
         method: 'GET',
         path,
@@ -129,6 +155,7 @@ beforeEach(() => {
   access.unknownLogin = false;
   access.cancelFails = false;
   calls.length = 0;
+  searches.length = 0;
   vi.clearAllMocks();
 });
 
@@ -198,6 +225,43 @@ describe('RaidNowPanel', () => {
     await flushPromises();
 
     expect(toasts.error).toHaveBeenCalledWith('There is no raid to cancel.');
+  });
+
+  // Stoney, 2026-11-24, on the Raid a channel box: "no autocomplete".
+  it('suggests Twitch channels while typing and raids the picked one after the confirm', async () => {
+    const page = await open();
+
+    await page.get('[data-raid-input]').setValue('friend');
+    await new Promise((done) => setTimeout(done, 400));
+    await flushPromises();
+
+    expect(searches).toEqual([{ query: 'friend', take: 8 }]);
+
+    const options = Array.from(document.body.querySelectorAll<HTMLElement>('[data-raid-option]'));
+
+    expect(
+      options.map((option) => Array.from(option.children).map((part) => part.textContent)),
+    ).toEqual([
+      ['Friendly', 'friendly'],
+      ['FriendShip', 'friendship'],
+    ]);
+
+    options[1]!.click();
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('Raid FriendShip?');
+    expect(calls).toEqual([]);
+
+    document.body.querySelector<HTMLElement>('[data-confirm-action]')?.click();
+    await flushPromises();
+
+    expect(calls).toEqual([
+      {
+        method: 'POST',
+        path: raidsPath,
+        body: { targetTwitchBroadcasterId: '778' },
+      },
+    ]);
   });
 
   it('shows nothing without the raid right', async () => {

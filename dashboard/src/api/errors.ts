@@ -398,6 +398,7 @@ export const apiOperations = {
   'save guest star slot settings': 'liveOps',
   'start raid': 'liveOps',
   'cancel raid': 'liveOps',
+  'channel search': 'liveOps',
   bans: 'moderation',
   'unban from list': 'moderation',
   'unban requests': 'moderation',
