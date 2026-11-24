@@ -1734,6 +1734,11 @@ same way: the kind is typed as free text and the content is one raw JSON text bo
   in the pipeline editor), never as JSON. Sound clips pick from the platform audio assets
   (`/platform/content/audio-assets`, no client call today). Done-when: one test per kind edits a field in
   the form and the drafted version's payload holds it; 7 of 7.
+- **S-ADMIN-CONTENT-CREATE-FORMS** The "New definition" dialog in Admin > Content still asks for the
+  payload as raw JSON (`{}`), so a new timer, reward, pick list or other kind starts as JSON. Found live on
+  dev 2026-11-24. The dialog opens the same per-kind form the version editor uses once a kind is chosen,
+  with Edit JSON as the escape. Done-when: one test per kind fills the form in the create dialog and the
+  created definition's first version payload holds it.
 - **S-ADMIN-CONTENT-PUBLISH** is the admin part of S-VERSIONS-UI: open a version, publish preview, publish,
   and the publish job's progress (`/platform/content/publish-jobs/{id}`). Not a second row; it closes there.
 
