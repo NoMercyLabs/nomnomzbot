@@ -218,6 +218,11 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         // ...and its TTS clips (the diagnostics tts section).
         b.Entity<TtsUsageRecord>().HasKey(e => e.Id);
 
+        // ...and its EventSub subscription rows (the diagnostics eventsub section); the Condition dictionary
+        // is a value-converted column in production and is not read here.
+        b.Entity<EventSubSubscription>().HasKey(e => e.Id);
+        b.Entity<EventSubSubscription>().Ignore(e => e.Condition);
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -249,6 +254,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(User),
         typeof(BillingTier),
         typeof(TtsUsageRecord),
+        typeof(EventSubSubscription),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -283,7 +289,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
     public DbSet<AlertQueueEntry> AlertQueueEntries => Set<AlertQueueEntry>();
-    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
+    public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();

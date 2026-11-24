@@ -39,7 +39,27 @@ public sealed record ChannelDiagnosticsDto
     /// <summary>One row per platform and integration link the channel has, with its health. Never a token value.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ChannelDiagnosticConnectionDto>? Connections { get; set; }
+
+    /// <summary>The channel's own EventSub subscription rows (no platform rows), ordered by event type.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ChannelDiagnosticEventSubDto>? EventSub { get; set; }
 }
+
+/// <summary>One EventSub subscription row of a channel: what it listens to, where it is homed and how it fares.</summary>
+public sealed record ChannelDiagnosticEventSubDto(
+    Guid Id,
+    string EventType,
+    string Version,
+    string Transport,
+    string Status,
+    bool Enabled,
+    int? Cost,
+    string? LastError,
+    DateTime? ExpiresAt,
+    DateTime UpdatedAt,
+    string? ConduitId,
+    string? ShardId
+);
 
 /// <summary>
 /// The health of one connection a channel has: a platform link, an integration, a Discord server, OBS, VTube

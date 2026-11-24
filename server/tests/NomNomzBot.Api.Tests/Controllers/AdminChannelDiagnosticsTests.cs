@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Admin.Diagnostics;
@@ -76,6 +77,7 @@ public sealed class AdminChannelDiagnosticsTests
             new ChannelSummaryDiagnosticSection(db, runs, new FakeTimeProvider(Now)),
             new ChannelRunsDiagnosticSection(runs, db),
             new ChannelTtsDiagnosticSection(db, new FakeTimeProvider(Now)),
+            new ChannelEventSubDiagnosticSection(db),
             // Its rows are proven in NomNomzBot.Infrastructure.Tests; here it only has to be a known key.
             new ChannelConnectionsDiagnosticSection([]),
         ];
@@ -411,6 +413,96 @@ public sealed class AdminChannelDiagnosticsTests
         tts.Last24Hours.P95SynthesisMs.Should().BeNull();
     }
 
+    private static EventSubSubscription EventSubRow(
+        Guid broadcasterId,
+        string eventType,
+        string status = "enabled",
+        DateTime? deletedAt = null
+    ) =>
+        new()
+        {
+            BroadcasterId = broadcasterId,
+            EventType = eventType,
+            Version = "1",
+            Transport = "conduit",
+            Status = status,
+            Enabled = true,
+            Cost = 1,
+            LastError = status == "failed" ? "made-up error body" : null,
+            ExpiresAt = Now.AddDays(3),
+            ConduitId = "made-up-conduit",
+            ShardId = "0",
+            DeletedAt = deletedAt,
+        };
+
+    [Fact]
+    public async Task An_admin_reads_only_this_channels_live_eventsub_rows_ordered_by_event_type()
+    {
+        (ApiTestDbContext db, _) = await SeedAsync();
+        Guid otherChannel = Guid.Parse("0199a000-0000-7000-8000-000000000d11");
+        EventSubSubscription follow = EventSubRow(Broadcaster, "channel.follow");
+        EventSubSubscription failed = EventSubRow(Broadcaster, "channel.ban", "failed");
+        db.EventSubSubscriptions.AddRange(
+            follow,
+            failed,
+            EventSubRow(Broadcaster, "channel.raid", deletedAt: Now),
+            EventSubRow(otherChannel, "channel.cheer"),
+            EventSubRow(Guid.Empty, "user.whisper.message")
+        );
+        await db.SaveChangesAsync();
+        AdminChannelDiagnosticsController controller = BuildController(db, OperatorUser);
+
+        IActionResult result = await controller.GetDiagnostics(
+            Broadcaster,
+            "eventsub",
+            new PageRequestDto(),
+            failuresOnly: false,
+            pipelineId: null,
+            CancellationToken.None
+        );
+
+        ChannelDiagnosticsDto body = (
+            (StatusResponseDto<ChannelDiagnosticsDto>)((OkObjectResult)result).Value!
+        ).Data!;
+        body.Summary.Should().BeNull();
+        IReadOnlyList<ChannelDiagnosticEventSubDto> rows = body.EventSub!;
+        rows.Select(r => r.EventType).Should().Equal("channel.ban", "channel.follow");
+        ChannelDiagnosticEventSubDto ban = rows[0];
+        ban.Id.Should().Be(failed.Id);
+        ban.Version.Should().Be("1");
+        ban.Transport.Should().Be("conduit");
+        ban.Status.Should().Be("failed");
+        ban.Enabled.Should().BeTrue();
+        ban.Cost.Should().Be(1);
+        ban.LastError.Should().Be("made-up error body");
+        ban.ExpiresAt.Should().Be(Now.AddDays(3));
+        ban.ConduitId.Should().Be("made-up-conduit");
+        ban.ShardId.Should().Be("0");
+        ban.UpdatedAt.Should().Be(failed.UpdatedAt);
+        rows[1].Id.Should().Be(follow.Id);
+        rows[1].LastError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_channel_with_no_eventsub_rows_gets_an_empty_eventsub_section()
+    {
+        (ApiTestDbContext db, _) = await SeedAsync();
+        AdminChannelDiagnosticsController controller = BuildController(db, OperatorUser);
+
+        IActionResult result = await controller.GetDiagnostics(
+            Broadcaster,
+            "eventsub",
+            new PageRequestDto(),
+            failuresOnly: false,
+            pipelineId: null,
+            CancellationToken.None
+        );
+
+        ((StatusResponseDto<ChannelDiagnosticsDto>)((OkObjectResult)result).Value!)
+            .Data!.EventSub.Should()
+            .BeEmpty();
+    }
+
     [Fact]
     public async Task An_admin_reads_one_runs_step_logs_and_the_read_is_audited()
     {
@@ -503,7 +595,7 @@ public sealed class AdminChannelDiagnosticsTests
             (StatusResponseDto<object>)((BadRequestObjectResult)result).Value!;
         body.Message.Should()
             .Be(
-                "Unknown diagnostic section 'bogus'. Known sections: connections, runs, summary, tts."
+                "Unknown diagnostic section 'bogus'. Known sections: connections, eventsub, runs, summary, tts."
             );
         (await db.IamAuditLogs.AsNoTracking().CountAsync()).Should().Be(0);
     }
