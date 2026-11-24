@@ -20,11 +20,14 @@
 # Usage: python scripts/check-parity-ledger.py [--legacy <nomercy-bot/src>] [--ledger <md>] [--plan <md>]
 
 import argparse
+import os
 import pathlib
 import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+# The projects root is C:/Projects on Windows and the home folder on the devbox; PROJECTS_ROOT overrides both.
+PROJECTS_ROOT = pathlib.Path(os.environ.get('PROJECTS_ROOT') or ('C:/Projects' if os.name == 'nt' else pathlib.Path.home()))
 STATUSES = ('matched', 'partial', 'missing', 'n/a')
 CELL_SPLIT = re.compile(r'(?<!\\)\|')
 LEGACY_FILE = re.compile(r'([A-Za-z0-9_.-]+\.cs)(?::(\d+))?')
@@ -111,7 +114,7 @@ def check(ledger_text, plan_text, inventory):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--legacy', default='C:/Projects/StoneyEagle/nomercy-bot/src')
+    parser.add_argument('--legacy', default=str(PROJECTS_ROOT / 'StoneyEagle/nomercy-bot/src'))
     parser.add_argument('--ledger', default=str(ROOT / '.claude/docs/design/LEGACY-PARITY-LEDGER.md'))
     parser.add_argument('--plan', default=str(ROOT / '.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md'))
     args = parser.parse_args()

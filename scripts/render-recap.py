@@ -55,7 +55,11 @@ BOX = f"http://{HOST}:5080"
 CHANNEL = "019f146e-8303-71ef-b698-18d1098d7d7e"
 OWNER = "019f146e-81c7-7d3c-8b63-c6e6beae0283"
 SSH_KEY = pathlib.Path.home() / ".ssh" / "docker_proxmox"
-CHROME = os.environ.get("CHROME_PATH", "C:/Program Files/Google/Chrome/Application/chrome.exe")
+CHROME = os.environ.get("CHROME_PATH") or (
+    "C:/Program Files/Google/Chrome/Application/chrome.exe"
+    if os.name == "nt"
+    else shutil.which("google-chrome") or shutil.which("chromium") or "google-chrome"
+)
 ZONE = ZoneInfo("Europe/Amsterdam")
 VIEWPORT = (1920, 1080)
 

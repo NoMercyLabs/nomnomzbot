@@ -36,6 +36,17 @@ The devbox publishes **5080** and **5090**, so the API and the dashboard dev ser
 on the host exactly as they are without the container. PowerShell 7 is present, so the `scripts/*.ps1` gates
 run, except the ReSharper leg of `slice-check` is skipped by default (use `-Inspect`).
 
+## Its own Proxmox LXC
+
+- Create: on the Proxmox host as root, `AUTHORIZED_KEY="$(cat key.pub)" bash devbox/proxmox/provision-lxc.sh`
+  (idempotent; default VMID 121, refuses a VMID that holds another container; never LXC 120).
+- Run a gate from Windows: `scripts/devbox-remote.ps1 -Command "<PowerShell>"` mirrors the tree
+  (local commits as a bundle, changed/new/deleted files) and runs it in the box; `-SyncOnly` mirrors only.
+- Sibling projects resolve through `PROJECTS_ROOT` (`C:/Projects` on Windows, `$HOME` in the box).
+- After creating it, check the box can: `gh auth status` (push, CI), the deploy key env
+  (`NOMNOMZ_DEPLOY_SSH`, `NOMNOMZ_DEPLOY_KEY`), and `docker info` (Postgres migration check).
+  Report each one that fails to the owner; only he can log in or hand over a key.
+
 ## Sharing it
 
 `devbox/Caddyfile.hosted.example` puts it behind TLS + basic auth on a shared host. **The devbox

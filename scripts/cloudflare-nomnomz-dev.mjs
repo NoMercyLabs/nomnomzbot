@@ -34,13 +34,16 @@
 // CF_ENV_FILE) and is never printed. Every call refuses a hostname outside *.nomnomz.bot, and a write
 // fails unless exactly one ingress rule changed.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const ACCOUNT = '430cc0dc9fcf3a1cf3258d165c15abf4';
 const PROXMOX_TUNNEL = '3d4e427b-f0ba-45eb-95ae-a410a9fd7ec2';
 const DEV_TUNNEL = '57c7b716-39de-49fa-a0fd-6800e71b53ae';
 const DEV_ORIGIN = 'http://192.168.2.201:5090';
-const ENV_FILE = process.env.CF_ENV_FILE ?? 'C:/Projects/NoMercy/saas/nomercy-tv/.env';
+// The projects root is C:/Projects on Windows and the home folder on the devbox; PROJECTS_ROOT overrides both.
+const PROJECTS_ROOT = process.env.PROJECTS_ROOT ?? (process.platform === 'win32' ? 'C:/Projects' : homedir());
+const ENV_FILE = process.env.CF_ENV_FILE ?? `${PROJECTS_ROOT}/NoMercy/saas/nomercy-tv/.env`;
 
 const args = process.argv.slice(2);
 const mode = args[0];

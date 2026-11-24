@@ -44,9 +44,13 @@ $worktree = $null
 
 # The script and widget bundling tests run the real esbuild, which CI installs (ci.yml "Install esbuild",
 # same pinned version). Without it every unfiltered Infrastructure run failed 25 tests on 2026-10-29. A local
-# copy unpacked under C:/Projects/.work/tools/esbuild-<version>/package is used when none is configured.
+# copy unpacked under <projects root>/.work/tools/esbuild-<version>/package is used when none is configured.
+# The projects root is C:/Projects on Windows and the home folder on the devbox; PROJECTS_ROOT overrides both.
 if (-not $env:Widgets__EsbuildPath) {
-    $localEsbuild = Get-ChildItem -Path 'C:/Projects/.work/tools' -Filter 'esbuild.exe' -Recurse -ErrorAction SilentlyContinue |
+    [bool]$onWindows = $IsWindows -or $null -eq $IsWindows
+    [string]$projectsRoot = if ($env:PROJECTS_ROOT) { $env:PROJECTS_ROOT } elseif ($onWindows) { 'C:/Projects' } else { $HOME }
+    [string]$esbuildName = if ($onWindows) { 'esbuild.exe' } else { 'esbuild' }
+    $localEsbuild = Get-ChildItem -Path "$projectsRoot/.work/tools" -Filter $esbuildName -File -Recurse -ErrorAction SilentlyContinue |
         Sort-Object FullName -Descending | Select-Object -First 1
     if ($localEsbuild) { $env:Widgets__EsbuildPath = $localEsbuild.FullName }
 }
@@ -96,13 +100,17 @@ else {
 if (-not $env:Widgets__EsbuildPath -and -not (Get-Command esbuild -ErrorAction SilentlyContinue)) {
     [string]$esbuildVersion = ((Select-String -Path (Join-Path $repo '.github/workflows/ci.yml') -Pattern "ESBUILD_VERSION: '([^']+)'").Matches[0].Groups[1].Value)
     [string]$esbuildDir = Join-Path $repo ".scratch/esbuild-$esbuildVersion"
-    [string]$esbuildExe = Join-Path $esbuildDir 'package/esbuild.exe'
+    # The devbox (Linux) takes the linux-x64 package; its binary sits at package/bin/esbuild.
+    [string]$esbuildPlatform = if ($IsWindows -or $null -eq $IsWindows) { 'win32-x64' } else { 'linux-x64' }
+    [string]$esbuildEntry = if ($esbuildPlatform -eq 'win32-x64') { 'package/esbuild.exe' } else { 'package/bin/esbuild' }
+    [string]$esbuildExe = Join-Path $esbuildDir $esbuildEntry
     if (-not (Test-Path -LiteralPath $esbuildExe)) {
         New-Item -ItemType Directory -Force -Path $esbuildDir | Out-Null
         [string]$tgz = Join-Path $esbuildDir 'esbuild.tgz'
-        Invoke-WebRequest -UseBasicParsing -Uri "https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-$esbuildVersion.tgz" -OutFile $tgz
+        Invoke-WebRequest -UseBasicParsing -Uri "https://registry.npmjs.org/@esbuild/$esbuildPlatform/-/$esbuildPlatform-$esbuildVersion.tgz" -OutFile $tgz
         # Windows tar by full path: Git's tar comes first on PATH under bash and reads "C:" as a remote host.
-        Invoke-Native 'could not unpack esbuild' { & "$env:SystemRoot/System32/tar.exe" -xzf $tgz -C $esbuildDir package/esbuild.exe }
+        [string]$tarExe = if ($esbuildPlatform -eq 'win32-x64') { "$env:SystemRoot/System32/tar.exe" } else { 'tar' }
+        Invoke-Native 'could not unpack esbuild' { & $tarExe -xzf $tgz -C $esbuildDir $esbuildEntry }
     }
     $env:Widgets__EsbuildPath = $esbuildExe
 }

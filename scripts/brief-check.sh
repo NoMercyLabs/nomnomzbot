@@ -13,4 +13,9 @@
 # with this repo's rule registry. Exit 0 = PASS (dispatch the same text with the same type and
 # model); exit 1 = the gaps, all at once; exit 2 = a usage error.
 # Usage: sh scripts/brief-check.sh <draft.md> --type <subagent_type> --model <model>
-exec node "C:/Projects/NoMercy/.claude/scripts/brief-check.mjs" "$@" --project "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+# The projects root is C:/Projects on Windows and the home folder on the devbox; PROJECTS_ROOT overrides both.
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) default_root="C:/Projects" ;;
+    *) default_root="$HOME" ;;
+esac
+exec node "${PROJECTS_ROOT:-$default_root}/NoMercy/.claude/scripts/brief-check.mjs" "$@" --project "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"

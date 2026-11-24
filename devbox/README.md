@@ -122,6 +122,24 @@ Measured in the box: full solution build 3m20s, Domain suite 110ms, csharpier in
 `jb inspectcode` leg takes **20+ minutes** — ReSharper reads the whole solution through the
 Docker Desktop VM share regardless of `--include`. Run that leg on the host.
 
+## Its own Proxmox LXC
+
+The devbox can run as its own LXC on a Proxmox host, so the work goes on with the Windows PC off.
+
+- **Create it.** On the Proxmox host, as root: `AUTHORIZED_KEY="$(cat key.pub)" bash devbox/proxmox/provision-lxc.sh`.
+  It is safe to run again; each step checks first. Settings are environment variables at the top of
+  the script (default `VMID=121`, `NAME=nnz-devbox`, 8 cores, 16 GB, 120 GB). It refuses a VMID that
+  already holds another container. Never use LXC 120.
+- **Run a gate there from Windows.** `scripts/devbox-remote.ps1 -Command "<PowerShell>"` mirrors this
+  working tree into the box (local commits as a git bundle, plus every changed, new and deleted file)
+  and runs the command in the devbox container. `-SyncOnly` mirrors only. The ssh host alias is
+  `nnz-devbox`.
+- **Paths.** Scripts that point at a sibling project take `PROJECTS_ROOT`. Its default is `C:/Projects`
+  on Windows and the home folder in the box (so `~/NoMercy`, `~/StoneyEagle/...`).
+- **What the box cannot do by itself.** Push, CI watch and deploy need `gh auth login`, and the deploy
+  key in `NOMNOMZ_DEPLOY_SSH` / `NOMNOMZ_DEPLOY_KEY`. The Postgres migration check needs the docker
+  socket. Set these up once after the box is made.
+
 ## Sharing it
 
 `Caddyfile.hosted.example` is the config for putting the devbox behind TLS + basic auth on a

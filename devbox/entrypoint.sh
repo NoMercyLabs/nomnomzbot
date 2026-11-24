@@ -58,7 +58,8 @@ if [ -S /var/run/docker.sock ] && ! docker info >/dev/null 2>&1; then
     if [ "${SOCK_GID}" = "0" ]; then
         log "docker socket is root-owned (Docker Desktop) - use 'sudo docker' in this box"
     else
-        SOCK_GROUP="$(getent group "${SOCK_GID}" | cut -d: -f1)"
+        # getent exits 2 for an unknown gid; under pipefail that would end the script here.
+        SOCK_GROUP="$(getent group "${SOCK_GID}" | cut -d: -f1 || true)"
         if [ -z "${SOCK_GROUP}" ]; then
             SOCK_GROUP=dockerhost
             sudo groupadd -g "${SOCK_GID}" "${SOCK_GROUP}" 2>/dev/null || true
