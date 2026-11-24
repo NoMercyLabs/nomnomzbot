@@ -36,4 +36,12 @@ public interface IMusicHistoryReader
         IReadOnlyCollection<string> displayNames,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>The display name of who last requested <paramref name="trackUri"/> since <paramref name="since"/>, or null.</summary>
+    Task<string?> RequesterNameOfAsync(
+        Guid broadcasterId,
+        string trackUri,
+        DateTime since,
+        CancellationToken cancellationToken = default
+    );
 }

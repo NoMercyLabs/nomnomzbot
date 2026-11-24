@@ -140,6 +140,41 @@ public sealed class MusicHistoryReader(IApplicationDbContext db) : IMusicHistory
         return found;
     }
 
+    public async Task<string?> RequesterNameOfAsync(
+        Guid broadcasterId,
+        string trackUri,
+        DateTime since,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var candidates = await db
+            .Records.AsNoTracking()
+            .Where(r =>
+                r.BroadcasterId == broadcasterId
+                && (
+                    r.RecordType == SongRequestHistory.RecordType
+                    || r.RecordType == SongRequestHistory.PendingRecordType
+                )
+                && r.CreatedAt >= since
+                && r.Data.Contains(trackUri)
+            )
+            .OrderByDescending(r => r.CreatedAt)
+            .ThenByDescending(r => r.Id)
+            .Take(5)
+            .Select(r => new { r.UserId, r.Data })
+            .ToListAsync(cancellationToken);
+
+        // Contains is a coarse filter: "track:a" also matches "track:ab", so the exact uri decides.
+        string? userId = candidates
+            .FirstOrDefault(c => Deserialize(c.Data)?.TrackUri == trackUri)
+            ?.UserId;
+        if (userId is null)
+            return null;
+
+        Dictionary<string, string> names = await NamesAsync([userId], cancellationToken);
+        return names.GetValueOrDefault(userId, userId);
+    }
+
     private async Task<Dictionary<string, string?>> ColorsAsync(
         List<string> platformIds,
         CancellationToken cancellationToken

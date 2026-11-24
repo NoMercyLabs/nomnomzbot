@@ -69,6 +69,16 @@ public sealed class MusicService : IMusicService
     private readonly IPlaybackInputSink _playbackInput;
     private readonly IPlaybackStateReader _playbackState;
     private readonly TimeProvider _time;
+    private readonly IMusicHistoryReader _history;
+
+    /// <summary>How far back a stored request still names who asked for the song that plays now.</summary>
+    private static readonly TimeSpan StoredRequestWindow = TimeSpan.FromHours(12);
+
+    /// <summary>Per channel, the last stored-request lookup: the poll asks every few seconds, the database once per song.</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        Guid,
+        (string Uri, string? Name)
+    > StoredRequesters = new();
 
     /// <summary>The volume ease running for each channel, shared across requests; a newer change replaces it.</summary>
     private readonly VolumeEaseHolder _volumeEases;
@@ -92,9 +102,11 @@ public sealed class MusicService : IMusicService
         IPlaybackStateReader playbackState,
         RefusedSongRequestStore? refused = null,
         TimeProvider? timeProvider = null,
-        VolumeEaseHolder? volumeEases = null
+        VolumeEaseHolder? volumeEases = null,
+        IMusicHistoryReader? history = null
     )
     {
+        _history = history ?? new MusicHistoryReader(db);
         _volumeEases = volumeEases ?? new();
         _time = timeProvider ?? TimeProvider.System;
         _playbackInput = playbackInput;
@@ -1786,7 +1798,10 @@ public sealed class MusicService : IMusicService
                 cancellationToken
             );
             if (heard is not null)
-                return ToNowPlaying(heard, RequesterOfPlayingTrack(tenantId, heard.TrackUri));
+                return ToNowPlaying(
+                    heard,
+                    await RequesterOfPlayingTrackAsync(tenantId, heard.TrackUri, cancellationToken)
+                );
         }
 
         if (
@@ -1795,7 +1810,11 @@ public sealed class MusicService : IMusicService
         )
             return ToNowPlaying(
                 TrackAsOfNow(fresh, fresh.Track.IsPlaying),
-                RequesterOfPlayingTrack(tenantId, fresh.Track.TrackUri)
+                await RequesterOfPlayingTrackAsync(
+                    tenantId,
+                    fresh.Track.TrackUri,
+                    cancellationToken
+                )
             );
 
         // A reader that arrives right after "nothing playing" gets the same answer: without this every
@@ -1820,7 +1839,10 @@ public sealed class MusicService : IMusicService
 
         _nowPlayingCache.Set(tenantId, track, DateTimeOffset.UtcNow);
 
-        return ToNowPlaying(track, RequesterOfPlayingTrack(tenantId, track.TrackUri));
+        return ToNowPlaying(
+            track,
+            await RequesterOfPlayingTrackAsync(tenantId, track.TrackUri, cancellationToken)
+        );
     }
 
     /// <summary>
@@ -1866,14 +1888,19 @@ public sealed class MusicService : IMusicService
 
     /// <summary>Also tells the fair queue whose song plays, so that owner's next request ranks one
     /// deeper while it plays; a track nobody requested (or none at all) clears it.</summary>
-    private string? RequesterOfPlayingTrack(Guid tenantId, string? playingTrackUri)
+    private async Task<string?> RequesterOfPlayingTrackAsync(
+        Guid tenantId,
+        string? playingTrackUri,
+        CancellationToken cancellationToken
+    )
     {
-        string? requester = PlayingRequester.Of(
-            _queueStore,
-            _playbackState.StateOf(tenantId),
-            tenantId.ToString(),
-            playingTrackUri
-        );
+        string? requester =
+            PlayingRequester.Of(
+                _queueStore,
+                _playbackState.StateOf(tenantId),
+                tenantId.ToString(),
+                playingTrackUri
+            ) ?? await StoredRequesterAsync(tenantId, playingTrackUri, cancellationToken);
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(tenantId.ToString());
         // A song that still is a queue row is already that owner's share: counting it again moves their next request back.
         bool isStillRow =
@@ -1882,6 +1909,30 @@ public sealed class MusicService : IMusicService
             && queue.GetSnapshot().Any(e => e.Item.TrackUri == playingTrackUri);
         queue?.SetNowPlayingOwner(isStillRow ? null : requester);
         return requester;
+    }
+
+    /// <summary>A restart empties the queue memory; the stored request row still names who asked for the song.</summary>
+    private async Task<string?> StoredRequesterAsync(
+        Guid tenantId,
+        string? playingTrackUri,
+        CancellationToken cancellationToken
+    )
+    {
+        if (string.IsNullOrEmpty(playingTrackUri))
+            return null;
+        if (StoredRequesters.TryGetValue(tenantId, out (string Uri, string? Name) known))
+            if (known.Uri == playingTrackUri)
+                return known.Name;
+
+        DateTime since = _time.GetUtcNow().UtcDateTime - StoredRequestWindow;
+        string? name = await _history.RequesterNameOfAsync(
+            tenantId,
+            playingTrackUri,
+            since,
+            cancellationToken
+        );
+        StoredRequesters[tenantId] = (playingTrackUri, name);
+        return name;
     }
 
     public async Task<bool?> TryGetCachedIsPlayingAsync(
@@ -2873,6 +2924,11 @@ public sealed class MusicService : IMusicService
                 _nowPlayingCache.Set(tenantId, track, observedAt);
         }
 
+        string? requestedBy = await RequesterOfPlayingTrackAsync(
+            tenantId,
+            track?.TrackUri,
+            cancellationToken
+        );
         await _eventBus.PublishAsync(
             new PlaybackStateChangedEvent
             {
@@ -2887,7 +2943,7 @@ public sealed class MusicService : IMusicService
                 Provider = track?.Provider,
                 TrackUri = track?.TrackUri,
                 ArtistId = track?.ArtistId,
-                RequestedBy = RequesterOfPlayingTrack(tenantId, track?.TrackUri),
+                RequestedBy = requestedBy,
                 ShuffleEnabled = track?.ShuffleEnabled ?? false,
                 RepeatMode = track?.RepeatMode ?? MusicRepeatMode.Off,
                 VolumePercent = track?.VolumePercent ?? 100,

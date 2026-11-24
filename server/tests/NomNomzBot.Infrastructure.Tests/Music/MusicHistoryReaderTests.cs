@@ -130,6 +130,30 @@ public sealed class MusicHistoryReaderTests
         result.Value[1].Should().Be(new TopRequesterDto("100", "Alice", 1));
     }
 
+    [Fact]
+    public async Task Requester_of_a_playing_song_comes_from_the_newest_stored_request_after_a_restart()
+    {
+        // A restart wipes the queue memory; the stored request row still names who asked for the song.
+        MusicTestDbContext db = MusicTestDbContext.New();
+        AddUser(db, "100", "Alice");
+        AddUser(db, "200", "JDDoesDev");
+        AddRow(db, Channel, "100", "spotify:track:a", "Song A", "Artist A", T0);
+        AddRow(db, Channel, "200", "spotify:track:a", "Song A", "Artist A", T0.AddMinutes(5));
+        AddRow(db, Other, "100", "spotify:track:b", "Song B", "Artist B", T0.AddMinutes(6));
+        db.SaveChanges();
+        MusicHistoryReader sut = new(db);
+
+        (await sut.RequesterNameOfAsync(Channel, "spotify:track:a", T0.AddMinutes(-1)))
+            .Should()
+            .Be("JDDoesDev");
+        (await sut.RequesterNameOfAsync(Channel, "spotify:track:b", T0.AddMinutes(-1)))
+            .Should()
+            .BeNull("that request belongs to another channel");
+        (await sut.RequesterNameOfAsync(Channel, "spotify:track:a", T0.AddMinutes(10)))
+            .Should()
+            .BeNull("a request older than the window is the streamer's own replay, not a request");
+    }
+
     private static void AddUser(
         MusicTestDbContext db,
         string twitchId,
