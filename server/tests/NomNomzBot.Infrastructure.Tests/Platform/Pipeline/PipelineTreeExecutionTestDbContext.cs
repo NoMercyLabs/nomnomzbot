@@ -134,6 +134,7 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
         typeof(PipelineStepCondition),
         typeof(PipelineTrigger),
         typeof(PipelineExecution),
+        typeof(User),
         typeof(PipelineRunState),
         typeof(CodeScript),
         typeof(CodeScriptVersion),
@@ -152,7 +153,7 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
