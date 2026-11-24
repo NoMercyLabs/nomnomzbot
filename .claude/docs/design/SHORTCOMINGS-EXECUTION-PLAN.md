@@ -1721,9 +1721,6 @@ draft a version, retire). There are 9 content kinds (`PlatformContentKinds`: com
 code_script, event_response, timer, reward, pick_list, sound_clip). `AdminContentView.vue` edits all 9 the
 same way: the kind is typed as free text and the content is one raw JSON text box. 0 of 9 kinds have an editor.
 
-- **S-ADMIN-CONTENT-PUBLISH** is the admin part of S-VERSIONS-UI: open a version, publish preview, publish,
-  and the publish job's progress (`/platform/content/publish-jobs/{id}`). Not a second row; it closes there.
-
 ## OWNER REQUEST 2026-10-06 — the editors: CodePen goes VS Code; the pipeline editor explains itself
 
 Owner, verbatim: "so basically the code editing is not good enough and lacks too many features. the
