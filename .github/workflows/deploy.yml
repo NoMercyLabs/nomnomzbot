@@ -63,6 +63,14 @@ jobs:
           script: |
             set -e
             image="ghcr.io/nomercylabs/nomnomzbot:${TAG}"
+            # Disk guard (same as scripts/switchover.ps1): every pull adds an image and nothing removed the old ones,
+            # so the disk filled and the pull failed (2026-11-10, 11-19, 11-24). A stopped colour keeps its image.
+            free_gb() { df -BG --output=avail /var/lib/docker | tail -1 | tr -dc '0-9'; }
+            if [ "$(free_gb)" -lt 5 ]; then
+              docker image prune -af >/dev/null
+              docker builder prune -af >/dev/null
+            fi
+            [ "$(free_gb)" -ge 5 ] || { echo "Only $(free_gb) GB free on the host; nothing changed." >&2; exit 1; }
             docker pull "$image"
             cd /opt/nomnomzbot
             # api-green is profiled so a bare `up -d` cannot start both colours.
@@ -134,3 +142,4 @@ jobs:
             sed -i "s|^API_IMAGE=.*|API_IMAGE=${image}|" .env
             grep -n '^API_IMAGE=' .env
             docker exec "nomnomzbot-api-$idle" curl -s http://localhost:5000/health/version
+            docker image prune -af >/dev/null || echo "WARNING: image prune after the switch failed"
