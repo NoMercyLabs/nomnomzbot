@@ -15,7 +15,6 @@
 // and the starting settings as two files in the channel code editor. The settings have no schema here (a platform
 // widget declares none), so the overlay settings form cannot take them; they stay a JSON file in that editor.
 // Save keeps the whole payload as a new version and is the one primary action; Edit JSON is the raw fallback.
-import Cross from '~icons/nnz/cross';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -23,11 +22,8 @@ import CodeEditor from '@/components/layout/CodeEditor.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import type { CompileFeedback, EditorFiles } from '@/composables/useEditorBridge';
 import { ensureWords } from '@/i18n';
@@ -43,6 +39,7 @@ import {
   writeWidgetPayload,
   type WidgetPayload,
 } from './widgetPayload';
+import AdminPayloadDialogHeader from './AdminPayloadDialogHeader.vue';
 
 const props = defineProps<{
   title: string;
@@ -117,24 +114,10 @@ async function saveFiles(files: EditorFiles): Promise<CompileFeedback> {
       :show-close-button="false"
       class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
     >
-      <div class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4">
-        <div class="grid gap-1.5">
-          <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription class="text-sm text-muted-foreground">
-            {{ $t("dashboard.admin.content.widgetEditor.description") }}
-          </DialogDescription>
-        </div>
-        <DialogClose as-child>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('common.close')"
-          >
-            <Cross class="size-5" aria-hidden="true" />
-          </Button>
-        </DialogClose>
-      </div>
+      <AdminPayloadDialogHeader
+        :title="title"
+        :description="$t('dashboard.admin.content.widgetEditor.description')"
+      />
       <div v-if="wordsReady" class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-4">
         <section class="grid gap-2">
           <h3 class="text-sm font-medium">

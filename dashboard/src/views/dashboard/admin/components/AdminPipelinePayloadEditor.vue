@@ -15,18 +15,14 @@
 // operator edits steps, not JSON. Save hands the parent the payload in the shape the server fans out; Edit JSON
 // is the raw fallback. Save is the one primary action; Edit JSON and Close are outline and ghost.
 import Add from '~icons/nnz/add';
-import Cross from '~icons/nnz/cross';
 import { computed, ref } from 'vue';
 
 import { usePipelineCatalog, type PipelineGraph, type PipelineStep } from '@/api/pipelines';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { ensureWords, schemaWords } from '@/i18n';
@@ -53,6 +49,7 @@ import { pipelineWords } from '@/views/dashboard/pipelines/components/stepWords'
 import { vLaneDrag } from '@/views/dashboard/pipelines/components/useStepDrag';
 import { useStepDraft } from '@/views/dashboard/pipelines/useStepDraft';
 
+import AdminPayloadDialogHeader from './AdminPayloadDialogHeader.vue';
 import { writePipelinePayload } from './pipelinePayload';
 
 const props = defineProps<{
@@ -218,24 +215,10 @@ async function save(): Promise<void> {
       :show-close-button="false"
       class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
     >
-      <div class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4">
-        <div class="grid gap-1.5">
-          <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription class="text-sm text-muted-foreground">
-            {{ $t("dashboard.admin.content.pipelineEditor.description") }}
-          </DialogDescription>
-        </div>
-        <DialogClose as-child>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('common.close')"
-          >
-            <Cross class="size-5" aria-hidden="true" />
-          </Button>
-        </DialogClose>
-      </div>
+      <AdminPayloadDialogHeader
+        :title="title"
+        :description="$t('dashboard.admin.content.pipelineEditor.description')"
+      />
       <div v-if="wordsReady" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 pb-4">
         <ol
           v-if="tree.length > 0"

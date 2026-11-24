@@ -15,7 +15,6 @@
 // it, the two cooldowns and reading it aloud. The payload is the overrides blob a channel starts from, so a field
 // the payload leaves out inherits the catalog default, shown on the field. Save keeps the whole payload as a new
 // version and is the one primary action; Edit JSON is the raw fallback.
-import Cross from '~icons/nnz/cross';
 import { computed, ref, type ComputedRef, type Ref, type WritableComputedRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -28,11 +27,8 @@ import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
@@ -48,6 +44,7 @@ import { useLocalizedText } from '@/composables/useLocalizedText';
 import { ensureWords } from '@/i18n';
 
 import AdminCommandFieldHint from './AdminCommandFieldHint.vue';
+import AdminPayloadDialogHeader from './AdminPayloadDialogHeader.vue';
 import { commandWords, writeCommandPayload, type CommandPayload } from './commandPayload';
 
 const props = defineProps<{
@@ -176,24 +173,10 @@ async function save(): Promise<void> {
       :show-close-button="false"
       class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
     >
-      <div class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4">
-        <div class="grid gap-1.5">
-          <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription class="text-sm text-muted-foreground">
-            {{ $t("dashboard.admin.content.commandEditor.description") }}
-          </DialogDescription>
-        </div>
-        <DialogClose as-child>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('common.close')"
-          >
-            <Cross class="size-5" aria-hidden="true" />
-          </Button>
-        </DialogClose>
-      </div>
+      <AdminPayloadDialogHeader
+        :title="title"
+        :description="$t('dashboard.admin.content.commandEditor.description')"
+      />
       <div v-if="wordsReady" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 pb-4">
         <Field v-for="slot in slots" :key="slot.slot">
           <TemplateField

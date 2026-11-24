@@ -14,7 +14,6 @@
 // A reward definition's draft with the fields of the channel's reward editor: the name, the cost, the description,
 // the color, the chat reply, the limits and the switches. Save keeps the whole payload as a new version and is the
 // one primary action; Edit JSON is the raw fallback.
-import Cross from '~icons/nnz/cross';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -25,11 +24,8 @@ import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { Field, FieldCount, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -45,6 +41,7 @@ import {
   type LimitKey,
   type RewardPayload,
 } from './rewardPayload';
+import AdminPayloadDialogHeader from './AdminPayloadDialogHeader.vue';
 
 const props = defineProps<{
   title: string;
@@ -119,24 +116,10 @@ async function save(): Promise<void> {
       :show-close-button="false"
       class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
     >
-      <div class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4">
-        <div class="grid gap-1.5">
-          <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription class="text-sm text-muted-foreground">
-            {{ $t("dashboard.admin.content.rewardEditor.description") }}
-          </DialogDescription>
-        </div>
-        <DialogClose as-child>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('common.close')"
-          >
-            <Cross class="size-5" aria-hidden="true" />
-          </Button>
-        </DialogClose>
-      </div>
+      <AdminPayloadDialogHeader
+        :title="title"
+        :description="$t('dashboard.admin.content.rewardEditor.description')"
+      />
       <div v-if="wordsReady" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 pb-4">
         <div class="grid grid-cols-1 gap-x-4 gap-y-5 md:grid-cols-3">
           <Field class="md:col-span-2">

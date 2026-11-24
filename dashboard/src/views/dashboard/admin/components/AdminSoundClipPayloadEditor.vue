@@ -14,7 +14,6 @@
 // A sound clip definition's draft with the fields of the channel's sound clip dialog, plus the short name and the
 // audio file from the platform library. Save keeps the whole payload as a new version and is the one primary
 // action; Edit JSON is the raw fallback.
-import Cross from '~icons/nnz/cross';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -25,11 +24,8 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -49,6 +45,7 @@ import {
   writeSoundClipPayload,
   type SoundClipPayloadForm,
 } from './soundClipPayload';
+import AdminPayloadDialogHeader from './AdminPayloadDialogHeader.vue';
 
 const props = defineProps<{
   title: string;
@@ -117,24 +114,10 @@ async function save(): Promise<void> {
       :show-close-button="false"
       class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
     >
-      <div class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4">
-        <div class="grid gap-1.5">
-          <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription class="text-sm text-muted-foreground">
-            {{ $t("dashboard.admin.content.soundClipEditor.description") }}
-          </DialogDescription>
-        </div>
-        <DialogClose as-child>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            :aria-label="$t('common.close')"
-          >
-            <Cross class="size-5" aria-hidden="true" />
-          </Button>
-        </DialogClose>
-      </div>
+      <AdminPayloadDialogHeader
+        :title="title"
+        :description="$t('dashboard.admin.content.soundClipEditor.description')"
+      />
       <div v-if="wordsReady" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 pb-4">
         <div class="grid grid-cols-2 gap-3">
           <Field>
