@@ -46,9 +46,41 @@ const widget = (id: string, name: string, over: Record<string, unknown> = {}) =>
     ...over,
   }) as const satisfies Record<string, unknown>;
 
+type Post = { path: string; body: unknown };
+
+const posts: Post[] = [];
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
+    POST: async (
+      path: string,
+      options?: { body?: { overlayKeys?: string[] } },
+    ): Promise<Answer> => {
+      posts.push({ path, body: options?.body });
+
+      const keys = options?.body?.overlayKeys ?? [];
+
+      return {
+        data: {
+          data: {
+            nestedSceneName: 'NomNomzBot overlays',
+            addedToScene: true,
+            overlays: keys.map((key, index) => ({
+              key,
+              sourceName: `NomNomzBot ${key}`,
+              outcome: index === 0
+                ? 'Created'
+                : 'Failed',
+              error: index === 0
+                ? null
+                : 'OBS refused the source.',
+            })),
+          },
+        },
+        response: { status: 200, ok: true },
+      };
+    },
     GET: async (
       path: string,
       options?: { params?: { query?: { view?: string } } },
@@ -143,6 +175,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
+  posts.length = 0;
   held = ['obs:scene:read', 'obs:control', 'obs:config:read', 'widget:read'];
   liveFails = false;
   bridgeCount = 1;
@@ -536,6 +569,110 @@ describe('ObsView', () => {
     await flushPromises();
 
     expect(scrolled.mock.calls.filter((call) => call[0]?.block === 'start')).toEqual([]);
+  });
+
+  describe('Add overlays to OBS', () => {
+    const body = (): HTMLElement => document.body;
+    const rows = (): string[] =>
+      [...document.querySelectorAll('[data-install-result]')].map((row) =>
+        `${row.getAttribute('data-install-result')}:${row.querySelector('[data-install-outcome]')?.textContent?.trim()}`);
+
+    // The scene picker is the design-system Select: a pointer press opens it, a pointer release picks.
+    async function pickScene(name: string): Promise<void> {
+      Element.prototype.hasPointerCapture = (): boolean => false;
+      Element.prototype.releasePointerCapture = (): void => undefined;
+
+      const trigger = body().querySelector<HTMLElement>('[data-install-scene]')!;
+
+      trigger.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }));
+
+      trigger.click();
+      await flushPromises();
+
+      body().querySelector<HTMLElement>(`[data-option="${name}"]`)!.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }));
+
+      await flushPromises();
+    }
+
+    async function openDialog(): Promise<void> {
+      required = [
+        { key: 'alerts', widget: widgets[1] },
+        { key: 'audio', widget: widgets[3] },
+        { key: 'stage', widget: widget('w5', 'Stage', { isAttached: true }) },
+      ];
+
+      await open();
+
+      body().querySelector<HTMLButtonElement>('[data-obs-install]')!.click();
+      await flushPromises();
+    }
+
+    it('sends one POST with the picked scene and the ticked overlays, then lists each result', async () => {
+      await openDialog();
+      await pickScene('BRB');
+
+      body().querySelector<HTMLElement>('[data-install-overlay="audio"]')!.click();
+      await flushPromises();
+      body().querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+      await flushPromises();
+
+      expect(posts).toEqual([
+        {
+          path: '/api/v{version}/channels/{channelId}/obs/overlays/install',
+          body: { sceneName: 'BRB', overlayKeys: ['alerts'] },
+        },
+      ]);
+    });
+
+    it('starts every overlay not yet in OBS ticked, each loaded one unticked, and the on-air scene picked', async () => {
+      await openDialog();
+
+      const state = (key: string): string | null | undefined =>
+        body().querySelector(`[data-install-overlay="${key}"]`)?.getAttribute('data-state');
+
+      expect(['alerts', 'audio', 'stage'].map(state)).toEqual(['checked', 'checked', 'unchecked']);
+
+      body().querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+      await flushPromises();
+
+      expect(posts[0]?.body).toEqual({ sceneName: 'Main', overlayKeys: ['alerts', 'audio'] });
+    });
+
+    it('lists each overlay with its result word and the reason a failure gives', async () => {
+      await openDialog();
+      body().querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+      await flushPromises();
+
+      expect(rows()).toEqual([
+        `alerts:${en.dashboard.obs.install.outcome.Created}`,
+        `audio:${en.dashboard.obs.install.outcome.Failed}`,
+      ]);
+
+      expect(body().querySelector('[data-install-result="audio"]')?.textContent).toContain('OBS refused the source.');
+    });
+
+    it('shows no action while no bridge page is open in OBS, and keeps the connect step', async () => {
+      bridgeCount = 0;
+      await open();
+
+      expect(document.querySelector('[data-obs-install]')).toBeNull();
+      expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
+    });
+
+    it('shows no action to a person who may not control OBS', async () => {
+      held = ['obs:scene:read', 'obs:config:read', 'widget:read'];
+      await open();
+
+      expect(document.querySelector('[data-obs-install]')).toBeNull();
+    });
   });
 
   it('shows only the tabs a person may open', async () => {

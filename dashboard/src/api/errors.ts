@@ -509,6 +509,7 @@ export const apiOperations = {
   'obs inputs': 'obs',
   'obs input mute': 'obs',
   'obs input volume': 'obs',
+  'obs install overlays': 'obs',
   'obs stats': 'obs',
   'obs virtual cam': 'obs',
   'obs output': 'obs',

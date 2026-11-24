@@ -14,7 +14,7 @@
 // the studio tools and the overlay setup each have their own tab, so no view grows into a wall of panels.
 // Dots: green works, orange needs a look (nothing loaded, OBS silent), red failed. The header dot is the worst of them.
 import { useDocumentVisibility } from '@vueuse/core';
-import { computed, nextTick, onMounted, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
@@ -35,6 +35,7 @@ import PageTabs from '@/components/layout/PageTabs.vue';
 import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useWidth } from '@/composables/useLayout';
+import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTabbedPage, type TabSpec } from '@/composables/useTabbedPage';
 import { keysOf } from '@/lib/array';
@@ -42,6 +43,7 @@ import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/compon
 
 import AudioPanel from './components/AudioPanel.vue';
 import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
+import InstallOverlaysDialog from './components/InstallOverlaysDialog.vue';
 import ObsConnectionBar from './components/ObsConnectionBar.vue';
 import ObsHotkeysPanel from './components/ObsHotkeysPanel.vue';
 import ObsScreenshotPanel from './components/ObsScreenshotPanel.vue';
@@ -120,6 +122,13 @@ const scenes = useObsScenes(channelId, enabled);
 const widgets = useWidgets(channelId);
 const required = useRequiredOverlays(channelId, canSeeSources);
 const requiredPanel = usePanelState(required);
+
+// Adding the overlays to OBS needs a bridge page open in OBS, the control key and the overlay list.
+const installing = ref<boolean>(false);
+const canInstall = computed<boolean>(() =>
+  canControl.value &&
+  canSeeSources.value &&
+  Number(bridge.data.value?.instanceCount ?? 0) > 0);
 
 // The required overlays have their own panel; the browser sources are the user's own.
 const ownSources = computed<Widget[] | undefined>(() =>
@@ -200,6 +209,11 @@ function retry(): void {
         <span class="dot" :class="overall" aria-hidden="true" />
         {{ overallText }}
       </span>
+    </template>
+    <template v-if="canInstall" #actions>
+      <Button data-obs-install size="sm" @click="installing = true">
+        {{ $t('dashboard.obs.install.action') }}
+      </Button>
     </template>
     <template v-if="tabs.length > 1" #bar>
       <PageTabs :tabs="tabs" />
@@ -291,4 +305,10 @@ function retry(): void {
       </div>
     </div>
   </PageBody>
+  <InstallOverlaysDialog
+    v-if="canInstall"
+    v-model:open="installing"
+    :scenes="scenes.data.value"
+    :overlays="required.data.value"
+  />
 </template>

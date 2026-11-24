@@ -190,6 +190,34 @@ export function useObsScenes(
   });
 }
 
+export type ObsOverlayInstallRequest = components['schemas']['ObsOverlayInstallRequest'];
+export type ObsOverlayInstallResult = components['schemas']['ObsOverlayInstallResult'];
+export type ObsOverlayInstallEntry = components['schemas']['ObsOverlayInstallEntry'];
+
+// Put the picked overlays into OBS in one call: the server makes the nested scene, one browser source per overlay
+// and adds the scene to the picked one. It answers one result per overlay; the overlay addresses never come back.
+export function useObsInstallOverlays(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (request: ObsOverlayInstallRequest): Promise<ObsOverlayInstallResult> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/obs/overlays/install',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: request,
+        },
+      );
+
+      if (error !== undefined || !data?.data)
+        throw failed('obs install overlays', response.status, error);
+
+      return data.data;
+    },
+    onSettled: () => queries.invalidateQueries({ queryKey: ['channels', toValue(channelId)] }),
+  });
+}
+
 export type ObsTransition = components['schemas']['ObsTransition'];
 export type ObsInput = components['schemas']['ObsInput'];
 

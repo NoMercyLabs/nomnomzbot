@@ -36,6 +36,24 @@
         "noLeader": "{count} open, none is leading",
         "leader": "{count} open, one is leading"
       },
+      "install": {
+        "action": "Add overlays to OBS",
+        "title": "Add overlays to OBS",
+        "description": "Pick a scene and the overlays you want. The bot adds each one as a browser source, grouped in one scene named after the bot.",
+        "scene": "Scene",
+        "scenePlaceholder": "Pick a scene",
+        "noScenes": "OBS reports no scenes to add to.",
+        "overlays": "Overlays",
+        "loaded": "Already loaded in OBS",
+        "submit": "Add to OBS",
+        "done": "Done",
+        "results": "Results",
+        "outcome": {
+          "Created": "Added",
+          "Updated": "Updated",
+          "Failed": "Failed"
+        }
+      },
       "required": {
         "title": "Required overlays",
         "description": "Add each of these to OBS once as a browser source. The bot needs them to show alerts and play sound.",

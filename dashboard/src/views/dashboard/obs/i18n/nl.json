@@ -36,6 +36,24 @@
         "noLeader": "{count} open, geen enkele leidt",
         "leader": "{count} open, een leidt"
       },
+      "install": {
+        "action": "Overlays aan OBS toevoegen",
+        "title": "Overlays aan OBS toevoegen",
+        "description": "Kies een scène en de overlays die je wilt. De bot voegt elke overlay toe als browserbron, gegroepeerd in één scène met de naam van de bot.",
+        "scene": "Scène",
+        "scenePlaceholder": "Kies een scène",
+        "noScenes": "OBS meldt geen scènes om aan toe te voegen.",
+        "overlays": "Overlays",
+        "loaded": "Al geladen in OBS",
+        "submit": "Toevoegen aan OBS",
+        "done": "Klaar",
+        "results": "Resultaten",
+        "outcome": {
+          "Created": "Toegevoegd",
+          "Updated": "Bijgewerkt",
+          "Failed": "Mislukt"
+        }
+      },
       "required": {
         "title": "Verplichte overlays",
         "description": "Voeg elk hiervan één keer toe aan OBS als browserbron. De bot heeft ze nodig voor meldingen en geluid.",
