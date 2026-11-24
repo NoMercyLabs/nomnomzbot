@@ -955,6 +955,14 @@
             "limit": "Een limiet moet een heel getal van minstens 1 zijn. Een cooldown is hoogstens {cooldown} seconden en een timer hoogstens {timer} seconden."
           }
         },
+        "pickListEditor": {
+          "description": "Bewerk de keuzelijst zoals een kanaal dat doet. Het kanaal dat hem installeert krijgt een eigen kopie. Opslaan bewaart hem als nieuwe conceptversie.",
+          "editJson": "JSON bewerken",
+          "problem": {
+            "nameCharacters": "De naam mag alleen letters, cijfers, underscores en streepjes bevatten.",
+            "itemsRequired": "Voeg minstens één item toe."
+          }
+        },
         "timerEditor": {
           "description": "Bewerk de timer zoals een kanaal dat doet. Een timer zonder berichten draait de pipeline van het kanaal dat hem installeert. Opslaan bewaart hem als nieuwe conceptversie.",
           "editJson": "JSON bewerken"

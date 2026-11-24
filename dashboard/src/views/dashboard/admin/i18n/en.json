@@ -955,6 +955,14 @@
             "limit": "A limit must be a whole number of at least 1. A cooldown is at most {cooldown} seconds and a timer at most {timer} seconds."
           }
         },
+        "pickListEditor": {
+          "description": "Edit the pick list the way a channel does. The channel that installs it gets its own copy. Save keeps it as a new draft version.",
+          "editJson": "Edit JSON",
+          "problem": {
+            "nameCharacters": "The name may hold only letters, numbers, underscores and hyphens.",
+            "itemsRequired": "Add at least one entry."
+          }
+        },
         "timerEditor": {
           "description": "Edit the timer the way a channel does. A timer with no messages runs the pipeline of the channel that installs it. Save keeps it as a new draft version.",
           "editJson": "Edit JSON"

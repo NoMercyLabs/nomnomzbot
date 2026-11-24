@@ -211,6 +211,12 @@ const rewardBody = {
   speaksViaTts: true,
 };
 
+const pickListBody = {
+  name: 'Snacks',
+  description: 'Things to eat on stream.',
+  items: ['Apple', 'Cheese', 'Noodles'],
+};
+
 const widgetSource = '<template><p>{{ title }}</p></template>';
 const widgetSettings = { title: 'Hello', size: 4 };
 
@@ -1249,6 +1255,77 @@ describe('AdminContentView', () => {
     await click(byText('button', 'Draft new version')!);
 
     expect(document.body.querySelector('[data-reward-payload-editor]')).toBeNull();
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens a pick list draft in the channel pick list fields with the values of the payload', async () => {
+    definition.kind = 'pick_list';
+    draftPayload = JSON.stringify(pickListBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-picklist-payload-editor] #picklist-name')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+    expect((first('[data-picklist-payload-editor] #picklist-name') as HTMLInputElement).value).toBe('Snacks');
+
+    expect((first('[data-picklist-payload-editor] #picklist-items') as HTMLTextAreaElement).value).toBe(
+      'Apple\nCheese\nNoodles',
+    );
+  });
+
+  it('saves a changed pick list name as a new version and keeps every other key', async () => {
+    definition.kind = 'pick_list';
+    draftPayload = JSON.stringify(pickListBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-picklist-payload-editor] #picklist-name')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    await type('[data-picklist-payload-editor] #picklist-name', 'Treats');
+    await click(first('[data-picklist-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ ...pickListBody, name: 'Treats' });
+  });
+
+  it('saves changed pick list entries one per line', async () => {
+    definition.kind = 'pick_list';
+    draftPayload = JSON.stringify(pickListBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-picklist-payload-editor] #picklist-items')).toBeInstanceOf(HTMLTextAreaElement);
+    }, { timeout: 5000 });
+
+    await type('[data-picklist-payload-editor] #picklist-items', 'Apple\n\n  Grapes  \nNoodles');
+    await click(first('[data-picklist-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ ...pickListBody, items: ['Apple', 'Grapes', 'Noodles'] });
+  });
+
+  it('opens a pick list payload with an unknown key as JSON, so nothing is lost', async () => {
+    definition.kind = 'pick_list';
+    draftPayload = JSON.stringify({ ...pickListBody, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-picklist-payload-editor]')).toBeNull();
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });
