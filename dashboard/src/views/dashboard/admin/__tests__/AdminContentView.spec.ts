@@ -539,7 +539,11 @@ async function click(target: HTMLElement): Promise<void> {
 }
 
 async function chooseKind(label: string): Promise<void> {
-  first('[data-field-kind]').dispatchEvent(
+  await chooseOption('[data-field-kind]', label);
+}
+
+async function chooseOption(trigger: string, label: string): Promise<void> {
+  first(trigger).dispatchEvent(
     new PointerEvent('pointerdown', {
       bubbles: true,
       button: 0,
@@ -640,6 +644,12 @@ describe('AdminContentView', () => {
     await type('[data-field-name]', 'Wave command');
     await click(first('[data-field-payload]'));
 
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[data-timer-edit-json]')).not.toBeNull();
+    }, { timeout: 5000 });
+
+    await click(first('[data-timer-edit-json]'));
+
     expect(first('[data-code-editor]').dataset.codeEditor).toBe('payload.json');
     expect(document.body.querySelector('textarea')).toBeNull();
 
@@ -668,6 +678,12 @@ describe('AdminContentView', () => {
     await type('[data-field-key]', 'wave');
     await type('[data-field-name]', 'Wave command');
     await click(first('[data-field-payload]'));
+
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[data-timer-edit-json]')).not.toBeNull();
+    }, { timeout: 5000 });
+
+    await click(first('[data-timer-edit-json]'));
     await type('[data-editor-source]', 'not json');
     await click(first('[data-editor-save]'));
 
@@ -701,6 +717,168 @@ describe('AdminContentView', () => {
     expect(post.options?.params?.path?.id).toBe('def1');
     expect(post.options?.body).toEqual({ payloadJson: '{"reply":"big hug"}' });
     expect(first('[data-editor-message]').textContent).toBe('The draft is saved as a new version.');
+  });
+
+  describe('the create dialog opens the per-kind form for the chosen kind', () => {
+    const formWait = { timeout: 5000 };
+
+    async function openCreateForm(kindLabel: string): Promise<void> {
+      await open();
+      byText('button', 'New definition')!.click();
+      await settle();
+      await chooseKind(kindLabel);
+      await type('[data-field-key]', 'starter');
+      await type('[data-field-name]', 'Starter definition');
+      await click(first('[data-field-payload]'));
+    }
+
+    async function waitFor(selector: string): Promise<void> {
+      await vi.waitFor(() => {
+        expect(document.body.querySelector(selector)).not.toBeNull();
+      }, formWait);
+    }
+
+    async function createdPayload(): Promise<Record<string, unknown>> {
+      byText('[role="dialog"] button', 'Create')!.click();
+      await settle();
+
+      const post = calls.find((call) => call.method === 'POST')!;
+      const body = post.options?.body as { payloadJson: string };
+
+      return JSON.parse(body.payloadJson) as Record<string, unknown>;
+    }
+
+    it('opens the step editor for a pipeline and creates with the added step', async () => {
+      await openCreateForm('Pipeline');
+      await waitFor('[data-steps-add]');
+
+      expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+      await click(first('[data-steps-add]'));
+      await waitFor('[data-palette-action="play_sound"]');
+      await click(first('[data-palette-action="play_sound"]'));
+      await click(first('[data-pipeline-save]'));
+
+      const created = await createdPayload() as { steps: { action: { type: string } }[] };
+
+      expect(created.steps).toHaveLength(1);
+      expect(created.steps[0]!.action.type).toBe('play_sound');
+    });
+
+    it('opens the script code editor for a code script and creates with the typed source', async () => {
+      await openCreateForm('Code script');
+
+      expect(first('[data-code-editor]').dataset.codeEditor).toBe('index.ts');
+
+      await type('[data-editor-source]', 'nnz.api.chat.send("hi");');
+      await click(first('[data-editor-save]'));
+
+      expect(await createdPayload()).toEqual({ sourceCode: 'nnz.api.chat.send("hi");' });
+    });
+
+    it('opens the widget form for a widget and creates with the added event', async () => {
+      await openCreateForm('Widget');
+      await waitFor('[data-widget-payload-editor]');
+      await click(first('[data-list-add]'));
+
+      const row = first('[data-list-item] input') as HTMLInputElement;
+
+      row.value = 'channel.raid';
+      row.dispatchEvent(new Event('input'));
+      await settle();
+      await click(first('[data-widget-save]'));
+
+      expect(await createdPayload()).toMatchObject({ defaultEventSubscriptions: ['channel.raid'] });
+    });
+
+    it('opens the built-in fields for a command and creates with the typed cooldown', async () => {
+      await openCreateForm('Command');
+      await waitFor('[data-command-cooldown]');
+
+      expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+      await type('[data-command-cooldown]', '0:20');
+      await click(first('[data-command-save]'));
+
+      expect(await createdPayload()).toMatchObject({ cooldownSeconds: 20 });
+    });
+
+    it('opens the event response fields and creates with the typed message', async () => {
+      await openCreateForm('Event response');
+      await waitFor('[data-event-response-payload-editor] textarea');
+
+      expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+      await type('[data-event-response-payload-editor] textarea', 'Welcome {user}!');
+      await click(first('[data-event-response-save]'));
+
+      expect(await createdPayload()).toMatchObject({ message: 'Welcome {user}!' });
+    });
+
+    it('opens the timer fields and creates with the typed name', async () => {
+      await openCreateForm('Timer');
+      await waitFor('[data-timer-payload-editor] #timer-name');
+
+      expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+      expect((first('[data-timer-save]') as HTMLButtonElement).disabled).toBe(true);
+
+      await type('[data-timer-payload-editor] #timer-name', 'Hydrate');
+      await click(first('[data-timer-save]'));
+
+      expect(await createdPayload()).toMatchObject({ name: 'Hydrate' });
+    });
+
+    it('opens the reward fields, blocks Save until the title and cost are set, and creates with them', async () => {
+      await openCreateForm('Reward');
+      await waitFor('[data-reward-payload-editor] #reward-title');
+
+      expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+      expect((first('[data-reward-save]') as HTMLButtonElement).disabled).toBe(true);
+
+      await type('[data-reward-payload-editor] #reward-title', 'Hydrate');
+      await type('[data-reward-payload-editor] #reward-cost', '500');
+      await click(first('[data-reward-save]'));
+
+      expect(await createdPayload()).toMatchObject({
+        title: 'Hydrate',
+        cost: 500,
+      });
+    });
+
+    it('opens the pick list fields, blocks Save until the name and entries are set, and creates with them', async () => {
+      await openCreateForm('Pick list');
+      await waitFor('[data-picklist-payload-editor] #picklist-name');
+
+      expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+      expect((first('[data-picklist-save]') as HTMLButtonElement).disabled).toBe(true);
+
+      await type('[data-picklist-payload-editor] #picklist-name', 'Snacks');
+      await type('[data-picklist-payload-editor] #picklist-items', 'Apple\nCheese');
+      await click(first('[data-picklist-save]'));
+
+      expect(await createdPayload()).toMatchObject({
+        name: 'Snacks',
+        items: ['Apple', 'Cheese'],
+      });
+    });
+
+    it('opens the sound clip fields and creates with the typed name and the chosen audio', async () => {
+      await openCreateForm('Sound clip');
+      await waitFor('[data-soundclip-payload-editor] #soundclip-name');
+
+      expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+      expect((first('[data-soundclip-save]') as HTMLButtonElement).disabled).toBe(true);
+
+      await type('[data-soundclip-payload-editor] #soundclip-name', 'raid-horn');
+      await chooseOption('[data-soundclip-payload-editor] [aria-label="Audio file"]', 'Raid stinger');
+      await type('[data-soundclip-payload-editor] #soundclip-display-name', 'Raid horn');
+      await click(first('[data-soundclip-save]'));
+
+      expect(await createdPayload()).toMatchObject({
+        name: 'raid-horn',
+        assetId: 'asset1',
+      });
+    });
   });
 
   it('offers the server kinds as a Select and creates with the chosen kind', async () => {

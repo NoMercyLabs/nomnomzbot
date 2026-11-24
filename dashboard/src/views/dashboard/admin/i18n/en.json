@@ -980,7 +980,8 @@
         },
         "timerEditor": {
           "description": "Edit the timer the way a channel does. A timer with no messages runs the pipeline of the channel that installs it. Save keeps it as a new draft version.",
-          "editJson": "Edit JSON"
+          "editJson": "Edit JSON",
+          "nameRequired": "Give the timer a name."
         },
         "widgetEditor": {
           "description": "Edit the widget the way a channel does. Save keeps it as a new draft version.",

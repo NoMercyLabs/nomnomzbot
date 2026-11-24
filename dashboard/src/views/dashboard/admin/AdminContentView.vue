@@ -46,6 +46,7 @@ import { Input } from '@/components/ui/input';
 import AdminAudioAssetsPanel from './components/AdminAudioAssetsPanel.vue';
 import AdminContentPayloadEditor from './components/AdminContentPayloadEditor.vue';
 import AdminContentPublishPanel from './components/AdminContentPublishPanel.vue';
+import { starterPayload } from './components/starterPayload';
 
 type Step = 'create' | 'retire';
 type EditorTarget = 'create' | 'draft';
@@ -165,10 +166,10 @@ function openCreate(): void {
   step.value = 'create';
 }
 
-// A new pipeline starts as an empty step list, the shape its step editor reads.
+// A new definition starts from the blank form of its kind; a payload already kept is opened as it stands.
 function openCreateEditor(): void {
-  editorSeed.value = kind.value === 'pipeline' && payload.value === '{}'
-    ? '{"steps":[]}'
+  editorSeed.value = payload.value === '{}'
+    ? starterPayload(kind.value)
     : payload.value;
 
   editing.value = 'create';

@@ -107,7 +107,7 @@ function flagOf(value: JsonValue | undefined): boolean | null {
 }
 
 // The parts of the payload, or null when the payload holds anything the form would drop: another key, text that
-// is not JSON, no title or cost, a text that is not text, a number that is not a number, a switch that is not true
+// is not JSON, a title or cost that is not text or a number (a blank one is left to the form's own check), a text that is not text, a number that is not a number, a switch that is not true
 // or false. The caller then shows the raw JSON.
 export function readRewardPayload(payloadJson: string): RewardPayload | null {
   const parsed = objectOf(parseJson(payloadJson));
@@ -116,12 +116,8 @@ export function readRewardPayload(payloadJson: string): RewardPayload | null {
     return null;
 
   const fields = {
-    title: typeof parsed.title === 'string' && parsed.title !== ''
-      ? parsed.title
-      : null,
-    cost: typeof parsed.cost === 'number'
-      ? String(parsed.cost)
-      : null,
+    title: textOf(parsed.title),
+    cost: numberTextOf(parsed.cost),
     prompt: textOf(parsed.prompt),
     response: textOf(parsed.response),
     isUserInputRequired: flagOf(parsed.isUserInputRequired),

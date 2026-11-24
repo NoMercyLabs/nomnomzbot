@@ -73,6 +73,9 @@ void ensureWords(timerWords).then(() => {
 
 const problem = computed(() => timerPayloadProblem(draft.value));
 const problemText = computed(() => {
+  if (problem.value === 'name')
+    return t('dashboard.admin.content.timerEditor.nameRequired');
+
   if (problem.value === 'interval')
     return t('dashboard.timers.editor.intervalProblem', timerLimits);
 

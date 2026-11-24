@@ -55,7 +55,7 @@ function isWholeEntry(item: JsonValue): item is string {
 }
 
 // The parts of the payload, or null when the payload holds anything the form would drop: another key, text that
-// is not JSON, no name, a description that is not text, entries that are not plain one-line text. The caller then
+// is not JSON, a name that is not text (a blank name is left to the form's own check), a description that is not text, entries that are not plain one-line text. The caller then
 // shows the raw JSON.
 export function readPickListPayload(payloadJson: string): PickListForm | null {
   const parsed = objectOf(parseJson(payloadJson));
@@ -66,7 +66,7 @@ export function readPickListPayload(payloadJson: string): PickListForm | null {
   const description = descriptionOf(parsed.description);
   const items = parsed.items;
 
-  if (typeof parsed.name !== 'string' || parsed.name === '' || description === null)
+  if (typeof parsed.name !== 'string' || description === null)
     return null;
 
   if (!Array.isArray(items) || !items.every(isWholeEntry))

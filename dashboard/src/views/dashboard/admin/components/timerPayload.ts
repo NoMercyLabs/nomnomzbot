@@ -58,7 +58,7 @@ function linesOf(value: JsonValue | undefined): string | null {
 }
 
 // The parts of the payload, or null when the payload holds anything the form would drop: another key, text that
-// is not JSON, no name, messages that are not plain text lines, a number that is not a number, a switch that is
+// is not JSON, a name that is not text (a blank name is left to the form's own check), messages that are not plain text lines, a number that is not a number, a switch that is
 // not true or false. The caller then shows the raw JSON.
 export function readTimerPayload(payloadJson: string): TimerPayload | null {
   const parsed = objectOf(parseJson(payloadJson));
@@ -74,7 +74,6 @@ export function readTimerPayload(payloadJson: string): TimerPayload | null {
 
   if (
     typeof parsed.name !== 'string' ||
-    parsed.name === '' ||
     messages === null ||
     typeof intervalMinutes !== 'number' ||
     typeof minChatActivity !== 'number' ||
@@ -94,9 +93,12 @@ export function readTimerPayload(payloadJson: string): TimerPayload | null {
 }
 
 // The first number the bot would refuse, with the same limits as the channel timer form.
-export function timerPayloadProblem(payload: TimerPayload): 'interval' | 'activity' | null {
+export function timerPayloadProblem(payload: TimerPayload): 'name' | 'interval' | 'activity' | null {
   const minutes = payload.intervalMinutes;
   const lines = payload.minChatActivity;
+
+  if (payload.name.trim() === '')
+    return 'name';
 
   if (
     !Number.isInteger(minutes) ||
