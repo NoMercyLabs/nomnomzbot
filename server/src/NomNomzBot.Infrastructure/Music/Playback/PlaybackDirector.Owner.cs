@@ -45,6 +45,9 @@ public sealed partial class PlaybackDirector
                 break;
             case OwnerVolume volume:
                 _volume = Math.Clamp(volume.Level, 0, 100);
+                _volumeKnown = true;
+                if (_volumeStore is not null)
+                    await _volumeStore.SaveAsync(_broadcasterId, _volume, ct);
                 if (_muted || await SendLevelAsync(engine, name, ct))
                     await MoveAsync(State, input, "volume");
                 break;
@@ -67,6 +70,31 @@ public sealed partial class PlaybackDirector
     }
 
     /// <summary>The level the engine plays at: 0 when muted, the ducked share while bot audio plays, else the owner level.</summary>
+    /// <summary>
+    /// The first volume Spotify reports becomes the owner level. Without it a restart starts at 100, and the
+    /// next duck or crossfade drives the music to full volume. Later reports are ignored: a ramp in flight
+    /// reports its own lowered level.
+    /// </summary>
+    private async Task RestoreVolumeAsync(PlaybackInput input, CancellationToken ct)
+    {
+        if (_volumeKnown)
+            return;
+        if (!_volumeLoaded && _volumeStore is not null)
+        {
+            _volumeLoaded = true;
+            if (await _volumeStore.LoadAsync(_broadcasterId, ct) is { } saved)
+            {
+                _volume = saved;
+                _volumeKnown = true;
+                return;
+            }
+        }
+        if (input is not EngineReport { VolumePercent: { } reported })
+            return;
+        _volume = Math.Clamp(reported, 0, 100);
+        _volumeKnown = true;
+    }
+
     private int EffectiveVolume() =>
         _muted ? 0
         : _duckPercent is { } percent ? _volume * percent / 100

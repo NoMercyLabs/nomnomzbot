@@ -58,6 +58,11 @@ public sealed partial class PlaybackDirector : IDisposable
     /// <summary>Engines already read once by <see cref="FindOwnerMusicAsync"/>; each is probed at most once.</summary>
     private readonly HashSet<EngineKind> _probed = [];
     private int _volume = 100;
+
+    /// <summary>False until the owner sets a level or Spotify reports one; a restart starts here.</summary>
+    private bool _volumeKnown;
+    private bool _volumeLoaded;
+    private readonly IOwnerVolumeStore? _volumeStore;
     private bool _muted;
 
     /// <summary>Set by <see cref="IgnoreAsync"/> while one input runs; <see cref="HandleAsync"/> reads it as the outcome.</summary>
@@ -82,9 +87,11 @@ public sealed partial class PlaybackDirector : IDisposable
         IEventBus bus,
         IOutboundSanctionAccessor? sanctions = null,
         IHeldSpotifyStore? heldSpotify = null,
-        IYouTubeOffSwitch? youTubeOff = null
+        IYouTubeOffSwitch? youTubeOff = null,
+        IOwnerVolumeStore? volumeStore = null
     )
     {
+        _volumeStore = volumeStore;
         _broadcasterId = broadcasterId;
         _sanctions = sanctions;
         _heldSpotify = heldSpotify;
@@ -116,6 +123,7 @@ public sealed partial class PlaybackDirector : IDisposable
         await _gate.WaitAsync(ct);
         try
         {
+            await RestoreVolumeAsync(input, ct);
             await ObserveHeldRecoveryAsync(input, ct);
             await ObserveSpotifyReturnAsync(input, ct);
             RenewReportDeadline(input);

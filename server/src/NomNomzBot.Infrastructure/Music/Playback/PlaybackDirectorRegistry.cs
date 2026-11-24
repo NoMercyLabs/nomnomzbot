@@ -34,7 +34,8 @@ public sealed class PlaybackDirectorRegistry(
     IActiveInstanceGate? instanceGate = null,
     ILogger<PlaybackDirectorRegistry>? logger = null,
     IHeldSpotifyStore? heldSpotify = null,
-    IYouTubeOffSwitch? youTubeOff = null
+    IYouTubeOffSwitch? youTubeOff = null,
+    IOwnerVolumeStore? volumeStore = null
 ) : IPlaybackInputSink, IPlaybackStateReader, IPlaybackReportSink, IEngineFeed, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, Lazy<ChannelPlayback>> _channels = new();
@@ -146,7 +147,8 @@ public sealed class PlaybackDirectorRegistry(
             bus,
             sanctions,
             heldSpotify,
-            youTubeOff
+            youTubeOff,
+            volumeStore
         );
 
         return new(

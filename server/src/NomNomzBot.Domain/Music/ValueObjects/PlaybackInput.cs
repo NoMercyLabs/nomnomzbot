@@ -27,7 +27,8 @@ public sealed record EngineReport(
     bool IsPlaying,
     int ProgressMs,
     int DurationMs,
-    string? DeviceId = null
+    string? DeviceId = null,
+    int? VolumePercent = null
 ) : EngineSignal(Engine, Uri);
 
 /// <summary>The track on <see cref="EngineSignal.Engine"/> ended.</summary>

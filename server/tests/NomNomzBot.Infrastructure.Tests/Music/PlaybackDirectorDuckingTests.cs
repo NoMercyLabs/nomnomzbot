@@ -70,6 +70,51 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
+    public async Task AfterARestart_TheLevelIsSpotifysOwnVolume_NotFullVolume()
+    {
+        // A restart forgets the owner's level. The next duck or crossfade must work from the volume Spotify
+        // reports, or the music jumps to 100% on the next song change.
+        Rig rig = new();
+        PlaybackItem a = await rig.StartPlaying(EngineKind.Spotify);
+
+        await rig.Director.HandleAsync(
+            new EngineReport(
+                EngineKind.Spotify,
+                a.Uri,
+                true,
+                1_000,
+                a.DurationMs,
+                VolumePercent: 35
+            )
+        );
+        await rig.Director.HandleAsync(new DuckStart(50));
+
+        rig.Director.Level.Should().Be(new PlaybackLevel(35, false));
+        rig.Engine(EngineKind.Spotify).Calls.Last().Should().Be(new EngineCall("SetVolume", "17"));
+    }
+
+    [Fact]
+    public async Task AReportedVolume_NeverOverridesTheOwnersOwnChoice()
+    {
+        Rig rig = new();
+        PlaybackItem a = await rig.StartPlaying(EngineKind.Spotify);
+        await rig.Director.HandleAsync(new OwnerVolume(60));
+
+        await rig.Director.HandleAsync(
+            new EngineReport(
+                EngineKind.Spotify,
+                a.Uri,
+                true,
+                1_000,
+                a.DurationMs,
+                VolumePercent: 20
+            )
+        );
+
+        rig.Director.Level.Should().Be(new PlaybackLevel(60, false));
+    }
+
+    [Fact]
     public async Task DuckWhilePaused_StaysPausedAndDuckEndRestoresTheOwnerLevel()
     {
         Rig rig = new();

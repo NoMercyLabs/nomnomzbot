@@ -272,7 +272,8 @@ public sealed class SpotifyPlaybackEngine(
                     polled.IsPlaying,
                     polled.ProgressMs,
                     polled.DurationMs,
-                    polled.DeviceId
+                    polled.DeviceId,
+                    polled.VolumePercent
                 )
             );
     }
@@ -296,7 +297,8 @@ public sealed class SpotifyPlaybackEngine(
                 current.IsPlaying,
                 current.ProgressMs,
                 current.DurationMs,
-                current.DeviceId
+                current.DeviceId,
+                current.VolumePercent
             );
     }
 
