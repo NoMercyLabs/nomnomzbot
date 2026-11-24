@@ -11,17 +11,17 @@
 <script setup lang="ts">
 // The Runs tab of a channel console: every command, pipeline, script and timer run of the channel, newest
 // first, from the diagnostics `runs` section. The filters, the page and the open run live in the address
-// (?failuresOnly=, ?pipeline=, ?page=, ?run=), so a copied link reopens the same view. A filter goes back to
+// (?failuresOnly=, ?pipeline=, ?page=, ?run=); the pipeline filter is a picker of the channel's pipelines by name, so a copied link reopens the same view. A filter goes back to
 // page 1. A row opens the run's detail as a sheet; opening adds a history entry, so Back closes the sheet.
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useChannelDiagnostics, type ChannelRun, type DiagnosticRunsQuery } from '@/api/adminDiagnostics';
 import FilterBar from '@/components/layout/FilterBar.vue';
 import type { FilterOption } from '@/components/layout/filterOption';
+import OptionSelect, { type Choice } from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
 import { useQueryPane } from '@/composables/useQueryPane';
 
@@ -69,20 +69,22 @@ const show = computed<string>({
   set: (value) => change({ failuresOnly: value === 'failures', page: 1 }),
 });
 
-// The field holds what is typed; the address and the request change when the person leaves the field or presses
-// Enter, so a long id never sends a read per key.
-const pipeline = ref(view.value.pipelineId);
+// The channel's pipelines by name; the first choice clears the filter.
+const pipelineOptions = computed<Choice[]>(() => [
+  { value: '', label: t('dashboard.admin.console.runs.filters.allPipelines') },
+  ...(diagnostics.data.value?.runs?.pipelines ?? []).map((choice) => ({
+    value: choice.id,
+    label: choice.name,
+  })),
+]);
 
-watch(() => view.value.pipelineId, (next) => {
-  pipeline.value = next;
+const pipeline = computed<string>({
+  get: () => view.value.pipelineId,
+  set: (value) => change({ pipelineId: value, page: 1 }),
 });
 
 function change(next: Partial<RunsView>): void {
   void router.replace({ query: runsQuery(route.query, next) });
-}
-
-function applyPipeline(): void {
-  change({ pipelineId: pipeline.value.trim(), page: 1 });
 }
 
 // The run sheet is a layer, so the pane and the layer share one step.
@@ -104,18 +106,21 @@ function openRun(run: ChannelRun): void {
     @retry="diagnostics.refetch()"
   >
     <template #actions>
-      <Input
+      <OptionSelect
         v-model="pipeline"
         data-run-pipeline
         class="w-48"
+        searchable
+        :options="pipelineOptions"
         :aria-label="t('dashboard.admin.console.runs.filters.pipeline')"
-        :placeholder="t('dashboard.admin.console.runs.filters.pipelinePlaceholder')"
-        @change="applyPipeline"
+        :placeholder="t('dashboard.admin.console.runs.filters.allPipelines')"
+        :search-placeholder="t('dashboard.admin.console.runs.filters.pipelineSearch')"
+        :empty-text="t('dashboard.admin.console.runs.filters.noPipeline')"
       />
       <FilterBar v-model="show" :label="t('dashboard.admin.console.runs.filters.show')" :options="showOptions" />
     </template>
     <ChannelRunsTable :rows="rows" @open="openRun" />
-    <template #footer>
+    <template v-if="state !== 'error'" #footer>
       <AdminPager
         :page="view.page"
         :pages="pages"

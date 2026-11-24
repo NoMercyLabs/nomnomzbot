@@ -15,11 +15,14 @@ namespace NomNomzBot.Application.Commands.Dtos;
 
 /// <summary>Lightweight run summary for the execution-history list view (H.4 PipelineExecution).
 /// <c>FailureKind</c> is null on a run that did not fail; <c>LimitKey</c> and <c>LimitValue</c> are set only
-/// when a limit or a time budget stopped the run.</summary>
+/// when a limit or a time budget stopped the run. <c>PipelineName</c> and <c>TriggeredByName</c> are null when
+/// the pipeline or the person no longer exists (or the run had none).</summary>
 public sealed record PipelineExecutionSummaryDto(
     long Id,
     Guid? PipelineId,
+    string? PipelineName,
     Guid? TriggeredByUserId,
+    string? TriggeredByName,
     string TriggerKind,
     string Status,
     int HostCallCount,
@@ -54,7 +57,9 @@ public sealed record PipelineExecutionStepLogDto(
 public sealed record PipelineExecutionDetailDto(
     long Id,
     Guid? PipelineId,
+    string? PipelineName,
     Guid? TriggeredByUserId,
+    string? TriggeredByName,
     string TriggerKind,
     string Status,
     int HostCallCount,

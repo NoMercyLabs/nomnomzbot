@@ -115255,7 +115255,8 @@
           "page",
           "pageSize",
           "totalCount",
-          "hasMore"
+          "hasMore",
+          "pipelines"
         ],
         "type": "object",
         "properties": {
@@ -115291,9 +115292,15 @@
           },
           "hasMore": {
             "type": "boolean"
+          },
+          "pipelines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChannelPipelineChoice"
+            }
           }
         },
-        "description": "One page of a channel's runs, in the same row shape as the channel's own run history."
+        "description": "One page of a channel's runs, in the same row shape as the channel's own run history, and the\r\n            channel's pipelines by name for the pipeline filter."
       },
       "ChannelDiagnostics": {
         "required": [
@@ -115704,6 +115711,24 @@
           }
         },
         "description": "A channel's built-in-command personality tone. string ChannelPersonalityDto.Personality is the canonical tone token\r\n(`PersonalityTone.*`); IReadOnlyList&lt;string&gt; ChannelPersonalityDto.Available lists every selectable tone so a picker needs no\r\nsecond call."
+      },
+      "ChannelPipelineChoice": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "description": "One of the channel's pipelines, as a choice in the runs filter."
       },
       "ChannelResetPreview": {
         "required": [
@@ -133244,6 +133269,12 @@
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
           },
+          "pipelineName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "triggeredByUserId": {
             "type": [
               "null",
@@ -133251,6 +133282,12 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "triggeredByName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "triggerKind": {
             "type": "string"
@@ -133431,6 +133468,12 @@
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
           },
+          "pipelineName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "triggeredByUserId": {
             "type": [
               "null",
@@ -133438,6 +133481,12 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "triggeredByName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "triggerKind": {
             "type": "string"
@@ -133504,7 +133553,7 @@
             "format": "date-time"
           }
         },
-        "description": "Lightweight run summary for the execution-history list view (H.4 PipelineExecution).\r\n            `FailureKind` is null on a run that did not fail; `LimitKey` and `LimitValue` are set only\r\n            when a limit or a time budget stopped the run."
+        "description": "Lightweight run summary for the execution-history list view (H.4 PipelineExecution).\r\n            `FailureKind` is null on a run that did not fail; `LimitKey` and `LimitValue` are set only\r\n            when a limit or a time budget stopped the run. `PipelineName` and `TriggeredByName` are null when\r\n            the pipeline or the person no longer exists (or the run had none)."
       },
       "PipelineGraphInput": {
         "required": [

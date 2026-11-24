@@ -93741,7 +93741,10 @@ export interface components {
              */
             lastActivityAt?: null | string;
         };
-        /** @description One page of a channel's runs, in the same row shape as the channel's own run history. */
+        /**
+         * @description One page of a channel's runs, in the same row shape as the channel's own run history, and the
+         *                 channel's pipelines by name for the pipeline filter.
+         */
         ChannelDiagnosticRuns: {
             items: components["schemas"]["PipelineExecutionSummary"][];
             /** Format: int32 */
@@ -93751,6 +93754,7 @@ export interface components {
             /** Format: int32 */
             totalCount: number | string;
             hasMore: boolean;
+            pipelines: components["schemas"]["ChannelPipelineChoice"][];
         };
         /**
          * @description The answer to an admin's `diagnostics` read of one channel: one property per requested section. A section
@@ -93899,6 +93903,15 @@ export interface components {
         ChannelPersonality: {
             personality: string;
             available: string[];
+        };
+        /** @description One of the channel's pipelines, as a choice in the runs filter. */
+        ChannelPipelineChoice: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            name: string;
         };
         /**
          * @description What resetting a channel to defaults clears, counted BEFORE the operator confirms it. A reset is not
@@ -99634,11 +99647,13 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            pipelineName?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             triggeredByUserId?: null | string;
+            triggeredByName?: null | string;
             triggerKind: string;
             status: string;
             /** Format: int32 */
@@ -99678,7 +99693,8 @@ export interface components {
         /**
          * @description Lightweight run summary for the execution-history list view (H.4 PipelineExecution).
          *                 `FailureKind` is null on a run that did not fail; `LimitKey` and `LimitValue` are set only
-         *                 when a limit or a time budget stopped the run.
+         *                 when a limit or a time budget stopped the run. `PipelineName` and `TriggeredByName` are null when
+         *                 the pipeline or the person no longer exists (or the run had none).
          */
         PipelineExecutionSummary: {
             /** Format: int64 */
@@ -99688,11 +99704,13 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            pipelineName?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             triggeredByUserId?: null | string;
+            triggeredByName?: null | string;
             triggerKind: string;
             status: string;
             /** Format: int32 */

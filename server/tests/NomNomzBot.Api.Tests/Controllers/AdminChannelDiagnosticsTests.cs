@@ -51,6 +51,7 @@ public sealed class AdminChannelDiagnosticsTests
     private static readonly Guid CommandPipeline = Guid.Parse(
         "0199a000-0000-7000-8000-000000000d20"
     );
+    private static readonly Guid OtherPipeline = Guid.Parse("0199a000-0000-7000-8000-000000000d21");
     private static readonly DateTime Now = new(2026, 10, 30, 12, 0, 0, DateTimeKind.Utc);
 
     private const string StepLogsJson = """
@@ -73,7 +74,7 @@ public sealed class AdminChannelDiagnosticsTests
         List<IChannelDiagnosticSection> sections =
         [
             new ChannelSummaryDiagnosticSection(db, runs, new FakeTimeProvider(Now)),
-            new ChannelRunsDiagnosticSection(runs),
+            new ChannelRunsDiagnosticSection(runs, db),
             new ChannelTtsDiagnosticSection(db, new FakeTimeProvider(Now)),
             // Its rows are proven in NomNomzBot.Infrastructure.Tests; here it only has to be a known key.
             new ChannelConnectionsDiagnosticSection([]),
@@ -138,6 +139,31 @@ public sealed class AdminChannelDiagnosticsTests
                 Currency = "usd",
                 IsPublic = true,
                 SortOrder = 1,
+            }
+        );
+
+        db.Users.Add(
+            new()
+            {
+                Id = Viewer,
+                TwitchUserId = "made-up-viewer",
+                Username = "made_up_viewer",
+                UsernameNormalized = "made_up_viewer",
+                DisplayName = "Made_Up_Viewer",
+            }
+        );
+        db.Pipelines.AddRange(
+            new Pipeline
+            {
+                Id = CommandPipeline,
+                BroadcasterId = Broadcaster,
+                Name = "Hug command",
+            },
+            new Pipeline
+            {
+                Id = OtherPipeline,
+                BroadcasterId = Broadcaster,
+                Name = "Alert on raid",
             }
         );
 
@@ -227,6 +253,12 @@ public sealed class AdminChannelDiagnosticsTests
         newest.PipelineId.Should().Be(CommandPipeline);
         newest.TriggerKind.Should().Be("command");
         newest.TriggeredByUserId.Should().Be(Viewer);
+        newest.PipelineName.Should().Be("Hug command");
+        newest.TriggeredByName.Should().Be("Made_Up_Viewer");
+        runs.Items[1].TriggeredByName.Should().BeNull();
+        runs.Pipelines.Select(p => (p.Id, p.Name))
+            .Should()
+            .Equal((OtherPipeline, "Alert on raid"), (CommandPipeline, "Hug command"));
         newest.DurationMs.Should().Be(9040);
         newest.HostCallCount.Should().Be(3);
         newest.ErrorMessage.Should().Be("Execution exceeded its time budget.");

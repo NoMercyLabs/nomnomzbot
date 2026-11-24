@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Admin.Diagnostics;
 using NomNomzBot.Application.Admin.Dtos;
 using NomNomzBot.Application.Commands.Dtos;
@@ -19,8 +21,10 @@ namespace NomNomzBot.Infrastructure.Admin.Diagnostics;
 
 /// <summary>The <c>runs</c> section: one page of the channel's pipeline runs, read through the same
 /// <see cref="IPipelineExecutionQueryService"/> and with the same filters as the channel's own run history.</summary>
-public sealed class ChannelRunsDiagnosticSection(IPipelineExecutionQueryService runs)
-    : IChannelDiagnosticSection
+public sealed class ChannelRunsDiagnosticSection(
+    IPipelineExecutionQueryService runs,
+    IApplicationDbContext db
+) : IChannelDiagnosticSection
 {
     public string Key => "runs";
 
@@ -40,12 +44,19 @@ public sealed class ChannelRunsDiagnosticSection(IPipelineExecutionQueryService 
         if (page.IsFailure)
             return page;
 
+        List<ChannelPipelineChoiceDto> pipelines = await db
+            .Pipelines.Where(p => p.BroadcasterId == request.BroadcasterId)
+            .OrderBy(p => p.Name)
+            .Select(p => new ChannelPipelineChoiceDto(p.Id, p.Name))
+            .ToListAsync(cancellationToken);
+
         diagnostics.Runs = new(
             page.Value.Items,
             page.Value.Page,
             page.Value.PageSize,
             page.Value.TotalCount,
-            page.Value.HasNextPage
+            page.Value.HasNextPage,
+            pipelines
         );
         return Result.Success();
     }

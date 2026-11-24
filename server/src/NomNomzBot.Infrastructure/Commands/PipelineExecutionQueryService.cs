@@ -63,15 +63,22 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
 
         int total = await query.CountAsync(ct);
 
-        List<PipelineExecutionSummaryDto> items = await query
+        List<PipelineExecution> rows = await query
             .OrderByDescending(e => e.StartedAt)
             .ThenByDescending(e => e.Id)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(e => new PipelineExecutionSummaryDto(
+            .ToListAsync(ct);
+        RunNames names = await ReadNamesAsync(rows, ct);
+
+        List<PipelineExecutionSummaryDto> items =
+        [
+            .. rows.Select(e => new PipelineExecutionSummaryDto(
                 e.Id,
                 e.PipelineId,
+                names.PipelineOf(e),
                 e.TriggeredByUserId,
+                names.PersonOf(e),
                 e.TriggerKind,
                 e.Status,
                 e.HostCallCount,
@@ -82,8 +89,8 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
                 e.LimitValue,
                 e.StartedAt,
                 e.CompletedAt
-            ))
-            .ToListAsync(ct);
+            )),
+        ];
 
         return Result.Success(
             new PagedList<PipelineExecutionSummaryDto>(
@@ -151,7 +158,44 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
         if (entity is null)
             return Errors.NotFound<PipelineExecutionDetailDto>("PipelineExecution", id.ToString());
 
-        return Result.Success(ToDetailDto(entity));
+        return Result.Success(ToDetailDto(entity, await ReadNamesAsync([entity], ct)));
+    }
+
+    /// <summary>The pipeline and person names of a set of runs, read in one query each.</summary>
+    private sealed record RunNames(
+        Dictionary<Guid, string> Pipelines,
+        Dictionary<Guid, string> People
+    )
+    {
+        public string? PipelineOf(PipelineExecution run) =>
+            run.PipelineId is Guid id ? Pipelines.GetValueOrDefault(id) : null;
+
+        public string? PersonOf(PipelineExecution run) =>
+            run.TriggeredByUserId is Guid id ? People.GetValueOrDefault(id) : null;
+    }
+
+    private async Task<RunNames> ReadNamesAsync(
+        IReadOnlyList<PipelineExecution> runs,
+        CancellationToken ct
+    )
+    {
+        List<Guid> pipelineIds = [.. runs.Select(r => r.PipelineId).OfType<Guid>().Distinct()];
+        List<Guid> personIds = [.. runs.Select(r => r.TriggeredByUserId).OfType<Guid>().Distinct()];
+
+        Dictionary<Guid, string> pipelines =
+            pipelineIds.Count == 0
+                ? []
+                : await _db
+                    .Pipelines.Where(p => pipelineIds.Contains(p.Id))
+                    .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+        Dictionary<Guid, string> people =
+            personIds.Count == 0
+                ? []
+                : await _db
+                    .Users.Where(u => personIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        return new(pipelines, people);
     }
 
     /// <summary>Mirrors the wire shape <c>PipelineEngine.PersistExecutionAsync</c> serializes onto
@@ -168,7 +212,7 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
 
     private sealed record HostCallJson(string Name, int DurationMs, bool Ok, string? Error);
 
-    private static PipelineExecutionDetailDto ToDetailDto(PipelineExecution entity)
+    private static PipelineExecutionDetailDto ToDetailDto(PipelineExecution entity, RunNames names)
     {
         List<StepLogJson> raw = entity.StepLogsJson is null
             ? []
@@ -196,7 +240,9 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
         return new(
             entity.Id,
             entity.PipelineId,
+            names.PipelineOf(entity),
             entity.TriggeredByUserId,
+            names.PersonOf(entity),
             entity.TriggerKind,
             entity.Status,
             entity.HostCallCount,

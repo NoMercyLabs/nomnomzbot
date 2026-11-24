@@ -63,7 +63,9 @@
             "all": "All runs",
             "failures": "Failures only",
             "pipeline": "Pipeline",
-            "pipelinePlaceholder": "Pipeline id"
+            "allPipelines": "All pipelines",
+            "pipelineSearch": "Search pipelines",
+            "noPipeline": "No pipeline has that name."
           },
           "columns": {
             "time": "Time",

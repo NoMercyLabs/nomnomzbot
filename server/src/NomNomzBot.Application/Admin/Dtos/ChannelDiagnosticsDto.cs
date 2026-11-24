@@ -137,11 +137,16 @@ public sealed record ChannelDiagnosticSummaryDto(
     string? LastFailedRunError
 );
 
-/// <summary>One page of a channel's runs, in the same row shape as the channel's own run history.</summary>
+/// <summary>One page of a channel's runs, in the same row shape as the channel's own run history, and the
+/// channel's pipelines by name for the pipeline filter.</summary>
 public sealed record ChannelDiagnosticRunsDto(
     IReadOnlyList<PipelineExecutionSummaryDto> Items,
     int Page,
     int PageSize,
     int TotalCount,
-    bool HasMore
+    bool HasMore,
+    IReadOnlyList<ChannelPipelineChoiceDto> Pipelines
 );
+
+/// <summary>One of the channel's pipelines, as a choice in the runs filter.</summary>
+public sealed record ChannelPipelineChoiceDto(Guid Id, string Name);

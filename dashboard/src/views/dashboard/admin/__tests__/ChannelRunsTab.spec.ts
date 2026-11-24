@@ -53,7 +53,9 @@ const detail = {
 const failedRun = {
   id: 101,
   pipelineId: 'pipe-greet',
+  pipelineName: 'Greet command',
   triggeredByUserId: 'viewer-9',
+  triggeredByName: 'Made_Up_Viewer',
   triggerKind: 'command',
   status: 'failed',
   hostCallCount: 2,
@@ -70,7 +72,9 @@ const failedRun = {
 const oldRun = {
   id: 100,
   pipelineId: 'pipe-hello',
+  pipelineName: 'Hello timer',
   triggeredByUserId: null,
+  triggeredByName: null,
   triggerKind: 'timer',
   status: 'success',
   hostCallCount: 0,
@@ -169,6 +173,10 @@ vi.mock('@/api/client', () => {
               pageSize: 25,
               totalCount: 60,
               hasMore: true,
+              pipelines: [
+                { id: 'pipe-greet', name: 'Greet command' },
+                { id: 'pipe-hello', name: 'Hello timer' },
+              ],
             },
           },
         },
@@ -308,8 +316,10 @@ describe('Runs tab list', () => {
     expect(rows()).toHaveLength(2);
     expect(failed.textContent).toContain('Oct 30, 2026');
     expect(failed.textContent).toContain('command');
-    expect(failed.textContent).toContain('pipe-greet');
-    expect(failed.textContent).toContain('viewer-9');
+    expect(failed.textContent).toContain('Greet command');
+    expect(failed.textContent).toContain('Made_Up_Viewer');
+    expect(failed.textContent).not.toContain('pipe-greet');
+    expect(failed.textContent).not.toContain('viewer-9');
     expect(failed.textContent).toContain('Failed');
     expect(failed.textContent).toContain('12.4 sec');
     expect(failed.textContent).toContain('Timeout');
@@ -338,7 +348,7 @@ describe('Runs tab list', () => {
     expect(router.currentRoute.value.query.failuresOnly).toBe('true');
     expect(lastRead().options.params?.query?.failuresOnly).toBe(true);
     expect(rows()).toHaveLength(1);
-    expect(rows()[0]!.textContent).toContain('pipe-greet');
+    expect(rows()[0]!.textContent).toContain('Greet command');
   });
 
   it('starts on the filter named in the address, so a copied link reopens the same view', async () => {
@@ -352,18 +362,21 @@ describe('Runs tab list', () => {
     expect(text()).toContain('Page 2 of 3');
   });
 
-  it('puts the pipeline in the address and in the request when one is typed', async () => {
-    await open('/app/admin/channels/t1/runs');
+  it('offers the channel pipelines by name and puts the picked one in the address and the request', async () => {
+    await open('/app/admin/channels/t1/runs?page=2');
 
-    const field = document.body.querySelector<HTMLInputElement>('[data-run-pipeline]')!;
-
-    field.value = 'pipe-hello';
-    field.dispatchEvent(new Event('input'));
+    document.body.querySelector<HTMLElement>('[data-run-pipeline]')!.click();
     await settle();
-    field.dispatchEvent(new Event('change'));
+
+    const choices = [...document.body.querySelectorAll<HTMLElement>('[data-option]')];
+
+    expect(choices.map((choice) => choice.textContent?.trim())).toEqual(['All pipelines', 'Greet command', 'Hello timer']);
+
+    choices[2]!.click();
     await settle();
 
     expect(router.currentRoute.value.query.pipeline).toBe('pipe-hello');
+    expect(router.currentRoute.value.query.page).toBeUndefined();
     expect(lastRead().options.params?.query?.pipelineId).toBe('pipe-hello');
   });
 
@@ -390,6 +403,8 @@ describe('Runs tab list', () => {
     await open('/app/admin/channels/t1/runs');
 
     expect(text()).toContain('The runs could not load.');
+    expect(byText('button', 'Next')).toBeUndefined();
+    expect(text()).not.toContain('Page 1 of');
 
     missing = false;
     byText('button', 'Try again')!.click();
@@ -407,7 +422,7 @@ describe('Run detail sheet', () => {
 
     expect(router.currentRoute.value.query.run).toBe('101');
     expect(sheet()).not.toBeNull();
-    expect(sheet()!.textContent).toContain('pipe-greet');
+    expect(sheet()!.textContent).toContain('Greet command');
     expect(sheet()!.textContent).toContain('Failed');
 
     const read = calls.find((call) => call.path.endsWith('/diagnostics/runs/{runId}'))!;
@@ -421,7 +436,7 @@ describe('Run detail sheet', () => {
 
     expect(sheet()).not.toBeNull();
     expect(sheet()!.textContent).toContain('command');
-    expect(sheet()!.textContent).toContain('viewer-9');
+    expect(sheet()!.textContent).toContain('Made_Up_Viewer');
   });
 
   it('closes and takes the run id out of the address', async () => {

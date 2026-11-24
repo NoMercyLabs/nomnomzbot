@@ -63,7 +63,9 @@
             "all": "Alle runs",
             "failures": "Alleen mislukt",
             "pipeline": "Pipeline",
-            "pipelinePlaceholder": "Pipeline-id"
+            "allPipelines": "Alle pipelines",
+            "pipelineSearch": "Pipelines zoeken",
+            "noPipeline": "Geen pipeline heeft die naam."
           },
           "columns": {
             "time": "Tijd",

@@ -10,8 +10,7 @@
 -->
 <script setup lang="ts">
 // The runs of one channel, newest first. A row opens the run's detail; the time is the button, so the keyboard
-// reaches it, and the whole row answers a click. The bot names a person and a pipeline by id only today, so the
-// ids show as they are.
+// reaches it, and the whole row answers a click. A pipeline or person that no longer exists shows as "none".
 import { useI18n } from 'vue-i18n';
 
 import type { ChannelRun } from '@/api/adminDiagnostics';
@@ -65,11 +64,11 @@ const { locale } = useI18n();
           </button>
         </TableCell>
         <TableCell :label="$t('dashboard.admin.console.runs.columns.trigger')">{{ row.triggerKind }}</TableCell>
-        <TableCell class="font-mono text-sm wrap-anywhere" :label="$t('dashboard.admin.console.runs.columns.pipeline')">
-          {{ row.pipelineId ?? $t('dashboard.admin.console.runs.none') }}
+        <TableCell class="wrap-anywhere" :label="$t('dashboard.admin.console.runs.columns.pipeline')">
+          {{ row.pipelineName ?? $t('dashboard.admin.console.runs.none') }}
         </TableCell>
-        <TableCell class="font-mono text-sm wrap-anywhere" :label="$t('dashboard.admin.console.runs.columns.person')">
-          {{ row.triggeredByUserId ?? $t('dashboard.admin.console.runs.none') }}
+        <TableCell class="wrap-anywhere" :label="$t('dashboard.admin.console.runs.columns.person')">
+          {{ row.triggeredByName ?? $t('dashboard.admin.console.runs.none') }}
         </TableCell>
         <TableCell :label="$t('dashboard.admin.console.runs.columns.status')">
           <RunStatus :status="row.status" />

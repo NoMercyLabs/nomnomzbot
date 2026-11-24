@@ -245,6 +245,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(IamAuditLog),
         typeof(ChannelMembership),
         typeof(PipelineExecution),
+        typeof(Pipeline),
+        typeof(User),
         typeof(BillingTier),
         typeof(TtsUsageRecord),
     ];
@@ -262,7 +264,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
@@ -353,7 +355,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
-    public DbSet<Pipeline> Pipelines => throw new NotSupportedException();
+    public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();

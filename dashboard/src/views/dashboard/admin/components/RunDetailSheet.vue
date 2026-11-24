@@ -57,9 +57,9 @@ const limit = computed<string>(() => {
 });
 
 const facts = computed<KeyValueItem[]>(() => [
-  { label: t('dashboard.admin.console.runs.columns.pipeline'), value: run.value?.pipelineId },
+  { label: t('dashboard.admin.console.runs.columns.pipeline'), value: run.value?.pipelineName },
   { label: t('dashboard.admin.console.runs.columns.trigger'), value: run.value?.triggerKind },
-  { label: t('dashboard.admin.console.runs.columns.person'), value: run.value?.triggeredByUserId },
+  { label: t('dashboard.admin.console.runs.columns.person'), value: run.value?.triggeredByName },
   { label: t('dashboard.admin.console.runs.detail.started'), value: time.dateTime(run.value?.startedAt) },
   { label: t('dashboard.admin.console.runs.columns.duration'), value: durationText(Number(run.value?.durationMs ?? 0), locale.value) },
   { label: t('dashboard.admin.console.runs.columns.error'), value: run.value?.errorMessage },
