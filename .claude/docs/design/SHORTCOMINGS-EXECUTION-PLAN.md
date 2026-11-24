@@ -1729,11 +1729,6 @@ same way: the kind is typed as free text and the content is one raw JSON text bo
   the fire bar. A widget's default settings and events are fields beside it. Save drafts a new version; a
   build error shows in the editor. Done-when: a test opens a widget definition, changes its source, saves,
   and the new version's payload holds the changed `sourceCode`; the same for a code script.
-- **S-ADMIN-CONTENT-CREATE-FORMS** The "New definition" dialog in Admin > Content still asks for the
-  payload as raw JSON (`{}`), so a new timer, reward, pick list or other kind starts as JSON. Found live on
-  dev 2026-11-24. The dialog opens the same per-kind form the version editor uses once a kind is chosen,
-  with Edit JSON as the escape. Done-when: one test per kind fills the form in the create dialog and the
-  created definition's first version payload holds it.
 - **S-ADMIN-CONTENT-PUBLISH** is the admin part of S-VERSIONS-UI: open a version, publish preview, publish,
   and the publish job's progress (`/platform/content/publish-jobs/{id}`). Not a second row; it closes there.
 
