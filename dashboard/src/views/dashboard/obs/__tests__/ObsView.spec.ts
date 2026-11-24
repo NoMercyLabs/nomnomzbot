@@ -578,11 +578,11 @@ describe('ObsView', () => {
         `${row.getAttribute('data-install-result')}:${row.querySelector('[data-install-outcome]')?.textContent?.trim()}`);
 
     // The scene picker is the design-system Select: a pointer press opens it, a pointer release picks.
-    async function pickScene(name: string): Promise<void> {
+    async function pickScene(name: string, picker = '[data-install-scene]'): Promise<void> {
       Element.prototype.hasPointerCapture = (): boolean => false;
       Element.prototype.releasePointerCapture = (): void => undefined;
 
-      const trigger = body().querySelector<HTMLElement>('[data-install-scene]')!;
+      const trigger = body().querySelector<HTMLElement>(picker)!;
 
       trigger.dispatchEvent(new PointerEvent('pointerdown', {
         bubbles: true,
@@ -627,9 +627,47 @@ describe('ObsView', () => {
       expect(posts).toEqual([
         {
           path: '/api/v{version}/channels/{channelId}/obs/overlays/install',
-          body: { sceneName: 'BRB', overlayKeys: ['alerts'] },
+          body: {
+            sceneName: 'BRB',
+            overlayKeys: ['alerts'],
+            placements: [{
+              key: 'alerts',
+              sceneName: 'BRB',
+              sourceName: 'Alerts',
+            }],
+          },
         },
       ]);
+    });
+
+    it('sends each overlay into its own scene under the name the person typed', async () => {
+      await openDialog();
+      await pickScene('BRB', '[data-install-row-scene="audio"]');
+
+      const name = body().querySelector<HTMLInputElement>('[data-install-row-name="alerts"]')!;
+
+      name.value = 'My alerts';
+      name.dispatchEvent(new Event('input'));
+      await flushPromises();
+      body().querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+      await flushPromises();
+
+      expect(posts[0]?.body).toEqual({
+        sceneName: 'Main',
+        overlayKeys: ['alerts', 'audio'],
+        placements: [
+          {
+            key: 'alerts',
+            sceneName: 'Main',
+            sourceName: 'My alerts',
+          },
+          {
+            key: 'audio',
+            sceneName: 'BRB',
+            sourceName: 'Audio',
+          },
+        ],
+      });
     });
 
     it('starts every overlay not yet in OBS ticked, each loaded one unticked, and the on-air scene picked', async () => {
@@ -643,7 +681,22 @@ describe('ObsView', () => {
       body().querySelector<HTMLButtonElement>('[data-form-action]')!.click();
       await flushPromises();
 
-      expect(posts[0]?.body).toEqual({ sceneName: 'Main', overlayKeys: ['alerts', 'audio'] });
+      expect(posts[0]?.body).toEqual({
+        sceneName: 'Main',
+        overlayKeys: ['alerts', 'audio'],
+        placements: [
+          {
+            key: 'alerts',
+            sceneName: 'Main',
+            sourceName: 'Alerts',
+          },
+          {
+            key: 'audio',
+            sceneName: 'Main',
+            sourceName: 'Audio',
+          },
+        ],
+      });
     });
 
     it('lists each overlay with its result word and the reason a failure gives', async () => {

@@ -9,9 +9,9 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// One call puts the overlays into OBS: pick a scene, tick the overlays, press Add to OBS. The bot makes one
-// grouped scene with a browser source per overlay and adds it to the picked scene. Every overlay is optional.
-// An overlay not yet open in OBS starts ticked, one already loaded starts unticked; the person can change each box.
+// One call puts the overlays into OBS. The person ticks the overlays and chooses, for each one, the scene it goes
+// into and the name of its source. The scene at the top fills in every row at once. The bot makes no scene and
+// adds no name prefix. An overlay not yet open in OBS starts ticked; one already loaded starts unticked.
 // After the call the dialog lists each overlay with its result, and the primary button becomes Done.
 import { computed, ref, watch } from 'vue';
 
@@ -22,6 +22,7 @@ import InlineNotice from '@/components/layout/InlineNotice.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { toastObsError } from '../obsToast';
@@ -38,6 +39,8 @@ const install = useObsInstallOverlays(channelId);
 
 const scene = ref<string>('');
 const ticked = ref<string[]>([]);
+const sceneOf = ref<Record<string, string>>({});
+const nameOf = ref<Record<string, string>>({});
 const result = ref<ObsOverlayInstallResult | null>(null);
 
 const choices = computed(() =>
@@ -58,10 +61,24 @@ watch(
       .filter((overlay) => !overlay.widget.isAttached)
       .map((overlay) => overlay.key);
 
+    const overlays = props.overlays ?? [];
+
+    sceneOf.value = Object.fromEntries(overlays.map((overlay) => [overlay.key, scene.value]));
+
+    nameOf.value = Object.fromEntries(
+      overlays.map((overlay) => [overlay.key, overlay.widget.name]),
+    );
+
     result.value = null;
   },
   { immediate: true },
 );
+
+// The scene at the top is a shortcut: picking it moves every overlay to that scene; each row can still differ.
+function applySceneToAll(picked: string): void {
+  scene.value = picked;
+  sceneOf.value = Object.fromEntries(Object.keys(sceneOf.value).map((key) => [key, picked]));
+}
 
 function toggle(key: string, on: boolean | 'indeterminate'): void {
   ticked.value = on === true
@@ -69,7 +86,8 @@ function toggle(key: string, on: boolean | 'indeterminate'): void {
     : ticked.value.filter((item) => item !== key);
 }
 
-const canSend = computed<boolean>(() => scene.value !== '' && ticked.value.length > 0);
+const canSend = computed<boolean>(() =>
+  ticked.value.length > 0 && ticked.value.every((key) => (sceneOf.value[key] ?? '') !== ''));
 
 // The overlays go out in the order they are listed, not the order they were ticked.
 const keysToSend = computed<string[]>(() =>
@@ -84,9 +102,16 @@ function submit(): void {
     return;
   }
 
+  const placements = keysToSend.value.map((key) => ({
+    key,
+    sceneName: sceneOf.value[key] ?? '',
+    sourceName: (nameOf.value[key] ?? '').trim() || null,
+  }));
+
   install.mutate({
-    sceneName: scene.value,
+    sceneName: placements[0]?.sceneName ?? '',
     overlayKeys: keysToSend.value,
+    placements,
   }, {
     onSuccess: (done) => {
       result.value = done;
@@ -131,32 +156,52 @@ function submit(): void {
       <Field>
         <FieldLabel>{{ $t('dashboard.obs.install.scene') }}</FieldLabel>
         <OptionSelect
-          v-model="scene"
+          :model-value="scene"
           data-install-scene
           :options="choices"
           :placeholder="$t('dashboard.obs.install.scenePlaceholder')"
+          @update:model-value="applySceneToAll"
         />
+        <p class="text-sm text-muted-foreground">{{ $t('dashboard.obs.install.sceneHint') }}</p>
         <p v-if="choices.length === 0" class="text-sm text-muted-foreground">
           {{ $t('dashboard.obs.install.noScenes') }}
         </p>
       </Field>
-      <fieldset class="grid gap-2">
+      <fieldset class="grid gap-3">
         <legend class="mb-1 text-sm font-medium">{{ $t('dashboard.obs.install.overlays') }}</legend>
-        <label
+        <div
           v-for="overlay in overlays"
           :key="overlay.key"
-          class="flex items-center gap-2 text-sm"
+          :data-install-row="overlay.key"
+          class="grid gap-2"
         >
-          <Checkbox
-            :data-install-overlay="overlay.key"
-            :model-value="ticked.includes(overlay.key)"
-            @update:model-value="toggle(overlay.key, $event)"
-          />
-          <span>{{ $t(`dashboard.obs.required.surfaces.${overlay.key}.name`) }}</span>
-          <span v-if="overlay.widget.isAttached" class="text-muted-foreground">
-            {{ $t('dashboard.obs.install.loaded') }}
-          </span>
-        </label>
+          <label class="flex items-center gap-2 text-sm">
+            <Checkbox
+              :data-install-overlay="overlay.key"
+              :model-value="ticked.includes(overlay.key)"
+              @update:model-value="toggle(overlay.key, $event)"
+            />
+            <span>{{ $t(`dashboard.obs.required.surfaces.${overlay.key}.name`) }}</span>
+            <span v-if="overlay.widget.isAttached" class="text-muted-foreground">
+              {{ $t('dashboard.obs.install.loaded') }}
+            </span>
+          </label>
+          <div v-if="ticked.includes(overlay.key)" class="grid gap-2 pl-6 sm:grid-cols-2">
+            <OptionSelect
+              v-model="sceneOf[overlay.key]"
+              :data-install-row-scene="overlay.key"
+              :aria-label="$t('dashboard.obs.install.rowScene')"
+              :options="choices"
+              :placeholder="$t('dashboard.obs.install.scenePlaceholder')"
+            />
+            <Input
+              v-model="nameOf[overlay.key]"
+              :data-install-row-name="overlay.key"
+              :aria-label="$t('dashboard.obs.install.rowName')"
+              :placeholder="overlay.widget.name"
+            />
+          </div>
+        </div>
       </fieldset>
     </template>
   </FormDialog>

@@ -60406,9 +60406,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Put the picked overlays into OBS in one call: a nested "NomNomzBot overlays" scene holds one browser source
-         *     per picked overlay, and that scene is added to the picked scene. The overlay addresses (they carry the secret
-         *     token) are built here and sent to OBS only; the response lists each overlay as created, updated or failed.
+         * Put the picked overlays into OBS in one call. With placements, each overlay becomes a browser source in the
+         *     scene and under the name the person chose. Without them, the older shape makes one nested scene. The overlay
+         *     addresses (they carry the secret token) go to OBS only; the response lists each overlay's outcome.
          */
         post: {
             parameters: {
@@ -98365,19 +98365,29 @@ export interface components {
          * @enum {unknown}
          */
         ObsOverlayInstallOutcome: "Created" | "Updated" | "Failed";
-        /** @description REST body for the overlay install route: the scene to add the overlays to and the overlays picked. */
+        /**
+         * @description With IReadOnlyList&lt;ObsOverlayPlacement&gt;? ObsOverlayInstallRequest.Placements, each overlay goes where the person put it and no scene is made. Without it, the
+         *     older call shape still works: one nested scene, added to string ObsOverlayInstallRequest.SceneName.
+         */
         ObsOverlayInstallRequest: {
             sceneName: string;
             overlayKeys: string[];
+            placements?: null | components["schemas"]["ObsOverlayPlacement"][];
         };
         /**
          * @description The result of one install call: the nested scene that holds the overlays, whether it was added to the picked
          *     scene by this call, and one entry per picked overlay.
          */
         ObsOverlayInstallResult: {
-            nestedSceneName: string;
+            nestedSceneName?: null | string;
             addedToScene: boolean;
             overlays: components["schemas"]["ObsOverlayInstallEntry"][];
+        };
+        /** @description REST body for the overlay install route: the scene to add the overlays to and the overlays picked. */
+        ObsOverlayPlacement: {
+            key: string;
+            sceneName: string;
+            sourceName?: null | string;
         };
         /**
          * @description The truthful result of actively probing OBS reachability (obs-control.md §3.2). The passive
