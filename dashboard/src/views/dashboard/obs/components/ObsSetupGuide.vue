@@ -32,9 +32,10 @@ const done = computed(() => doneSteps(state.value));
 
 <template>
   <details
+    v-if="state !== 'connected'"
     data-guide
     :data-guide-state="state"
-    :open="state !== 'connected'"
+    open
     class="rounded-lg border border-border bg-card p-3"
   >
     <summary class="cursor-pointer text-sm font-medium">{{ $t('dashboard.obs.guide.title') }}</summary>
@@ -65,7 +66,6 @@ const done = computed(() => doneSteps(state.value));
     <div class="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
       <p data-guide-fix class="min-w-0 flex-1 text-sm">{{ $t(`dashboard.obs.guide.fix.${state}`) }}</p>
       <Button
-        v-if="state !== 'connected'"
         data-guide-retest
         variant="outline"
         size="sm"

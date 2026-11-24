@@ -36,8 +36,7 @@
         "fix": {
           "off": "De koppeling staat uit. Klik op OBS koppelen, zet hem aan en sla op.",
           "unreachable": "De bot kan OBS niet bereiken. Controleer dat OBS open staat en Enable WebSocket server aangevinkt is. Controleer dat de poort in Verbinding bewerken de Server Port uit OBS is.",
-          "password": "OBS antwoordde maar weigerde het wachtwoord. Klik in OBS op Show Connect Info, kopieer het Server Password opnieuw en plak het in Verbinding bewerken.",
-          "connected": "OBS is verbonden. Er is niets meer te doen."
+          "password": "OBS antwoordde maar weigerde het wachtwoord. Klik in OBS op Show Connect Info, kopieer het Server Password opnieuw en plak het in Verbinding bewerken."
         }
       },
       "tabs": {

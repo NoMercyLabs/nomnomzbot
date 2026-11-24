@@ -36,8 +36,7 @@
         "fix": {
           "off": "The link is switched off. Click Link OBS, switch it on and save.",
           "unreachable": "The bot cannot reach OBS. Check that OBS is open and Enable WebSocket server is ticked. Check that the port in Edit connection is the Server Port shown in OBS.",
-          "password": "OBS answered but refused the password. In OBS, click Show Connect Info, copy the Server Password again and paste it in Edit connection.",
-          "connected": "OBS is connected. Nothing is left to do."
+          "password": "OBS answered but refused the password. In OBS, click Show Connect Info, copy the Server Password again and paste it in Edit connection."
         }
       },
       "tabs": {

@@ -128,13 +128,11 @@ describe('ObsSetupGuide', () => {
     expect(done(view)).toEqual([]);
   });
 
-  it('connected: every step is ticked and the fix line says nothing is left to do', () => {
+  it('connected: the guide takes no space, because nothing is left to do', () => {
     const view = show({ ...base }, false);
 
-    expect(view.get('[data-guide]').attributes('data-guide-state')).toBe('connected');
-    expect(fix(view)).toBe(en.dashboard.obs.guide.fix.connected);
-    expect(done(view)).toEqual(['server', 'password', 'save', 'connected']);
-    expect(view.find('[data-guide-retest]').exists()).toBe(false);
+    expect(view.find('[data-guide]').exists()).toBe(false);
+    expect(view.find('[data-guide-step]').exists()).toBe(false);
   });
 
   it('Test again asks the page to re-run its reads, and is an outline button', async () => {
