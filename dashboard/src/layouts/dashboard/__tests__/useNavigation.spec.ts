@@ -90,7 +90,7 @@ beforeEach(() => {
   localStorage.clear();
 
   window.dispatchEvent(
-    new StorageEvent('storage', { key: 'nnz.nav.folds', storageArea: localStorage }),
+    new StorageEvent('storage', { key: 'nnz.nav.groups', storageArea: localStorage }),
   );
 });
 
@@ -135,7 +135,7 @@ describe('the dashboard navigation', () => {
     expect(moderator.groups.value.map((group) => group.key)).toEqual(['home', 'live']);
   });
 
-  it('shows the settings door to a moderator who may read a moderation settings page, and hides it from one who may read none', async () => {
+  it('shows a moderation page in the Moderation group, and the settings door only to one who may read a settings page', async () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -154,7 +154,7 @@ describe('the dashboard navigation', () => {
           name: 'dashboard-settings-automod',
           path: '/dashboard-settings-automod',
           component: page,
-          meta: { navMode: 'settings', action: 'moderation:automod:read' },
+          meta: { action: 'moderation:automod:read' },
         },
         {
           name: 'dashboard-settings-billing',
@@ -168,12 +168,15 @@ describe('the dashboard navigation', () => {
     held.keys = ['dashboard:read', 'moderation:automod:read'];
     const moderator = await open(router, '/dashboard-home');
 
-    expect(moderator.entries.value.map((entry) => entry.route)).toContain('dashboard-settings');
+    expect(moderator.groups.value.find((group) => group.key === 'moderation')?.entries.map((entry) => entry.route))
+      .toEqual(['dashboard-settings-automod']);
 
-    held.keys = ['dashboard:read'];
-    const viewer = await open(router, '/dashboard-home');
+    expect(moderator.entries.value.map((entry) => entry.route)).not.toContain('dashboard-settings');
 
-    expect(viewer.entries.value.map((entry) => entry.route)).not.toContain('dashboard-settings');
+    held.keys = ['dashboard:read', 'billing:read'];
+    const owner = await open(router, '/dashboard-home');
+
+    expect(owner.entries.value.map((entry) => entry.route)).toContain('dashboard-settings');
   });
 
   it('hides an admin entry whose platform key the person does not hold', async () => {
@@ -213,7 +216,7 @@ describe('the dashboard navigation', () => {
     expect(navigation.groups.value.map((group) => group.key)).toEqual(['home', 'live', 'build']);
   });
 
-  it('opens the group of the open page and folds the others', async () => {
+  it('shows every group open on a first visit, so a person sees every page they can go to', async () => {
     const navigation = await open(makeRouter(built), '/dashboard-chat');
 
     const live = navigation.groups.value.find((group) => group.key === 'live');
@@ -222,37 +225,58 @@ describe('the dashboard navigation', () => {
     expect(live).toMatchObject({ open: true, holdsOpenPage: true });
 
     expect(build).toMatchObject({
-      open: false,
+      open: true,
       holdsOpenPage: false,
       foldable: true,
     });
   });
 
-  it('keeps a group the person opened open after the frame mounts again, and a folded one folded', async () => {
+  it('ignores the folds saved under the old key, so every group opens again', async () => {
+    localStorage.setItem('nnz.nav.folds', JSON.stringify({ build: false }));
+
+    const navigation = await open(makeRouter(built), '/dashboard-chat');
+
+    expect(navigation.groups.value.find((group) => group.key === 'build')?.open).toBe(true);
+  });
+
+  it('keeps a group the person folded folded after the frame mounts again, and opens it again on a second click', async () => {
     const router = makeRouter(built);
     const first = await open(router, '/dashboard-chat');
-    const build = first.groups.value.find((group) => group.key === 'build')!;
 
-    first.toggle(build);
+    first.toggle(first.groups.value.find((group) => group.key === 'build')!);
     await flushPromises();
 
-    expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toMatchObject({
-      build: true,
+    expect(JSON.parse(localStorage.getItem('nnz.nav.groups') ?? '{}')).toMatchObject({
+      build: false,
     });
 
     const second = await open(router, '/dashboard-chat');
 
-    expect(second.groups.value.find((group) => group.key === 'build')?.open).toBe(true);
+    expect(second.groups.value.find((group) => group.key === 'build')?.open).toBe(false);
 
     second.toggle(second.groups.value.find((group) => group.key === 'build')!);
     await flushPromises();
     const third = await open(router, '/dashboard-chat');
 
-    expect(third.groups.value.find((group) => group.key === 'build')?.open).toBe(false);
+    expect(third.groups.value.find((group) => group.key === 'build')?.open).toBe(true);
 
-    expect(JSON.parse(localStorage.getItem('nnz.nav.folds') ?? '{}')).toMatchObject({
-      build: false,
+    expect(JSON.parse(localStorage.getItem('nnz.nav.groups') ?? '{}')).toMatchObject({
+      build: true,
     });
+  });
+
+  it('opens a folded group when the person goes to one of its pages', async () => {
+    const router = makeRouter(built);
+    const navigation = await open(router, '/dashboard-chat');
+
+    navigation.toggle(navigation.groups.value.find((group) => group.key === 'build')!);
+    await flushPromises();
+    await router.push('/dashboard-commands');
+    await flushPromises();
+    await router.push('/dashboard-chat');
+    await flushPromises();
+
+    expect(navigation.groups.value.find((group) => group.key === 'build')?.open).toBe(true);
   });
 
   it('keeps a group open after moving to a page in another group, also after a reload', async () => {

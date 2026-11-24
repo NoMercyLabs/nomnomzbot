@@ -174,6 +174,7 @@ describe('the settings authoring contract and the sidebar review', () => {
 
     const counted = rows.reduce((sum, row) => sum + Number(row.attributes('data-count')), 0);
 
-    expect(counted).toBe(30);
+    // The 8 moderation pages left Settings for the dashboard's own Moderation group.
+    expect(counted).toBe(22);
   });
 });

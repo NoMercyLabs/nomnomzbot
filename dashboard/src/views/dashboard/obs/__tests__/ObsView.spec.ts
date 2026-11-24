@@ -659,11 +659,12 @@ describe('ObsView', () => {
       expect(body().querySelector('[data-install-result="audio"]')?.textContent).toContain('OBS refused the source.');
     });
 
-    it('shows no action while no bridge page is open in OBS, and keeps the connect step', async () => {
+    it('keeps the action visible but waiting while no bridge page is open in OBS, and says why', async () => {
       bridgeCount = 0;
       await open();
 
-      expect(document.querySelector('[data-obs-install]')).toBeNull();
+      expect(document.querySelector<HTMLButtonElement>('[data-obs-install]')?.disabled).toBe(true);
+      expect(document.querySelector('[data-obs-install-needs]')?.textContent).toContain('bridge page');
       expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
     });
 

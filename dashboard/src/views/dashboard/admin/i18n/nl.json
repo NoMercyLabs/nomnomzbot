@@ -906,7 +906,7 @@
         }
       },
       "content": {
-        "title": "Inhoud",
+        "title": "Systeeminhoud",
         "kindFilter": "Soort",
         "kindPlaceholder": "Alle soorten",
         "kindChoose": "Kies een soort",

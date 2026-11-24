@@ -937,7 +937,7 @@
         "system": "System",
         "featureFlags": "Feature flags",
         "providers": "Providers",
-        "content": "Content",
+        "content": "System content",
         "access": "Access (IAM)",
         "platformBot": "Platform bot",
         "platformDefaults": "Platform defaults"
@@ -998,6 +998,7 @@
     "group": {
       "home": "Home",
       "live": "Live",
+      "moderation": "Moderation",
       "build": "Build",
       "people": "People",
       "loyalty": "Loyalty",

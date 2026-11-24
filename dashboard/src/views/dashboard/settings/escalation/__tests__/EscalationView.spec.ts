@@ -17,7 +17,7 @@ import { computed } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { i18n } from '@/i18n';
-import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
+import { dashboardNav } from '@/layouts/dashboard/navigation';
 import { dashboardSettingsRoutes } from '../../route';
 
 import en from '../i18n/en.json';
@@ -346,7 +346,7 @@ describe('Escalation policy page', () => {
 
 describe('Escalation route', () => {
   it('the sidebar entry resolves to the page and is gated by the read right', () => {
-    const entry = settingsNav
+    const entry = dashboardNav
       .flatMap((group) => group.entries)
       .find((item) => item.route === 'dashboard-settings-escalation');
     const record = dashboardSettingsRoutes.find(
@@ -356,9 +356,8 @@ describe('Escalation route', () => {
     expect(entry).toBeDefined();
     expect(record!.path).toBe('settings/escalation');
 
-    expect(record!.meta).toMatchObject({
-      navMode: 'settings',
-      action: 'moderation:escalation:read',
-    });
+    // A moderation page opens in the main dashboard sidebar, not the settings one.
+    expect(record!.meta).not.toHaveProperty('navMode');
+    expect(record!.meta).toMatchObject({ action: 'moderation:escalation:read' });
   });
 });

@@ -17,7 +17,6 @@ export const settingsEscalationRoute = {
   path: 'settings/escalation',
   name: 'dashboard-settings-escalation',
   meta: {
-    navMode: 'settings',
     action: 'moderation:escalation:read',
     titleKey: 'frame.nav.settingsPages.escalation',
   },

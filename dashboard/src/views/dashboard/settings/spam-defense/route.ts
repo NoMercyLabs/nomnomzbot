@@ -18,7 +18,6 @@ export const settingsSpamDefenseRoute = {
   path: 'settings/spam-defense',
   name: 'dashboard-settings-spam-defense',
   meta: {
-    navMode: 'settings',
     action: 'spam:policy:read',
     titleKey: 'frame.nav.settingsPages.spamDefense',
   },

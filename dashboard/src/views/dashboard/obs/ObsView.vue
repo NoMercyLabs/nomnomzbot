@@ -125,9 +125,10 @@ const requiredPanel = usePanelState(required);
 
 // Adding the overlays to OBS needs a bridge page open in OBS, the control key and the overlay list.
 const installing = ref<boolean>(false);
+// The button always shows to someone who may use it; without the bridge it waits and says why.
+const canOfferInstall = computed<boolean>(() => canControl.value && canSeeSources.value);
 const canInstall = computed<boolean>(() =>
-  canControl.value &&
-  canSeeSources.value &&
+  canOfferInstall.value &&
   Number(bridge.data.value?.instanceCount ?? 0) > 0);
 
 // The required overlays have their own panel; the browser sources are the user's own.
@@ -210,8 +211,11 @@ function retry(): void {
         {{ overallText }}
       </span>
     </template>
-    <template v-if="canInstall" #actions>
-      <Button data-obs-install size="sm" @click="installing = true">
+    <template v-if="canOfferInstall" #actions>
+      <span v-if="!canInstall" data-obs-install-needs class="text-sm text-muted-foreground">
+        {{ $t('dashboard.obs.install.needsBridge') }}
+      </span>
+      <Button data-obs-install size="sm" :disabled="!canInstall" @click="installing = true">
         {{ $t('dashboard.obs.install.action') }}
       </Button>
     </template>

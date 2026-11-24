@@ -48,8 +48,9 @@ const planned: Ledger = {
 // The viewer pages sit under /me/:channel with their own navigation (views/viewer/nav), not in a sidebar here.
 const MODES = ['dashboard', 'admin', 'settings'] as const satisfies readonly NavMode[];
 
-// Dashboard groups the owner asked for that the mockup ledger does not list.
-const beyondMockup: ReadonlySet<string> = new Set([]);
+// Dashboard groups the owner asked for that the mockup ledger does not list. Moderation, 2026-11-24: "i am also
+// still missing a ton of things from the dashboard as a moderator on a channel".
+const beyondMockup: ReadonlySet<string> = new Set(['moderation']);
 
 // Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15;
 // the viewer chat, 2026-10-16; the quotes, 2026-10-18).
@@ -145,7 +146,7 @@ function same(shown: string, mockup: string): boolean {
 
 beforeEach(() => {
   localStorage.clear();
-  window.dispatchEvent(new StorageEvent('storage', { key: 'nnz.nav.folds', storageArea: localStorage }));
+  window.dispatchEvent(new StorageEvent('storage', { key: 'nnz.nav.groups', storageArea: localStorage }));
 });
 
 afterEach(() => localStorage.clear());
@@ -209,4 +210,31 @@ describe('every planned page is reachable from its sidebar', () => {
       });
     });
   }
+});
+
+describe('the moderation group', () => {
+  it('shows every moderation page in the main sidebar, and each page keeps that sidebar open', async () => {
+    const router = realRouter();
+    const navigation = await openMode(router, 'dashboard');
+    const group = navigation.groups.value.find((item) => item.key === 'moderation');
+    const settingsRoutes = navByMode.settings
+      .flatMap((item) => item.entries)
+      .map((entry) => entry.route);
+
+    expect(group?.entries.map((entry) => entry.route)).toEqual([
+      'dashboard-settings-spam-defense',
+      'dashboard-settings-automod',
+      'dashboard-settings-chat-filters',
+      'dashboard-settings-blocked-terms',
+      'dashboard-settings-banned',
+      'dashboard-settings-unban-requests',
+      'dashboard-settings-reports',
+      'dashboard-settings-escalation',
+    ]);
+
+    expect(group?.entries.map((entry) => router.resolve({ name: entry.route }).meta.navMode ?? 'dashboard'))
+      .toEqual(group?.entries.map(() => 'dashboard'));
+
+    expect(group?.entries.filter((entry) => settingsRoutes.includes(entry.route))).toEqual([]);
+  });
 });

@@ -40,6 +40,14 @@ import Tv from '~icons/nnz/tv';
 import Users from '~icons/nnz/users';
 import WaveForm from '~icons/nnz/wave-form';
 import Lightning from '~icons/nnz/lightning';
+import ChatDisabled from '~icons/nnz/chat-disabled';
+import EmailReceived from '~icons/nnz/email-received';
+import Flag from '~icons/nnz/flag';
+import Hammer from '~icons/nnz/hammer';
+import MessageCheck from '~icons/nnz/message-bubble-check';
+import MessageRemove from '~icons/nnz/message-bubble-remove';
+import ShieldAlert from '~icons/nnz/shield-alert';
+import StairsUp from '~icons/nnz/stairs-up';
 
 import { merge } from '@/lib/array';
 
@@ -144,6 +152,20 @@ export const dashboardNav: readonly NavGroup[] = [
         icon: Smile,
         action: 'vts:config:read',
       },
+    ],
+  },
+  {
+    // The moderation pages sit in the main sidebar, so a moderator sees every tool they hold at a glance.
+    key: 'moderation',
+    entries: [
+      navEntry('dashboard-settings-spam-defense', 'settingsPages.spamDefense', ShieldAlert),
+      navEntry('dashboard-settings-automod', 'settingsPages.automod', MessageCheck),
+      navEntry('dashboard-settings-chat-filters', 'settingsPages.chatFilters', MessageRemove),
+      navEntry('dashboard-settings-blocked-terms', 'settingsPages.blockedTerms', ChatDisabled),
+      navEntry('dashboard-settings-banned', 'settingsPages.banned', Hammer),
+      navEntry('dashboard-settings-unban-requests', 'settingsPages.unbanRequests', EmailReceived),
+      navEntry('dashboard-settings-reports', 'settingsPages.reports', Flag),
+      navEntry('dashboard-settings-escalation', 'settingsPages.escalation', StairsUp),
     ],
   },
   {

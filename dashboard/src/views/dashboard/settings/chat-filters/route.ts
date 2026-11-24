@@ -17,7 +17,6 @@ export const settingsChatFiltersRoute = {
   path: 'settings/chat-filters',
   name: 'dashboard-settings-chat-filters',
   meta: {
-    navMode: 'settings',
     action: 'moderation:filter:read',
     titleKey: 'frame.nav.settingsPages.chatFilters',
   },

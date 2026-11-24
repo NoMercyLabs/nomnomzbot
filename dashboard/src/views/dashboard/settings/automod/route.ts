@@ -17,7 +17,6 @@ export const settingsAutomodRoute = {
   path: 'settings/automod',
   name: 'dashboard-settings-automod',
   meta: {
-    navMode: 'settings',
     action: 'moderation:automod:read',
     titleKey: 'frame.nav.settingsPages.automod',
   },

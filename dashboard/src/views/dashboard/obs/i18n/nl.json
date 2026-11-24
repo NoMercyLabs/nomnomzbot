@@ -54,6 +54,7 @@
       },
       "install": {
         "action": "Overlays aan OBS toevoegen",
+        "needsBridge": "Open eerst de bridge-pagina van de bot in OBS.",
         "title": "Overlays aan OBS toevoegen",
         "description": "Kies een scène en de overlays die je wilt. De bot voegt elke overlay toe als browserbron, gegroepeerd in één scène met de naam van de bot.",
         "scene": "Scène",

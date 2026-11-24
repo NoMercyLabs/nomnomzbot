@@ -15,6 +15,8 @@ import { defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { i18n } from '@/i18n';
+import { dashboardNav } from '@/layouts/dashboard/navigation';
+import { merge } from '@/lib/array';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 
 import { dashboardSettingsRoutes } from '../../route';
@@ -176,7 +178,8 @@ describe('the settings pages on the frame', () => {
   });
 
   it('gives every framed page a route titleKey equal to its sidebar word', () => {
-    const entries = settingsNav.flatMap((group) => group.entries);
+    // The moderation pages sit in the dashboard sidebar's Moderation group.
+    const entries = merge(settingsNav, dashboardNav).flatMap((group) => group.entries);
     // Supporter Sources reuses the page of another area, which draws its own header.
     const reused = 'dashboard-settings-supporter-sources';
     const framed = dashboardSettingsRoutes.filter((route) => route.name !== reused);

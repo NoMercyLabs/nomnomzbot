@@ -937,7 +937,7 @@
         "system": "Systeem",
         "featureFlags": "Functievlaggen",
         "providers": "Providers",
-        "content": "Inhoud",
+        "content": "Systeeminhoud",
         "access": "Toegang (IAM)",
         "platformBot": "Platformbot",
         "platformDefaults": "Platformstandaarden"
@@ -998,6 +998,7 @@
     "group": {
       "home": "Start",
       "live": "Live",
+      "moderation": "Moderatie",
       "build": "Bouwen",
       "people": "Mensen",
       "loyalty": "Loyaliteit",

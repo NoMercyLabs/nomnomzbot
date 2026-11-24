@@ -906,7 +906,7 @@
         }
       },
       "content": {
-        "title": "Content",
+        "title": "System content",
         "kindFilter": "Kind",
         "kindPlaceholder": "All kinds",
         "kindChoose": "Choose a kind",

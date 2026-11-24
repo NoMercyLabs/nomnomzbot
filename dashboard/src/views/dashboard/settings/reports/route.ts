@@ -17,7 +17,6 @@ export const settingsReportsRoute = {
   path: 'settings/reports',
   name: 'dashboard-settings-reports',
   meta: {
-    navMode: 'settings',
     action: 'moderation:report:read',
     titleKey: 'frame.nav.settingsPages.reports',
   },

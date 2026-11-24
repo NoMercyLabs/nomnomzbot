@@ -17,7 +17,6 @@ export const settingsBlockedTermsRoute = {
   path: 'settings/blocked-terms',
   name: 'dashboard-settings-blocked-terms',
   meta: {
-    navMode: 'settings',
     action: 'moderation:filter:read',
     titleKey: 'frame.nav.settingsPages.blockedTerms',
   },

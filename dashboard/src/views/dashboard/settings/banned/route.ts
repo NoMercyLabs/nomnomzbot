@@ -17,7 +17,6 @@ export const settingsBannedRoute = {
   path: 'settings/banned',
   name: 'dashboard-settings-banned',
   meta: {
-    navMode: 'settings',
     action: 'moderation:read',
     titleKey: 'frame.nav.settingsPages.banned',
   },

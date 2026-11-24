@@ -14,29 +14,21 @@ import BookOpen from '~icons/nnz/book-open';
 import CellTower from '~icons/nnz/cell-tower';
 import ChatBot from '~icons/nnz/chat-bot';
 import ChatBubble from '~icons/nnz/chat-bubble';
-import ChatDisabled from '~icons/nnz/chat-disabled';
 import ChatLove from '~icons/nnz/chat-love';
 import CreditCard from '~icons/nnz/credit-card-front';
-import EmailReceived from '~icons/nnz/email-received';
-import Flag from '~icons/nnz/flag';
-import Hammer from '~icons/nnz/hammer';
 import Handshake from '~icons/nnz/handshake';
 import KeyOld from '~icons/nnz/key-old';
 import Link from '~icons/nnz/link';
 import Locked from '~icons/nnz/locked';
 import Megaphone from '~icons/nnz/megaphone';
-import MessageCheck from '~icons/nnz/message-bubble-check';
-import MessageRemove from '~icons/nnz/message-bubble-remove';
 import MultiPoint from '~icons/nnz/multi-point-connection';
 import MultiUsers from '~icons/nnz/multi-users';
 import PaperScroll from '~icons/nnz/paper-scroll';
 import Plugged from '~icons/nnz/plugged';
 import SettingsFader from '~icons/nnz/settings-fader';
-import ShieldAlert from '~icons/nnz/shield-alert';
 import ShieldCheck from '~icons/nnz/shield-check';
 import Sparkles from '~icons/nnz/sparkles';
 import Scale from '~icons/nnz/scale';
-import StairsUp from '~icons/nnz/stairs-up';
 import Speedometer from '~icons/nnz/speedometer';
 import ToggleOn from '~icons/nnz/toggle-on';
 
@@ -87,14 +79,6 @@ export const settingsNav: readonly NavGroup[] = [
     entries: [
       navEntry('dashboard-settings-permissions', 'settingsPages.permissions', ShieldCheck),
       navEntry('dashboard-settings-trust-policy', 'settingsPages.trustPolicy', Scale),
-      navEntry('dashboard-settings-escalation', 'settingsPages.escalation', StairsUp),
-      navEntry('dashboard-settings-spam-defense', 'settingsPages.spamDefense', ShieldAlert),
-      navEntry('dashboard-settings-automod', 'settingsPages.automod', MessageCheck),
-      navEntry('dashboard-settings-chat-filters', 'settingsPages.chatFilters', MessageRemove),
-      navEntry('dashboard-settings-blocked-terms', 'settingsPages.blockedTerms', ChatDisabled),
-      navEntry('dashboard-settings-banned', 'settingsPages.banned', Hammer),
-      navEntry('dashboard-settings-unban-requests', 'settingsPages.unbanRequests', EmailReceived),
-      navEntry('dashboard-settings-reports', 'settingsPages.reports', Flag),
       navEntry('dashboard-settings-event-journal', 'settingsPages.eventJournal', PaperScroll),
     ],
   },

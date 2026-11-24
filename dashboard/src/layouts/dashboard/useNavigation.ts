@@ -40,9 +40,11 @@ export type Navigation = {
   toggle: (group: VisibleGroup) => void;
 };
 
-// Which groups are open: group key to true (open) or false (folded). It outlives a reload. Only the person folds a group.
+// Which groups are open: group key to true (open) or false (folded). It outlives a reload. Every group starts open,
+// so a person sees every page they can go to; only the person folds a group. The old 'nnz.nav.folds' key started
+// folded and hid the menus, so it is not read.
 const folds = useStorage<Record<string, boolean>>(
-  'nnz.nav.folds',
+  'nnz.nav.groups',
   {},
 );
 
@@ -137,7 +139,7 @@ export function useNavigation() {
           key: group.key,
           entries,
           foldable: entries.length > 1,
-          open: entries.length <= 1 || holdsOpenPage || folds.value[group.key] === true,
+          open: entries.length <= 1 || holdsOpenPage || folds.value[group.key] !== false,
           holdsOpenPage,
         } as const satisfies VisibleGroup;
       })

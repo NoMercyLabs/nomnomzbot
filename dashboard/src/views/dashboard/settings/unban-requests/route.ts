@@ -17,7 +17,6 @@ export const settingsUnbanRequestsRoute = {
   path: 'settings/unban-requests',
   name: 'dashboard-settings-unban-requests',
   meta: {
-    navMode: 'settings',
     action: 'moderation:unbanrequest:read',
     titleKey: 'frame.nav.settingsPages.unbanRequests',
   },
