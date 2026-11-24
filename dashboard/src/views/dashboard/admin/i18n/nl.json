@@ -940,6 +940,10 @@
           },
           "editJson": "JSON bewerken"
         },
+        "timerEditor": {
+          "description": "Bewerk de timer zoals een kanaal dat doet. Een timer zonder berichten draait de pipeline van het kanaal dat hem installeert. Opslaan bewaart hem als nieuwe conceptversie.",
+          "editJson": "JSON bewerken"
+        },
         "widgetEditor": {
           "description": "Bewerk de widget zoals een kanaal dat doet. Opslaan bewaart hem als nieuwe conceptversie.",
           "events": "Gebeurtenissen om op te luisteren",

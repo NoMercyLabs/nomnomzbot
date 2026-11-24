@@ -14,8 +14,8 @@
 // A content payload is JSON, so it is written in the project's Monaco editor, never in a plain text box.
 // The editor shows one file. Its Save checks that the text is JSON before the parent keeps it.
 // A pipeline draft opens in the step editor, a code script draft in the script code editor and a widget draft in
-// the widget form, a command draft in the built-in command fields and an event response draft in the event
-// response fields.
+// the widget form, a command draft in the built-in command fields, an event response draft in the event
+// response fields and a timer draft in the timer fields.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -29,8 +29,10 @@ import { readCommandPayload } from './commandPayload';
 import { readEventResponsePayload } from './eventResponsePayload';
 import AdminScriptPayloadEditor from './AdminScriptPayloadEditor.vue';
 import { readPipelinePayload } from './pipelinePayload';
+import AdminTimerPayloadEditor from './AdminTimerPayloadEditor.vue';
 import AdminWidgetPayloadEditor from './AdminWidgetPayloadEditor.vue';
 import { readScriptPayload } from './scriptPayload';
+import { readTimerPayload } from './timerPayload';
 import { readWidgetPayload } from './widgetPayload';
 
 const ENTRY = 'payload.json';
@@ -74,6 +76,11 @@ const command = computed(() =>
 const eventResponse = computed(() =>
   props.kind === 'event_response'
     ? readEventResponsePayload(props.initial)
+    : null);
+// The parts of a timer payload, or null: another kind, or a payload the form would not hold whole.
+const timer = computed(() =>
+  props.kind === 'timer'
+    ? readTimerPayload(props.initial)
     : null);
 // Set when the operator leaves a form: the raw editor then starts from the draft as it stood.
 const rawSeed = ref<string | null>(null);
@@ -135,6 +142,14 @@ async function save(files: EditorFiles): Promise<CompileFeedback> {
     v-else-if="eventResponse && rawSeed === null"
     :title="title"
     :payload="eventResponse"
+    :keep="keep"
+    @edit-json="rawSeed = $event"
+    @close="emit('close')"
+  />
+  <AdminTimerPayloadEditor
+    v-else-if="timer && rawSeed === null"
+    :title="title"
+    :payload="timer"
     :keep="keep"
     @edit-json="rawSeed = $event"
     @close="emit('close')"

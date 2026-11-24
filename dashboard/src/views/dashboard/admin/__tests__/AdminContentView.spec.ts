@@ -25,6 +25,7 @@ import { dashboardRoutes } from '@/router/dashboard';
 import AdminContentView from '../AdminContentView.vue';
 import { commandWords } from '../components/commandPayload';
 import { eventResponseWords } from '../components/eventResponsePayload';
+import { timerWords } from '../components/timerPayload';
 import { overlayWords } from '../components/widgetPayload';
 import en from '../i18n/en.json';
 import { adminOnly, dashboardAdminContentRoute } from '../route';
@@ -185,6 +186,15 @@ const eventResponseBody = {
   responseType: 'chat_message',
   message: 'Welcome {user}!',
   metadata: { tone: 'warm' },
+  isEnabled: true,
+};
+
+const timerBody = {
+  name: 'Hydrate',
+  messages: ['Drink water, chat!', 'Stretch a little.'],
+  intervalMinutes: 45,
+  minChatActivity: 5,
+  fireOnce: false,
   isEnabled: true,
 };
 
@@ -423,6 +433,7 @@ beforeAll(async () => {
     ensureWords(commandWords),
     ensureWords(overlayWords),
     ensureWords(eventResponseWords),
+    ensureWords(timerWords),
   ]);
 });
 
@@ -1073,6 +1084,82 @@ describe('AdminContentView', () => {
     await click(byText('button', 'Draft new version')!);
 
     expect(document.body.querySelector('[data-event-response-payload-editor]')).toBeNull();
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens a timer draft in the channel timer fields with the values of the payload', async () => {
+    definition.kind = 'timer';
+    draftPayload = JSON.stringify(timerBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-timer-payload-editor] textarea')).toBeInstanceOf(HTMLTextAreaElement);
+    }, { timeout: 5000 });
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+    expect((first('[data-timer-payload-editor] textarea') as HTMLTextAreaElement).value).toBe(
+      'Drink water, chat!\nStretch a little.',
+    );
+
+    expect((first('[data-timer-payload-editor] #timer-interval') as HTMLInputElement).value).toBe(
+      '45',
+    );
+  });
+
+  it('saves a changed interval as a new version and keeps every other key', async () => {
+    definition.kind = 'timer';
+    draftPayload = JSON.stringify(timerBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-timer-payload-editor] #timer-interval')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    await type('[data-timer-payload-editor] #timer-interval', '20');
+    await click(first('[data-timer-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ ...timerBody, intervalMinutes: 20 });
+  });
+
+  it('saves changed messages as separate lines of the payload', async () => {
+    definition.kind = 'timer';
+    draftPayload = JSON.stringify(timerBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-timer-payload-editor] textarea')).toBeInstanceOf(HTMLTextAreaElement);
+    }, { timeout: 5000 });
+
+    await type('[data-timer-payload-editor] textarea', 'First line\n\nSecond line');
+    await click(first('[data-timer-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({
+      ...timerBody,
+      messages: ['First line', 'Second line'],
+    });
+  });
+
+  it('opens a timer payload with an unknown key as JSON, so nothing is lost', async () => {
+    definition.kind = 'timer';
+    draftPayload = JSON.stringify({ ...timerBody, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-timer-payload-editor]')).toBeNull();
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });
