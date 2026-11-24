@@ -227,6 +227,11 @@ function makeGuardedRouter(): Router {
         meta: { requiresAuth: true },
         children: channelVariants(pages),
       },
+      {
+        path: '/:pathMatch(.*)*',
+        name: 'not-found',
+        component: page,
+      },
     ],
   });
 
@@ -369,6 +374,25 @@ describe('pages that belong to no channel', () => {
     await router.push('/app/u/friend/settings');
 
     expect(router.currentRoute.value.fullPath).toBe('/app/settings');
+  });
+
+  it('shows the not-found page for an unknown /app/admin/... address, with no redirect loop', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/admin/no-such-page?x=1');
+
+    expect(router.currentRoute.value.name).toBe('not-found');
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/no-such-page?x=1');
+  });
+
+  it('shows the not-found page for an unknown address opened from a channel route, with no loop', async () => {
+    const router = makeGuardedRouter();
+
+    await router.push('/app/u/friend/stream');
+    await router.push('/app/admin/no-such-page');
+
+    expect(router.currentRoute.value.name).toBe('not-found');
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/no-such-page');
   });
 
   it('leaves a channel settings page under its prefix', async () => {

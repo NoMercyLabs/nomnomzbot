@@ -109,8 +109,11 @@ function isShortPath(path: string): boolean {
 }
 
 // A short dashboard address of a page that has a channel twin. Platform and per-person pages stay short.
+// An address no dashboard page owns falls to the not-found route: it gets no prefix, or the admin rewrite loops.
 function isShortChannelPage(to: RouteLocationNormalized): boolean {
-  return isShortPath(to.path) && isChannelPage(to.meta);
+  const isDashboardPage = to.matched.some((record) => record.path.startsWith('/app'));
+
+  return isShortPath(to.path) && isDashboardPage && isChannelPage(to.meta);
 }
 
 // The same address under a channel prefix, keeping query and hash. It replaces the entry: no extra history.
