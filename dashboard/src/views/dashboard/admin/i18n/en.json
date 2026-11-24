@@ -963,6 +963,21 @@
             "itemsRequired": "Add at least one entry."
           }
         },
+        "soundClipEditor": {
+          "description": "Edit the sound clip the way a channel does. The channel that installs it gets its own copy of the audio file. Save keeps it as a new draft version.",
+          "editJson": "Edit JSON",
+          "audio": "Audio file",
+          "audioHelp": "A file from the platform audio library. Upload new files under Audio library.",
+          "audioPlaceholder": "Choose an audio file",
+          "problem": {
+            "nameRequired": "Type a short name.",
+            "nameCharacters": "The short name may hold only letters, numbers, underscores and hyphens.",
+            "nameTooLong": "The short name may have at most 50 characters.",
+            "displayNameTooLong": "The display name may have at most 100 characters.",
+            "cooldownTooLong": "The cooldown is at most 24 hours.",
+            "assetRequired": "Choose an audio file from the library."
+          }
+        },
         "timerEditor": {
           "description": "Edit the timer the way a channel does. A timer with no messages runs the pipeline of the channel that installs it. Save keeps it as a new draft version.",
           "editJson": "Edit JSON"

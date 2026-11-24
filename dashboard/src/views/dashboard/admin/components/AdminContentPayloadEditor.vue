@@ -16,7 +16,7 @@
 // A pipeline draft opens in the step editor, a code script draft in the script code editor and a widget draft in
 // the widget form, a command draft in the built-in command fields, an event response draft in the event
 // response fields, a timer draft in the timer fields, a reward draft in the reward fields and a pick list draft
-// in the pick list fields.
+// in the pick list fields and a sound clip draft in the sound clip fields.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -31,12 +31,14 @@ import { readEventResponsePayload } from './eventResponsePayload';
 import AdminPickListPayloadEditor from './AdminPickListPayloadEditor.vue';
 import AdminRewardPayloadEditor from './AdminRewardPayloadEditor.vue';
 import AdminScriptPayloadEditor from './AdminScriptPayloadEditor.vue';
+import AdminSoundClipPayloadEditor from './AdminSoundClipPayloadEditor.vue';
 import { readPickListPayload } from './pickListPayload';
 import { readPipelinePayload } from './pipelinePayload';
 import { readRewardPayload } from './rewardPayload';
 import AdminTimerPayloadEditor from './AdminTimerPayloadEditor.vue';
 import AdminWidgetPayloadEditor from './AdminWidgetPayloadEditor.vue';
 import { readScriptPayload } from './scriptPayload';
+import { readSoundClipPayload } from './soundClipPayload';
 import { readTimerPayload } from './timerPayload';
 import { readWidgetPayload } from './widgetPayload';
 
@@ -96,6 +98,11 @@ const reward = computed(() =>
 const pickList = computed(() =>
   props.kind === 'pick_list'
     ? readPickListPayload(props.initial)
+    : null);
+// The parts of a sound clip payload, or null: another kind, or a payload the form would not hold whole.
+const soundClip = computed(() =>
+  props.kind === 'sound_clip'
+    ? readSoundClipPayload(props.initial)
     : null);
 // Set when the operator leaves a form: the raw editor then starts from the draft as it stood.
 const rawSeed = ref<string | null>(null);
@@ -181,6 +188,14 @@ async function save(files: EditorFiles): Promise<CompileFeedback> {
     v-else-if="pickList && rawSeed === null"
     :title="title"
     :payload="pickList"
+    :keep="keep"
+    @edit-json="rawSeed = $event"
+    @close="emit('close')"
+  />
+  <AdminSoundClipPayloadEditor
+    v-else-if="soundClip && rawSeed === null"
+    :title="title"
+    :payload="soundClip"
     :keep="keep"
     @edit-json="rawSeed = $event"
     @close="emit('close')"

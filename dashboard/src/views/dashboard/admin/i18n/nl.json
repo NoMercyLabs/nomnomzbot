@@ -963,6 +963,21 @@
             "itemsRequired": "Voeg minstens één item toe."
           }
         },
+        "soundClipEditor": {
+          "description": "Bewerk de geluidsclip zoals een kanaal dat doet. Het kanaal dat hem installeert krijgt een eigen kopie van het audiobestand. Opslaan bewaart hem als nieuwe conceptversie.",
+          "editJson": "JSON bewerken",
+          "audio": "Audiobestand",
+          "audioHelp": "Een bestand uit de audiobibliotheek van het platform. Upload nieuwe bestanden onder Audiobibliotheek.",
+          "audioPlaceholder": "Kies een audiobestand",
+          "problem": {
+            "nameRequired": "Typ een korte naam.",
+            "nameCharacters": "De korte naam mag alleen letters, cijfers, underscores en streepjes bevatten.",
+            "nameTooLong": "De korte naam mag maximaal 50 tekens hebben.",
+            "displayNameTooLong": "De weergavenaam mag maximaal 100 tekens hebben.",
+            "cooldownTooLong": "De cooldown is maximaal 24 uur.",
+            "assetRequired": "Kies een audiobestand uit de bibliotheek."
+          }
+        },
         "timerEditor": {
           "description": "Bewerk de timer zoals een kanaal dat doet. Een timer zonder berichten draait de pipeline van het kanaal dat hem installeert. Opslaan bewaart hem als nieuwe conceptversie.",
           "editJson": "JSON bewerken"

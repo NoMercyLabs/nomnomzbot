@@ -217,6 +217,16 @@ const pickListBody = {
   items: ['Apple', 'Cheese', 'Noodles'],
 };
 
+const soundClipBody = {
+  name: 'raid-horn',
+  displayName: 'Raid horn',
+  assetId: 'asset1',
+  defaultVolume: 70,
+  cooldownSeconds: 30,
+  minPermissionLevel: 'Subscriber',
+  triggerWord: 'horn',
+};
+
 const widgetSource = '<template><p>{{ title }}</p></template>';
 const widgetSettings = { title: 'Hello', size: 4 };
 
@@ -1326,6 +1336,77 @@ describe('AdminContentView', () => {
     await click(byText('button', 'Draft new version')!);
 
     expect(document.body.querySelector('[data-picklist-payload-editor]')).toBeNull();
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens a sound clip draft in the sound clip fields with the values of the payload', async () => {
+    definition.kind = 'sound_clip';
+    draftPayload = JSON.stringify(soundClipBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-soundclip-payload-editor] #soundclip-display-name')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+    expect((first('[data-soundclip-payload-editor] #soundclip-display-name') as HTMLInputElement).value).toBe(
+      'Raid horn',
+    );
+
+    expect((first('[data-soundclip-payload-editor] #soundclip-volume') as HTMLInputElement).value).toBe('70');
+  });
+
+  it('saves a changed sound clip volume as a new version and keeps every other key', async () => {
+    definition.kind = 'sound_clip';
+    draftPayload = JSON.stringify(soundClipBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-soundclip-payload-editor] #soundclip-volume')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    await type('[data-soundclip-payload-editor] #soundclip-volume', '55');
+    await click(first('[data-soundclip-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ ...soundClipBody, defaultVolume: 55 });
+  });
+
+  it('saves a changed sound clip display name and keeps every other key', async () => {
+    definition.kind = 'sound_clip';
+    draftPayload = JSON.stringify(soundClipBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-soundclip-payload-editor] #soundclip-display-name')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    await type('[data-soundclip-payload-editor] #soundclip-display-name', 'Big horn');
+    await click(first('[data-soundclip-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ ...soundClipBody, displayName: 'Big horn' });
+  });
+
+  it('opens a sound clip payload with an unknown key as JSON, so nothing is lost', async () => {
+    definition.kind = 'sound_clip';
+    draftPayload = JSON.stringify({ ...soundClipBody, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-soundclip-payload-editor]')).toBeNull();
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });
