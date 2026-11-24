@@ -2474,6 +2474,31 @@ public sealed class PipelineEngine : IPipelineEngine
 
     // ─── Persistence (H.4 PipelineExecution) ─────────────────────────────────
 
+    // Our user id, or the person behind a Twitch user id: chat, reward and event runs pass the Twitch id.
+    // The person is only a label on the history row; a failed lookup leaves it empty and never costs the row.
+    private async Task<Guid?> TriggeringPersonAsync(string triggeredBy)
+    {
+        if (Guid.TryParse(triggeredBy, out Guid userId))
+            return userId;
+
+        if (string.IsNullOrEmpty(triggeredBy))
+            return null;
+
+        try
+        {
+            return await _db
+                .Users.Where(u => u.TwitchUserId == triggeredBy)
+                .Select(u => (Guid?)u.Id)
+                .FirstOrDefaultAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not look up the person who started a pipeline run.");
+
+            return null;
+        }
+    }
+
     private async Task PersistExecutionAsync(
         PipelineRequest request,
         PipelineDefinition? definition,
@@ -2481,9 +2506,7 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionResult result
     )
     {
-        Guid? triggeredByUserId = Guid.TryParse(request.TriggeredByUserId, out Guid parsedUserId)
-            ? parsedUserId
-            : null;
+        Guid? triggeredByUserId = await TriggeringPersonAsync(request.TriggeredByUserId);
 
         // Step logs exclude StepExecutionLog.Output — it can carry chat/user content — per the
         // append-only, PII-excluded contract on PipelineExecution.StepLogsJson.

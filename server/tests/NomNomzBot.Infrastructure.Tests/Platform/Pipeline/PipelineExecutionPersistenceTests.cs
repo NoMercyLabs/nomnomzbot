@@ -36,6 +36,9 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
     private static readonly Guid TestChannel = Guid.Parse("0192a000-0000-7000-8000-0000000000d1");
     private readonly SqliteTestDatabase _database = SqliteTestDatabase.Open();
 
+    private const string StopJson = /*lang=json*/
+        """{"steps":[{"action":{"type":"stop","parameters":{}}}]}""";
+
     public void Dispose() => _database.Dispose();
 
     private PipelineEngine CreateEngine(
@@ -70,13 +73,17 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
         );
     }
 
-    private static PipelineRequest BuildRequest(string json, Guid? pipelineId = null) =>
+    private static PipelineRequest BuildRequest(
+        string json,
+        Guid? pipelineId = null,
+        string? triggeredBy = null
+    ) =>
         new()
         {
             BroadcasterId = TestChannel,
             PipelineId = pipelineId,
             PipelineJson = json,
-            TriggeredByUserId = Guid.NewGuid().ToString(),
+            TriggeredByUserId = triggeredBy ?? Guid.NewGuid().ToString(),
             TriggeredByDisplayName = "viewer1",
         };
 
@@ -295,6 +302,46 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
 
         row.PipelineId.Should().Be(pipelineId);
         row.TriggerKind.Should().Be("pipeline");
+    }
+
+    [Fact]
+    public async Task ChatRun_StoresThePersonOfTheTwitchUserId_SoTheRunListCanNameThem()
+    {
+        // Chat, reward and event callers pass the Twitch user id, not our user Guid.
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        NomNomzBot.Domain.Identity.Entities.User viewer = new()
+        {
+            TwitchUserId = "41234",
+            Username = "viewer1",
+            UsernameNormalized = "VIEWER1",
+            DisplayName = "Viewer1",
+        };
+        db.Users.Add(viewer);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, new(DateTimeOffset.Parse("2026-08-25T12:00:00Z")));
+
+        await engine.ExecuteAsync(BuildRequest(StopJson, triggeredBy: "41234"));
+
+        PipelineExecution row = await db.PipelineExecutions.SingleAsync(e =>
+            e.BroadcasterId == TestChannel
+        );
+        row.TriggeredByUserId.Should().Be(viewer.Id);
+    }
+
+    [Fact]
+    public async Task ChatRun_OfAnUnknownTwitchUser_StoresNoPerson_AndStillSavesTheRun()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        PipelineEngine engine = CreateEngine(db, new(DateTimeOffset.Parse("2026-08-25T12:00:00Z")));
+
+        await engine.ExecuteAsync(BuildRequest(StopJson, triggeredBy: "99999"));
+
+        PipelineExecution row = await db.PipelineExecutions.SingleAsync(e =>
+            e.BroadcasterId == TestChannel
+        );
+        row.TriggeredByUserId.Should().BeNull();
+        row.Status.Should().Be("stopped");
     }
 
     /// <summary>
