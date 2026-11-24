@@ -23,6 +23,23 @@
         "edit": "Verbinding bewerken",
         "link": "OBS koppelen"
       },
+      "guide": {
+        "title": "De OBS WebSocket-server instellen",
+        "done": "Klaar",
+        "retest": "Opnieuw testen",
+        "steps": {
+          "server": "Open in OBS Tools, dan WebSocket Server Settings, en vink Enable WebSocket server aan. De poort is 4455, tenzij je die hebt aangepast.",
+          "password": "Klik in hetzelfde venster op Show Connect Info en kopieer het Server Password.",
+          "save": "Klik hier op Verbinding bewerken, plak het wachtwoord, controleer de poort, zet de koppeling aan en sla op.",
+          "connected": "OBS antwoordt en de koppeling is verbonden."
+        },
+        "fix": {
+          "off": "De koppeling staat uit. Klik op OBS koppelen, zet hem aan en sla op.",
+          "unreachable": "De bot kan OBS niet bereiken. Controleer dat OBS open staat en Enable WebSocket server aangevinkt is. Controleer dat de poort in Verbinding bewerken de Server Port uit OBS is.",
+          "password": "OBS antwoordde maar weigerde het wachtwoord. Klik in OBS op Show Connect Info, kopieer het Server Password opnieuw en plak het in Verbinding bewerken.",
+          "connected": "OBS is verbonden. Er is niets meer te doen."
+        }
+      },
       "tabs": {
         "live": "Live",
         "tools": "Studio en hulpmiddelen",

@@ -22,6 +22,7 @@ import type { PanelState } from '@/composables/usePanelState';
 import Settings from '~icons/nnz/settings';
 
 import ObsConnectionForm from './ObsConnectionForm.vue';
+import ObsSetupGuide from './ObsSetupGuide.vue';
 import { bridgeHealth, connectionHealth, type Health } from '../obsHealth';
 
 const props = defineProps<{
@@ -112,5 +113,11 @@ const bridgeDetail = computed<string>(() =>
       </Button>
     </template>
   </section>
+  <ObsSetupGuide
+    v-if="connection && panelState !== 'error' && panelState !== 'loading'"
+    :connection="connection"
+    :unreachable="unreachable"
+    @retest="$emit('retry')"
+  />
   <ObsConnectionForm v-model:open="editing" :connection="connection" />
 </template>

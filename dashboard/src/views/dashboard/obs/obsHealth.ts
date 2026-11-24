@@ -56,6 +56,47 @@ export function connectionHealth(
     : { dot: 'ok', reason: 'connection.connected' };
 }
 
+// Where the OBS link stands for the setup guide. The probe and the status cannot tell a closed server from a wrong
+// port (both are a refused socket), so those two share the one state "unreachable" and one fix line.
+export type SetupState = 'off' | 'unreachable' | 'password' | 'connected';
+
+export type SetupStep = 'server' | 'password' | 'save' | 'connected';
+
+export const SETUP_STEPS = ['server', 'password', 'save', 'connected'] as const satisfies readonly SetupStep[];
+
+// The words the bot stores when OBS answered but refused the login: the Identify step failed or no password was sent.
+const PASSWORD_ERROR = /password|identify/i;
+
+export function setupState(
+  connection: Pick<ObsConnectionSummary, 'isEnabled' | 'lastError'>,
+  unreachable: boolean,
+): SetupState {
+  if (!connection.isEnabled)
+    return 'off';
+
+  if (connection.lastError)
+    return PASSWORD_ERROR.test(connection.lastError)
+      ? 'password'
+      : 'unreachable';
+
+  return unreachable
+    ? 'unreachable'
+    : 'connected';
+}
+
+// The steps the real state proves are done: OBS answered (so its server is on), the password was accepted, the link
+// is saved and switched on, and the link is up.
+const DONE_STEPS: Record<SetupState, readonly SetupStep[]> = {
+  off: [],
+  unreachable: ['save'],
+  password: ['server', 'save'],
+  connected: SETUP_STEPS,
+};
+
+export function doneSteps(state: SetupState): readonly SetupStep[] {
+  return DONE_STEPS[state];
+}
+
 // The browser-source bridge: orange while no bridge page is open in OBS, or none leads.
 export function bridgeHealth(
   connection: ObsConnectionSummary | null | undefined,
