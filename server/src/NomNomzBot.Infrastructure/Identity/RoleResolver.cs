@@ -143,7 +143,11 @@ public sealed class RoleResolver(
             return Result.Success(true);
 
         // Otherwise the resolved level must meet the action's effective required level.
-        int required = await EffectiveActionLevelAsync(broadcasterId, action, cancellationToken);
+        int required = RequiredLevelInModeratorView(
+            await EffectiveActionLevelAsync(broadcasterId, action, cancellationToken),
+            actionKey,
+            await IsModeratorViewOnlyAsync(userId, broadcasterId, cancellationToken)
+        );
         AccessFacts facts = await LoadFactsAsync(userId, broadcasterId, cancellationToken);
         return Result.Success(facts.EffectiveLevel >= required);
     }
@@ -161,6 +165,19 @@ public sealed class RoleResolver(
             c => c.Id == broadcasterId && !c.IsOnboarded && c.OwnerUserId != userId,
             ct
         );
+
+    /// <summary>
+    /// In a moderator-view channel, a Twitch moderator power needs at most the Moderator level, because Twitch
+    /// gives it to every moderator and no broadcaster exists there to promote anyone. Other keys keep their level.
+    /// </summary>
+    private static int RequiredLevelInModeratorView(
+        int required,
+        string actionKey,
+        bool moderatorViewOnly
+    ) =>
+        moderatorViewOnly && ModeratorViewActions.TwitchModeratorPowers.Contains(actionKey)
+            ? Math.Min(required, ManagementRole.Moderator.ToLevel())
+            : required;
 
     /// <summary>The id of the Bot manager bundle key when the bundle covers <paramref name="actionKey"/>, else none.</summary>
     private async Task<List<Guid?>> BundleActionIdsAsync(string actionKey, CancellationToken ct)
@@ -333,7 +350,11 @@ public sealed class RoleResolver(
                 continue;
 
             int? overrideLevel = overrides.TryGetValue(action.Id, out int level) ? level : null;
-            int required = ActionLevelPolicy.EffectiveRequiredLevel(action, overrideLevel);
+            int required = RequiredLevelInModeratorView(
+                ActionLevelPolicy.EffectiveRequiredLevel(action, overrideLevel),
+                action.ActionKey,
+                moderatorViewOnly
+            );
             bool viaBundle = holdsBundle && BotManagerBundle.Covers(action.ActionKey);
             if (
                 facts.EffectiveLevel >= required

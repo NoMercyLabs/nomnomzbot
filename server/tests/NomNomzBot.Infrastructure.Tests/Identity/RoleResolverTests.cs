@@ -552,6 +552,78 @@ public sealed class RoleResolverTests
         bool allowed
     ) => ModeratorViewActions.Allows(plane, actionKey).Should().Be(allowed);
 
+    // Owner, 2026-11-06: a moderator holds everything their own Twitch access allows, before onboarding.
+    // Twitch gives every moderator these five powers, while the seed holds them at LeadModerator.
+    private const int LeadModeratorLevel = 20;
+
+    private static readonly string[] TwitchModeratorPowers =
+    [
+        "moderation:automod:twitch:manage",
+        "moderation:blocklist:write",
+        "moderation:shieldmode:write",
+        "moderation:suspicioususer:write",
+        "moderation:unbanrequest:resolve",
+    ];
+
+    private static void SeedPowerActions(AuthDbContext db)
+    {
+        foreach (string key in TwitchModeratorPowers)
+            SeedAction(db, key, defaultLevel: LeadModeratorLevel, floor: LeadModeratorLevel);
+        SeedAction(db, "moderation:vip", defaultLevel: 40, floor: 40);
+        SeedAction(db, "moderation:moderator:write", defaultLevel: 40, floor: 40);
+    }
+
+    [Fact]
+    public async Task A_moderator_of_a_channel_that_did_not_onboard_holds_the_five_Twitch_moderator_powers()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        SeedChannelOwnedBy(db, Actor, onboarded: false);
+        SeedPowerActions(db);
+        SeedModerator(db);
+        await db.SaveChangesAsync();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        access.Value.HeldActionKeys.Should().Equal(TwitchModeratorPowers);
+        foreach (string key in TwitchModeratorPowers)
+            (await sut.HasCapabilityAsync(User, Channel, key)).Value.Should().BeTrue(key);
+        (await sut.HasCapabilityAsync(User, Channel, "moderation:vip")).Value.Should().BeFalse();
+        (await sut.HasCapabilityAsync(User, Channel, "moderation:moderator:write"))
+            .Value.Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task A_moderator_of_an_onboarded_channel_still_needs_LeadModerator_for_the_five_powers()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        SeedChannelOwnedBy(db, Actor, onboarded: true);
+        SeedPowerActions(db);
+        SeedModerator(db);
+        await db.SaveChangesAsync();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        access.Value.HeldActionKeys.Should().BeEmpty();
+        foreach (string key in TwitchModeratorPowers)
+            (await sut.HasCapabilityAsync(User, Channel, key)).Value.Should().BeFalse(key);
+    }
+
+    [Fact]
+    public async Task A_plain_viewer_of_a_channel_that_did_not_onboard_holds_none_of_the_five_powers()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        SeedChannelOwnedBy(db, Actor, onboarded: false);
+        SeedPowerActions(db);
+        await db.SaveChangesAsync();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        access.Value.HeldActionKeys.Should().BeEmpty();
+        foreach (string key in TwitchModeratorPowers)
+            (await sut.HasCapabilityAsync(User, Channel, key)).Value.Should().BeFalse(key);
+    }
+
     [Fact]
     public async Task The_owner_keeps_every_key_on_their_own_channel_before_it_onboards()
     {

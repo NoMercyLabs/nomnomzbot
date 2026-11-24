@@ -35,6 +35,16 @@ public static class ModeratorViewActions
         "stream:read",
     ];
 
+    // Twitch grants these five powers to every moderator, so a channel that did not onboard has no lead to wait for.
+    public static readonly IReadOnlyList<string> TwitchModeratorPowers =
+    [
+        "moderation:blocklist:write",
+        "moderation:automod:twitch:manage",
+        "moderation:shieldmode:write",
+        "moderation:unbanrequest:resolve",
+        "moderation:suspicioususer:write",
+    ];
+
     // The bot's own chat color: a bot setting, not a moderator power.
     private const string BotChatColor = "moderation:chatcolor:write";
 
