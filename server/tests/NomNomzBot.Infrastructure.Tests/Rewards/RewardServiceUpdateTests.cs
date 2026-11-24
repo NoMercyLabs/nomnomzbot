@@ -435,7 +435,7 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new() { ReplyDelivery = new(ReplyTarget.Chat) }
+            new() { ReplyDelivery = new() }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -579,5 +579,65 @@ public sealed class RewardServiceUpdateTests
         Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
         row.GlobalCooldownSeconds.Should().Be(90);
         row.MaxPerStream.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Update_with_only_auto_accept_stores_it_locally_without_a_helix_call()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build(
+            manageable: true,
+            twitchRewardId: "tw-reward-1"
+        );
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { AutoAccept = true }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AutoAccept.Should().BeTrue();
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.AutoAccept.Should().BeTrue();
+        await points
+            .DidNotReceiveWithAnyArgs()
+            .UpdateCustomRewardAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Update_that_omits_auto_accept_leaves_an_existing_true_unchanged()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build(
+            manageable: true,
+            twitchRewardId: "tw-reward-1"
+        );
+        points
+            .UpdateCustomRewardAsync(
+                Channel,
+                "tw-reward-1",
+                Arg.Any<UpdateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(TwitchReward()));
+        (
+            await sut.UpdateAsync(
+                Channel.ToString(),
+                RewardId.ToString(),
+                new() { AutoAccept = true }
+            )
+        )
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { Cost = 600 }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AutoAccept.Should().BeTrue();
+        db.ChangeTracker.Clear();
+        (await db.Rewards.SingleAsync(r => r.Id == RewardId)).AutoAccept.Should().BeTrue();
     }
 }

@@ -84,7 +84,9 @@ public sealed record RewardDetail(
     // True when a redemption with viewer text speaks that text through TTS in the viewer's voice.
     bool SpeaksViaTts = false,
     // Where the Response line goes and whether the overlay line is HTML; null = the platform chat as plain text.
-    ReplyDelivery? ReplyDelivery = null
+    ReplyDelivery? ReplyDelivery = null,
+    // True when the bot fulfills a redemption after a successful run and refunds it after a failed one.
+    bool AutoAccept = false
 );
 
 public sealed record CreateRewardRequest
@@ -100,6 +102,10 @@ public sealed record CreateRewardRequest
     public ReplyDelivery? ReplyDelivery { get; init; }
 
     public bool IsUserInputRequired { get; init; }
+
+    /// <summary>Auto accept: fulfill every redemption after a successful run, refund it after a failed one.</summary>
+    public bool AutoAccept { get; init; }
+
     public string? BackgroundColor { get; init; }
     public int? MaxPerStream { get; init; }
     public int? MaxPerUserPerStream { get; init; }
@@ -135,6 +141,10 @@ public sealed record UpdateRewardRequest
     public ReplyDelivery? ReplyDelivery { get; init; }
 
     public bool? IsUserInputRequired { get; init; }
+
+    /// <summary>Auto accept. Absent leaves it unchanged.</summary>
+    public bool? AutoAccept { get; init; }
+
     public bool? IsEnabled { get; init; }
     public bool? IsPaused { get; init; }
     public string? BackgroundColor { get; init; }

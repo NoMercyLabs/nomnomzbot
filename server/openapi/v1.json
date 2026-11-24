@@ -119163,6 +119163,10 @@
           "isUserInputRequired": {
             "type": "boolean"
           },
+          "autoAccept": {
+            "type": "boolean",
+            "description": "Auto accept: fulfill every redemption after a successful run, refund it after a failed one."
+          },
           "backgroundColor": {
             "type": [
               "null",
@@ -136975,6 +136979,10 @@
                 "$ref": "#/components/schemas/ReplyDelivery"
               }
             ]
+          },
+          "autoAccept": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -160591,6 +160599,13 @@
               "null",
               "boolean"
             ]
+          },
+          "autoAccept": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Auto accept. Absent leaves it unchanged."
           },
           "isEnabled": {
             "type": [

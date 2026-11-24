@@ -172,4 +172,33 @@ public sealed class RewardServiceTwitchPullSyncTests
         second.Cost.Should().Be(100);
         second.IsEnabled.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Sync_keeps_a_streamer_set_auto_accept()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchCustomReward>>([
+                    Reward("tw-reward-1", "Auto", 100, enabled: true),
+                ])
+            );
+        (await sut.SyncWithTwitchAsync(Channel.ToString())).IsSuccess.Should().BeTrue();
+        Reward stored = await db.Rewards.SingleAsync(r => r.TwitchRewardId == "tw-reward-1");
+        stored.AutoAccept.Should().BeFalse();
+        stored.AutoAccept = true;
+        await db.SaveChangesAsync();
+
+        (await sut.SyncWithTwitchAsync(Channel.ToString())).IsSuccess.Should().BeTrue();
+
+        db.ChangeTracker.Clear();
+        Reward after = await db.Rewards.SingleAsync(r => r.TwitchRewardId == "tw-reward-1");
+        after.AutoAccept.Should().BeTrue();
+    }
 }

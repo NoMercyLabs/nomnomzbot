@@ -418,4 +418,76 @@ public sealed class RewardServiceCreateTests
         result.IsFailure.Should().BeTrue();
         db.Rewards.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task CreateAsync_stores_auto_accept_and_never_sends_the_skip_request_queue_flag_to_helix()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: false,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
+        CreateCustomRewardRequest? sent = null;
+        points
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Do<CreateCustomRewardRequest>(r => sent = r),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(CreatedReward("Auto Reward", 100)));
+
+        Result<RewardDetail> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new()
+            {
+                Title = "Auto Reward",
+                Cost = 100,
+                AutoAccept = true,
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        sent.Should().NotBeNull();
+        // Twitch fulfills at once under this flag, and can only refund an unfulfilled redemption.
+        sent!.ShouldRedemptionsSkipRequestQueue.Should().NotBe(true);
+        result.Value.AutoAccept.Should().BeTrue();
+        Reward row = await db.Rewards.SingleAsync(r => r.Title == "Auto Reward");
+        row.AutoAccept.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateAsync_defaults_auto_accept_to_off()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: false,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
+        CreateCustomRewardRequest? sent = null;
+        points
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Do<CreateCustomRewardRequest>(r => sent = r),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(CreatedReward("Plain Reward", 100)));
+
+        Result<RewardDetail> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new() { Title = "Plain Reward", Cost = 100 }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        sent!.ShouldRedemptionsSkipRequestQueue.Should().NotBe(true);
+        result.Value.AutoAccept.Should().BeFalse();
+        (await db.Rewards.SingleAsync()).AutoAccept.Should().BeFalse();
+    }
 }

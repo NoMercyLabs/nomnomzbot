@@ -219,6 +219,14 @@ public sealed class RewardRedeemedHandler
                 replay,
                 cancellationToken
             );
+            await SettleRedemptionAsync(
+                scope,
+                reward,
+                @event,
+                replay,
+                targetRan ? RunVerdict.Worked : RunVerdict.Failed,
+                cancellationToken
+            );
             return outcome.Plus(RewardReplayTally.FromDirectRun(targetRan));
         }
 
@@ -266,16 +274,26 @@ public sealed class RewardRedeemedHandler
         // No reward-specific behavior → the generic redemption event response (the row the
         // event-responses page edits), through the shared executor like every other trigger source.
         if (string.IsNullOrWhiteSpace(pipelineJson))
-            return outcome.Plus(
-                await RunGenericResponseAsync(
-                    scope,
-                    broadcasterId,
-                    @event,
-                    variables,
-                    replay,
-                    cancellationToken
-                )
+        {
+            EventResponseOutcome generic = await RunGenericResponseAsync(
+                scope,
+                broadcasterId,
+                @event,
+                variables,
+                replay,
+                cancellationToken
             );
+            // The executor reports no verdict for a live run: it did what the channel set up, so it counts as worked.
+            await SettleRedemptionAsync(
+                scope,
+                reward,
+                @event,
+                replay,
+                RunVerdict.Worked,
+                cancellationToken
+            );
+            return outcome.Plus(generic);
+        }
 
         _logger.LogDebug(
             "Executing pipeline for reward {RewardId} in channel {Channel}",
@@ -295,7 +313,89 @@ public sealed class RewardRedeemedHandler
             replay,
             cancellationToken
         );
+        await SettleRedemptionAsync(
+            scope,
+            reward,
+            @event,
+            replay,
+            VerdictOf(run),
+            cancellationToken
+        );
         return run is null ? outcome : outcome.Plus(RewardReplayTally.FromPipeline(run));
+    }
+
+    /// <summary>How a redemption's run ended, as far as auto accept cares.</summary>
+    private enum RunVerdict
+    {
+        Worked,
+        Failed,
+
+        /// <summary>The run settled the redemption itself, or is parked and settles it later.</summary>
+        LeaveAlone,
+    }
+
+    private static RunVerdict VerdictOf(PipelineExecutionResult? run)
+    {
+        if (run is null)
+            return RunVerdict.Failed;
+        if (run.Outcome is PipelineOutcome.Suspended)
+            return RunVerdict.LeaveAlone;
+        bool settledItself = run.StepLogs.Any(log =>
+            log is { Succeeded: true, ActionType: "redemption_refund" or "redemption_fulfill" }
+        );
+        if (settledItself)
+            return RunVerdict.LeaveAlone;
+        return run.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped
+            ? RunVerdict.Worked
+            : RunVerdict.Failed;
+    }
+
+    /// <summary>
+    /// Auto accept: once the run ended, a worked run marks the redemption FULFILLED and a failed one CANCELED, which
+    /// gives the points back. Never on a replay (the redemption is long settled) and never for a run that settled it.
+    /// </summary>
+    private async Task SettleRedemptionAsync(
+        IServiceScope scope,
+        Reward? reward,
+        RewardRedeemedEvent @event,
+        bool replay,
+        RunVerdict verdict,
+        CancellationToken ct
+    )
+    {
+        if (replay || reward is not { AutoAccept: true } || verdict is RunVerdict.LeaveAlone)
+            return;
+
+        string status = verdict is RunVerdict.Worked ? "FULFILLED" : "CANCELED";
+        try
+        {
+            IRewardService rewards = scope.ServiceProvider.GetRequiredService<IRewardService>();
+            Result settled = await rewards.SetRedemptionStatusAsync(
+                @event.BroadcasterId.ToString(),
+                @event.RedemptionId,
+                status,
+                @event.RewardId,
+                ct
+            );
+            if (settled.IsFailure)
+                _logger.LogWarning(
+                    "Auto accept could not mark redemption {RedemptionId} in {Channel} {Status}: {Error}",
+                    @event.RedemptionId,
+                    @event.BroadcasterId,
+                    status,
+                    settled.ErrorMessage
+                );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Auto accept failed to mark redemption {RedemptionId} in {Channel} {Status}",
+                @event.RedemptionId,
+                @event.BroadcasterId,
+                status
+            );
+        }
     }
 
     /// <summary>

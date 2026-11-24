@@ -62,6 +62,14 @@ public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced, IBin
     /// </summary>
     public bool IsUserInputRequired { get; set; }
 
+    /// <summary>
+    /// Auto accept: the bot settles every redemption itself once the reward's run finishes. A run that
+    /// succeeded marks it FULFILLED, a run that failed or never ran marks it CANCELED (the points come back).
+    /// Kept off Twitch's skip-request-queue flag on purpose: that flag fulfills at once, and Twitch can only
+    /// refund a redemption that is still unfulfilled.
+    /// </summary>
+    public bool AutoAccept { get; set; }
+
     [MaxLength(500)]
     public string? Description { get; set; }
 

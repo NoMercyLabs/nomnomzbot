@@ -10979,6 +10979,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<bool>("AutoAccept")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("BackgroundColor")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");

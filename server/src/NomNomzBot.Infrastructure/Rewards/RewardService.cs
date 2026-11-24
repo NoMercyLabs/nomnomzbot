@@ -173,6 +173,7 @@ public class RewardService : IRewardService
                 IsEnabled = tr.IsEnabled,
                 IsManageable = true,
                 IsUserInputRequired = tr.IsUserInputRequired,
+                AutoAccept = request.AutoAccept,
                 TwitchRewardId = tr.Id,
                 IsPlatform = true,
                 TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
@@ -202,6 +203,7 @@ public class RewardService : IRewardService
                 IsEnabled = true,
                 IsManageable = true,
                 IsUserInputRequired = request.IsUserInputRequired,
+                AutoAccept = request.AutoAccept,
                 TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
                 SpeaksViaTts = request.SpeaksViaTts,
                 PipelineId = request.PipelineId,
@@ -341,6 +343,8 @@ public class RewardService : IRewardService
             reward.IsPaused = request.IsPaused.Value;
         if (request.IsUserInputRequired.HasValue)
             reward.IsUserInputRequired = request.IsUserInputRequired.Value;
+        if (request.AutoAccept.HasValue)
+            reward.AutoAccept = request.AutoAccept.Value;
         if (request.TimerDurationSeconds.HasValue)
             reward.TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds);
         if (request.SpeaksViaTts.HasValue)
@@ -1457,6 +1461,7 @@ public class RewardService : IRewardService
             r.CreatedAt,
             r.UpdatedAt,
             r.SpeaksViaTts,
-            r.ReplyDelivery
+            r.ReplyDelivery,
+            r.AutoAccept
         );
 }

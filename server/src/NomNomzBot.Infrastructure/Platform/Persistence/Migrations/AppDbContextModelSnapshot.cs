@@ -10489,6 +10489,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AutoAccept")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("BackgroundColor")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
