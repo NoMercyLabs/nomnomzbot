@@ -152,6 +152,7 @@
           }
         },
         "notSetUp": "Not set up yet: {fields} is empty. | Not set up yet: {fields} are empty.",
+        "setting": "{label}: {value}",
         "inspector": {
           "label": "Step details",
           "settings": "Settings",

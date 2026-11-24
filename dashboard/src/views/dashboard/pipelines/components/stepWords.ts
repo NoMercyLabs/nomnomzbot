@@ -115,6 +115,26 @@ export function missingFields(
       fieldLabel(field.name, words));
 }
 
+// The first setting the step holds, as one line, so a card says which step it is (two Send message cards differ
+// only by their message). A switch says nothing on its own, so it is skipped.
+export function stepSetting(
+  step: PipelineStep,
+  descriptor: PipelineActionDescriptor | undefined,
+  words: Words,
+): string | null {
+  for (const field of descriptor?.fields ?? []) {
+    const saved = step.action[field.name];
+    const value = typeof saved === 'boolean'
+      ? null
+      : valueText(saved);
+
+    if (value !== null)
+      return words.t(`${page}.setting`, { label: fieldLabel(field.name, words), value });
+  }
+
+  return null;
+}
+
 export function fieldHelp(type: string, field: PipelineActionField, text: TextOf): string {
   return text(field.description, '') || text({ key: `pipeline.${type}.${field.name}.help` }, '');
 }

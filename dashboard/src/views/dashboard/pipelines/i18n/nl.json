@@ -152,6 +152,7 @@
           }
         },
         "notSetUp": "Nog niet ingesteld: {fields} is leeg. | Nog niet ingesteld: {fields} zijn leeg.",
+        "setting": "{label}: {value}",
         "inspector": {
           "label": "Stapdetails",
           "settings": "Instellingen",

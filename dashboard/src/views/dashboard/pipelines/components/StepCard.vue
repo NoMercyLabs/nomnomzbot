@@ -28,7 +28,14 @@ import { actionIcon, blockIcon } from './stepIcons';
 import { runOf, type RunMarks, type StepRunState } from './stepRun';
 import type { MoveDirection, StepLane, StepNode } from './stepTree';
 import { vLaneDrag, type LaneDrag } from './useStepDrag';
-import { conditionSentence, laneTitle, missingFields, stepSentence, stepTitle } from './stepWords';
+import {
+  conditionSentence,
+  laneTitle,
+  missingFields,
+  stepSentence,
+  stepSetting,
+  stepTitle,
+} from './stepWords';
 
 const props = defineProps<{
   node: StepNode;
@@ -71,6 +78,8 @@ const condition = computed(() =>
     ? conditionSentence(step.value.condition, { t, te })
     : null,
 );
+const setting = computed(() =>
+  stepSetting(step.value, descriptor.value, { t, te }));
 const missing = computed(() => missingFields(step.value, descriptor.value, { t, te }));
 const selected = computed(() => props.node.key === props.selectedKey);
 
@@ -156,6 +165,7 @@ function addTo(lane: StepLane, index: number): void {
             <span data-step-title class="font-medium">{{ title }}</span>
           </span>
           <span v-if="sentence" class="text-sm text-muted-foreground">{{ sentence }}</span>
+          <span v-if="setting" data-step-detail class="truncate text-sm">{{ setting }}</span>
           <span v-if="condition" data-step-condition class="text-xs text-muted-foreground">
             {{ condition }}
           </span>

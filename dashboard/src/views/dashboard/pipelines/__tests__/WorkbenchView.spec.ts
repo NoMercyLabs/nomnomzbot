@@ -1837,6 +1837,196 @@ describe('moving a step', () => {
 
 type Live = { updatedAt?: string; graph: { steps: PipelineStep[] } };
 
+// Three plain steps with different actions and values, so a card or the open details that shows another step's
+// data after a move is seen at once.
+const trio: PipelineStep[] = [
+  step({
+    id: 'alpha',
+    order: 0,
+    action: { type: 'send_message', message: 'alpha-text' },
+  }),
+  step({
+    id: 'bravo',
+    order: 1,
+    action: { type: 'speak', text: 'bravo-text' },
+  }),
+  step({
+    id: 'charlie',
+    order: 2,
+    action: { type: 'wait', seconds: 7 },
+  }),
+];
+
+describe('a moved step shows its own data', () => {
+  const live = reactive(pipeline) as unknown as Live;
+
+  const order = (): (string | undefined)[] =>
+    cards().map((item) => item.dataset.stepId);
+  const titles = (): (string | undefined)[] =>
+    order().map((stepId) => titleOf(stepId!));
+  const details = (): (string | undefined)[] =>
+    cards().map((item) =>
+      item.querySelector('[data-step-detail]')?.textContent?.replace(/^[^:]*:\s*/, '').trim());
+  const inspector = (): HTMLElement | null =>
+    document.body.querySelector<HTMLElement>('[data-step-inspector]');
+
+  beforeEach(() => {
+    live.graph = { steps: trio };
+  });
+
+  afterEach(() => {
+    live.graph = { steps };
+  });
+
+  async function openStep(id: string): Promise<void> {
+    await press(`[data-step-id="${id}"] > div > button`);
+  }
+
+  it('starts with each card on its own step', async () => {
+    await open();
+
+    expect(order()).toEqual(['alpha', 'bravo', 'charlie']);
+    expect(titles()).toEqual(['Send message', 'Speak', 'Wait']);
+  });
+
+  it('keeps the open details on the step a keyboard nudge moved, with its values and place', async () => {
+    await open();
+    await openStep('charlie');
+
+    expect(fieldInput('seconds').value).toBe('7');
+
+    await altKey('charlie', 'ArrowUp');
+
+    expect(order()).toEqual(['alpha', 'charlie', 'bravo']);
+    expect(titles()).toEqual(['Send message', 'Wait', 'Speak']);
+    expect(numbers()).toEqual(['1', '2', '3']);
+    expect(inspector()?.textContent).toContain('Wait');
+    expect(inspector()?.textContent).toContain('Step 2');
+    expect(fieldInput('seconds').value).toBe('7');
+
+    await press('[data-workbench-undo]');
+
+    expect(order()).toEqual(['alpha', 'bravo', 'charlie']);
+    expect(titles()).toEqual(['Send message', 'Speak', 'Wait']);
+    expect(inspector()?.textContent).toContain('Step 3');
+    expect(fieldInput('seconds').value).toBe('7');
+  });
+
+  it('keeps the open details on the step a drop moved, and again after Undo', async () => {
+    await open();
+    await openStep('alpha');
+
+    expect(fieldInput('message').value).toBe('alpha-text');
+
+    const top = card('alpha').parentElement!;
+
+    Sortable.get(top)!.option('onEnd')!({
+      item: card('alpha'),
+      from: top,
+      to: top,
+      oldIndex: 0,
+      newIndex: 2,
+    } as unknown as Sortable.SortableEvent);
+
+    await flushPromises();
+
+    expect(order()).toEqual(['bravo', 'charlie', 'alpha']);
+    expect(titles()).toEqual(['Speak', 'Wait', 'Send message']);
+    expect(inspector()?.textContent).toContain('Step 3');
+    expect(fieldInput('message').value).toBe('alpha-text');
+
+    await press('[data-workbench-undo]');
+
+    expect(order()).toEqual(['alpha', 'bravo', 'charlie']);
+    expect(inspector()?.textContent).toContain('Step 1');
+    expect(fieldInput('message').value).toBe('alpha-text');
+  });
+
+  it('shows each card with the settings of its own step, in the new order after every kind of move', async () => {
+    await open();
+
+    expect(details()).toEqual(['alpha-text', 'bravo-text', '7']);
+
+    await altKey('charlie', 'ArrowUp');
+
+    expect(details()).toEqual(['alpha-text', '7', 'bravo-text']);
+
+    const top = card('alpha').parentElement!;
+
+    Sortable.get(top)!.option('onEnd')!({
+      item: card('alpha'),
+      from: top,
+      to: top,
+      oldIndex: 0,
+      newIndex: 2,
+    } as unknown as Sortable.SortableEvent);
+
+    await flushPromises();
+
+    expect(details()).toEqual(['7', 'bravo-text', 'alpha-text']);
+
+    await press('[data-workbench-undo]');
+
+    expect(details()).toEqual(['alpha-text', '7', 'bravo-text']);
+
+    await press('[data-workbench-undo]');
+
+    expect(details()).toEqual(['alpha-text', 'bravo-text', '7']);
+  });
+
+  it('tells two steps of the same action apart after one moves past the other', async () => {
+    live.graph = {
+      steps: [
+        step({
+          id: 'one',
+          order: 0,
+          action: { type: 'send_message', message: 'first-text' },
+        }),
+        step({
+          id: 'two',
+          order: 1,
+          action: { type: 'send_message', message: 'second-text' },
+        }),
+      ],
+    };
+
+    await open();
+
+    expect(details()).toEqual(['first-text', 'second-text']);
+
+    await altKey('two', 'ArrowUp');
+
+    expect(order()).toEqual(['two', 'one']);
+    expect(details()).toEqual(['second-text', 'first-text']);
+  });
+
+  it('keeps the open details on its own step when another step moves around it', async () => {
+    await open();
+    await openStep('bravo');
+    await altKey('charlie', 'ArrowUp');
+    await altKey('charlie', 'ArrowUp');
+
+    expect(order()).toEqual(['charlie', 'alpha', 'bravo']);
+    expect(titles()).toEqual(['Wait', 'Send message', 'Speak']);
+    expect(inspector()?.textContent).toContain('Speak');
+    expect(inspector()?.textContent).toContain('Step 3');
+    expect(fieldInput('text').value).toBe('bravo-text');
+  });
+
+  it('moves the field value with the step when the open step swaps with its neighbor', async () => {
+    await open();
+    await openStep('alpha');
+    await altKey('alpha', 'ArrowDown');
+
+    expect(order()).toEqual(['bravo', 'alpha', 'charlie']);
+    expect(fieldInput('message').value).toBe('alpha-text');
+
+    await openStep('bravo');
+
+    expect(fieldInput('text').value).toBe('bravo-text');
+  });
+});
+
 describe('the unsaved draft in this browser', () => {
   const draftKey = 'nomnomz.draft.c1.p1';
   const live = reactive(pipeline) as unknown as Live;
