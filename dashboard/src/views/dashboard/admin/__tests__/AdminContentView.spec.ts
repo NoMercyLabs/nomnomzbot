@@ -595,6 +595,24 @@ describe('AdminContentView', () => {
     expect(text()).toContain('12');
   });
 
+  it('filters the list by a kind picker and groups each row under its plain kind name', async () => {
+    await open();
+
+    expect(document.body.querySelector('input[data-kind-filter]')).toBeNull();
+
+    const group = first('[data-kind-group="command"]');
+
+    expect(group.textContent).toContain('Command');
+    expect(group.querySelector('[data-definition-row]')!.textContent).toContain('Command / hug');
+
+    await chooseOption('[data-kind-filter]', 'Timer');
+
+    const lists = calls.filter((call) => call.path === '/api/v{version}/platform/content/definitions' &&
+      call.method === 'GET');
+
+    expect(lists.at(-1)!.options?.params?.query?.kind).toBe('timer');
+  });
+
   it('lists definitions and versions as SummaryRows inside RowGroups, each with its title', async () => {
     await open();
 
@@ -1151,7 +1169,7 @@ describe('AdminContentView', () => {
     expect((first('[data-command-cooldown]') as HTMLInputElement).value).toBe('0:12');
     expect((first('[data-command-user-cooldown]') as HTMLInputElement).value).toBe('0:03');
     expect(first('[role="switch"]').getAttribute('aria-checked')).toBe('true');
-    expect(first('[role="combobox"]').textContent).toContain('Moderator');
+    expect(first('[data-command-payload-editor] [role="combobox"]').textContent).toContain('Moderator');
   });
 
   it('saves a changed cooldown as a new version and keeps every other override', async () => {

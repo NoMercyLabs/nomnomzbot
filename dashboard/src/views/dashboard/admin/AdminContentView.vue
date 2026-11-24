@@ -54,7 +54,8 @@ type EditorTarget = 'create' | 'draft';
 const { t } = useI18n();
 const { can } = usePlatformCan();
 
-const kindFilter = ref('');
+// 'all' stands for no filter: a Select item cannot carry an empty value.
+const kindFilter = ref('all');
 const pickedId = ref<string | null>(null);
 const pickedVersionId = ref<string | null>(null);
 const editing = ref<EditorTarget | null>(null);
@@ -67,7 +68,10 @@ const displayName = ref('');
 const description = ref('');
 const payload = ref('');
 
-const definitions = useContentDefinitions(kindFilter);
+const definitions = useContentDefinitions(() =>
+  kindFilter.value === 'all'
+    ? ''
+    : kindFilter.value);
 const detail = useContentDefinition(pickedId);
 const version = useContentVersion(pickedId, pickedVersionId);
 const create = useCreateContentDefinition();
@@ -95,8 +99,31 @@ const editorTitle = computed<string>(() =>
 const kindChoices = computed(() =>
   CONTENT_KINDS.map((value) => ({
     value,
-    label: t(`dashboard.admin.content.kinds.${value}`),
+    label: kindName(value),
   })));
+
+const filterChoices = computed(() => [
+  {
+    value: 'all',
+    label: t('dashboard.admin.content.kindPlaceholder'),
+  },
+  ...kindChoices.value,
+]);
+
+// One group per kind, in the catalog order, so a long list reads by kind.
+const kindGroups = computed(() =>
+  CONTENT_KINDS
+    .map((value) => ({
+      kind: value,
+      rows: (definitions.data.value ?? []).filter((row) =>
+        row.kind === value),
+    }))
+    .filter((group) =>
+      group.rows.length > 0));
+
+function kindName(value: string): string {
+  return t(`dashboard.admin.content.kinds.${value}`);
+}
 
 // A draft belongs to the picked definition; a new definition has the kind the operator chose.
 const editorKind = computed<string>(() =>
@@ -248,12 +275,12 @@ async function submit(): Promise<void> {
   <PageBody data-page-body>
     <Field data-page-inset>
       <FieldLabel for="content-kind">{{ $t("dashboard.admin.content.kindFilter") }}</FieldLabel>
-      <Input
+      <OptionSelect
         id="content-kind"
         v-model="kindFilter"
         class="max-w-xs!"
         data-kind-filter
-        :placeholder="$t('dashboard.admin.content.kindPlaceholder')"
+        :options="filterChoices"
       />
     </Field>
 
@@ -266,30 +293,38 @@ async function submit(): Promise<void> {
       :error-text="$t('dashboard.admin.content.error')"
       @retry="definitions.refetch()"
     >
-      <RowGroup>
-        <SummaryRow
-          v-for="row in definitions.data.value ?? []"
-          :key="row.id"
-          data-definition-row
-          pick
-          truncate
-          :selected="row.id === pickedId"
-          :title="row.displayName"
-          :detail="$t('dashboard.admin.content.kindKey', { kind: row.kind, key: row.key })"
-          @click="pick(row)"
-        >
-          <template #end>
-            <StatusBadge
-              v-if="row.retiredAt"
-              tone="off"
-              :label="$t('dashboard.admin.content.retired')"
-            />
-            <span v-else class="shrink-0 text-xs text-muted-foreground">
-              {{ $t("dashboard.admin.content.version", { version: Number(row.currentVersion ?? 0) }) }}
-            </span>
-          </template>
-        </SummaryRow>
-      </RowGroup>
+      <section
+        v-for="group in kindGroups"
+        :key="group.kind"
+        class="grid gap-2 not-first:mt-4"
+        :data-kind-group="group.kind"
+      >
+        <h3 class="text-xs font-medium text-muted-foreground">{{ kindName(group.kind) }}</h3>
+        <RowGroup>
+          <SummaryRow
+            v-for="row in group.rows"
+            :key="row.id"
+            data-definition-row
+            pick
+            truncate
+            :selected="row.id === pickedId"
+            :title="row.displayName"
+            :detail="$t('dashboard.admin.content.kindKey', { kind: kindName(row.kind), key: row.key })"
+            @click="pick(row)"
+          >
+            <template #end>
+              <StatusBadge
+                v-if="row.retiredAt"
+                tone="off"
+                :label="$t('dashboard.admin.content.retired')"
+              />
+              <span v-else class="shrink-0 text-xs text-muted-foreground">
+                {{ $t("dashboard.admin.content.version", { version: Number(row.currentVersion ?? 0) }) }}
+              </span>
+            </template>
+          </SummaryRow>
+        </RowGroup>
+      </section>
     </PanelCard>
 
     <PanelCard
