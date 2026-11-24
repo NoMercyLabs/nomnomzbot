@@ -940,6 +940,21 @@
           },
           "editJson": "JSON bewerken"
         },
+        "rewardEditor": {
+          "description": "Bewerk de beloning zoals een kanaal dat doet. Het kanaal dat hem installeert krijgt hem op zijn eigen Twitch. Opslaan bewaart hem als nieuwe conceptversie.",
+          "editJson": "JSON bewerken",
+          "speaksViaTts": "Lees het bericht van de kijker voor",
+          "speaksViaTtsHelp": "De tekst die een kijker bij een inwisseling typt, wordt door tekst-naar-spraak uitgesproken.",
+          "limits": "Limieten",
+          "problem": {
+            "title": "Geef de beloning een naam van hoogstens {max} tekens.",
+            "cost": "De kosten moeten een heel getal van minstens 1 zijn.",
+            "prompt": "De beschrijving heeft hoogstens {max} tekens.",
+            "response": "Het chatantwoord heeft hoogstens {max} tekens.",
+            "color": "De kleur moet een hexcode zijn zoals #9146FF.",
+            "limit": "Een limiet moet een heel getal van minstens 1 zijn. Een cooldown is hoogstens {cooldown} seconden en een timer hoogstens {timer} seconden."
+          }
+        },
         "timerEditor": {
           "description": "Bewerk de timer zoals een kanaal dat doet. Een timer zonder berichten draait de pipeline van het kanaal dat hem installeert. Opslaan bewaart hem als nieuwe conceptversie.",
           "editJson": "JSON bewerken"

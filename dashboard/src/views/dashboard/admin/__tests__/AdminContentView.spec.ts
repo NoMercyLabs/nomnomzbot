@@ -25,6 +25,7 @@ import { dashboardRoutes } from '@/router/dashboard';
 import AdminContentView from '../AdminContentView.vue';
 import { commandWords } from '../components/commandPayload';
 import { eventResponseWords } from '../components/eventResponsePayload';
+import { rewardWords } from '../components/rewardPayload';
 import { timerWords } from '../components/timerPayload';
 import { overlayWords } from '../components/widgetPayload';
 import en from '../i18n/en.json';
@@ -196,6 +197,18 @@ const timerBody = {
   minChatActivity: 5,
   fireOnce: false,
   isEnabled: true,
+};
+
+const rewardBody = {
+  title: 'Hydrate',
+  cost: 500,
+  prompt: 'Drink a glass of water.',
+  response: 'Thanks for the reminder, {user}!',
+  isUserInputRequired: false,
+  backgroundColor: '#9146FF',
+  maxPerStream: 10,
+  globalCooldownSeconds: 60,
+  speaksViaTts: true,
 };
 
 const widgetSource = '<template><p>{{ title }}</p></template>';
@@ -434,6 +447,7 @@ beforeAll(async () => {
     ensureWords(overlayWords),
     ensureWords(eventResponseWords),
     ensureWords(timerWords),
+    ensureWords(rewardWords),
   ]);
 });
 
@@ -1160,6 +1174,81 @@ describe('AdminContentView', () => {
     await click(byText('button', 'Draft new version')!);
 
     expect(document.body.querySelector('[data-timer-payload-editor]')).toBeNull();
+    expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
+    expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
+  });
+
+  it('opens a reward draft in the channel reward fields with the values of the payload', async () => {
+    definition.kind = 'reward';
+    draftPayload = JSON.stringify(rewardBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-reward-payload-editor] #reward-cost')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    expect(document.body.querySelector('[data-code-editor]')).toBeNull();
+
+    expect((first('[data-reward-payload-editor] #reward-title') as HTMLInputElement).value).toBe(
+      'Hydrate',
+    );
+
+    expect((first('[data-reward-payload-editor] #reward-cost') as HTMLInputElement).value).toBe(
+      '500',
+    );
+  });
+
+  it('saves a changed cost as a new version and keeps every other key', async () => {
+    definition.kind = 'reward';
+    draftPayload = JSON.stringify(rewardBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-reward-payload-editor] #reward-cost')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    await type('[data-reward-payload-editor] #reward-cost', '750');
+    await click(first('[data-reward-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+
+    expect(post.path).toBe('/api/v{version}/platform/content/definitions/{id}/versions');
+
+    const body = post.options?.body as { payloadJson: string };
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ ...rewardBody, cost: 750 });
+  });
+
+  it('saves a changed title and leaves an emptied limit out of the payload', async () => {
+    definition.kind = 'reward';
+    draftPayload = JSON.stringify(rewardBody);
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    await vi.waitFor(() => {
+      expect(first('[data-reward-payload-editor] #reward-title')).toBeInstanceOf(HTMLInputElement);
+    }, { timeout: 5000 });
+
+    await type('[data-reward-payload-editor] #reward-title', 'Stretch');
+    await type('[data-reward-payload-editor] #reward-maxPerStream', '');
+    await click(first('[data-reward-save]'));
+
+    const post = calls.find((call) => call.method === 'POST')!;
+    const body = post.options?.body as { payloadJson: string };
+    const { maxPerStream: _gone, ...rest } = rewardBody;
+
+    expect(JSON.parse(body.payloadJson)).toEqual({ ...rest, title: 'Stretch' });
+  });
+
+  it('opens a reward payload with an unknown key as JSON, so nothing is lost', async () => {
+    definition.kind = 'reward';
+    draftPayload = JSON.stringify({ ...rewardBody, note: 'keep me' });
+    await pickDraftVersion();
+    await click(byText('button', 'Draft new version')!);
+
+    expect(document.body.querySelector('[data-reward-payload-editor]')).toBeNull();
     expect(first('[data-code-editor]').getAttribute('data-code-editor')).toBe('payload.json');
     expect((first('[data-editor-source]') as HTMLInputElement).value).toBe(draftPayload);
   });

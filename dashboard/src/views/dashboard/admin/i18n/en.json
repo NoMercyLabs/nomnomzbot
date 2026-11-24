@@ -940,6 +940,21 @@
           },
           "editJson": "Edit JSON"
         },
+        "rewardEditor": {
+          "description": "Edit the reward the way a channel does. The channel that installs it gets it on its own Twitch. Save keeps it as a new draft version.",
+          "editJson": "Edit JSON",
+          "speaksViaTts": "Read the viewer message aloud",
+          "speaksViaTtsHelp": "The text a viewer types with a redeem is spoken by text to speech.",
+          "limits": "Limits",
+          "problem": {
+            "title": "Give the reward a name of at most {max} characters.",
+            "cost": "The cost must be a whole number of at least 1.",
+            "prompt": "The description holds at most {max} characters.",
+            "response": "The chat reply holds at most {max} characters.",
+            "color": "The color must be a hex code like #9146FF.",
+            "limit": "A limit must be a whole number of at least 1. A cooldown is at most {cooldown} seconds and a timer at most {timer} seconds."
+          }
+        },
         "timerEditor": {
           "description": "Edit the timer the way a channel does. A timer with no messages runs the pipeline of the channel that installs it. Save keeps it as a new draft version.",
           "editJson": "Edit JSON"
