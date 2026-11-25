@@ -46,8 +46,8 @@ public static partial class DateExpressionParser
             (string name, string? argument) = SplitStep(step);
             Result<bool> handled = name.ToLowerInvariant() switch
             {
-                "lang" => ParseLanguage(argument, ref culture),
-                _ when IsOutput(name) => ParseOutput(name, argument, ref output),
+                "lang" => ParseLanguage(argument, out culture),
+                _ when IsOutput(name) => ParseOutput(name, argument, out output),
                 _ => ParseStep(step, name, argument, steps),
             };
             if (handled.IsFailure)
@@ -158,7 +158,7 @@ public static partial class DateExpressionParser
         return zone is null ? null : new ZoneStep(zone);
     }
 
-    private static Result<bool> ParseLanguage(string? argument, ref CultureInfo? culture)
+    private static Result<bool> ParseLanguage(string? argument, out CultureInfo? culture)
     {
         culture = DateExpressionContext.FindCulture(argument);
         return culture is null
@@ -166,7 +166,7 @@ public static partial class DateExpressionParser
             : Result<bool>.Success(true);
     }
 
-    private static Result<bool> ParseOutput(string name, string? argument, ref DateOutput? output)
+    private static Result<bool> ParseOutput(string name, string? argument, out DateOutput? output)
     {
         output = name.ToLowerInvariant() switch
         {
