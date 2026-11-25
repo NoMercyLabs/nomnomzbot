@@ -36,8 +36,13 @@ from pathlib import Path
 # localhost is the dashboard dev server (Vite on 5090) that proxies to the box, so a worker checks its own tree.
 # nomnomzbot moved to its own isolated LXC (192.168.2.34) on 2026-11-04; .60 is now just a relay with no sshd.
 ALLOWED_APPS = {"192.168.2.34", "dev.nomnomz.bot", "vue.nomnomz.bot", "localhost", "127.0.0.1"}
+# The Windows box names the deploy key docker_proxmox; the devbox names it nnz_deploy.
+KEY = next(
+    (key for key in (Path.home() / ".ssh" / name for name in ("docker_proxmox", "nnz_deploy")) if key.exists()),
+    Path.home() / ".ssh" / "docker_proxmox",
+)
 SSH = [
-    "ssh", "-i", str(Path.home() / ".ssh" / "docker_proxmox"),
+    "ssh", "-i", str(KEY),
     "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "root@192.168.2.34",
 ]
 MINT = Path(__file__).with_name("mint-jwt.py")
