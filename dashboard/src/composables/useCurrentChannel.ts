@@ -54,6 +54,9 @@ export type CurrentChannel = {
 // The channel being managed. It outlives a reload and is shared by every part of the frame.
 export const chosenChannelId = useLocalStorage<string>('nnz.channel', '');
 
+// Counts the picks, so only the newest one sets the channel.
+let latestPick = 0;
+
 // The channels the person reaches: the ones set up here, then the Twitch channels they moderate that are not.
 export function channelChoices(
   rows: readonly ChannelSummary[],
@@ -125,6 +128,9 @@ export function useCurrentChannel(): CurrentChannel {
   const current = computed(() => pickCurrent(channels.value, chosenChannelId.value));
 
   async function choose(choice: ChannelChoice): Promise<void> {
+    latestPick += 1;
+    const pick = latestPick;
+
     if (choice.channelId) {
       chosenChannelId.value = choice.channelId;
 
@@ -135,7 +141,8 @@ export function useCurrentChannel(): CurrentChannel {
 
     const entered = await enter.mutateAsync(choice.twitchId);
 
-    if (entered) {
+    // A later pick wins: a slow set-up of an earlier pick must not switch back.
+    if (entered && pick === latestPick) {
       chosenChannelId.value = entered.id;
     }
   }

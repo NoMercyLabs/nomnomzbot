@@ -43,7 +43,7 @@ const route = useRoute();
 const router = useRouter();
 // In viewer chat a person reaches every channel this bot serves, not only the ones they manage.
 const viewerChat = computed(() => route.meta.viewerChat === true);
-const { channels, current, isPending, choose } = useCurrentChannel();
+const { channels, current, choose } = useCurrentChannel();
 const open = ref(false);
 // A previewed role has no other channels to switch to: the channel name stays, the list goes.
 const { role: previewRole } = useViewAs();
@@ -170,7 +170,6 @@ async function pick(row: ChannelChoice): Promise<void> {
               v-for="row in group.rows"
               :key="row.login"
               :value="row.displayName"
-              :disabled="isPending"
               @select="pick(row)"
             >
               <Avatar class="size-6 rounded-md">
