@@ -12,6 +12,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick, ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { i18n } from '@/i18n';
 
@@ -29,11 +30,11 @@ vi.mock('vue-sonner', () => ({ toast: (...args: unknown[]): void => toast(...arg
 
 const hosts: VueWrapper[] = [];
 
-function mountHost(): void {
+function mountHost(router: Router = makeRouter()): void {
   const host = mount(
     defineComponent({
       setup() {
-        usePwaUpdate();
+        usePwaUpdate(router);
 
         return () => null;
       },
@@ -82,4 +83,59 @@ describe('usePwaUpdate', () => {
 
     expect(updateServiceWorker).toHaveBeenCalledWith(true);
   });
+
+  it('loads a waiting build on the next page change, on the page the user picked', async () => {
+    const router = makeRouter();
+    await router.push('/a');
+    mountHost(router);
+    const assign = vi.fn<(url: string) => void>();
+    vi.stubGlobal('location', { ...window.location, assign });
+
+    needRefresh.value = true;
+    await nextTick();
+    await router.push('/b?x=1');
+
+    expect(updateServiceWorker).toHaveBeenCalledWith(false);
+    expect(assign).toHaveBeenCalledWith('/b?x=1');
+    expect(router.currentRoute.value.path).toBe('/a');
+    vi.unstubAllGlobals();
+  });
+
+  it('never reloads the open page by itself, so an editor keeps its work', async () => {
+    const router = makeRouter();
+    await router.push('/a');
+    mountHost(router);
+    const assign = vi.fn<(url: string) => void>();
+    vi.stubGlobal('location', { ...window.location, assign });
+
+    needRefresh.value = true;
+    await nextTick();
+
+    expect(updateServiceWorker).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('changes pages normally while the running build is the newest', async () => {
+    const router = makeRouter();
+    await router.push('/a');
+    mountHost(router);
+
+    await router.push('/b');
+
+    expect(router.currentRoute.value.path).toBe('/b');
+    expect(updateServiceWorker).not.toHaveBeenCalled();
+  });
 });
+
+function makeRouter(): Router {
+  const page = defineComponent({ render: () => null });
+
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/a', component: page },
+      { path: '/b', component: page },
+    ],
+  });
+}

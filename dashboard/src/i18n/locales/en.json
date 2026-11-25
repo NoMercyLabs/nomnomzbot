@@ -7,7 +7,7 @@
   "pwa": {
     "update": {
       "title": "A new version is ready",
-      "body": "Reload to use it. Your open page stays as it is until you do.",
+      "body": "It loads by itself when you open another page. This page stays as it is, or reload now.",
       "reload": "Reload"
     }
   },

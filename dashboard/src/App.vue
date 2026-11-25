@@ -10,10 +10,12 @@
 -->
 <script setup lang="ts">
 import { useBackCloses } from '@/composables/useBackCloses';
+import { useRouter } from 'vue-router';
+
 import { usePwaUpdate } from '@/composables/usePwaUpdate';
 
 useBackCloses();
-usePwaUpdate();
+usePwaUpdate(useRouter());
 </script>
 
 <template>

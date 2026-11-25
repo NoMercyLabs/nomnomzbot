@@ -7,7 +7,7 @@
   "pwa": {
     "update": {
       "title": "Er is een nieuwe versie klaar",
-      "body": "Laad opnieuw om hem te gebruiken. Je open pagina blijft zoals hij is tot je dat doet.",
+      "body": "Hij laadt vanzelf als je een andere pagina opent. Deze pagina blijft zoals hij is, of laad nu opnieuw.",
       "reload": "Opnieuw laden"
     }
   },
