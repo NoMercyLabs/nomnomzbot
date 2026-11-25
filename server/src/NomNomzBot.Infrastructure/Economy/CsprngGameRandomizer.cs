@@ -27,4 +27,11 @@ public sealed class CsprngGameRandomizer : IGameRandomizer
         ulong value = BitConverter.ToUInt64(bytes);
         return (value >> 11) * (1.0 / (1UL << 53));
     }
+
+    public ulong NextUInt64()
+    {
+        Span<byte> bytes = stackalloc byte[8];
+        RandomNumberGenerator.Fill(bytes);
+        return BitConverter.ToUInt64(bytes);
+    }
 }

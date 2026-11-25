@@ -610,15 +610,19 @@ interface NnzGameCashoutFrame {
 /** A drop-game player landed their marker. */
 interface NnzGameDropFrame {
   kind: 'drop';
+  /** 1 for the first drop of the round, then counting up; one per player. */
+  dropId: number;
   player: string;
   landed: number;
+  /** Where the server decided the drop lands, 0 to 100. The overlay path ends exactly here. */
+  landingX: number;
   distance: number;
   hit: boolean;
   /** 0 to 100: 100 on the target center, 0 at the win radius edge or beyond. */
   score: number;
   /** The 64-bit flight seed as a decimal string; the overlay draws the same sway from it everywhere. */
   seed: string;
-  /** Where the item enters at the top, 0 to 100; the flight still ends on Landed. */
+  /** Where the item enters at the top, 0 to 100; the flight still ends on LandingX. */
   spawnX: number;
 }
 

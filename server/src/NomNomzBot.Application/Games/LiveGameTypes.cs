@@ -51,6 +51,17 @@ public interface IGameRandom
     int Next(int maxExclusive);
     double NextDouble();
     bool Roll(double percent);
+
+    /// <summary>
+    /// A 64-bit draw, the per-drop seed. The default joins two <see cref="NextDouble"/> draws so a scripted
+    /// test source still yields a repeatable seed; the production adapter overrides it with a full CSPRNG draw.
+    /// </summary>
+    ulong NextUInt64()
+    {
+        ulong high = (ulong)(NextDouble() * uint.MaxValue);
+        ulong low = (ulong)(NextDouble() * uint.MaxValue);
+        return (high << 32) | low;
+    }
 }
 
 public sealed record LiveGameParticipant(

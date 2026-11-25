@@ -10,7 +10,7 @@ interface Flight {
   player: string
   seed: string
   spawnX: number
-  landed: number
+  landingX: number
   score: number
   hit: boolean
   down: boolean
@@ -74,7 +74,8 @@ function seeded(seed: string, player: string): () => number {
   }
 }
 
-// The path starts at spawnX, sways with the seed, and ends exactly on the server's landed value.
+// The server decides the result. The path starts at spawnX, sways with the seed (cosmetic only), and
+// ends exactly on the server's landingX: the sway fades to zero at the last frame.
 function fly(el: Element | null, f: Flight): void {
   if (!(el instanceof HTMLElement) || started.has(f.id)) return
   started.add(f.id)
@@ -88,7 +89,7 @@ function fly(el: Element | null, f: Flight): void {
   for (let i = 0; i <= steps; i++) {
     const t = i / steps
     const sway = Math.sin(offset + t * turns * Math.PI * 2)
-    const x = f.spawnX + (f.landed - f.spawnX) * t + amplitude * sway * (1 - t)
+    const x = f.spawnX + (f.landingX - f.spawnX) * t + amplitude * sway * (1 - t)
     frames.push({
       left: Math.min(100, Math.max(0, x)) + '%',
       translate: '0 ' + (-110 * (1 - t)) + 'vh',
@@ -127,8 +128,8 @@ function onFrame(d: GameFrame): void {
       id: nextId++,
       player: d.player,
       seed: d.seed ?? '',
-      spawnX: d.spawnX ?? d.landed,
-      landed: d.landed,
+      spawnX: d.spawnX,
+      landingX: d.landingX,
       score: d.score ?? (d.hit ? 50 : 0),
       hit: d.hit,
       down: false,
@@ -214,7 +215,7 @@ onUnmounted(() => {
       :ref="(el) => fly(el as Element | null, f)"
       class="drop"
       :class="sizeOf(f)"
-      :style="{ left: f.landed + '%' }"
+      :style="{ left: f.landingX + '%' }"
     >
       <svg class="chute" viewBox="0 0 100 60" aria-hidden="true">
         <path class="canopy" d="M4 34C4 14 26 2 50 2s46 12 46 32c-8-5-15-5-23 0-8-5-15-5-23 0-8-5-15-5-23 0-8-5-15-5-23 0Z" />

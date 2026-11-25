@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Domain.Economy.Enums;
 
@@ -24,6 +25,7 @@ public sealed class DropGame : ILiveGame
 {
     private const double TrackLength = 100.0;
     private const double DefaultWinRadius = 10.0;
+    private const double DefaultSpread = 50.0;
 
     public string GameKey => "drop_game";
 
@@ -69,24 +71,39 @@ public sealed class DropGame : ILiveGame
             return Task.FromResult(LiveGameTransition.Ignore());
 
         double target = (double)state.Data["target"]!;
-        double landed = Math.Round(state.Random.NextDouble() * TrackLength, 1);
-        double distance = Math.Round(Math.Abs(landed - target), 1);
         double radius = WinRadius(state.Config);
-        ulong seed = NextSeed(state.Random);
+        int dropId =
+            state.Data.Keys.Count(k => k.StartsWith("drop:", StringComparison.Ordinal)) + 1;
+
+        // The server decides the result: one seed fixes the spawn and the landing. The overlay only animates.
+        ulong seed = state.Random.NextUInt64();
+        DropFlightPath path = DropFlight.Compute(
+            seed,
+            target,
+            Spread(state.Config),
+            LuckBoost(state, input)
+        );
+        double landed = path.LandingX;
+        double distance = Math.Round(Math.Abs(landed - target), 1);
+        string seedText = seed.ToString(CultureInfo.InvariantCulture);
         state.Data[dropKey] = landed;
+        // Persisted with the round state (GameSession.StateJson), so the result can be recomputed later.
+        state.Data[$"dropSeed:{input.Player.UserId}"] = seedText;
 
         return Task.FromResult(
             LiveGameTransition.Push(
                 new Dictionary<string, object?>
                 {
                     ["kind"] = "drop",
+                    ["dropId"] = dropId,
+                    ["seed"] = seedText,
+                    ["spawnX"] = path.SpawnX,
+                    ["landingX"] = landed,
                     ["player"] = input.Player.DisplayName,
                     ["landed"] = landed,
                     ["distance"] = distance,
                     ["hit"] = distance <= radius,
                     ["score"] = Score(distance, radius),
-                    ["seed"] = seed.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    ["spawnX"] = SpawnX(seed),
                 }
             )
         );
@@ -157,16 +174,20 @@ public sealed class DropGame : ILiveGame
                 MidpointRounding.AwayFromZero
             );
 
-    /// <summary>Two 32-bit draws make the 64-bit flight seed the overlay uses for its sway.</summary>
-    private static ulong NextSeed(IGameRandom random)
-    {
-        ulong high = (ulong)(random.NextDouble() * uint.MaxValue);
-        ulong low = (ulong)(random.NextDouble() * uint.MaxValue);
-        return (high << 32) | low;
-    }
+    /// <summary>
+    /// The one place a luck boost (0 to 1) will plug in (S-DROP-LUCK). No source exists yet, so nobody is
+    /// boosted and every drop is a plain seeded roll.
+    /// </summary>
+    private static double LuckBoost(LiveGameState state, LiveGameInput input) => 0.0;
 
-    /// <summary>Where the item enters at the top, 0 to 100 with one decimal, derived from the seed.</summary>
-    private static double SpawnX(ulong seed) => (seed % 1001UL) / 10.0;
+    /// <summary>Half width of the landing range in track units; the default is half the track.</summary>
+    private static double Spread(GameConfigView config) =>
+        config.Config is not null
+        && config.Config.TryGetValue("spread", out object? raw)
+        && double.TryParse(raw?.ToString(), CultureInfo.InvariantCulture, out double spread)
+        && spread > 0
+            ? spread
+            : DefaultSpread;
 
     private static double WinRadius(GameConfigView config) =>
         config.Config is not null

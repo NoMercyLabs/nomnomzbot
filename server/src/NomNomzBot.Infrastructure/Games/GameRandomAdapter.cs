@@ -25,5 +25,7 @@ public sealed class GameRandomAdapter(IGameRandomizer randomizer) : IGameRandom
 
     public double NextDouble() => randomizer.NextUnitInterval();
 
+    public ulong NextUInt64() => randomizer.NextUInt64();
+
     public bool Roll(double percent) => randomizer.NextUnitInterval() * 100.0 < percent;
 }

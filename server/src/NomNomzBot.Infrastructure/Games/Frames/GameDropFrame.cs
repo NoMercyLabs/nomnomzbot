@@ -19,9 +19,15 @@ public sealed record GameDropFrame
     [WireLiteral("drop")]
     public string Kind { get; init; } = "drop";
 
+    /// <summary>1 for the first drop of the round, then counting up; one per player.</summary>
+    public required int DropId { get; init; }
+
     public required string Player { get; init; }
 
     public required double Landed { get; init; }
+
+    /// <summary>Where the server decided the drop lands, 0 to 100. The overlay path ends exactly here.</summary>
+    public required double LandingX { get; init; }
 
     public required double Distance { get; init; }
 
@@ -33,6 +39,6 @@ public sealed record GameDropFrame
     /// <summary>The 64-bit flight seed as a decimal string; the overlay draws the same sway from it everywhere.</summary>
     public required string Seed { get; init; }
 
-    /// <summary>Where the item enters at the top, 0 to 100; the flight still ends on <see cref="Landed"/>.</summary>
+    /// <summary>Where the item enters at the top, 0 to 100; the flight still ends on <see cref="LandingX"/>.</summary>
     public required double SpawnX { get; init; }
 }

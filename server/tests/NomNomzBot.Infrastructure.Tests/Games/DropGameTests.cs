@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
@@ -38,22 +39,45 @@ public sealed class DropGameTests
     private static readonly Guid PlayerA = Guid.Parse("0192a000-0000-7000-8000-0000000000e2");
     private static readonly Guid PlayerB = Guid.Parse("0192a000-0000-7000-8000-0000000000e3");
 
-    /// <summary>Deterministic randomness: dequeues the scripted unit-interval values, repeating the last.</summary>
-    private sealed class SequenceRandom(params double[] values) : IGameRandom
+    /// <summary>
+    /// Deterministic randomness: the target draw is the unit-interval value, and each drop takes the next
+    /// scripted 64-bit seed (the last one repeats). <see cref="SeedsDrawn"/> counts the drops that drew one.
+    /// </summary>
+    private sealed class SeedRandom(double targetDraw, params ulong[] seeds) : IGameRandom
     {
-        private readonly Queue<double> _values = new(values);
-        private double _last = values[^1];
+        private readonly Queue<ulong> _seeds = new(seeds);
+        private ulong _last = seeds[^1];
 
-        public double NextDouble()
+        public int SeedsDrawn { get; private set; }
+
+        public double NextDouble() => targetDraw;
+
+        public int Next(int maxExclusive) => (int)(targetDraw * maxExclusive);
+
+        public bool Roll(double percent) => targetDraw * 100.0 < percent;
+
+        public ulong NextUInt64()
         {
-            if (_values.Count > 0)
-                _last = _values.Dequeue();
+            SeedsDrawn++;
+            if (_seeds.Count > 0)
+                _last = _seeds.Dequeue();
             return _last;
         }
+    }
 
-        public int Next(int maxExclusive) => (int)(NextDouble() * maxExclusive);
+    // The default spread (half the track) and no luck: what DropGame uses when the config says nothing.
+    private const double DefaultSpread = 50.0;
 
-        public bool Roll(double percent) => NextDouble() * 100.0 < percent;
+    /// <summary>
+    /// Finds the first seed whose real flight lands where the test needs it, so a test states the landing it
+    /// wants and the real generator proves the seed gives it.
+    /// </summary>
+    private static ulong SeedLandingAt(double target, double landing)
+    {
+        for (ulong seed = 1; seed < 2_000_000; seed++)
+            if (DropFlight.Compute(seed, target, DefaultSpread, 0.0).LandingX == landing)
+                return seed;
+        throw new InvalidOperationException($"no seed lands at {landing} for target {target}");
     }
 
     private static LiveGameState State(
@@ -86,8 +110,8 @@ public sealed class DropGameTests
         DropGame game = new();
         Dictionary<string, object?> data = [];
         LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
-        // 0.42 → target 42; 0.5 → Alice lands 50; a repeat would consume 0.9 — it must not.
-        SequenceRandom random = new(0.42, 0.5, 0.9);
+        // 0.42 → target 42. Alice's seed is 777; a repeat would draw seed 888 — it must not.
+        SeedRandom random = new(0.42, 777UL, 888UL);
 
         LiveGameTransition opened = await game.OnStartAsync(
             State(random, [alice], data),
@@ -102,7 +126,8 @@ public sealed class DropGameTests
             CancellationToken.None
         );
         drop.PushOverlay.Should().BeTrue();
-        data[$"drop:{PlayerA}"].Should().Be(50.0, "the second scripted roll is the landing");
+        double landing = DropFlight.Compute(777UL, 42.0, DefaultSpread, 0.0).LandingX;
+        data[$"drop:{PlayerA}"].Should().Be(landing, "the landing comes from the seed");
 
         LiveGameTransition repeat = await game.OnInputAsync(
             State(random, [alice], data),
@@ -110,7 +135,8 @@ public sealed class DropGameTests
             CancellationToken.None
         );
         repeat.Should().Be(LiveGameTransition.Ignore(), "one drop per player");
-        data[$"drop:{PlayerA}"].Should().Be(50.0, "a repeat never re-rolls the landing");
+        data[$"drop:{PlayerA}"].Should().Be(landing, "a repeat never re-rolls the landing");
+        random.SeedsDrawn.Should().Be(1, "the repeat drew no second seed");
     }
 
     [Fact]
@@ -121,7 +147,7 @@ public sealed class DropGameTests
         LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
         LiveGameParticipant bob = Player(PlayerB, "Bob", 20);
         // target 50; Alice lands 55 (distance 5 ≤ 10 → win); Bob lands 90 (distance 40 → lose).
-        SequenceRandom random = new(0.50, 0.55, 0.90);
+        SeedRandom random = new(0.50, SeedLandingAt(50.0, 55.0), SeedLandingAt(50.0, 90.0));
         List<LiveGameParticipant> players = [alice, bob];
 
         await game.OnStartAsync(State(random, players, data), CancellationToken.None);
@@ -144,15 +170,15 @@ public sealed class DropGameTests
             .NotBeNull("the final scoreboard frame is the payload");
     }
 
-    // Opens a round on target 50 (radius 10) and drops Alice at landedDraw × 100; returns the drop frame.
-    private static async Task<Dictionary<string, object?>> DropAt(
+    // Opens a round on target 50 (radius 10) and drops Alice with the given seed; returns the drop frame.
+    private static async Task<Dictionary<string, object?>> DropWithSeed(
         Dictionary<string, object?> data,
-        params double[] draws
+        ulong seed
     )
     {
         DropGame game = new();
         LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
-        SequenceRandom random = new([0.50, .. draws]);
+        SeedRandom random = new(0.50, seed);
         await game.OnStartAsync(State(random, [alice], data), CancellationToken.None);
         LiveGameTransition drop = await game.OnInputAsync(
             State(random, [alice], data),
@@ -162,10 +188,13 @@ public sealed class DropGameTests
         return (Dictionary<string, object?>)drop.OverlayPayload!;
     }
 
+    private static Task<Dictionary<string, object?>> DropLandingAt(double landing) =>
+        DropWithSeed([], SeedLandingAt(50.0, landing));
+
     [Fact]
     public async Task A_drop_on_the_target_center_scores_100()
     {
-        Dictionary<string, object?> frame = await DropAt([], 0.50, 0.25, 0.75);
+        Dictionary<string, object?> frame = await DropLandingAt(50.0);
 
         frame["score"].Should().Be(100);
         frame["hit"].Should().Be(true);
@@ -174,7 +203,7 @@ public sealed class DropGameTests
     [Fact]
     public async Task A_drop_on_the_win_radius_edge_scores_0_but_still_hits()
     {
-        Dictionary<string, object?> frame = await DropAt([], 0.60, 0.25, 0.75);
+        Dictionary<string, object?> frame = await DropLandingAt(60.0);
 
         frame["distance"].Should().Be(10.0);
         frame["score"].Should().Be(0);
@@ -184,8 +213,8 @@ public sealed class DropGameTests
     [Fact]
     public async Task A_drop_halfway_to_the_edge_scores_50_and_beyond_the_edge_scores_0()
     {
-        Dictionary<string, object?> halfway = await DropAt([], 0.45, 0.25, 0.75);
-        Dictionary<string, object?> beyond = await DropAt([], 0.90, 0.25, 0.75);
+        Dictionary<string, object?> halfway = await DropLandingAt(45.0);
+        Dictionary<string, object?> beyond = await DropLandingAt(90.0);
 
         halfway["score"].Should().Be(50);
         beyond["score"].Should().Be(0);
@@ -193,19 +222,72 @@ public sealed class DropGameTests
     }
 
     [Fact]
-    public async Task The_same_random_draws_give_the_same_seed_spawnX_and_landing()
+    public async Task The_drop_frame_carries_the_seed_the_spawn_and_the_server_landing()
     {
-        Dictionary<string, object?> first = await DropAt([], 0.37, 0.123456, 0.654321);
-        Dictionary<string, object?> second = await DropAt([], 0.37, 0.123456, 0.654321);
-        Dictionary<string, object?> other = await DropAt([], 0.37, 0.9, 0.1);
+        Dictionary<string, object?> data = [];
+        Dictionary<string, object?> frame = await DropWithSeed(data, 0UL);
 
-        first["seed"].Should().BeOfType<string>();
-        ulong.TryParse((string)first["seed"]!, out _).Should().BeTrue("the seed is a 64-bit value");
-        first["seed"].Should().Be(second["seed"]);
-        first["spawnX"].Should().Be(second["spawnX"]);
-        first["landed"].Should().Be(second["landed"]).And.Be(37.0);
-        other["seed"].Should().NotBe(first["seed"], "a different draw gives a different flight");
-        ((double)first["spawnX"]!).Should().BeInRange(0, 100);
+        frame["kind"].Should().Be("drop");
+        frame["dropId"].Should().Be(1, "the first drop of the round");
+        frame["seed"].Should().Be("0", "the seed travels as a decimal string");
+        frame["spawnX"].Should().Be(20.0, "the pinned vector for seed 0");
+        frame["landingX"].Should().Be(78.6, "the pinned vector for seed 0 on target 50");
+        frame["landed"].Should().Be(frame["landingX"], "the old field keeps its meaning");
+        frame["player"].Should().Be("Alice");
+        frame["distance"].Should().Be(28.6);
+        frame["hit"].Should().Be(false);
+        frame["score"].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task The_seed_is_persisted_with_the_drop_and_replays_to_the_same_landing()
+    {
+        Dictionary<string, object?> data = [];
+        ulong seed = 0xDEADBEEFCAFEF00DUL;
+        Dictionary<string, object?> frame = await DropWithSeed(data, seed);
+
+        // The round state is what the engine writes to GameSession.StateJson after every drop.
+        data[$"dropSeed:{PlayerA}"].Should().Be(seed.ToString(CultureInfo.InvariantCulture));
+        ulong persistedSeed = ulong.Parse(
+            (string)data[$"dropSeed:{PlayerA}"]!,
+            CultureInfo.InvariantCulture
+        );
+        double persistedTarget = (double)data["target"]!;
+
+        DropFlightPath replay = DropFlight.Compute(
+            persistedSeed,
+            persistedTarget,
+            DefaultSpread,
+            0.0
+        );
+
+        replay.LandingX.Should().Be((double)frame["landingX"]!);
+        replay.SpawnX.Should().Be((double)frame["spawnX"]!);
+        replay.LandingX.Should().Be((double)data[$"drop:{PlayerA}"]!);
+    }
+
+    [Fact]
+    public async Task The_spread_setting_narrows_where_a_drop_can_land()
+    {
+        DropGame game = new();
+        Dictionary<string, object?> data = [];
+        LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
+        // Seed 0 gives offset +0.5728: spread 10 lands 5.7 from the target, not 28.6.
+        SeedRandom random = new(0.50, 0UL);
+        Dictionary<string, object?> config = new() { ["spread"] = 10 };
+
+        await game.OnStartAsync(
+            State(random, [alice], data, config: config),
+            CancellationToken.None
+        );
+        LiveGameTransition drop = await game.OnInputAsync(
+            State(random, [alice], data, config: config),
+            Input(alice),
+            CancellationToken.None
+        );
+
+        Dictionary<string, object?> frame = (Dictionary<string, object?>)drop.OverlayPayload!;
+        frame["landingX"].Should().Be(55.7);
     }
 
     [Fact]
@@ -217,7 +299,7 @@ public sealed class DropGameTests
         LiveGameParticipant bob = Player(PlayerB, "Bob", 20);
         List<LiveGameParticipant> players = [alice, bob];
         // target 50; Alice lands 52 (distance 2 → score 80); Bob never drops.
-        SequenceRandom random = new(0.50, 0.52, 0.3, 0.6);
+        SeedRandom random = new(0.50, SeedLandingAt(50.0, 52.0), 12345UL);
 
         await game.OnStartAsync(State(random, players, data), CancellationToken.None);
         await game.OnInputAsync(State(random, players, data), Input(alice), CancellationToken.None);
@@ -241,7 +323,7 @@ public sealed class DropGameTests
         Dictionary<string, object?> data = [];
         LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
         // target 50, landing 56: distance 6 — a win at the default radius (10), a LOSS at radius 5.
-        SequenceRandom random = new(0.50, 0.56);
+        SeedRandom random = new(0.50, SeedLandingAt(50.0, 56.0));
         Dictionary<string, object?> config = new() { ["win_radius"] = 5 };
 
         await game.OnStartAsync(

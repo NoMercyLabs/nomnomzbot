@@ -373,8 +373,10 @@ internal static class WidgetTestSamples
         },
         ["game.running"] = _ => new GameDropFrame
         {
+            DropId = 1,
             Player = "TestWinner",
             Landed = 52.4,
+            LandingX = 52.4,
             Distance = 2.4,
             Hit = true,
             Score = 80,
