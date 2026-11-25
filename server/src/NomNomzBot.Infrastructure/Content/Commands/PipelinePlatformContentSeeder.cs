@@ -51,8 +51,9 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// by an EARLIER boot (before this slice existed) gets backfilled the first time this seeder runs after
 /// upgrading.
 /// </para>
-/// Order 85 — after <see cref="RaidFlowSeeder"/> (82), <see cref="RaidCommitFlowSeeder"/> (83) and
-/// <see cref="RaidStartFlowSeeder"/> (84): the definitions it creates don't need their tenant pipelines to
+/// Order 88 — after <see cref="RaidFlowSeeder"/> (82), <see cref="RaidCommitFlowSeeder"/> (83),
+/// <see cref="RaidStartFlowSeeder"/> (84), <see cref="RaidResponseFlowSeeder"/> (86) and
+/// <see cref="CheerResponseFlowSeeder"/> (87): the definitions it creates don't need their tenant pipelines to
 /// exist yet, but the backfill half does.
 /// </remarks>
 public sealed class PipelinePlatformContentSeeder : ISeeder
@@ -61,7 +62,7 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
 
     public PipelinePlatformContentSeeder(IApplicationDbContext db) => _db = db;
 
-    public int Order => 85;
+    public int Order => 88;
 
     private sealed record FlowKey(
         string Key,
@@ -80,6 +81,12 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
             RequiredAction: "show_raid_recap"
         ),
         new("raid_commit", "Raid committed", RaidCommitFlowSeeder.BuildPlatformContentPayloadJson),
+        new("raid_in", "Raid welcome", RaidResponseFlowSeeder.BuildPlatformContentPayloadJson),
+        new(
+            "cheer_response",
+            "Cheer response",
+            CheerResponseFlowSeeder.BuildPlatformContentPayloadJson
+        ),
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
@@ -96,6 +103,12 @@ public sealed class PipelinePlatformContentSeeder : ISeeder
         await BackfillEventResponseFlowAsync(
             definitionsByKey["raid_commit"],
             "channel.raid.out",
+            ct
+        );
+        await BackfillEventResponseFlowAsync(definitionsByKey["raid_in"], "channel.raid", ct);
+        await BackfillEventResponseFlowAsync(
+            definitionsByKey["cheer_response"],
+            "channel.cheer",
             ct
         );
     }

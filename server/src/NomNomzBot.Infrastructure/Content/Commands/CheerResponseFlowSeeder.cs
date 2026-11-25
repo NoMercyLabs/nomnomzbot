@@ -105,6 +105,12 @@ public sealed class CheerResponseFlowSeeder(IApplicationDbContext db) : ISeeder
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>The action graph of THIS flow in the default tone, built from the same step list a channel
+    /// gets: the v1 payload <c>PipelinePlatformContentSeeder</c> publishes as the <c>cheer_response</c>
+    /// pipeline definition.</summary>
+    internal static string BuildPlatformContentPayloadJson() =>
+        PipelineGraphBuilder.BuildGraphJson(BuildSteps(Guid.Empty, Guid.Empty, tone: null));
+
     private static List<PipelineStep> BuildSteps(Guid pipelineId, Guid channelId, string? tone)
     {
         string line =

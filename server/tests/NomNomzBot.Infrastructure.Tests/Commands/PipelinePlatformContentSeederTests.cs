@@ -60,7 +60,7 @@ public sealed class PipelinePlatformContentSeederTests
         definitions
             .Select(d => d.Key)
             .Should()
-            .BeEquivalentTo("raid_out", "raid_start", "raid_commit");
+            .BeEquivalentTo("raid_out", "raid_start", "raid_commit", "raid_in", "cheer_response");
         definitions
             .Should()
             .OnlyContain(d => d.CurrentVersionId != null && d.LatestDraftVersionId != null);
@@ -160,6 +160,41 @@ public sealed class PipelinePlatformContentSeederTests
     }
 
     [Fact]
+    public async Task Backfills_provenance_onto_the_tenants_raid_welcome_and_cheer_response_pipelines()
+    {
+        SeedTestDbContext db = BuildDb();
+        await new EventResponseDefaultsSeeder(db).SeedAsync(Tenant);
+        await new RaidResponseFlowSeeder(db).SeedAsync(Tenant);
+        await new CheerResponseFlowSeeder(db).SeedAsync(Tenant);
+
+        await new PipelinePlatformContentSeeder(db).SeedAsync();
+
+        AssertStamped(db, "channel.raid", "raid_in", "shoutout");
+        AssertStamped(db, "channel.cheer", "cheer_response", "play_tts");
+    }
+
+    private static void AssertStamped(
+        SeedTestDbContext db,
+        string eventType,
+        string key,
+        string expectedAction
+    )
+    {
+        EventResponse response = db.EventResponses.Single(r => r.EventType == eventType);
+        Pipeline pipeline = db.Pipelines.Single(p => p.Id == response.PipelineId);
+        PlatformContentDefinition definition = db.PlatformContentDefinitions.Single(d =>
+            d.Kind == PlatformContentKinds.Pipeline && d.Key == key
+        );
+        PlatformContentVersion current = db.PlatformContentVersions.Single(v =>
+            v.Id == definition.CurrentVersionId
+        );
+
+        pipeline.PlatformSourceDefinitionId.Should().Be(definition.Id);
+        pipeline.PlatformSourceVersion.Should().Be(current.Version);
+        current.PayloadJson.Should().Contain($"\"{expectedAction}\"");
+    }
+
+    [Fact]
     public async Task Never_overwrites_a_pipeline_already_stamped_by_a_different_definition()
     {
         SeedTestDbContext db = BuildDb();
@@ -199,6 +234,6 @@ public sealed class PipelinePlatformContentSeederTests
         );
 
         definitionCountAfterSecondRun.Should().Be(definitionCountAfterFirstRun);
-        definitionCountAfterFirstRun.Should().Be(3);
+        definitionCountAfterFirstRun.Should().Be(5);
     }
 }

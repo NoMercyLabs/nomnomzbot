@@ -116,6 +116,26 @@ public sealed class RaidResponseFlowSeeder(IApplicationDbContext db) : ISeeder
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>The action graph of THIS flow, built from the same step list a channel gets: the v1 payload
+    /// <c>PipelinePlatformContentSeeder</c> publishes as the <c>raid_in</c> pipeline definition.</summary>
+    internal static string BuildPlatformContentPayloadJson()
+    {
+        int order = 0;
+        List<PipelineStep> steps =
+        [
+            .. BuildSteps()
+                .Select(step => new PipelineStep
+                {
+                    Id = Guid.NewGuid(),
+                    ActionType = step.ActionType,
+                    ConfigJson = step.ConfigJson,
+                    Order = order++,
+                    IsEnabled = true,
+                }),
+        ];
+        return PipelineGraphBuilder.BuildGraphJson(steps);
+    }
+
     private sealed record SeedStep(string ActionType, string ConfigJson);
 
     // The shoutout needs no flag for the raid case: ShoutoutAction reads event.name = channel.raid and
