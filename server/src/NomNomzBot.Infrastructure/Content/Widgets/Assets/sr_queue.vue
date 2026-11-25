@@ -10,6 +10,8 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 // action; the music module's live queue feed binds the same shape when it ships). Hidden while empty.
 interface SrQueueConfig {
   count: number
+  showPosition: boolean
+  showCode: boolean
   showRequester: boolean
   showDuration: boolean
   accentColor: string
@@ -18,6 +20,8 @@ interface SrQueueConfig {
 
 const cfg = reactive<SrQueueConfig>({
   count: 5,
+  showPosition: true,
+  showCode: true,
   showRequester: true,
   showDuration: true,
   accentColor: '#9146ff',
@@ -75,6 +79,8 @@ onMounted(() => {
   NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (isFinite(Number(s.count)) && Number(s.count) > 0) cfg.count = Number(s.count)
+    if (typeof s.showPosition === 'boolean') cfg.showPosition = s.showPosition
+    if (typeof s.showCode === 'boolean') cfg.showCode = s.showCode
     if (typeof s.showRequester === 'boolean') cfg.showRequester = s.showRequester
     if (typeof s.showDuration === 'boolean') cfg.showDuration = s.showDuration
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
@@ -96,8 +102,8 @@ onUnmounted(() => {
     <div v-if="items.length" class="nnz-widget nnz-card nnz-placed nnz-srqueue" :data-anchor="cfg.anchor">
       <div class="nnz-chip">Up Next</div>
       <div v-for="(it, i) in items.slice(0, cfg.count)" :key="i" class="nnz-row" :class="{ 'is-first': i === 0 }">
-        <span class="nnz-num">#{{ it.number }}</span>
-        <span v-if="it.code" class="code" title="Say this code to name this request, e.g. !wrongsong">{{ it.code }}</span>
+        <span v-if="cfg.showPosition" class="nnz-num">#{{ it.number }}</span>
+        <span v-if="cfg.showCode && it.code" class="code" title="Say this code to name this request, e.g. !wrongsong">{{ it.code }}</span>
         <span class="nnz-grow">{{ it.title }}</span>
         <span v-if="cfg.showRequester && it.requestedBy" class="nnz-end req">{{ it.requestedBy }}</span>
         <span v-if="cfg.showDuration && it.durationSec > 0" class="nnz-end dur">{{ fmtDuration(it.durationSec) }}</span>

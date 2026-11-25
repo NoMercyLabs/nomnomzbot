@@ -5270,6 +5270,8 @@
     <string name="widget_now_playing_accentColor_label">Accentkleur</string>
     <string name="widget_sr_queue_count_label">Aantal getoonde items</string>
     <string name="widget_sr_queue_showRequester_label">Aanvrager tonen</string>
+    <string name="widget_sr_queue_showPosition_label">Plek in de rij tonen (#1)</string>
+    <string name="widget_sr_queue_showCode_label">Aanvraagcode tonen</string>
     <string name="widget_sr_queue_showDuration_label">Duur tonen</string>
     <string name="widget_sr_queue_accentColor_label">Accentkleur</string>
     <string name="widget_media_share_showTitle_label">Titel tonen</string>

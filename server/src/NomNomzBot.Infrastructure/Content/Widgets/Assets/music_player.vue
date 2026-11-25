@@ -16,13 +16,11 @@ const cfg = reactive<NnzWidgetSettings & {
   volume: number
   muted: boolean
   showIndicator: boolean
-  accentColor: string
   enableAudio: boolean
 }>({
   volume: 100,
   muted: false,
   showIndicator: false,
-  accentColor: '#9146ff',
   enableAudio: true,
 })
 
@@ -554,22 +552,21 @@ onUnmounted(() => {
 <template>
   <div class="youtube-audio"><div ref="ytMount" /></div>
   <div v-if="cfg.showIndicator" class="music-indicator">
-    <span class="dot" :style="{ background: cfg.accentColor }" />
+    <span class="dot" />
   </div>
   <!-- Spotify Connect device status — quiet while connecting/active (the point is invisible audio, not
        a visual element competing for scene space); only a real problem needs the streamer's attention. -->
   <button
     v-if="cfg.enableAudio && spotifyStatus === 'muted'"
     class="nnz-spotify-status nnz-spotify-enable"
-    :style="{ '--accent': cfg.accentColor }"
     @click="enableAudio"
   >
     Click to enable audio playback
   </button>
-  <div v-else-if="cfg.enableAudio && spotifyStatus === 'blocked'" class="nnz-spotify-status" :style="{ '--accent': cfg.accentColor }">
+  <div v-else-if="cfg.enableAudio && spotifyStatus === 'blocked'" class="nnz-spotify-status">
     Reconnect Spotify with streaming permission to enable this device (Integrations page).
   </div>
-  <div v-else-if="cfg.enableAudio && spotifyStatus === 'error'" class="nnz-spotify-status" :style="{ '--accent': cfg.accentColor }">
+  <div v-else-if="cfg.enableAudio && spotifyStatus === 'error'" class="nnz-spotify-status">
     Couldn't start playback — check Spotify Premium and try reloading this source.
   </div>
 </template>
@@ -588,6 +585,7 @@ onUnmounted(() => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  background: var(--nnz-accent); /* the overlay host resolves the widget's, the channel's or the theme's color */
   opacity: 0.6;
 }
 .nnz-spotify-status {
@@ -605,8 +603,8 @@ onUnmounted(() => {
 }
 .nnz-spotify-enable {
   cursor: pointer;
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  background: var(--nnz-accent);
+  border: 1px solid var(--nnz-accent);
   font: inherit;
 }
 </style>

@@ -174,7 +174,18 @@ public sealed class OverlaySdkController : ControllerBase
             var scale = Number(s.scale);
             if (s.scale !== "" && s.scale != null && isFinite(scale) && scale > 0) root.style.setProperty("--nnz-scale", String(Math.min(200, Math.max(50, scale)) / 100));
             else root.style.removeProperty("--nnz-scale");
+            applyFit(root, s);
           }
+          // A first-party overlay is drawn for designWidth x designHeight; in a browser source of another size the
+          // whole page zooms so the overlay fills it, without clipping.
+          function applyFit(root, s) {
+            var w = Number(s.designWidth), h = Number(s.designHeight);
+            var vw = typeof window === "undefined" ? 0 : window.innerWidth, vh = typeof window === "undefined" ? 0 : window.innerHeight;
+            if (!(w > 0 && h > 0 && vw > 0 && vh > 0)) { root.style.removeProperty("zoom"); return; }
+            root.style.setProperty("zoom", String(Math.min(vw / w, vh / h)));
+          }
+          if (typeof window !== "undefined" && window.addEventListener)
+            window.addEventListener("resize", function () { applyFit(document.documentElement, currentSettings || {}); });
           function applyTheme(s) {
             var root = typeof document === "undefined" ? null : document.documentElement;
             if (!root || typeof root.setAttribute !== "function" || !root.style) return;

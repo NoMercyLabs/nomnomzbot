@@ -817,12 +817,24 @@ public class WidgetService : IWidgetService
                 .Select(v => v.FilesJson)
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
-        return await WithDeclaredDefaultsAsync(
+        Dictionary<string, object> effective = await WithDeclaredDefaultsAsync(
             widget.BroadcasterId,
             widget.Settings,
             filesJson,
             cancellationToken
         );
+
+        // The size the overlay is drawn for; the page zooms to fill a browser source of any other size.
+        (int Revision, string? NaturalKey)? gallery = await GetGalleryLinkAsync(
+            widget.GalleryItemId,
+            cancellationToken
+        );
+        if (ObsSetupFor(gallery?.NaturalKey, widget.Settings) is { } design)
+        {
+            effective[FirstPartyWidgetCatalogue.DesignWidthSettingKey] = design.Width;
+            effective[FirstPartyWidgetCatalogue.DesignHeightSettingKey] = design.Height;
+        }
+        return effective;
     }
 
     // Declared defaults first, saved values on top. An absent or invalid settings.json declares nothing, so the

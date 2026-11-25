@@ -5286,6 +5286,8 @@
     <string name="widget_now_playing_accentColor_label">Accent color</string>
     <string name="widget_sr_queue_count_label">Items shown</string>
     <string name="widget_sr_queue_showRequester_label">Show requester</string>
+    <string name="widget_sr_queue_showPosition_label">Show the place in line (#1)</string>
+    <string name="widget_sr_queue_showCode_label">Show the request code</string>
     <string name="widget_sr_queue_showDuration_label">Show duration</string>
     <string name="widget_sr_queue_accentColor_label">Accent color</string>
     <string name="widget_media_share_showTitle_label">Show title</string>

@@ -153,6 +153,12 @@ public static class FirstPartyWidgetCatalogue
     /// <summary>The size of the overlay in percent of its natural size.</summary>
     public const string ScaleSettingKey = "scale";
 
+    /// <summary>The browser source width the overlay is drawn for (read only; the page zooms to fill another size).</summary>
+    public const string DesignWidthSettingKey = "designWidth";
+
+    /// <summary>The browser source height the overlay is drawn for (read only).</summary>
+    public const string DesignHeightSettingKey = "designHeight";
+
     /// <summary>The nine places an overlay can sit in its browser source.</summary>
     public static readonly IReadOnlyList<string> Anchors =
     [
@@ -400,6 +406,8 @@ public static class FirstPartyWidgetCatalogue
             DefaultSettings: new()
             {
                 ["count"] = 5,
+                ["showPosition"] = true,
+                ["showCode"] = true,
                 ["showRequester"] = true,
                 ["showDuration"] = true,
                 ["accentColor"] = "",

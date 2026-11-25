@@ -95,14 +95,13 @@ function refreshMarquee(): void {
     el.classList.remove('animate-marquee')
     el.style.removeProperty('--marquee-distance')
     el.style.removeProperty('--marquee-duration')
-    const containerWidth: number = titleEl.value.getBoundingClientRect().width
-    const textWidth: number = el.getBoundingClientRect().width
-    if (textWidth <= containerWidth) return
+    // Layout widths, not on-screen ones: translateX works before the theme's zoom, so a zoomed measure overshoots.
+    const overflow: number = el.offsetWidth - titleEl.value.clientWidth
+    if (overflow <= 0) return
 
-    // Scroll only the overflow, at a slow constant speed (about 30 px/s) plus time for the fades and holds.
-    const overflow: number = textWidth - containerWidth
+    // The move takes 52% of the cycle (18% to 70%) at about 30 px/s; the rest is the fades and the two holds.
     el.style.setProperty('--marquee-distance', `-${overflow}px`)
-    el.style.setProperty('--marquee-duration', `${Math.max(6, overflow / 30 + 3)}s`)
+    el.style.setProperty('--marquee-duration', `${Math.max(8, overflow / 30 / 0.52)}s`)
     void el.offsetWidth // force a reflow so the animation restarts from the fade-in for the new track
     el.classList.add('animate-marquee')
   }, 300)
@@ -199,10 +198,11 @@ onUnmounted(() => {
           <div ref="titleEl" class="track">
             <span ref="marqueeEl" class="track-text">{{ track }}</span>
           </div>
-          <div v-if="artist" class="nnz-sub artist">{{ artist }}</div>
-          <div v-if="requestedBy" class="nnz-sub requester">
+          <div class="nnz-sub artist">{{ artist || ' ' }}</div>
+          <!-- The row keeps its place without a requester, so the card never changes height between songs. -->
+          <div class="nnz-sub requester" :style="requestedBy ? undefined : { visibility: 'hidden' }">
             requested by
-            <span class="requester-name" :style="requestedByColor ? { color: requestedByColor } : undefined">{{ requestedBy }}</span>
+            <span class="requester-name" :style="requestedByColor ? { color: requestedByColor } : undefined">{{ requestedBy || ' ' }}</span>
           </div>
           <div v-if="cfg.showProgressBar" class="nnz-track bar"><div class="nnz-fill" :style="{ width: progressPct + '%' }"></div></div>
         </div>
@@ -218,22 +218,34 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.nnz-nowplaying {
-  max-width: 440px;
+/* The box spans the browser source from edge to edge, whatever the title length; the anchor sets top or bottom. */
+.nnz-placed.nnz-nowplaying {
+  left: var(--nnz-edge);
+  right: var(--nnz-edge);
+  --nnz-tx: 0;
 }
 .box {
   display: flex;
   align-items: center;
   gap: var(--nnz-gap);
-  max-width: 100%;
+  width: calc(100% / var(--nnz-z)); /* the box is zoomed by --nnz-z, so its share is divided back */
+  box-sizing: border-box;
+}
+.meta {
+  flex: 1;
 }
 .note {
   flex: none;
   font-size: 20px;
 }
+/* The cover is the biggest thing in the box; its corner and border come from the theme's .nnz-avatar. */
 .layout-pill .art {
-  width: 32px;
-  height: 32px;
+  width: 52px;
+  height: 52px;
+}
+.layout-card .art {
+  width: 80px;
+  height: 80px;
 }
 .meta {
   min-width: 0;
@@ -255,8 +267,9 @@ onUnmounted(() => {
   0% { transform: translateX(0); opacity: 0; }
   8% { transform: translateX(0); opacity: 1; }
   18% { transform: translateX(0); opacity: 1; }
-  80% { transform: translateX(var(--marquee-distance, 0)); opacity: 1; }
-  90% { transform: translateX(var(--marquee-distance, 0)); opacity: 0; }
+  70% { transform: translateX(var(--marquee-distance, 0)); opacity: 1; }
+  92% { transform: translateX(var(--marquee-distance, 0)); opacity: 1; }
+  98% { transform: translateX(var(--marquee-distance, 0)); opacity: 0; }
   100% { transform: translateX(var(--marquee-distance, 0)); opacity: 0; }
 }
 .artist {
@@ -279,7 +292,8 @@ onUnmounted(() => {
   height: 8px;
 }
 .layout-pill .bar {
-  display: none; /* the pill stays compact; the progress fill is a card-layout detail */
+  margin-top: 4px;
+  height: 5px;
 }
 .heart {
   position: absolute;

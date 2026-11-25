@@ -3515,8 +3515,14 @@
       "count": {
         "label": "Aantal getoonde items"
       },
+      "showCode": {
+        "label": "Aanvraagcode tonen"
+      },
       "showDuration": {
         "label": "Duur tonen"
+      },
+      "showPosition": {
+        "label": "Plek in de rij tonen (#1)"
       },
       "showRequester": {
         "label": "Aanvrager tonen"

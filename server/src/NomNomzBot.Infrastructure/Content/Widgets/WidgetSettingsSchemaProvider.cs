@@ -257,6 +257,8 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             "sr_queue" =>
             [
                 NumberField(d, "count", Content, min: 1, max: 50, step: 1),
+                Bool(d, "showPosition", Content),
+                Bool(d, "showCode", Content),
                 Bool(d, "showRequester", Content),
                 Bool(d, "showDuration", Content),
                 Accent(d),

@@ -3515,8 +3515,14 @@
       "count": {
         "label": "Items shown"
       },
+      "showCode": {
+        "label": "Show the request code"
+      },
       "showDuration": {
         "label": "Show duration"
+      },
+      "showPosition": {
+        "label": "Show the place in line (#1)"
       },
       "showRequester": {
         "label": "Show requester"

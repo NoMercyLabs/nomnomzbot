@@ -16,7 +16,6 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 // source is alive, turn it back off.
 const cfg = reactive<NnzWidgetSettings>({
   showIndicator: false,
-  accentColor: '#9146ff',
 })
 
 const speaking = ref<boolean>(false)
@@ -51,7 +50,7 @@ onUnmounted(() => {
 
 <template>
   <div v-if="cfg.showIndicator" class="tts-audio" :class="{ speaking }">
-    <span class="dot" :style="{ background: cfg.accentColor }" />
+    <span class="dot" />
   </div>
 </template>
 
@@ -68,6 +67,7 @@ onUnmounted(() => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  background: var(--nnz-accent); /* the overlay host resolves the widget's, the channel's or the theme's color */
   opacity: 0.25;
   transition: opacity 120ms linear, transform 120ms linear;
 }
