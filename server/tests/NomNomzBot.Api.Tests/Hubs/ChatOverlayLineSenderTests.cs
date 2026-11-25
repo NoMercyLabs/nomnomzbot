@@ -14,8 +14,12 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -36,6 +40,20 @@ public sealed class ChatOverlayLineSenderTests : IAsyncDisposable
     private readonly IOverlayPresenceRegistry _presence =
         Substitute.For<IOverlayPresenceRegistry>();
     private readonly WidgetTestDbContext _db = WidgetTestDbContext.New();
+    private readonly IChatColorMemory _colors = Substitute.For<IChatColorMemory>();
+    private readonly ITwitchHelixClient _helix = Substitute.For<ITwitchHelixClient>();
+    private readonly IChatBadgeResolver _badges = Substitute.For<IChatBadgeResolver>();
+
+    public ChatOverlayLineSenderTests()
+    {
+        // Twitch knows no color for the bot unless a test says so.
+        _helix
+            .Chat.GetUserChatColorsAsync(
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchUserChatColor>>([]));
+    }
 
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
 
@@ -193,7 +211,71 @@ public sealed class ChatOverlayLineSenderTests : IAsyncDisposable
             .BroadcastOverlayEventAsync(default!, default!, default);
     }
 
-    private ChatOverlayLineSender Sut() => new(_db, _widgets, _presence, new FakeTimeProvider(Now));
+    private ChatOverlayLineSender Sut() =>
+        new(_db, _widgets, _presence, new FakeTimeProvider(Now), _colors, _helix, _badges);
+
+    [Fact]
+    public async Task The_bot_line_wears_the_name_color_the_bot_was_last_seen_with()
+    {
+        Widget chat = await AddWidgetAsync("Chat box", true, "ChatMessage");
+        _presence.IsWidgetAttached(_channel, chat.Id).Returns(true);
+        _colors.RecallAsync(_channel, "bot-1").Returns(new RememberedChatColor("#1E90FF"));
+
+        await Sut().SendAsync(Line("hi", isHtml: false));
+
+        DashboardChatMessageDto dto = (DashboardChatMessageDto)Single(Pushes()).Data!;
+        dto.Color.Should().Be("#1E90FF");
+        await _helix.Chat.DidNotReceiveWithAnyArgs().GetUserChatColorsAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_bot_color_nobody_remembered_is_fetched_from_twitch_and_remembered()
+    {
+        Widget chat = await AddWidgetAsync("Chat box", true, "ChatMessage");
+        _presence.IsWidgetAttached(_channel, chat.Id).Returns(true);
+        _colors.RecallAsync(_channel, "bot-1").Returns((RememberedChatColor?)null);
+        _helix
+            .Chat.GetUserChatColorsAsync(
+                Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "bot-1" })),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUserChatColor>>([
+                    new TwitchUserChatColor("bot-1", "nomnomzbot", "NomNomzBot", "#FF69B4"),
+                ])
+            );
+
+        await Sut().SendAsync(Line("hi", isHtml: false));
+
+        DashboardChatMessageDto dto = (DashboardChatMessageDto)Single(Pushes()).Data!;
+        dto.Color.Should().Be("#FF69B4");
+        await _colors.Received(1).RememberFetchedAsync(_channel, "bot-1", "#FF69B4");
+    }
+
+    [Fact]
+    public async Task The_bot_line_carries_the_moderator_badge_with_its_images()
+    {
+        Widget chat = await AddWidgetAsync("Chat box", true, "ChatMessage");
+        _presence.IsWidgetAttached(_channel, chat.Id).Returns(true);
+        Dictionary<string, string> urls = new() { ["2"] = "https://badges.test/mod-2.png" };
+        _badges
+            .ResolveAsync(
+                _channel,
+                Arg.Is<IReadOnlyList<ChatBadge>>(b =>
+                    b.Count == 1 && b[0].SetId == "moderator" && b[0].Id == "1"
+                ),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns([new ResolvedChatBadge("moderator", "1", null, urls)]);
+
+        await Sut().SendAsync(Line("hi", isHtml: false));
+
+        DashboardChatMessageDto dto = (DashboardChatMessageDto)Single(Pushes()).Data!;
+        dto.Badges.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeEquivalentTo(new ChatBadgeDto("moderator", "1", null, urls));
+    }
 
     [Fact]
     public async Task The_payload_names_the_requester_and_carries_the_look_without_changing_the_bot_identity()

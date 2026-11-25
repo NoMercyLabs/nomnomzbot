@@ -145,6 +145,23 @@ public sealed class WidgetSettingsSchemaTests
     }
 
     [Fact]
+    public void The_chat_box_avatar_is_an_on_by_default_bool_the_catalogue_also_defaults_on()
+    {
+        WidgetSettingsField field = Provider
+            .GetByKey("chat_box")!
+            .Fields.Single(f => f.Key == "showAvatar");
+
+        field.Type.Should().Be("bool");
+        field.Default.Should().Be(true);
+        field.Label.Key.Should().Be("widget.chat_box.showAvatar.label");
+        FirstPartyWidgetCatalogue
+            .All.Single(w => w.Key == "chat_box")
+            .DefaultSettings["showAvatar"]
+            .Should()
+            .Be(true);
+    }
+
+    [Fact]
     public void The_chat_box_role_badge_is_an_off_by_default_bool()
     {
         WidgetSettingsField field = Provider

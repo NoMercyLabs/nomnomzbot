@@ -1363,6 +1363,7 @@
     "widget.chat_box.hideBots.label",
     "widget.chat_box.hideCommands.label",
     "widget.chat_box.maxMessages.label",
+    "widget.chat_box.showAvatar.label",
     "widget.chat_box.showBadges.label",
     "widget.chat_box.showEmotes.label",
     "widget.chat_box.showRoleBadge.label",

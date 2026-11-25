@@ -2950,6 +2950,9 @@
       "maxMessages": {
         "label": "Max. aantal berichten"
       },
+      "showAvatar": {
+        "label": "Profielfoto tonen"
+      },
       "showBadges": {
         "label": "Badges tonen"
       },

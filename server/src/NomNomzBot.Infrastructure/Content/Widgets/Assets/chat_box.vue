@@ -18,6 +18,7 @@ interface ChatBoxConfig {
   theme: string          // 'dark' | 'light' | 'transparent'
   maxMessages: number
   fadeAfterMs: number    // 0 = never fade
+  showAvatar: boolean
   showBadges: boolean
   showRoleBadge: boolean // a small uppercase role label before the name; off by default
   showEmotes: boolean
@@ -37,6 +38,7 @@ const cfg = reactive<ChatBoxConfig>({
   theme: 'dark',
   maxMessages: 5,
   fadeAfterMs: 0,
+  showAvatar: true,
   showBadges: true,
   showRoleBadge: false,
   showEmotes: true,
@@ -135,10 +137,18 @@ const rootStyle = computed<Record<string, string>>(() => {
   return style
 })
 
-// An explicit background hex overrides the theme's line background (inline styles beat the theme class).
+// An explicit background hex overrides the theme's line surface (inline styles beat the theme class). The chosen
+// color is also what the text must read on, so the text and muted tokens are re-set to black or white by contrast.
 const lineStyle = computed<Record<string, string>>(() => {
   const style: Record<string, string> = {}
-  if (hexColor(cfg.background)) style.background = hexToRgba(cfg.background, cfg.backgroundOpacity)
+  const bg: string = hexColor(cfg.background)
+  if (!bg) return style
+  const ink: string = readableTextColor([bg])
+  style.background = hexToRgba(bg, cfg.backgroundOpacity)
+  style.color = ink
+  style['--nnz-surface'] = style.background
+  style['--nnz-text'] = ink
+  style['--nnz-muted'] = ink === '#000000' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.72)'
   return style
 })
 
@@ -499,6 +509,7 @@ onMounted(() => {
     if (typeof s.theme === 'string' && s.theme) cfg.theme = s.theme
     if (isFinite(Number(s.maxMessages)) && Number(s.maxMessages) > 0) cfg.maxMessages = Number(s.maxMessages)
     if (isFinite(Number(s.fadeAfterMs)) && Number(s.fadeAfterMs) >= 0) cfg.fadeAfterMs = Number(s.fadeAfterMs)
+    if (typeof s.showAvatar === 'boolean') cfg.showAvatar = s.showAvatar
     if (typeof s.showBadges === 'boolean') cfg.showBadges = s.showBadges
     if (typeof s.showRoleBadge === 'boolean') cfg.showRoleBadge = s.showRoleBadge
     if (typeof s.showEmotes === 'boolean') cfg.showEmotes = s.showEmotes
@@ -539,7 +550,7 @@ onUnmounted(() => {
       v-for="l in lines"
       :key="l.id"
       class="line"
-      :class="{ faded: l.faded, [`role-${l.role}`]: !!l.role, cheer: l.isCheer }"
+      :class="{ 'nnz-card': cfg.theme !== 'transparent', faded: l.faded, [`role-${l.role}`]: !!l.role, cheer: l.isCheer }"
       :data-highlight="l.highlight || undefined"
       :data-size="l.look?.large ? 'large' : undefined"
       :data-effect="l.effect || undefined"
@@ -554,7 +565,7 @@ onUnmounted(() => {
       <span class="head" :class="{ 'head-colored': !!headColors(l).length }" :style="headStyle(l)">
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
         <span v-if="l.provider !== 'twitch'" class="platform" :class="'platform-' + l.provider">{{ PROVIDER_LABEL[l.provider] || l.provider }}</span>
-        <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
+        <img v-if="cfg.showAvatar && l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
         <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="" decoding="sync">
         <span v-if="cfg.showRoleBadge && l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
         <span class="name">{{ l.name }}</span>
@@ -614,41 +625,62 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.nnz-chatbox {
-  width: 420px;
+/* The list IS the browser source: it fills it edge to edge (100vh is divided by the zoom the root applies to
+   itself), the newest line sits at the bottom and older lines run off the top. The padding keeps the border and the
+   hard shadow of every card inside the clip. */
+.nnz-placed.nnz-chatbox {
+  inset: 0;
+  transform: none;
+  box-sizing: border-box;
+  width: calc(100vw / var(--nnz-z));
+  height: calc(100vh / var(--nnz-z));
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   gap: 16px;
-  padding: 0 12px 12px 0;
+  padding: calc(var(--nnz-edge) / var(--nnz-z) + 14px);
+  overflow: hidden;
   pointer-events: none;
   font-size: 16px;
   line-height: 1.5;
 }
+.nnz-chatbox[data-anchor$='left'] {
+  align-items: flex-start;
+}
+.nnz-chatbox[data-anchor$='right'] {
+  align-items: flex-end;
+}
+.nnz-chatbox[data-anchor='top'],
+.nnz-chatbox[data-anchor='center'],
+.nnz-chatbox[data-anchor='bottom'] {
+  align-items: center;
+}
 .line {
   box-sizing: border-box;
+  flex: none;
+  width: 100%;
+  max-width: 420px;
   padding: 8px 12px;
   border-radius: var(--nnz-radius-inner);
   word-break: break-word;
   opacity: 1;
   transition: opacity 0.6s ease;
 }
+/* The card part (.nnz-card from the theme) draws the surface, outline, shadow and print's halftone; the list already
+   carries the zoom, so a line does not apply it a second time. */
+.line.nnz-card {
+  zoom: 1;
+}
 .line.faded {
   opacity: 0;
-}
-/* dark and light are one theme surface each: the same outline, shadow and radius as every other widget's card. */
-.theme-dark .line,
-.theme-light .line {
-  color: var(--nnz-text);
-  background: var(--nnz-surface);
-  border: var(--nnz-border);
-  box-shadow: var(--nnz-shadow);
 }
 .nnz-chatbox.theme-transparent {
   gap: 4px;
 }
 .theme-transparent .line {
-  color: #fff; /* theme-exempt: the transparent setting asks for bare text on the stream */
+  --nnz-text: #fff; /* theme-exempt: the transparent setting asks for bare text on the stream */
+  --nnz-muted: rgba(255, 255, 255, 0.75); /* theme-exempt: same, for the quiet text */
+  color: var(--nnz-text);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); /* theme-exempt: keeps bare text readable on the stream */
   background: transparent;
   border: none;
@@ -731,7 +763,7 @@ onUnmounted(() => {
   margin-top: 4px;
   font-size: 0.8em;
   line-height: 1.2;
-  opacity: 0.7;
+  color: var(--nnz-muted);
 }
 /* A label, not an action: its radius is the inner radius halved, always smaller than the line's own. */
 .role-badge {
@@ -786,7 +818,7 @@ onUnmounted(() => {
 .reply-preview {
   display: block;
   font-size: 0.8em;
-  opacity: 0.7;
+  color: var(--nnz-muted);
   margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -801,8 +833,11 @@ onUnmounted(() => {
 }
 .head {
   /* Block-level (not inline-flex) so the head row and the message body below it are separate lines —
-     the originally reported bug: username and message text were glued onto one run. */
+     the originally reported bug: username and message text were glued onto one run. fit-content keeps a coloured
+     header a name chip instead of a bar across the whole card. */
   display: flex;
+  width: fit-content;
+  max-width: 100%;
   align-items: center;
   gap: 4px;
   margin-bottom: 2px;
@@ -821,7 +856,7 @@ onUnmounted(() => {
 }
 .name {
   font-weight: 700;
-  color: var(--nnz-accent);
+  color: var(--nnz-text);
   /* Long display names truncate with an ellipsis instead of stretching/overflowing the head row. */
   display: inline-block;
   max-width: 12em;
@@ -846,16 +881,18 @@ onUnmounted(() => {
 }
 .pron {
   font-size: 12px;
-  opacity: 0.75;
+  color: var(--nnz-muted);
 }
 .time {
   font-size: 0.72em;
-  opacity: 0.6;
+  color: var(--nnz-muted);
   font-variant-numeric: tabular-nums;
   margin-right: 2px;
 }
 .body {
   display: block;
+  /* A line break in the text (a bot reply with several lines) shows as a line break. */
+  white-space: pre-line;
 }
 .emote {
   /* Relative to the configurable font size, not a fixed pixel value, so raising font size for readability
@@ -874,10 +911,26 @@ onUnmounted(() => {
   max-width: 100%;
   padding: 4px 8px;
   border-radius: 8px;
-  background: var(--nnz-track);
-  color: inherit;
+  /* A link never takes the browser's own link colors (blue, then purple once visited): its surface and its text
+     both come from the theme, so the card reads on print, dark and every other theme. */
+  background: var(--nnz-surface);
+  border: var(--nnz-border);
+  color: var(--nnz-text);
   text-decoration: none;
   vertical-align: middle;
+}
+.link-card:link,
+.link-card:visited,
+.link-card:hover,
+.link-card:active {
+  color: var(--nnz-text);
+  text-decoration: none;
+}
+
+/* Bare-text lines have no surface of their own, so their link card gets a dark one under the white text. */
+.theme-transparent .link-card {
+  background: rgba(0, 0, 0, 0.55); /* theme-exempt: a scrim under the bare white text */
+  border: none;
 }
 
 .link-card-art {
@@ -901,8 +954,12 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.link-card-title {
+  color: var(--nnz-text);
+}
+
 .link-card-sub {
-  opacity: 0.7;
+  color: var(--nnz-muted);
   font-size: 0.85em;
 }
 
@@ -935,8 +992,12 @@ onUnmounted(() => {
   border-radius: 4px;
   padding: 0 4px;
 }
-.link {
-  color: var(--nnz-accent);
+.link,
+.link:link,
+.link:visited,
+.link:hover,
+.link:active {
+  color: var(--nnz-text);
   text-decoration: underline;
 }
 /* Rich HTML fragment: keep it inline and tame runaway media so a message can't blow out the chat column. */

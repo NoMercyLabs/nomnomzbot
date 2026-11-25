@@ -362,6 +362,7 @@ public static class FirstPartyWidgetCatalogue
                 ["showTimestamps"] = false,
                 ["maxMessages"] = 5,
                 ["fadeAfterMs"] = 0,
+                ["showAvatar"] = true,
                 ["showBadges"] = true,
                 ["showRoleBadge"] = false,
                 ["showEmotes"] = true,

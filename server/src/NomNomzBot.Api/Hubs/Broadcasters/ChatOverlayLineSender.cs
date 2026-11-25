@@ -12,8 +12,12 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 
@@ -30,11 +34,18 @@ public sealed class ChatOverlayLineSender(
     IApplicationDbContext db,
     IWidgetNotifier widgets,
     IOverlayPresenceRegistry presence,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    IChatColorMemory colors,
+    ITwitchHelixClient helix,
+    IChatBadgeResolver badgeResolver
 ) : IChatOverlayLineSender
 {
     private const string ChatEventType = "ChatMessage";
     private const string OverlayLineMessageType = "overlay_line";
+
+    // The bot speaks in a channel as one of its moderators, so its line wears the moderator badge a chat client
+    // shows next to every mod.
+    private static readonly ChatBadge[] BotBadges = [new("moderator", "1")];
 
     public async Task<ChatOverlayDelivery> SendAsync(
         ChatOverlayLine line,
@@ -54,18 +65,58 @@ public sealed class ChatOverlayLineSender(
         if (open.Count == 0)
             return ChatOverlayDelivery.NoChatOverlayOpen;
 
+        string? color = await ResolveColorAsync(line, cancellationToken);
+        IReadOnlyList<ChatBadgeDto> badges = await ResolveBadgesAsync(line, cancellationToken);
         int reached = await WidgetAlertDispatch.PushAsync(
             widgets,
             line.BroadcasterId,
             open,
             ChatEventType,
-            ToChatMessage(line),
+            ToChatMessage(line, color, badges),
             cancellationToken
         );
         return new ChatOverlayDelivery(reached);
     }
 
-    private DashboardChatMessageDto ToChatMessage(ChatOverlayLine line) =>
+    // The color the bot's own chat lines carry: what chat last showed for it, else what Twitch says it set.
+    private async Task<string?> ResolveColorAsync(ChatOverlayLine line, CancellationToken ct)
+    {
+        RememberedChatColor? remembered = await colors.RecallAsync(
+            line.BroadcasterId,
+            line.BotUserId,
+            ct
+        );
+        if (remembered is not null)
+            return remembered.Hex;
+
+        Result<IReadOnlyList<TwitchUserChatColor>> fetched =
+            await helix.Chat.GetUserChatColorsAsync([line.BotUserId], ct);
+        if (fetched.IsFailure)
+            return null;
+
+        string? hex = fetched.Value.FirstOrDefault(c => c.UserId == line.BotUserId)?.Color;
+        await colors.RememberFetchedAsync(line.BroadcasterId, line.BotUserId, hex, ct);
+        return string.IsNullOrEmpty(hex) ? null : hex;
+    }
+
+    private async Task<IReadOnlyList<ChatBadgeDto>> ResolveBadgesAsync(
+        ChatOverlayLine line,
+        CancellationToken ct
+    )
+    {
+        IReadOnlyList<ResolvedChatBadge> resolved = await badgeResolver.ResolveAsync(
+            line.BroadcasterId,
+            BotBadges,
+            ct
+        );
+        return [.. resolved.Select(ChatFragmentMapper.MapBadge)];
+    }
+
+    private DashboardChatMessageDto ToChatMessage(
+        ChatOverlayLine line,
+        string? color,
+        IReadOnlyList<ChatBadgeDto> badges
+    ) =>
         new(
             Id: Guid.CreateVersion7().ToString(),
             ChannelId: line.BroadcasterId.ToString(),
@@ -92,9 +143,9 @@ public sealed class ChatOverlayLineSender(
             IsBroadcaster: false,
             IsCheer: false,
             IsCommand: false,
-            Badges: [],
+            Badges: badges,
             BitsAmount: 0,
-            Color: null,
+            Color: color,
             MessageType: OverlayLineMessageType,
             ReplyToMessageId: null,
             ReplyParentMessageBody: null,

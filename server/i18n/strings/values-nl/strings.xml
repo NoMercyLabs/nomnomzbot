@@ -5253,6 +5253,7 @@
     <string name="widget_chat_box_showTimestamps_label">Tijdstempels tonen</string>
     <string name="widget_chat_box_maxMessages_label">Max. aantal berichten</string>
     <string name="widget_chat_box_fadeAfterMs_label">Vervagen na (ms, 0 = nooit)</string>
+    <string name="widget_chat_box_showAvatar_label">Profielfoto tonen</string>
     <string name="widget_chat_box_showBadges_label">Badges tonen</string>
     <string name="widget_chat_box_showRoleBadge_label">Rolbadge tonen</string>
     <string name="widget_chat_box_showEmotes_label">Emotes tonen</string>

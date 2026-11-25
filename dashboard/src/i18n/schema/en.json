@@ -2950,6 +2950,9 @@
       "maxMessages": {
         "label": "Max messages"
       },
+      "showAvatar": {
+        "label": "Show profile picture"
+      },
       "showBadges": {
         "label": "Show badges"
       },

@@ -238,6 +238,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showTimestamps", Content),
                 NumberField(d, "maxMessages", Behaviour, min: 1),
                 NumberField(d, "fadeAfterMs", Behaviour, min: 0, step: 100),
+                Bool(d, "showAvatar", Content),
                 Bool(d, "showBadges", Content),
                 Bool(d, "showRoleBadge", Content),
                 Bool(d, "showEmotes", Content),
