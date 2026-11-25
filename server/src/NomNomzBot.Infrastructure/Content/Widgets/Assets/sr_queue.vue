@@ -13,6 +13,7 @@ interface SrQueueConfig {
   showRequester: boolean
   showDuration: boolean
   accentColor: string
+  anchor: string
 }
 
 const cfg = reactive<SrQueueConfig>({
@@ -20,6 +21,7 @@ const cfg = reactive<SrQueueConfig>({
   showRequester: true,
   showDuration: true,
   accentColor: '#9146ff',
+  anchor: 'top-right',
 })
 
 interface QueueItem { title: string; requestedBy: string; durationSec: number; number: number; code: string }
@@ -76,6 +78,7 @@ onMounted(() => {
     if (typeof s.showRequester === 'boolean') cfg.showRequester = s.showRequester
     if (typeof s.showDuration === 'boolean') cfg.showDuration = s.showDuration
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   NomNomz.on('sr_queue', onQueue)
 })
@@ -90,7 +93,7 @@ onUnmounted(() => {
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
   <Transition name="nnz">
-    <div v-if="items.length" class="nnz-widget nnz-card nnz-srqueue">
+    <div v-if="items.length" class="nnz-widget nnz-card nnz-placed nnz-srqueue" :data-anchor="cfg.anchor">
       <div class="nnz-chip">Up Next</div>
       <div v-for="(it, i) in items.slice(0, cfg.count)" :key="i" class="nnz-row" :class="{ 'is-first': i === 0 }">
         <span class="nnz-num">#{{ it.number }}</span>
@@ -105,9 +108,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-srqueue {
-  position: absolute;
-  right: 4px;
-  top: 4px;
   width: 360px;
 }
 .code {

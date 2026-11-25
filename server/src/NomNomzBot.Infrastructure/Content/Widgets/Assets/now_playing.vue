@@ -14,6 +14,7 @@ interface NowPlayingConfig {
   showProgressBar: boolean
   provider: string        // '' = show any provider; otherwise only tracks whose payload provider matches
   accentColor: string
+  anchor: string
 }
 
 const cfg = reactive<NowPlayingConfig>({
@@ -22,6 +23,7 @@ const cfg = reactive<NowPlayingConfig>({
   showProgressBar: true,
   provider: '',
   accentColor: '#9146ff',
+  anchor: 'bottom-left',
 })
 
 const isPlaying = ref<boolean>(false)
@@ -168,6 +170,7 @@ onMounted(() => {
     if (typeof s.showProgressBar === 'boolean') cfg.showProgressBar = s.showProgressBar
     if (typeof s.provider === 'string') cfg.provider = s.provider
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
 
   })
   NomNomz.on('music.nowPlaying', onNowPlayingEvent)
@@ -188,7 +191,7 @@ onUnmounted(() => {
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the widget. -->
   <Transition name="nnz">
-    <div v-if="isPlaying && track" class="nnz-widget nnz-nowplaying" :class="'layout-' + cfg.layout">
+    <div v-if="isPlaying && track" class="nnz-widget nnz-placed nnz-nowplaying" :class="'layout-' + cfg.layout" :data-anchor="cfg.anchor">
       <div class="box" :class="cfg.layout === 'card' ? 'nnz-card' : 'nnz-pill'">
         <img v-if="cfg.showArt && artUrl" class="nnz-avatar art" :src="artUrl" alt="">
         <span v-else class="note nnz-accent-text">&#9835;</span>
@@ -216,9 +219,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-nowplaying {
-  position: absolute;
-  left: 4px;
-  bottom: 4px;
   max-width: 440px;
 }
 .box {

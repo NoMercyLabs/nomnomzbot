@@ -18,6 +18,7 @@ interface RedemptionConfig {
   durationMs: number
   soundClipId: string
   accentColor: string
+  anchor: string
 }
 
 const cfg = reactive<RedemptionConfig>({
@@ -26,6 +27,7 @@ const cfg = reactive<RedemptionConfig>({
   durationMs: 6000,
   soundClipId: '',
   accentColor: '#9146ff',
+  anchor: 'top',
 })
 
 interface RedemptionCard { user: string; reward: string; cost: number; input: string; avatarUrl: string }
@@ -89,6 +91,7 @@ onMounted(() => {
     if (isFinite(Number(s.durationMs))) cfg.durationMs = Number(s.durationMs)
     if (typeof s.soundClipId === 'string') cfg.soundClipId = s.soundClipId
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   NomNomz.on('reward_redeemed', onRedeemed)
 })
@@ -102,7 +105,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the card. -->
-  <div class="nnz-widget nnz-redemption">
+  <div class="nnz-widget nnz-placed nnz-redemption" :data-anchor="cfg.anchor">
     <div v-if="current" :key="cardKey" class="nnz-pill nnz-tilt card" :class="{ show: visible }">
       <span class="nnz-face"></span>
       <img v-if="current.avatarUrl" class="nnz-avatar" :src="current.avatarUrl" alt="">
@@ -117,10 +120,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-redemption {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  transform: translateX(-50%);
   pointer-events: none;
 }
 /* .show is the widget's own in/out switch (driven by `visible`), timed with the shared theme motion. */

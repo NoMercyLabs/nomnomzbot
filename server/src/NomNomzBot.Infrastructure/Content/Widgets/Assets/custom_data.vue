@@ -17,6 +17,7 @@ interface CustomDataConfig {
   min: number      // gauge floor
   max: number      // gauge ceiling
   accentColor: string
+  anchor: string
 }
 
 const cfg = reactive<CustomDataConfig>({
@@ -27,6 +28,7 @@ const cfg = reactive<CustomDataConfig>({
   min: 0,
   max: 200,
   accentColor: '#9146ff',
+  anchor: 'bottom-right',
 })
 
 const raw = ref<string>('') // idle until the first event; rendered as '—' meanwhile
@@ -86,6 +88,7 @@ onMounted(() => {
     if (isFinite(Number(s.min))) cfg.min = Number(s.min)
     if (isFinite(Number(s.max))) cfg.max = Number(s.max)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
     rebind()
   })
   rebind()
@@ -99,7 +102,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
-  <div class="nnz-widget nnz-card nnz-customdata">
+  <div class="nnz-widget nnz-card nnz-placed nnz-customdata" :data-anchor="cfg.anchor">
     <div v-if="cfg.label" class="nnz-chip">{{ cfg.label }}</div>
     <div v-if="cfg.render === 'gauge'" class="gauge">
       <div class="nnz-title value">{{ display }}</div>
@@ -112,9 +115,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-customdata {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
   min-width: 160px;
   text-align: center;
   pointer-events: none;

@@ -25,6 +25,7 @@ interface ChatBoxConfig {
   hideCommands: boolean  // drop messages starting with '!'
   hideBots: boolean      // drop well-known bot accounts
   accentColor: string
+  anchor: string
   fontFamily: string     // '' = system default
   fontSize: number       // px
   background: string     // '' = use the theme's line background; a hex overrides it
@@ -34,7 +35,7 @@ interface ChatBoxConfig {
 
 const cfg = reactive<ChatBoxConfig>({
   theme: 'dark',
-  maxMessages: 12,
+  maxMessages: 5,
   fadeAfterMs: 0,
   showBadges: true,
   showRoleBadge: false,
@@ -43,6 +44,7 @@ const cfg = reactive<ChatBoxConfig>({
   hideCommands: true,
   hideBots: true,
   accentColor: '#9146ff',
+  anchor: 'bottom-left',
   fontFamily: '',
   fontSize: 16,
   background: '',
@@ -504,6 +506,7 @@ onMounted(() => {
     if (typeof s.hideCommands === 'boolean') cfg.hideCommands = s.hideCommands
     if (typeof s.hideBots === 'boolean') cfg.hideBots = s.hideBots
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
     if (typeof s.fontFamily === 'string') cfg.fontFamily = s.fontFamily
     if (isFinite(Number(s.fontSize)) && Number(s.fontSize) > 0) cfg.fontSize = Number(s.fontSize)
     if (typeof s.background === 'string') cfg.background = s.background
@@ -531,7 +534,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the lines. -->
-  <TransitionGroup tag="div" name="nnz" class="nnz-widget nnz-chatbox":class="'theme-' + cfg.theme" :style="rootStyle">
+  <TransitionGroup tag="div" name="nnz" class="nnz-widget nnz-placed nnz-zoomed nnz-chatbox" :class="'theme-' + cfg.theme" :data-anchor="cfg.anchor" :style="rootStyle">
     <div
       v-for="l in lines"
       :key="l.id"
@@ -612,11 +615,7 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-chatbox {
-  position: absolute;
-  left: 4px;
-  bottom: 4px;
   width: 420px;
-  zoom: var(--nnz-zoom);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;

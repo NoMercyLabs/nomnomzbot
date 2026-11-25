@@ -9,10 +9,11 @@ interface Social { label: string; handle: string }
 
 // A config-only rotating handles bar — no event feed. The streamer fills `handles` in the widget
 // settings; the bar cross-fades through them at `rotateMs`.
-const cfg = reactive<{ handles: Social[]; rotateMs: number; accentColor: string }>({
+const cfg = reactive<{ handles: Social[]; rotateMs: number; accentColor: string; anchor: string }>({
   handles: [],
   rotateMs: 8000,
   accentColor: '#9146ff',
+  anchor: 'bottom-right',
 })
 const index = ref<number>(0)
 let rotator: number | undefined
@@ -46,6 +47,7 @@ onMounted(() => {
     if ('handles' in s) cfg.handles = normalize(s.handles)
     if (isFinite(Number(s.rotateMs)) && Number(s.rotateMs) > 0) cfg.rotateMs = Number(s.rotateMs)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
     restartRotation()
   })
 })
@@ -57,7 +59,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the pill. -->
-  <div class="nnz-widget nnz-socials">
+  <div class="nnz-widget nnz-placed nnz-socials" :data-anchor="cfg.anchor">
     <Transition name="nnz" mode="out-in">
       <div v-if="current" :key="current.label + current.handle" class="nnz-pill nnz-tilt">
         <span v-if="current.label" class="nnz-chip label">{{ current.label }}</span>
@@ -68,11 +70,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.nnz-socials {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-}
 .label {
   margin-bottom: 0;
 }

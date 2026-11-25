@@ -105,8 +105,11 @@ public sealed class StageSurfaceProvisioningTests
         stage.DefaultEventSubscriptions.Should().Equal(StageSurface.EventType);
         stage.ObsSetup.Should().Be(new ObsBrowserSource(1920, 1080, false, false));
         stage.DefaultSettings["intensity"].Should().Be(5);
-        // An empty accent means the streamer's overlay theme decides the color (152ba4b0d).
-        stage.DefaultSettings["accentColor"].Should().Be("");
+        // The color starts as the main color of the default look, and the theme's own color applies for it.
+        stage
+            .DefaultSettings["accentColor"]
+            .Should()
+            .Be(FirstPartyWidgetCatalogue.ThemeMainColors[FirstPartyWidgetCatalogue.Themes[0]]);
     }
 
     [Fact]

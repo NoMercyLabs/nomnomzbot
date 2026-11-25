@@ -12,11 +12,13 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 interface MediaShareConfig {
   showTitle: boolean
   accentColor: string
+  anchor: string
 }
 
 const cfg = reactive<MediaShareConfig>({
   showTitle: true,
   accentColor: '#9146ff',
+  anchor: 'center',
 })
 
 type MediaShareCommand = NnzWidgetEventMap['media_share_command']
@@ -359,6 +361,7 @@ onMounted(() => {
     if (!s || typeof s !== 'object') return
     if (typeof s.showTitle === 'boolean') cfg.showTitle = s.showTitle
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   NomNomz.on('media_share_command', onCommand)
   startReporting()
@@ -373,7 +376,11 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only sizes the frame. -->
-  <div class="nnz-widget nnz-card nnz-mediashare" :class="{ 'is-hidden': !visible }">
+  <div
+    class="nnz-widget nnz-card nnz-placed nnz-mediashare"
+    :class="{ 'is-hidden': !visible }"
+    :data-anchor="cfg.anchor"
+  >
     <div class="frame">
       <div v-show="sourceType === 'twitch_clip'" id="nnz-clip-player" class="player" />
       <div v-show="sourceType === 'youtube'" ref="ytMount" class="player" />
@@ -383,9 +390,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Fills the browser source less the edge offset on each side; the card zoom multiplies the declared size. */
 .nnz-mediashare {
-  width: 100%;
-  height: 100%;
+  width: calc((100% - 2 * var(--nnz-edge)) / var(--nnz-z));
+  height: calc((100% - 2 * var(--nnz-edge)) / var(--nnz-z));
   display: flex;
   flex-direction: column;
   gap: 8px;

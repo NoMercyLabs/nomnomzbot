@@ -1930,8 +1930,19 @@ public class WidgetService : IWidgetService
                 && rev > (w.InstalledSourceRevision ?? 0),
             _presence.IsWidgetAttached(w.BroadcasterId, w.Id),
             w.IsSourceCustomized(latestVersionNumber),
-            FirstPartyWidgetCatalogue.Find(galleryNaturalKey)?.ObsSetup
+            ObsSetupFor(galleryNaturalKey, w.Settings)
         );
+    }
+
+    // The browser source size follows the saved settings (scale, message count, row count), so it is computed per read.
+    private static ObsBrowserSource? ObsSetupFor(
+        string? galleryNaturalKey,
+        Dictionary<string, object> settings
+    )
+    {
+        FirstPartyWidgetDefinition? definition = FirstPartyWidgetCatalogue.Find(galleryNaturalKey);
+
+        return definition is null ? null : FirstPartyWidgetObsSizing.For(definition, settings);
     }
 
     /// <summary>

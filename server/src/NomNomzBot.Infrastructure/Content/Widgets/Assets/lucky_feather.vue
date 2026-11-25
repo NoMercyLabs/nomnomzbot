@@ -31,6 +31,7 @@ interface FeatherConfig {
   stolenTemplate: string // {thief} {victim}; empty = default copy
   bannerDurationMs: number
   accentColor: string
+  anchor: string
 }
 
 const cfg = reactive<FeatherConfig>({
@@ -38,6 +39,7 @@ const cfg = reactive<FeatherConfig>({
   stolenTemplate: '',
   bannerDurationMs: 5000,
   accentColor: '#f4b942',
+  anchor: 'bottom',
 })
 
 const holder = ref<Holder | null>(null)
@@ -144,6 +146,7 @@ onMounted(() => {
     if (typeof s.stolenTemplate === 'string') cfg.stolenTemplate = s.stolenTemplate
     if (isFinite(Number(s.bannerDurationMs)) && Number(s.bannerDurationMs) > 0) cfg.bannerDurationMs = Number(s.bannerDurationMs)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   NomNomz.on('steal', onSteal)
   NomNomz.on('hide', onHide)
@@ -159,7 +162,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the pills. -->
-  <div class="nnz-widget nnz-feather">
+  <div class="nnz-widget nnz-placed nnz-feather" :data-anchor="cfg.anchor">
     <div class="nnz-pill nnz-tilt banner" :class="{ show: bannerVisible }">
       <span class="nnz-face"></span>
       <span class="nnz-title">{{ bannerText }}</span>
@@ -176,10 +179,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-feather {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
   pointer-events: none;
   display: flex;
   flex-direction: column;

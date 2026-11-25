@@ -11,12 +11,19 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 // title, outcomes: [{ id, title, channelPoints, users, color }] }). Idle until a round begins; the winner is
 // highlighted on end, then the panel hides.
 interface PollPredConfig {
-  position: string                 // 'left' | 'right'
+  anchor: string
   colors: { bar?: string; track?: string }
   accentColor: string
 }
 
-const cfg = reactive<PollPredConfig>({ position: 'left', colors: {}, accentColor: '#9146ff' })
+const cfg = reactive<PollPredConfig>({ anchor: 'left', colors: {}, accentColor: '#9146ff' })
+
+// The anchor setting wins; a channel that saved only the old position ('left' or 'right') keeps its place.
+function anchorOf(s: NnzWidgetSettings): string | undefined {
+  if (typeof s.anchor === 'string' && s.anchor) return s.anchor
+  if (typeof s.position === 'string' && s.position) return s.position
+  return undefined
+}
 
 type PollFrame = NnzWidgetEventMap['poll_begin'] | NnzWidgetEventMap['poll_progress'] | NnzWidgetEventMap['poll_end']
 type PredictionFrame =
@@ -143,7 +150,7 @@ onMounted(() => {
   if (typeof NomNomz === 'undefined') return
   NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
-    if (typeof s.position === 'string' && s.position) cfg.position = s.position
+    cfg.anchor = anchorOf(s) || cfg.anchor
     if (isObject<PollPredConfig['colors']>(s.colors)) cfg.colors = s.colors
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
@@ -175,8 +182,8 @@ onUnmounted(() => {
   <Transition name="nnz">
     <div
       v-if="mode"
-      class="nnz-widget nnz-card nnz-pollpred"
-      :class="'pos-' + cfg.position"
+      class="nnz-widget nnz-card nnz-placed nnz-pollpred"
+      :data-anchor="cfg.anchor"
       :style="{
         '--bar': cfg.colors.bar || 'var(--nnz-fill)',
         '--track': cfg.colors.track || 'var(--nnz-track)',
@@ -201,17 +208,8 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-pollpred {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
   width: 340px;
   pointer-events: none;
-}
-.pos-left {
-  left: 4px;
-}
-.pos-right {
-  right: 4px;
 }
 .head {
   display: flex;

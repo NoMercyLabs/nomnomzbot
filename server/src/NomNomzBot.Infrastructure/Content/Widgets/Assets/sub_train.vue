@@ -5,7 +5,11 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
-const cfg = reactive({ windowMs: 300000, accentColor: '#9146ff' })
+const cfg = reactive({
+  windowMs: 300000,
+  accentColor: '#9146ff',
+  anchor: 'top',
+})
 
 // Timestamps of recent sub contributions (a gift of N counts as N). The "train" is the count still
 // inside the rolling window; it hides once the window empties.
@@ -55,6 +59,7 @@ onMounted(() => {
     if (!s || typeof s !== 'object') return
     if (isFinite(Number(s.windowMs)) && Number(s.windowMs) > 0) cfg.windowMs = Number(s.windowMs)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   NomNomz.on('subscription', onSub)
   NomNomz.on('resub', onSub)
@@ -82,7 +87,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the bar. -->
-  <div class="nnz-widget nnz-sub-train">
+  <div class="nnz-widget nnz-placed nnz-sub-train" :data-anchor="cfg.anchor">
     <Transition name="nnz">
       <div v-if="visible" class="nnz-pill">
         <span class="nnz-sub label">Sub train. All aboard.</span>
@@ -93,12 +98,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.nnz-sub-train {
-  position: absolute;
-  left: 50%;
-  top: 4px;
-  transform: translateX(-50%);
-}
 .label {
   white-space: nowrap;
 }

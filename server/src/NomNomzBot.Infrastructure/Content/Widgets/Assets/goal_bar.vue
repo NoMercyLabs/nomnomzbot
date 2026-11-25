@@ -14,6 +14,7 @@ interface GoalConfig {
   resetCadence: string
   colors: GoalColors
   labels: GoalLabels
+  anchor: string
 }
 
 // The colors and labels settings are free-form JSON (typed unknown); this narrows one to its object shape.
@@ -28,6 +29,7 @@ const cfg = reactive<GoalConfig>({
   resetCadence: '',
   colors: {},
   labels: {},
+  anchor: 'bottom',
 })
 
 const value = ref<number>(0)
@@ -67,6 +69,7 @@ onMounted(() => {
   NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.metric === 'string' && s.metric) cfg.metric = s.metric
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
     if (isFinite(Number(s.target))) cfg.target = Number(s.target)
     if (isFinite(Number(s.start))) {
       cfg.start = Number(s.start)
@@ -96,7 +99,8 @@ onUnmounted(() => {
 <template>
   <!-- The look comes from /overlay/theme.css; the colors setting still wins over the theme when it is set. -->
   <div
-    class="nnz-widget nnz-card nnz-goal"
+    class="nnz-widget nnz-card nnz-placed nnz-goal"
+    :data-anchor="cfg.anchor"
     :style="{
       '--bar': cfg.colors.bar || 'var(--nnz-fill)',
       '--track': cfg.colors.track || 'var(--nnz-track)',
@@ -117,10 +121,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-goal {
-  position: absolute;
-  left: 50%;
-  bottom: 4px;
-  transform: translateX(-50%);
   width: 520px;
   color: var(--text);
 }

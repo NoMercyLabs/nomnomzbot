@@ -153,18 +153,39 @@ public sealed class OverlaySdkController : ControllerBase
             replaySeed(function (f) { emit(f.eventType, f.data, f.meta); });
           }
           // The look: the widget's `overlayTheme` setting picks the token set in /overlay/theme.css (a `theme`
-          // parameter in the address wins, for a preview), and an accent colour the streamer chose replaces the
-          // theme's own. An empty accent, or a default accent from before the themes, means "the theme's accent".
+          // parameter in the address wins, for a preview), and the colour the streamer chose replaces the theme's
+          // own main colour. Each theme has one main colour variable (print: its surface; the others: their accent),
+          // and every colour the theme derives from it follows. An empty colour, "reset", a colour that is already
+          // some theme's main colour (the default the settings form shows), or a default accent from before the
+          // themes, all mean "the theme's own colour". The layout settings edgeOffset (px) and scale (%) set the
+          // two layout variables the placed parts read.
           var THEMES = ["sticker", "ink", "print", "classic"];
+          var MAIN_VAR = { sticker: "--nnz-accent", ink: "--nnz-accent", print: "--nnz-surface", classic: "--nnz-accent" };
+          var MAIN_COLOR = { sticker: "#ff2d6f", ink: "#c8ff2e", print: "#d4ff3a", classic: "#9146ff" };
           var LEGACY_ACCENTS = ["#9146ff", "#f4b942"];
+          function isThemeOwnColor(color) {
+            return !color || color === "reset" || LEGACY_ACCENTS.indexOf(color) >= 0
+              || THEMES.some(function (t) { return MAIN_COLOR[t] === color; });
+          }
+          function applyLayout(root, s) {
+            var edge = Number(s.edgeOffset);
+            if (s.edgeOffset !== "" && s.edgeOffset != null && isFinite(edge) && edge >= 0) root.style.setProperty("--nnz-edge", Math.min(edge, 2000) + "px");
+            else root.style.removeProperty("--nnz-edge");
+            var scale = Number(s.scale);
+            if (s.scale !== "" && s.scale != null && isFinite(scale) && scale > 0) root.style.setProperty("--nnz-scale", String(Math.min(200, Math.max(50, scale)) / 100));
+            else root.style.removeProperty("--nnz-scale");
+          }
           function applyTheme(s) {
             var root = typeof document === "undefined" ? null : document.documentElement;
             if (!root || typeof root.setAttribute !== "function" || !root.style) return;
             var wanted = params.get("theme") || s.overlayTheme;
-            root.setAttribute("data-nnz-theme", THEMES.indexOf(wanted) >= 0 ? wanted : THEMES[0]);
-            var accent = typeof s.accentColor === "string" ? s.accentColor.trim().toLowerCase() : "";
-            if (accent && LEGACY_ACCENTS.indexOf(accent) < 0) root.style.setProperty("--nnz-accent", accent);
-            else root.style.removeProperty("--nnz-accent");
+            var theme = THEMES.indexOf(wanted) >= 0 ? wanted : THEMES[0];
+            root.setAttribute("data-nnz-theme", theme);
+            var color = typeof s.accentColor === "string" ? s.accentColor.trim().toLowerCase() : "";
+            root.style.removeProperty("--nnz-accent");
+            root.style.removeProperty("--nnz-surface");
+            if (!isThemeOwnColor(color)) root.style.setProperty(MAIN_VAR[theme], color);
+            applyLayout(root, s);
           }
           applyTheme(currentSettings);
           function applySettings(s) {

@@ -124,6 +124,96 @@ public static class FirstPartyWidgetCatalogue
     /// <summary>The looks in <c>Content/Widgets/Theme/overlay-theme.css</c>; the first is the default.</summary>
     public static readonly IReadOnlyList<string> Themes = ["sticker", "ink", "print", "classic"];
 
+    /// <summary>
+    /// The one main color of each look, the value its <c>--nnz-accent</c> (or, for print, <c>--nnz-surface</c>) holds in
+    /// <c>overlay-theme.css</c>. The color setting changes exactly this variable, and its default is the main color of
+    /// the default look, so the picker shows the real color. The overlay SDK holds the same table; a test keeps the
+    /// two equal.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> ThemeMainColors = new Dictionary<
+        string,
+        string
+    >
+    {
+        ["sticker"] = "#ff2d6f",
+        ["ink"] = "#c8ff2e",
+        ["print"] = "#d4ff3a",
+        ["classic"] = "#9146ff",
+    };
+
+    /// <summary>The color setting every widget with an accent carries.</summary>
+    public const string AccentSettingKey = "accentColor";
+
+    /// <summary>Where the overlay sits in its browser source: one of <see cref="Anchors"/>.</summary>
+    public const string AnchorSettingKey = "anchor";
+
+    /// <summary>The distance in pixels between the overlay and the browser source edge it is anchored to.</summary>
+    public const string EdgeOffsetSettingKey = "edgeOffset";
+
+    /// <summary>The size of the overlay in percent of its natural size.</summary>
+    public const string ScaleSettingKey = "scale";
+
+    /// <summary>The nine places an overlay can sit in its browser source.</summary>
+    public static readonly IReadOnlyList<string> Anchors =
+    [
+        "top-left",
+        "top",
+        "top-right",
+        "left",
+        "center",
+        "right",
+        "bottom-left",
+        "bottom",
+        "bottom-right",
+    ];
+
+    /// <summary>The distance from the source edge every overlay starts with, so a card's shadow is not clipped.</summary>
+    public const int DefaultEdgeOffset = 4;
+
+    /// <summary>The scale in percent every overlay starts with.</summary>
+    public const int DefaultScale = 100;
+
+    public const int MinScale = 50;
+    public const int MaxScale = 200;
+
+    /// <summary>
+    /// The 21 sized overlays and the place each one sits today, which is the default of its anchor. The four
+    /// full-screen overlays and the two sound-only ones are not here: they have no place to choose.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> DefaultAnchors = new Dictionary<
+        string,
+        string
+    >
+    {
+        ["alerts"] = "top",
+        ["goal_bar"] = "bottom",
+        ["labels"] = "bottom-left",
+        ["raffle"] = "bottom",
+        ["heist"] = "bottom",
+        ["crash"] = "bottom",
+        ["event_ticker"] = "center",
+        ["chat_box"] = "bottom-left",
+        ["now_playing"] = "bottom-left",
+        ["sr_queue"] = "top-right",
+        ["media_share"] = "center",
+        ["tts_caption"] = "bottom",
+        ["poll_prediction"] = "left",
+        ["redemption_alert"] = "top",
+        ["countdown_timer"] = "center",
+        ["custom_data"] = "bottom-right",
+        ["recent_followers"] = "top-left",
+        ["sub_train"] = "top",
+        ["socials"] = "bottom-right",
+        ["top_cheerers"] = "top-right",
+        ["lucky_feather"] = "bottom",
+    };
+
+    /// <summary>
+    /// The alert card sat 12% (86 px of 720) below the top, not 4 px, so its edge offset starts there and the card
+    /// does not move for a channel that never touches the setting.
+    /// </summary>
+    private const int AlertsDefaultEdgeOffset = 86;
+
     private static readonly FirstPartyWidgetDefinition[] Authored =
     [
         new(
@@ -247,8 +337,9 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "chat_box",
-            // A 420 px column (1.45x) that stacks the default 12 messages from the bottom, so it needs the full height.
-            ObsSetup: Overlay(660, 1080),
+            // A 420 px column (1.45x) that stacks the default 5 messages from the bottom. The height is what
+            // FirstPartyWidgetObsSizing gives at the default settings: 5 messages of 111 px, plus the padding.
+            ObsSetup: Overlay(660, 581),
             Name: "Chat Box",
             Description: "Live chat rendered from the decorated message feed — resolved emotes, badges, name colours, "
                 + "and pronouns — with theming, font/size/background controls, timestamps, command/bot filtering, and optional per-message fade.",
@@ -260,7 +351,7 @@ public static class FirstPartyWidgetCatalogue
                 ["background"] = "",
                 ["backgroundOpacity"] = 0.82,
                 ["showTimestamps"] = false,
-                ["maxMessages"] = 12,
+                ["maxMessages"] = 5,
                 ["fadeAfterMs"] = 0,
                 ["showBadges"] = true,
                 ["showRoleBadge"] = false,
@@ -367,7 +458,6 @@ public static class FirstPartyWidgetCatalogue
             {
                 ["showText"] = true,
                 ["voiceLabel"] = false,
-                ["position"] = "bottom",
                 ["accentColor"] = "",
             },
             DefaultEventSubscriptions: ["tts_speak"]
@@ -392,7 +482,6 @@ public static class FirstPartyWidgetCatalogue
                 + "outcome highlighted on resolve — shown only while a round runs.",
             DefaultSettings: new()
             {
-                ["position"] = "left",
                 ["colors"] = new Dictionary<string, object>(),
                 ["accentColor"] = "",
             },
@@ -632,14 +721,32 @@ public static class FirstPartyWidgetCatalogue
     public static readonly IReadOnlyList<FirstPartyWidgetDefinition> All =
     [
         .. Authored.Select(widget =>
-            widget.ObsSetup == SoundOnly
-                ? widget
-                : widget with
-                {
-                    DefaultSettings = new(widget.DefaultSettings) { [ThemeSettingKey] = Themes[0] },
-                }
+            widget.ObsSetup == SoundOnly ? widget : widget with { DefaultSettings = Themed(widget) }
         ),
     ];
+
+    /// <summary>
+    /// The settings a widget that draws starts with: the default look, the main color of that look in place of an
+    /// empty color, and (for a sized overlay, one whose authored settings name an anchor) the distance from the
+    /// edge and the scale.
+    /// </summary>
+    private static Dictionary<string, object> Themed(FirstPartyWidgetDefinition widget)
+    {
+        Dictionary<string, object> settings = new(widget.DefaultSettings)
+        {
+            [ThemeSettingKey] = Themes[0],
+        };
+        if (settings.ContainsKey(AccentSettingKey))
+            settings[AccentSettingKey] = ThemeMainColors[Themes[0]];
+        if (DefaultAnchors.TryGetValue(widget.Key, out string? anchor))
+        {
+            settings[AnchorSettingKey] = anchor;
+            settings[EdgeOffsetSettingKey] =
+                widget.Key == "alerts" ? AlertsDefaultEdgeOffset : DefaultEdgeOffset;
+            settings[ScaleSettingKey] = DefaultScale;
+        }
+        return settings;
+    }
 
     /// <summary>
     /// The entry for a gallery natural key; a retired key resolves to its canonical entry, and a key the catalogue

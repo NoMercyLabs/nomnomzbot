@@ -16,6 +16,7 @@ const cfg = reactive<NnzWidgetSettings>({
   label: 'Starting soon',
   onCompleteText: '',
   accentColor: '#9146ff',
+  anchor: 'center',
 })
 
 const remainingMs = ref<number>(-1) // -1 = idle (nothing configured), 0 = complete
@@ -62,6 +63,7 @@ onMounted(() => {
     if (typeof s.label === 'string') cfg.label = s.label
     if (typeof s.onCompleteText === 'string') cfg.onCompleteText = s.onCompleteText
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
     arm()
   })
 })
@@ -73,7 +75,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the card. -->
-  <div v-if="remainingMs >= 0" class="nnz-widget nnz-card nnz-enter nnz-countdown">
+  <div v-if="remainingMs >= 0" class="nnz-widget nnz-card nnz-enter nnz-placed nnz-countdown" :data-anchor="cfg.anchor">
     <div v-if="cfg.label" class="nnz-chip">{{ cfg.label }}</div>
     <div v-if="remainingMs > 0" class="nnz-title time">{{ fmt(remainingMs) }}</div>
     <div v-else class="nnz-title nnz-accent-text done">{{ cfg.onCompleteText || '00:00' }}</div>
@@ -82,10 +84,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-countdown {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   min-width: 220px;
   text-align: center;
   pointer-events: none;

@@ -12,9 +12,16 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 const cfg = reactive<NnzWidgetSettings>({
   showText: true,
   voiceLabel: false,
-  position: 'bottom',
+  anchor: 'bottom',
   accentColor: '#9146ff',
 })
+
+// The anchor setting wins; a channel that saved only the old position ('top' or 'bottom') keeps its place.
+function anchorOf(s: NnzWidgetSettings): string | undefined {
+  if (typeof s.anchor === 'string' && s.anchor) return s.anchor
+  if (typeof s.position === 'string' && s.position) return s.position
+  return undefined
+}
 
 const active = ref<boolean>(false)
 const text = ref<string>('')
@@ -42,7 +49,7 @@ onMounted(() => {
     if (!s || typeof s !== 'object') return
     if (typeof s.showText === 'boolean') cfg.showText = s.showText
     if (typeof s.voiceLabel === 'boolean') cfg.voiceLabel = s.voiceLabel
-    if (typeof s.position === 'string' && s.position) cfg.position = s.position
+    cfg.anchor = anchorOf(s) || cfg.anchor
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
   NomNomz.on('tts_speak', onSpeak)
@@ -59,8 +66,8 @@ onUnmounted(() => {
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the caption. -->
   <div
     v-if="active"
-    class="nnz-widget nnz-pill nnz-enter nnz-ttscaption"
-    :class="'pos-' + cfg.position"
+    class="nnz-widget nnz-pill nnz-enter nnz-placed nnz-ttscaption"
+    :data-anchor="cfg.anchor"
   >
     <span class="indicator">
       <span class="wave w1"></span><span class="wave w2"></span><span class="wave w3"></span>
@@ -74,18 +81,9 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-ttscaption {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   max-width: 700px;
   pointer-events: none;
-}
-.pos-top {
-  top: 4px;
-}
-.pos-bottom {
-  bottom: 4px;
 }
 .indicator {
   display: inline-flex;

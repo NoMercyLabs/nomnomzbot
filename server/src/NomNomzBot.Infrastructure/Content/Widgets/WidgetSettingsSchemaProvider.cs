@@ -44,6 +44,13 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static readonly LocalizedText Appearance = new("widget.group.appearance");
     private static readonly LocalizedText Behaviour = new("widget.group.behaviour");
     private static readonly LocalizedText Data = new("widget.group.data");
+    private static readonly LocalizedText Layout = new("widget.group.layout");
+
+    // The nine places an overlay can sit; the same words on every sized widget.
+    private static readonly IReadOnlyList<WidgetSettingsFieldOption> AnchorOptions =
+    [
+        .. FirstPartyWidgetCatalogue.Anchors.Select(anchor => SharedOption("anchor", anchor)),
+    ];
 
     // Shared across every widget that offers this choice, so the option's meaning (and its key) never drifts
     // between e.g. "alerts" and "event_ticker": widget.option.{namespace}.{value}.
@@ -109,9 +116,52 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     new("widget.shared.theme.help"),
                     ThemeOptions
                 ),
+                .. LayoutFields(d),
                 .. fields,
             ]
             : fields;
+
+    // The layout block every sized overlay shares: where it sits in its browser source, how far from that edge, and
+    // how large. A full-screen overlay and a sound-only one have no anchor in their settings, so they get none.
+    private static IReadOnlyList<WidgetSettingsField> LayoutFields(FirstPartyWidgetDefinition d) =>
+        d.DefaultSettings.ContainsKey(FirstPartyWidgetCatalogue.AnchorSettingKey)
+            ?
+            [
+                new(
+                    FirstPartyWidgetCatalogue.AnchorSettingKey,
+                    new("widget.shared.anchor.label"),
+                    Select,
+                    Layout,
+                    DefaultOf(d, FirstPartyWidgetCatalogue.AnchorSettingKey),
+                    new("widget.shared.anchor.help"),
+                    AnchorOptions
+                ),
+                new(
+                    FirstPartyWidgetCatalogue.EdgeOffsetSettingKey,
+                    new("widget.shared.edgeOffset.label"),
+                    Number,
+                    Layout,
+                    DefaultOf(d, FirstPartyWidgetCatalogue.EdgeOffsetSettingKey),
+                    new("widget.shared.edgeOffset.help"),
+                    null,
+                    0,
+                    2000,
+                    1
+                ),
+                new(
+                    FirstPartyWidgetCatalogue.ScaleSettingKey,
+                    new("widget.shared.scale.label"),
+                    Number,
+                    Layout,
+                    DefaultOf(d, FirstPartyWidgetCatalogue.ScaleSettingKey),
+                    new("widget.shared.scale.help"),
+                    null,
+                    FirstPartyWidgetCatalogue.MinScale,
+                    FirstPartyWidgetCatalogue.MaxScale,
+                    5
+                ),
+            ]
+            : [];
 
     public IReadOnlyList<WidgetSettingsSchema> GetAll() => _all;
 
@@ -225,7 +275,6 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             [
                 Bool(d, "showText", Content),
                 Bool(d, "voiceLabel", Content),
-                SelectField(d, "position", Appearance, Opts(d, "position", "top", "bottom")),
                 Accent(d),
             ],
             "stage" =>
@@ -233,12 +282,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 NumberField(d, "intensity", Behaviour, min: 1, max: 10, step: 1),
                 Accent(d),
             ],
-            "poll_prediction" =>
-            [
-                SelectField(d, "position", Appearance, Opts(d, "position", "left", "right")),
-                JsonField(d, "colors", Appearance, help: true),
-                Accent(d),
-            ],
+            "poll_prediction" => [JsonField(d, "colors", Appearance, help: true), Accent(d)],
             "redemption_alert" =>
             [
                 JsonField(d, "rewards", Content, help: true),
@@ -469,5 +513,5 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     ) => new(value, new($"widget.{d.Key}.{fieldKey}.option.{value}"));
 
     private static WidgetSettingsFieldOption SharedOption(string @namespace, string value) =>
-        new(value, new($"widget.option.{@namespace}.{value}"));
+        new(value, new($"widget.option.{@namespace}.{value.Replace('-', '_')}"));
 }

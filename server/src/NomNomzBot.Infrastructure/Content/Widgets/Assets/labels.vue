@@ -5,8 +5,13 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
-interface LabelConfig { label: string; formatString: string; accentColor: string }
-const cfg = reactive<LabelConfig>({ label: 'latest_follower', formatString: '', accentColor: '#9146ff' })
+interface LabelConfig { label: string; formatString: string; accentColor: string; anchor: string }
+const cfg = reactive<LabelConfig>({
+  label: 'latest_follower',
+  formatString: '',
+  accentColor: '#9146ff',
+  anchor: 'bottom-left',
+})
 
 const raw = ref<string>('') // the tracked value (a name, or a count rendered as a string)
 const cheerTotals: Record<string, number> = {}
@@ -117,6 +122,7 @@ onMounted(() => {
     if (!s || typeof s !== 'object') return
     if (typeof s.label === 'string' && s.label) cfg.label = s.label
     if (typeof s.formatString === 'string') cfg.formatString = s.formatString
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
   NomNomz.on('follow', onFollow)
@@ -142,17 +148,12 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the label. -->
-  <div class="nnz-widget nnz-label">
+  <div class="nnz-widget nnz-placed nnz-label" :data-anchor="cfg.anchor">
     <span class="nnz-pill nnz-tilt nnz-enter"><span class="nnz-title value">{{ display }}</span></span>
   </div>
 </template>
 
 <style scoped>
-.nnz-label {
-  position: absolute;
-  left: 4px;
-  bottom: 4px;
-}
 .value {
   white-space: nowrap;
 }

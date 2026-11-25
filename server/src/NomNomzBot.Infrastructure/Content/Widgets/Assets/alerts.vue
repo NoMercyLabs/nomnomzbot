@@ -27,6 +27,7 @@ interface AlertConfig {
   minGiftCount: number
   minAmount: number
   accentColor: string
+  anchor: string
 }
 
 const cfg = reactive<AlertConfig>({
@@ -38,6 +39,7 @@ const cfg = reactive<AlertConfig>({
   minGiftCount: 0,
   minAmount: 0,
   accentColor: '#9146ff',
+  anchor: 'top',
 })
 
 interface AlertCard { title: string; detail: string; imageUrl?: string }
@@ -179,6 +181,7 @@ onMounted(() => {
     if (isFinite(Number(s.minGiftCount))) cfg.minGiftCount = Number(s.minGiftCount)
     if (isFinite(Number(s.minAmount))) cfg.minAmount = Number(s.minAmount)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   ALL_EVENTS.forEach((type: string) => {
     const fn = (d: unknown): void => handle(type, d)
@@ -200,10 +203,11 @@ onUnmounted(() => {
     <div
       v-if="current"
       :key="cardKey"
-      class="nnz-pill nnz-tilt card"
+      class="nnz-pill nnz-tilt nnz-placed card"
       :class="{ show: visible, sticker_card: !!current.imageUrl }"
+      :data-anchor="current.imageUrl ? undefined : cfg.anchor"
       :style="current.imageUrl
-        ? { left: cardLeftPct + '%', top: cardTopPct + '%', transform: visible ? 'translate(-50%, 0) scale(1)' : 'translate(-50%, -18px) scale(0.96)' }
+        ? { left: cardLeftPct + '%', top: cardTopPct + '%', transform: 'translateX(-50%)' }
         : undefined"
     >
       <span class="nnz-face"></span>
@@ -224,18 +228,17 @@ onUnmounted(() => {
 }
 /* .show is the widget's own in/out switch (driven by `visible`), timed with the shared theme motion. */
 .card {
-  position: absolute;
-  top: 12%;
-  left: 50%;
   min-width: 280px;
   max-width: 70vw;
   opacity: 0;
-  transform: translate(-50%, -18px) scale(0.96);
-  transition: opacity var(--nnz-out) ease-in, transform var(--nnz-in) var(--nnz-ease);
+  translate: 0 -18px;
+  scale: 0.96;
+  transition: opacity var(--nnz-out) ease-in, translate var(--nnz-in) var(--nnz-ease), scale var(--nnz-in) var(--nnz-ease);
 }
 .card.show {
   opacity: 1;
-  transform: translate(-50%, 0) scale(1);
+  translate: 0 0;
+  scale: 1;
 }
 .body {
   display: flex;

@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0  (c) NoMercy Labs -->
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) comes from this widget's own SDK types. An event payload is read as a loose record: one
@@ -16,8 +16,21 @@ const ALL_EVENTS: string[] = [
   'supporter.tip', 'supporter.membership', 'supporter.merch', 'supporter.charity',
 ]
 
-interface TickerConfig { events: string[]; speed: number; count: number; accentColor: string }
-const cfg = reactive<TickerConfig>({ events: ALL_EVENTS.slice(), speed: 60, count: 20, accentColor: '#9146ff' })
+interface TickerConfig { events: string[]; speed: number; count: number; accentColor: string; anchor: string }
+const cfg = reactive<TickerConfig>({
+  events: ALL_EVENTS.slice(),
+  speed: 60,
+  count: 20,
+  accentColor: '#9146ff',
+  anchor: 'center',
+})
+
+// The band fills the source across; the anchor picks the edge it sits on, the edge offset is the gap to it.
+const bandStyle = computed<Record<string, string>>(() => {
+  const side: string = cfg.anchor.split('-')[0]
+  const align: string = side === 'top' ? 'flex-start' : side === 'bottom' ? 'flex-end' : 'center'
+  return { 'align-items': align, padding: 'var(--nnz-edge) 0' }
+})
 
 const TEST_SHOW_MS = 10000
 
@@ -111,6 +124,7 @@ onMounted(() => {
     if (isFinite(Number(s.speed)) && Number(s.speed) > 0) cfg.speed = Number(s.speed)
     if (isFinite(Number(s.count)) && Number(s.count) > 0) cfg.count = Number(s.count)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   ALL_EVENTS.forEach((type: string) => {
     const fn = (d: unknown, _t?: string, meta?: NnzEventMeta): void => handle(type, d, meta)
@@ -128,7 +142,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the bar. -->
-  <div class="nnz-widget nnz-ticker">
+  <div class="nnz-widget nnz-ticker" :style="bandStyle">
     <div ref="trackEl" class="track">
       <div ref="copyEl" class="copy">
         <span v-for="c in chips" :key="c.id" class="nnz-pill chip">
@@ -149,7 +163,6 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
   overflow: hidden;
 }
 .track {

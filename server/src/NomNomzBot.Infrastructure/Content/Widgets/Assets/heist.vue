@@ -13,7 +13,11 @@ type GameFrame =
   | NnzWidgetEventMap['game.running']
   | NnzWidgetEventMap['game.resolved']
 
-const cfg = reactive({ accentColor: '#9146ff', hideAfterMs: 12000 })
+const cfg = reactive({
+  accentColor: '#9146ff',
+  hideAfterMs: 12000,
+  anchor: 'bottom',
+})
 
 const visible = ref<boolean>(false)
 const phase = ref<'lobby' | 'resolved' | 'cancelled'>('lobby')
@@ -78,6 +82,7 @@ onMounted(() => {
   NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
     if (isFinite(Number(s.hideAfterMs)) && Number(s.hideAfterMs) > 0) cfg.hideAfterMs = Number(s.hideAfterMs)
   })
   NomNomz.on('game.lobby', onFrame)
@@ -97,7 +102,7 @@ onUnmounted(() => {
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
   <Transition name="nnz">
-  <div v-if="visible" class="nnz-widget nnz-card nnz-heist">
+  <div v-if="visible" class="nnz-widget nnz-card nnz-placed nnz-heist" :data-anchor="cfg.anchor">
     <div class="head">
       <span v-if="phase === 'lobby'" class="nnz-title title">Heist — type <b class="nnz-accent-text">!heist</b> to join the crew</span>
       <span v-else-if="phase === 'cancelled'" class="nnz-title title">Heist — cancelled</span>
@@ -128,10 +133,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-heist {
-  position: absolute;
-  left: 50%;
-  bottom: 4px;
-  transform: translateX(-50%);
   width: 720px;
 }
 .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }

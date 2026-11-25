@@ -57,6 +57,10 @@
   --nnz-gap: 10px;
   /* Parts are drawn at this size on the 1920 x 1080 canvas, so a viewer on a phone can still read them. */
   --nnz-zoom: 1.45;
+  /* The two layout settings every sized overlay has. The overlay SDK sets them from the widget's edgeOffset and scale. */
+  --nnz-edge: 4px;
+  --nnz-scale: 1;
+  --nnz-z: calc(var(--nnz-zoom) * var(--nnz-scale));
   --nnz-ease: cubic-bezier(0.2, 0.9, 0.3, 1.25);
   --nnz-in: 420ms;
   --nnz-out: 260ms;
@@ -119,11 +123,16 @@
   --nnz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Print: an acid-lime poster with black type, halftone dots, sharp corners and a hard black shadow. */
+/*
+ * Print: an acid-lime poster with black type, halftone dots, sharp corners and a hard black shadow.
+ * Its main color is the surface (--nnz-surface); the other themes' main color is --nnz-accent. Every color print
+ * derives from the surface (the card highlight, the chip text, the number text) follows it.
+ */
 [data-nnz-theme='print'] {
   --nnz-accent: #ff2d6f;
   --nnz-on-accent: #ffffff;
   --nnz-surface: #d4ff3a;
+  --nnz-surface-hi: color-mix(in srgb, var(--nnz-surface) 78%, #ffffff);
   --nnz-text: #121212;
   --nnz-muted: rgba(18, 18, 18, 0.74);
   --nnz-line: #121212;
@@ -133,12 +142,12 @@
   --nnz-radius-pill: 6px;
   --nnz-shadow: 6px 6px 0 #121212;
   --nnz-chip-bg: #121212;
-  --nnz-chip-text: #d4ff3a;
+  --nnz-chip-text: var(--nnz-surface);
   --nnz-row-bg: transparent;
   --nnz-row-first-bg: rgba(18, 18, 18, 0.12);
   --nnz-row-radius: 3px;
   --nnz-num-bg: #121212;
-  --nnz-num-text: #d4ff3a;
+  --nnz-num-text: var(--nnz-surface);
   --nnz-track: rgba(18, 18, 18, 0.18);
   --nnz-fill: #121212;
   --nnz-title-shadow: 1.5px 1.5px 0 rgba(255, 45, 111, 0.9);
@@ -171,7 +180,7 @@
 }
 .nnz-card,
 .nnz-pill {
-  zoom: var(--nnz-zoom);
+  zoom: var(--nnz-z);
 }
 .nnz-card .nnz-card,
 .nnz-card .nnz-pill,
@@ -183,7 +192,7 @@
 [data-nnz-theme='print'] .nnz-card,
 [data-nnz-theme='print'] .nnz-pill {
   isolation: isolate;
-  background: linear-gradient(160deg, #eaff00, var(--nnz-surface));
+  background: linear-gradient(160deg, var(--nnz-surface-hi), var(--nnz-surface));
 }
 [data-nnz-theme='print'] .nnz-card::before,
 [data-nnz-theme='print'] .nnz-pill::before {
@@ -362,6 +371,51 @@
 [data-nnz-theme='ink'] .nnz-face {
   border-radius: 999px;
   background-color: #ffffff;
+}
+
+/*
+ * Placement: a sized overlay's root carries .nnz-placed and data-anchor (one of top-left, top, top-right, left,
+ * center, right, bottom-left, bottom, bottom-right). It sits that far (--nnz-edge) from the browser source edge
+ * it is anchored to. A zoomed card or pill scales its own offsets, so the offset is divided by its zoom and the
+ * distance stays the real pixels the streamer set.
+ */
+.nnz-placed {
+  --nnz-own-zoom: 1;
+  --nnz-inset: calc(var(--nnz-edge) / var(--nnz-own-zoom));
+  position: absolute;
+  transform: translate(var(--nnz-tx, 0), var(--nnz-ty, 0));
+}
+.nnz-placed.nnz-card,
+.nnz-placed.nnz-pill,
+.nnz-placed.nnz-zoomed {
+  --nnz-own-zoom: var(--nnz-z);
+}
+.nnz-zoomed {
+  zoom: var(--nnz-z);
+}
+.nnz-placed[data-anchor^='top'] {
+  top: var(--nnz-inset);
+}
+.nnz-placed[data-anchor^='bottom'] {
+  bottom: var(--nnz-inset);
+}
+.nnz-placed[data-anchor='left'],
+.nnz-placed[data-anchor='center'],
+.nnz-placed[data-anchor='right'] {
+  top: 50%;
+  --nnz-ty: -50%;
+}
+.nnz-placed[data-anchor$='left'] {
+  left: var(--nnz-inset);
+}
+.nnz-placed[data-anchor$='right'] {
+  right: var(--nnz-inset);
+}
+.nnz-placed[data-anchor='top'],
+.nnz-placed[data-anchor='center'],
+.nnz-placed[data-anchor='bottom'] {
+  left: 50%;
+  --nnz-tx: -50%;
 }
 
 /* ── Motion: every widget enters and leaves the same way ────────────────── */

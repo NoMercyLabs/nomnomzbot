@@ -7,7 +7,12 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
 interface Cheerer { user: string; bits: number }
 
-const cfg = reactive({ count: 5, title: 'Top cheerers', accentColor: '#9146ff' })
+const cfg = reactive({
+  count: 5,
+  title: 'Top cheerers',
+  accentColor: '#9146ff',
+  anchor: 'top-right',
+})
 
 // Running bit totals per cheerer for the session — the same in-widget accumulation the labels
 // widget uses for its single top_cheerer, surfaced here as a full ranked board.
@@ -35,6 +40,7 @@ onMounted(() => {
     if (isFinite(Number(s.count)) && Number(s.count) > 0) cfg.count = Number(s.count)
     if (typeof s.title === 'string') cfg.title = s.title
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   NomNomz.on('cheer', onCheer)
 })
@@ -47,7 +53,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
-  <div class="nnz-widget nnz-card nnz-top-cheerers">
+  <div class="nnz-widget nnz-card nnz-placed nnz-top-cheerers" :data-anchor="cfg.anchor">
     <div class="nnz-chip">{{ cfg.title }}</div>
     <TransitionGroup name="nnz" tag="div">
       <div v-for="(c, i) in shown" :key="c.user" class="nnz-row" :class="{ 'is-first': i === 0 }">
@@ -62,9 +68,6 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-top-cheerers {
-  position: absolute;
-  right: 4px;
-  top: 4px;
   width: 300px;
 }
 </style>

@@ -5,7 +5,12 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
-const cfg = reactive({ count: 5, title: 'Recent followers', accentColor: '#9146ff' })
+const cfg = reactive({
+  count: 5,
+  title: 'Recent followers',
+  accentColor: '#9146ff',
+  anchor: 'top-left',
+})
 const followers = ref<string[]>([])
 
 // Newest first, capped at the configured count — a persistent standings panel, not a one-shot alert.
@@ -26,6 +31,7 @@ onMounted(() => {
     if (isFinite(Number(s.count)) && Number(s.count) > 0) cfg.count = Number(s.count)
     if (typeof s.title === 'string') cfg.title = s.title
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
   })
   NomNomz.on('follow', onFollow)
 })
@@ -38,7 +44,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the panel. -->
-  <div class="nnz-widget nnz-card panel">
+  <div class="nnz-widget nnz-card nnz-placed panel" :data-anchor="cfg.anchor">
     <div class="nnz-chip">{{ cfg.title }}</div>
     <div>
       <div v-for="(name, i) in shown" :key="name" class="nnz-row" :class="{ 'is-first': i === 0 }">
@@ -52,9 +58,6 @@ onUnmounted(() => {
 
 <style scoped>
 .panel {
-  position: absolute;
-  left: 4px;
-  top: 4px;
   width: 300px;
 }
 </style>
