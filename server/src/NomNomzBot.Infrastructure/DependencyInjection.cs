@@ -635,6 +635,10 @@ public static class DependencyInjection
             Application.Sound.Services.IChannelAudioMixService,
             Sound.ChannelAudioMixService
         >();
+        services.AddScoped<
+            Application.Widgets.Services.IOverlayThemeColorService,
+            Widgets.OverlayThemeColorService
+        >();
         services.AddScoped<Application.Sound.Services.ISoundClipStore, Sound.DiskSoundClipStore>();
         // The one-time re-measure of stored MP3 clips; its hosted gate rides the AddHostedWorkers scan.
         services.AddScoped<Sound.SoundClipDurationRepair>();

@@ -817,12 +817,18 @@ public class WidgetService : IWidgetService
                 .Select(v => v.FilesJson)
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
-        return await WithDeclaredDefaultsAsync(widget.Settings, filesJson, cancellationToken);
+        return await WithDeclaredDefaultsAsync(
+            widget.BroadcasterId,
+            widget.Settings,
+            filesJson,
+            cancellationToken
+        );
     }
 
     // Declared defaults first, saved values on top. An absent or invalid settings.json declares nothing, so the
     // saved bag passes through unchanged (an invalid declaration is already reported by the schema endpoint).
     private async Task<Dictionary<string, object>> WithDeclaredDefaultsAsync(
+        Guid broadcasterId,
         IReadOnlyDictionary<string, object> saved,
         string? filesJson,
         CancellationToken cancellationToken
@@ -844,7 +850,29 @@ public class WidgetService : IWidgetService
 
         foreach (KeyValuePair<string, object> entry in saved)
             effective[entry.Key] = entry.Value;
+
+        // The channel's theme color for all overlays; a channel with none gets no such setting, so the overlay
+        // falls back to the theme's own color (the page resolves: own color, then this, then the theme's).
+        string? globalAccent = await GlobalAccentColorAsync(broadcasterId, cancellationToken);
+        if (globalAccent is not null)
+            effective[IOverlayThemeColorService.SettingKey] = globalAccent;
         return effective;
+    }
+
+    private async Task<string?> GlobalAccentColorAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        string? color = await _db
+            .Configurations.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(c =>
+                c.BroadcasterId == broadcasterId && c.Key == IOverlayThemeColorService.ConfigKey
+            )
+            .Select(c => c.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(color) ? null : color.Trim();
     }
 
     public async Task<Result<WidgetVersionDetail>> CompileAsync(
@@ -1408,6 +1436,7 @@ public class WidgetService : IWidgetService
                     widget.EventSubscriptions,
                     (
                         await WithDeclaredDefaultsAsync(
+                            widget.BroadcasterId,
                             widget.Settings,
                             version.FilesJson,
                             cancellationToken

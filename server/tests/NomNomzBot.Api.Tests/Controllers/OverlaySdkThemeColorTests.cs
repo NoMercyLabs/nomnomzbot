@@ -110,6 +110,51 @@ public sealed class OverlaySdkThemeColorTests
         styles.Keys.Should().NotContain(["--nnz-accent", "--nnz-surface"]);
     }
 
+    [Theory]
+    [InlineData("sticker", "--nnz-accent")]
+    [InlineData("print", "--nnz-surface")]
+    public void The_global_color_replaces_the_look_color_when_the_widget_has_no_color_of_its_own(
+        string theme,
+        string mainVariable
+    )
+    {
+        Engine engine = ThemeEngine();
+
+        // Empty, "reset", the look's own main color and a pre-themes default all mean "no color of its own".
+        foreach (string own in new[] { "", "reset", "#9146ff", "#ff2d6f" })
+            Applied(
+                engine,
+                $"{{ overlayTheme: '{theme}', accentColor: '{own}', globalAccentColor: '#0a1b2c' }}"
+            )[mainVariable]
+                .Should()
+                .Be("#0a1b2c", $"own color '{own}'");
+    }
+
+    [Fact]
+    public void The_widgets_own_color_beats_the_global_color()
+    {
+        Dictionary<string, string> styles = Applied(
+            ThemeEngine(),
+            "{ overlayTheme: 'sticker', accentColor: '#123abc', globalAccentColor: '#0a1b2c' }"
+        );
+
+        styles["--nnz-accent"].Should().Be("#123abc");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-a-color")]
+    [InlineData("red")]
+    public void An_empty_or_invalid_global_color_leaves_the_look_its_own_color(string global)
+    {
+        Dictionary<string, string> styles = Applied(
+            ThemeEngine(),
+            $"{{ overlayTheme: 'sticker', accentColor: '', globalAccentColor: '{global}' }}"
+        );
+
+        styles.Keys.Should().NotContain(["--nnz-accent", "--nnz-surface"]);
+    }
+
     [Fact]
     public void The_main_color_of_every_look_counts_as_untouched_so_the_default_does_not_override_it()
     {

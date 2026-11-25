@@ -80,6 +80,11 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
         modelBuilder.ApplyConfiguration(new RenderedAlertCaptureConfiguration());
 
+        // The per-channel Configuration rows: the overlay theme color reads its key from here.
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.ConfigurationEntityConfiguration()
+        );
+
         // Minimal ChannelEvent mapping for the seed providers that read the channel-event log; its Channel and
         // User navigations are ignored like the minimal Channel/User mappings above.
         modelBuilder.Entity<ChannelEvent>(b =>
@@ -133,6 +138,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(AlertQueueEntry)
                 && t != typeof(RenderedAlertCapture)
                 && t != typeof(ChannelEvent)
+                && t != typeof(NomNomzBot.Domain.Platform.Entities.Configuration)
             ),
     ];
 
@@ -274,7 +280,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>

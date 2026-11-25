@@ -550,6 +550,7 @@ export const apiOperations = {
   widgets: 'widgets',
   'required overlays': 'widgets',
   'audio mix': 'widgets',
+  'overlay theme color': 'widgets',
   'widget settings': 'widgets',
   'widget test': 'widgets',
   'widget project': 'widgets',
