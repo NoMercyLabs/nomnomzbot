@@ -181,8 +181,40 @@ public sealed class ObsOverlayInstallServiceTests
                 );
             });
 
+        widgets
+            .GetAsync(Channel.ToString(), ChatBoxId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(
+                    Result.Success(
+                        new WidgetDetail(
+                            ChatBoxId,
+                            "Chat Box",
+                            null,
+                            "vue",
+                            "",
+                            true,
+                            $"http://localhost:8080/overlay?widgetId={ChatBoxId}&token=SECRET-chat",
+                            null,
+                            null,
+                            [],
+                            [],
+                            null,
+                            null,
+                            DateTime.UtcNow,
+                            DateTime.UtcNow,
+                            false,
+                            false,
+                            false,
+                            new ObsBrowserSource(400, 600, false, false)
+                        )
+                    )
+                )
+            );
+
         return (new ObsOverlayInstallService(new ObsControlService(transport), widgets), fake);
     }
+
+    private static readonly Guid ChatBoxId = Guid.Parse("0192a000-0000-7000-8000-00000000c0b0");
 
     private static string Type(ObsRequest r) => r.RequestType;
 
@@ -417,6 +449,28 @@ public sealed class ObsOverlayInstallServiceTests
                 ("alerts", "My alerts", ObsOverlayInstallOutcome.Created),
                 ("audio", "Bot Audio", ObsOverlayInstallOutcome.Created)
             );
+    }
+
+    [Fact]
+    public async Task A_placement_keyed_by_a_widget_id_adds_that_widget_at_its_own_size_under_its_own_name()
+    {
+        (ObsOverlayInstallService service, FakeObs obs) = Build();
+
+        Result<ObsOverlayInstallResult> result = await service.PlaceAsync(
+            Channel,
+            [new(ChatBoxId.ToString(), "Main", null)],
+            Origin
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        obs.Items["Main"].Should().Equal("Chat Box");
+        Dictionary<string, object?> settings = obs.Inputs["Chat Box"];
+        settings["width"].Should().Be(400);
+        settings["height"].Should().Be(600);
+        result
+            .Value.Overlays.Select(o => (o.Key, o.SourceName, o.Outcome))
+            .Should()
+            .Equal((ChatBoxId.ToString(), "Chat Box", ObsOverlayInstallOutcome.Created));
     }
 
     [Fact]

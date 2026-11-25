@@ -41,6 +41,7 @@ const player = computed<RequiredOverlay | undefined>(() =>
     :connected="player.widget.isAttached"
     :expected="player.widget.isEnabled"
     :primary="primary"
+    :place-key="MUSIC_PLAYER_KEY"
     :resolve-address="async () => player?.widget.overlayUrl"
   />
 </template>

@@ -142,6 +142,7 @@ async function bridgeAddress(): Promise<string | null | undefined> {
             :connected="overlay.widget.isAttached"
             :expected="overlay.widget.isEnabled"
             :primary="overlay.key === overlayNextKey"
+            :place-key="overlay.key"
             :resolve-address="async () => overlay.widget.overlayUrl"
           />
         </template>

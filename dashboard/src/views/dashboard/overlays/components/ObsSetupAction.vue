@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/dialog';
 import { useObsRepairsWidgets } from '@/composables/useObsRepairsWidgets';
 
+import ObsAddToScene from './ObsAddToScene.vue';
+
 const COPIED_MS = 2000;
 const FULL_WIDTH = 1920;
 const FULL_HEIGHT = 1080;
@@ -48,10 +50,14 @@ const props = withDefaults(
     // A row that already shows a health dot beside this action: the stranded sentence would only
     // repeat what the dot already says, so it is dropped here and left full-length everywhere else.
     compact?: boolean;
+    // The key the bot installs this overlay by (a widget id or a system overlay key): with it, the dialog can put
+    // the overlay into an OBS scene itself, at its own size and under its own name.
+    placeKey?: string | null;
     resolveAddress: () => Promise<string | null | undefined>;
   }>(),
   {
     setup: null,
+    placeKey: null,
     primary: false,
     disabled: false,
     expected: false,
@@ -67,6 +73,7 @@ const repairs = useObsRepairsWidgets();
 const stranded = computed<boolean>(() => props.expected && !props.connected && !repairs.value);
 
 const open = ref<boolean>(false);
+const placing = ref<boolean>(false);
 const copied = ref<boolean>(false);
 const { start: resetCopied } = useTimeoutFn(
   () => {
@@ -177,12 +184,19 @@ async function copyAddress(): Promise<void> {
           <li>{{ $t('dashboard.overlays.setup.steps.set') }}</li>
         </ol>
       </div>
+      <ObsAddToScene
+        v-if="placeKey"
+        v-model:shown="placing"
+        :place-key="placeKey"
+        :name="title"
+        @placed="open = false"
+      />
       <div class="flex justify-end gap-2">
         <DialogClose as-child>
           <Button variant="ghost" data-obs-setup-close>{{ $t('common.close') }}</Button>
         </DialogClose>
         <Button
-          :variant="connected ? 'outline' : 'default'"
+          :variant="connected || placing ? 'outline' : 'default'"
           data-obs-setup-copy
           @click="copyAddress"
         >

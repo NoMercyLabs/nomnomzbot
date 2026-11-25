@@ -467,7 +467,7 @@ describe('OverlaysView', () => {
   it('leaves the stranded sentence to the Connect dialog, not the row, since the dot already warns there', async () => {
     const enabled = mount(OverlayRow, {
       props: { widget: widget('w10', 'Emote Wall') as unknown as Widget, selected: false },
-      global: { plugins: [i18n] },
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
       attachTo: document.body,
     });
 

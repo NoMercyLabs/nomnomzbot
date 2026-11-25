@@ -69,6 +69,7 @@ const state = computed<PanelState>(() =>
             :connected="widget.isAttached"
             :expected="widget.isEnabled"
             :disabled="!widget.overlayUrl"
+            :place-key="widget.id"
             :resolve-address="async () => widget.overlayUrl"
           />
         </template>

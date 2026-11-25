@@ -154,15 +154,9 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         CancellationToken ct
     )
     {
-        string canonical = WidgetKeyAliases.Canonical(key)!;
-        if (!FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys.Contains(canonical))
+        Result<WidgetDetail>? widget = await ResolveWidgetAsync(broadcasterId, key, ct);
+        if (widget is null)
             return Failed(key, key, "This is not an overlay NomNomzBot can install.");
-
-        Result<WidgetDetail> widget = await widgets.EnsureSystemWidgetAsync(
-            broadcasterId.ToString(),
-            canonical,
-            ct
-        );
         if (widget.IsFailure)
             return Failed(key, key, widget.ErrorMessage!);
 
@@ -170,10 +164,7 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         if (!TryBuildUrl(widget.Value.OverlayUrl, overlayOrigin, out string url))
             return Failed(key, sourceName, "The overlay has no address yet.");
 
-        ObsBrowserSource setup =
-            widget.Value.ObsSetup
-            ?? FirstPartyWidgetCatalogue.Find(canonical)?.ObsSetup
-            ?? new(1920, 1080, false, false);
+        ObsBrowserSource setup = widget.Value.ObsSetup ?? new(1920, 1080, false, false);
 
         Result<ObsBrowserSourceOutcome> result = await obs.UpsertBrowserSourceAsync(
             broadcasterId,
@@ -199,6 +190,23 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
                 : ObsOverlayInstallOutcome.Updated,
             null
         );
+    }
+
+    // A widget id names one of the channel's own widgets; anything else must be a system overlay key.
+    private async Task<Result<WidgetDetail>?> ResolveWidgetAsync(
+        Guid broadcasterId,
+        string key,
+        CancellationToken ct
+    )
+    {
+        if (Guid.TryParse(key, out _))
+            return await widgets.GetAsync(broadcasterId.ToString(), key, ct);
+
+        string canonical = WidgetKeyAliases.Canonical(key)!;
+        if (!FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys.Contains(canonical))
+            return null;
+
+        return await widgets.EnsureSystemWidgetAsync(broadcasterId.ToString(), canonical, ct);
     }
 
     // Puts the source into the scene once; a second run finds it there and adds nothing.

@@ -104,6 +104,12 @@
         "notLoaded": "Not loaded in OBS",
         "stranded": "Not connected to the bot",
         "strandedHint": "This overlay is open in OBS but cannot reach the bot, so nothing shows on stream. Refresh the browser source in OBS, or switch on the OBS connection and the bot refreshes it for you.",
+        "place": {
+          "scene": "Scene",
+          "scenePlaceholder": "Pick a scene",
+          "name": "Source name",
+          "submit": "Add to scene"
+        },
         "size": {
           "label": "Width and height",
           "full": "{width} x {height}, full screen",

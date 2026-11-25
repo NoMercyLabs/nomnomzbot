@@ -104,6 +104,12 @@
         "notLoaded": "Niet geladen in OBS",
         "stranded": "Niet verbonden met de bot",
         "strandedHint": "Deze overlay staat open in OBS maar bereikt de bot niet, dus er verschijnt niets in de stream. Ververs de browserbron in OBS, of zet de OBS-verbinding aan, dan ververst de bot hem voor je.",
+        "place": {
+          "scene": "Scène",
+          "scenePlaceholder": "Kies een scène",
+          "name": "Naam van de bron",
+          "submit": "Aan scène toevoegen"
+        },
         "size": {
           "label": "Breedte en hoogte",
           "full": "{width} x {height}, volledig scherm",
