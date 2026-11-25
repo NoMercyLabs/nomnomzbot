@@ -16,6 +16,7 @@ using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.Obs;
 using NSubstitute;
 
@@ -471,6 +472,28 @@ public sealed class ObsOverlayInstallServiceTests
             .Value.Overlays.Select(o => (o.Key, o.SourceName, o.Outcome))
             .Should()
             .Equal((ChatBoxId.ToString(), "Chat Box", ObsOverlayInstallOutcome.Created));
+    }
+
+    // The dashboard holds widget ids in the ULID form the JSON API sends (2026-11-25: every Add to scene failed).
+    [Fact]
+    public async Task A_placement_keyed_by_the_ulid_form_of_a_widget_id_adds_that_widget_and_echoes_the_key()
+    {
+        (ObsOverlayInstallService service, FakeObs obs) = Build();
+        string wireId = OwnedIdCodec.Encode(ChatBoxId);
+
+        Result<ObsOverlayInstallResult> result = await service.PlaceAsync(
+            Channel,
+            [new(wireId, "Main", null)],
+            Origin
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        obs.Items["Main"].Should().Equal("Chat Box");
+        obs.Inputs["Chat Box"]["width"].Should().Be(400);
+        result
+            .Value.Overlays.Select(o => (o.Key, o.SourceName, o.Outcome))
+            .Should()
+            .Equal((wireId, "Chat Box", ObsOverlayInstallOutcome.Created));
     }
 
     [Fact]

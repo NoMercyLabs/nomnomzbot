@@ -14,6 +14,7 @@ using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.Content.Widgets;
 
 namespace NomNomzBot.Infrastructure.Obs;
@@ -199,8 +200,9 @@ public sealed class ObsOverlayInstallService(IObsControlService obs, IWidgetServ
         CancellationToken ct
     )
     {
-        if (Guid.TryParse(key, out _))
-            return await widgets.GetAsync(broadcasterId.ToString(), key, ct);
+        // The dashboard holds the ULID wire form the JSON API sends; a raw Guid is accepted too.
+        if (OwnedIdCodec.TryDecode(key, out Guid widgetId))
+            return await widgets.GetAsync(broadcasterId.ToString(), widgetId.ToString(), ct);
 
         string canonical = WidgetKeyAliases.Canonical(key)!;
         if (!FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys.Contains(canonical))
