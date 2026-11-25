@@ -45,7 +45,7 @@ internal sealed partial class OverlayThemeColorService(IApplicationDbContext db)
         CancellationToken ct = default
     )
     {
-        string color = request.Color?.Trim() ?? string.Empty;
+        string color = request.Color.Trim();
         if (color.Length > 0 && !HexColor().IsMatch(color))
             return Result.Failure<OverlayThemeColor>(
                 "overlay_theme_color_invalid",
