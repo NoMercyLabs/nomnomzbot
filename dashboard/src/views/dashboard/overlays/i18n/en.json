@@ -45,7 +45,7 @@
         }
       },
       "audioMix": {
-        "open": "Audio levels",
+        "open": "Audio and theme color",
         "title": "Music vs Bot audio levels",
         "description": "How loud the music plays against the bot voice and sounds on your overlays, the same on every streaming PC.",
         "loadError": "The audio mix could not load.",
@@ -66,6 +66,13 @@
           "audio_mix_master_volume_out_of_range": "The master volume is outside the allowed range. Nothing was saved.",
           "audio_mix_tts_volume_out_of_range": "The voice volume is outside the allowed range. Nothing was saved."
         }
+      },
+      "themeColor": {
+        "title": "Theme color",
+        "description": "One color for every overlay. A color you set on a single overlay still wins. Without one, each overlay uses the color of its own theme.",
+        "loadError": "The theme color could not load.",
+        "label": "Theme color for all overlays",
+        "reset": "Reset to the theme's own color"
       },
       "editor": {
         "compiled": "Saved and compiled. The overlay now runs this version.",

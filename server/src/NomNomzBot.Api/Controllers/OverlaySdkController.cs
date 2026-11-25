@@ -184,7 +184,10 @@ public sealed class OverlaySdkController : ControllerBase
             var color = typeof s.accentColor === "string" ? s.accentColor.trim().toLowerCase() : "";
             root.style.removeProperty("--nnz-accent");
             root.style.removeProperty("--nnz-surface");
-            if (!isThemeOwnColor(color)) root.style.setProperty(MAIN_VAR[theme], color);
+            // The color order: the widget's own color, then the channel's global color, then the theme's own.
+            var global = typeof s.globalAccentColor === "string" ? s.globalAccentColor.trim().toLowerCase() : "";
+            var winner = !isThemeOwnColor(color) ? color : (/^#[0-9a-f]{6}$/.test(global) ? global : "");
+            if (winner) root.style.setProperty(MAIN_VAR[theme], winner);
             applyLayout(root, s);
           }
           applyTheme(currentSettings);

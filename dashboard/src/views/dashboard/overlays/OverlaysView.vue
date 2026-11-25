@@ -35,6 +35,7 @@ import AudioMixPanel from './components/AudioMixPanel.vue';
 import NewOverlayDialog from './components/NewOverlayDialog.vue';
 import OverlayDetail from './components/OverlayDetail.vue';
 import OverlayRow from './components/OverlayRow.vue';
+import ThemeColorPanel from './components/ThemeColorPanel.vue';
 
 const FILTERS = {
   all: () => true,
@@ -174,7 +175,10 @@ function open(id: string | null): void {
     </ListDetail>
     <template v-if="can('sounds:read')" #panel>
       <SidePanel v-model:open="audioOpen" :label="$t('dashboard.overlays.audioMix.title')">
-        <AudioMixPanel flush />
+        <div class="flex min-h-0 flex-col gap-4 overflow-y-auto">
+          <AudioMixPanel flush />
+          <ThemeColorPanel v-if="can('widget:read')" flush />
+        </div>
       </SidePanel>
     </template>
   </PanelBeside>

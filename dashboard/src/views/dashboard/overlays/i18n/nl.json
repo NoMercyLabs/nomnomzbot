@@ -45,7 +45,7 @@
         }
       },
       "audioMix": {
-        "open": "Audioniveaus",
+        "open": "Audio en themakleur",
         "title": "Muziek- en botaudioniveaus",
         "description": "Hoe luid de muziek klinkt ten opzichte van de botstem en de geluiden op je overlays, op elke streaming-pc gelijk.",
         "loadError": "De audiomix kon niet laden.",
@@ -66,6 +66,13 @@
           "audio_mix_master_volume_out_of_range": "Het hoofdvolume ligt buiten het toegestane bereik. Er is niets opgeslagen.",
           "audio_mix_tts_volume_out_of_range": "Het stemvolume ligt buiten het toegestane bereik. Er is niets opgeslagen."
         }
+      },
+      "themeColor": {
+        "title": "Themakleur",
+        "description": "Eén kleur voor elke overlay. Een kleur die je op één overlay instelt wint nog steeds. Zonder kleur gebruikt elke overlay de kleur van het eigen thema.",
+        "loadError": "De themakleur kon niet laden.",
+        "label": "Themakleur voor alle overlays",
+        "reset": "Terug naar de eigen kleur van het thema"
       },
       "editor": {
         "compiled": "Opgeslagen en gecompileerd. De overlay draait nu deze versie.",
