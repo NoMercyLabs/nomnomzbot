@@ -5329,7 +5329,6 @@
     <string name="widget_emote_wall_size_label">Emote size (px)</string>
     <string name="widget_emote_wall_animation_label">Animation</string>
     <string name="widget_emote_wall_providers_label">Emote providers</string>
-    <string name="widget_emote_wall_accentColor_label">Accent color</string>
     <string name="widget_custom_data_source_label">Source</string>
     <string name="widget_custom_data_source_help">The custom data source key, e.g. heartrate.</string>
     <string name="widget_custom_data_field_label">Field</string>
@@ -5445,6 +5444,10 @@
     <string name="widget_now_playing_youtubeMode_option_video">Video</string>
     <string name="widget_emote_wall_animation_option_float">Float up</string>
     <string name="widget_emote_wall_animation_option_rain">Rain down</string>
+    <string name="widget_emote_wall_animation_option_pop">Pop up</string>
+    <string name="widget_emote_wall_animation_option_burst">Burst from the middle</string>
+    <string name="widget_emote_wall_animation_option_bounce">Bounce</string>
+    <string name="widget_emote_wall_animation_option_wave">Wave across</string>
     <string name="widget_custom_data_render_option_number">Number</string>
     <string name="widget_custom_data_render_option_gauge">Gauge</string>
     <string name="widget_custom_data_render_option_text">Text</string>

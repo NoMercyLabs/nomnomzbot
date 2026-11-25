@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0  (c) NoMercy Labs -->
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) comes from this widget's own SDK types. An event payload is read as a loose record: one
@@ -92,8 +92,27 @@ function handle(type: string, data: unknown, meta?: NnzEventMeta): void {
     return
   }
   const next: Chip[] = chips.value.concat([chip])
-  while (next.length > Math.max(1, cfg.count)) next.shift() // retire the oldest past the retained count
+  let retired = 0
+  while (next.length > Math.max(1, cfg.count)) { next.shift(); retired++ } // retire the oldest past the retained count
+  holdPlace(retired)
   chips.value = next
+}
+
+// The oldest chips sit at the start of the strip, so removing them would pull every visible chip left by their
+// width. The scroll position moves back by the same width, so the chips on screen stay where they are.
+function holdPlace(retired: number): void {
+  const copy: HTMLElement | null = copyEl.value
+  if (!copy || retired === 0) return
+  let width = 0
+  for (let i = 0; i < retired && i < copy.children.length; i++) {
+    const el: HTMLElement = copy.children[i] as HTMLElement
+    width += el.offsetWidth + parseFloat(getComputedStyle(el).marginRight || '0')
+  }
+  offset += width
+  nextTick(() => {
+    const w: number = copy.offsetWidth
+    if (w > 0) while (offset > 0) offset -= w
+  })
 }
 
 function frame(t: number): void {

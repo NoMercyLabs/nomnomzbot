@@ -60,8 +60,25 @@ public sealed class InstalledWidgetSubscriptionSeeder : ISeeder
             [
                 .. defaults.Except(widget.EventSubscriptions, StringComparer.Ordinal),
             ];
-            if (missing.Count > 0)
-                widget.EventSubscriptions = [.. widget.EventSubscriptions, .. missing];
+            string key = keyByItemId[widget.GalleryItemId!.Value];
+            IReadOnlyList<string> retired = Retired.TryGetValue(key, out IReadOnlyList<string>? r)
+                ? r
+                : [];
+            if (missing.Count > 0 || widget.EventSubscriptions.Intersect(retired).Any())
+                widget.EventSubscriptions =
+                [
+                    .. widget.EventSubscriptions.Except(retired, StringComparer.Ordinal),
+                    .. missing,
+                ];
         }
     }
+
+    // Subscriptions a catalogue widget once defaulted to but never reads: installs drop them, so a test of that
+    // event is not offered for a widget that ignores it (owner report 2026-11-25, the emote wall).
+    private static readonly Dictionary<string, IReadOnlyList<string>> Retired = new(
+        StringComparer.Ordinal
+    )
+    {
+        ["emote_wall"] = ["ChatMessageEnriched"],
+    };
 }

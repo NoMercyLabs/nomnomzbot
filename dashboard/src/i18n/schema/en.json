@@ -3038,14 +3038,15 @@
       }
     },
     "emote_wall": {
-      "accentColor": {
-        "label": "Accent color"
-      },
       "animation": {
         "label": "Animation",
         "option": {
+          "bounce": "Bounce",
+          "burst": "Burst from the middle",
           "float": "Float up",
-          "rain": "Rain down"
+          "pop": "Pop up",
+          "rain": "Rain down",
+          "wave": "Wave across"
         }
       },
       "density": {

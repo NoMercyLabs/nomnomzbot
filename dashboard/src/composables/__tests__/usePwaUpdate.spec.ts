@@ -86,9 +86,11 @@ describe('usePwaUpdate', () => {
 
   it('loads a waiting build on the next page change, on the page the user picked', async () => {
     const router = makeRouter();
+
     await router.push('/a');
     mountHost(router);
     const assign = vi.fn<(url: string) => void>();
+
     vi.stubGlobal('location', { ...window.location, assign });
 
     needRefresh.value = true;
@@ -103,9 +105,11 @@ describe('usePwaUpdate', () => {
 
   it('never reloads the open page by itself, so an editor keeps its work', async () => {
     const router = makeRouter();
+
     await router.push('/a');
     mountHost(router);
     const assign = vi.fn<(url: string) => void>();
+
     vi.stubGlobal('location', { ...window.location, assign });
 
     needRefresh.value = true;
@@ -118,6 +122,7 @@ describe('usePwaUpdate', () => {
 
   it('changes pages normally while the running build is the newest', async () => {
     const router = makeRouter();
+
     await router.push('/a');
     mountHost(router);
 

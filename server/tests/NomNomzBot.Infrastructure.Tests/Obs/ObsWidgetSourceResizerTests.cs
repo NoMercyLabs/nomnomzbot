@@ -16,7 +16,6 @@ using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Obs;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Obs;
 

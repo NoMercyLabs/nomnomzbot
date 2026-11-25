@@ -28,21 +28,26 @@ export function usePwaUpdate(router: Router): void {
       if (!registration) return;
 
       setInterval(() => void registration.update(), checkEveryMs);
+
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') void registration.update();
+        if (document.visibilityState === 'visible') {
+          void registration.update();
+        }
       });
     },
   });
 
   // Global guards run after the pages' own leave guards, so an unsaved-changes prompt still decides first.
   const removeGuard = router.beforeEach(async (to) => {
-    if (!needRefresh.value) return true;
+    if (!needRefresh.value)
+      return true;
 
     await updateServiceWorker(false);
     window.location.assign(to.fullPath);
 
     return false;
   });
+
   onScopeDispose(removeGuard);
 
   watch(needRefresh, (waiting: boolean) => {

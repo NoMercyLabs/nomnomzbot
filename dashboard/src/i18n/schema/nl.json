@@ -3038,14 +3038,15 @@
       }
     },
     "emote_wall": {
-      "accentColor": {
-        "label": "Accentkleur"
-      },
       "animation": {
         "label": "Animatie",
         "option": {
+          "bounce": "Stuiter",
+          "burst": "Spat uit het midden",
           "float": "Zweef omhoog",
-          "rain": "Regen omlaag"
+          "pop": "Plop op",
+          "rain": "Regen omlaag",
+          "wave": "Golf voorbij"
         }
       },
       "density": {

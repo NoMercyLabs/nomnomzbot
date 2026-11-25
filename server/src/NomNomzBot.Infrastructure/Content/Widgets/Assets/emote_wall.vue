@@ -11,9 +11,8 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 interface EmoteWallConfig {
   density: number      // max emotes on screen at once
   size: number         // base emote size in px
-  animation: string    // 'float' (drift up) | 'rain' (fall down)
+  animation: string    // float | rain | pop | burst | bounce | wave (see the keyframes below)
   providers: string[]  // filter by fragment provider when it is present; [] = all
-  accentColor: string
 }
 
 const cfg = reactive<EmoteWallConfig>({
@@ -21,13 +20,13 @@ const cfg = reactive<EmoteWallConfig>({
   size: 48,
   animation: 'float',
   providers: [],
-  accentColor: '#9146ff',
 })
 
 interface FlyingEmote {
   id: number
   url: string
   left: number       // vw
+  top: number        // vh, where pop and burst place it
   size: number       // px
   durationMs: number
   drift: number      // px of horizontal sway
@@ -69,9 +68,11 @@ function spawn(url: string): void {
     id: ++seq,
     url: url,
     left: Math.round(Math.random() * 92) + 2,
+    top: Math.round(Math.random() * 80) + 5,
     size: size,
     durationMs: durationMs,
-    drift: Math.round((Math.random() - 0.5) * 120),
+    // burst throws each emote out from the middle, so its sway is much wider.
+    drift: Math.round((Math.random() - 0.5) * (cfg.animation === 'burst' ? 900 : 120)),
   }
   emotes.value = emotes.value.concat([fly])
   removeTimers.push(window.setTimeout(() => {
@@ -101,7 +102,6 @@ onMounted(() => {
     if (isFinite(Number(s.size)) && Number(s.size) > 0) cfg.size = Number(s.size)
     if (typeof s.animation === 'string' && s.animation) cfg.animation = s.animation
     if (Array.isArray(s.providers)) cfg.providers = s.providers.map((p: string) => String(p).toLowerCase())
-    if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
   NomNomz.on('ChatMessage', onChat)
 })
@@ -124,6 +124,7 @@ onUnmounted(() => {
       alt=""
       :style="{
         left: e.left + 'vw',
+        '--top': e.top + 'vh',
         width: e.size + 'px',
         animationDuration: e.durationMs + 'ms',
         '--drift': e.drift + 'px',
@@ -153,6 +154,59 @@ onUnmounted(() => {
 .anim-rain .emote {
   top: -80px;
   animation-name: nnz-rain;
+}
+/* pop: appears in place, swells, then fades. */
+.anim-pop .emote {
+  top: var(--top);
+  animation-name: nnz-pop;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+/* burst: thrown out from the middle of the screen. */
+.anim-burst .emote {
+  top: 50vh;
+  left: 50vw !important;
+  animation-name: nnz-burst;
+  animation-timing-function: cubic-bezier(0.1, 0.7, 0.3, 1);
+}
+/* bounce: drops in and bounces on the bottom edge. */
+.anim-bounce .emote {
+  top: -80px;
+  animation-name: nnz-bounce;
+}
+/* wave: swims across the screen from left to right in a wave. */
+.anim-wave .emote {
+  top: var(--top);
+  left: -80px !important;
+  animation-name: nnz-wave;
+}
+@keyframes nnz-pop {
+  0% { transform: scale(0); opacity: 0; }
+  15% { transform: scale(1.3); opacity: 1; }
+  25% { transform: scale(1); }
+  80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+@keyframes nnz-burst {
+  0% { transform: translate(0, 0) scale(0.2) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), calc(var(--drift, 0px) * -0.6)) scale(1.2) rotate(360deg); opacity: 0; }
+}
+@keyframes nnz-bounce {
+  0% { transform: translateY(0); opacity: 1; animation-timing-function: ease-in; }
+  35% { transform: translateY(calc(100vh - 20px - 100%)); animation-timing-function: ease-out; }
+  50% { transform: translateY(calc(70vh - 100%)); animation-timing-function: ease-in; }
+  65% { transform: translateY(calc(100vh - 20px - 100%)); animation-timing-function: ease-out; }
+  75% { transform: translateY(calc(88vh - 100%)); animation-timing-function: ease-in; }
+  85% { transform: translateY(calc(100vh - 20px - 100%)); opacity: 1; }
+  100% { transform: translateY(calc(100vh - 20px - 100%)); opacity: 0; }
+}
+@keyframes nnz-wave {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(27vw, -40px); }
+  50% { transform: translate(54vw, 0); }
+  75% { transform: translate(81vw, 40px); }
+  100% { transform: translate(calc(100vw + 160px), 0); }
 }
 @keyframes nnz-float {
   0% { transform: translate(0, 0) rotate(-6deg); opacity: 0; }

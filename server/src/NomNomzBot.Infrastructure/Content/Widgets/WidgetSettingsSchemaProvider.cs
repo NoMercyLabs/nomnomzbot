@@ -305,9 +305,13 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             [
                 NumberField(d, "density", Behaviour, min: 1, max: 100, step: 1),
                 NumberField(d, "size", Appearance, min: 8, max: 128, step: 1),
-                SelectField(d, "animation", Appearance, Opts(d, "animation", "float", "rain")),
+                SelectField(
+                    d,
+                    "animation",
+                    Appearance,
+                    Opts(d, "animation", "float", "rain", "pop", "burst", "bounce", "wave")
+                ),
                 Multi(d, "providers", Content, ProviderOptions),
-                Accent(d),
             ],
             "custom_data" =>
             [

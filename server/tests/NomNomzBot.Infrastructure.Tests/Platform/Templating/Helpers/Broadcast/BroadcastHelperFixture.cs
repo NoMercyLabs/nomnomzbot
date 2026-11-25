@@ -42,6 +42,7 @@ internal sealed partial class BroadcastHelperFixture : IAsyncDisposable
         string language = "en",
         bool vacation = false,
         bool segmentToday = false,
+        bool segmentOnAir = false,
         bool noAd = false,
         bool failing = false
     )
@@ -64,7 +65,7 @@ internal sealed partial class BroadcastHelperFixture : IAsyncDisposable
             .Returns(
                 failing
                     ? Result.Failure<TwitchSchedule>("down", "twitch_error")
-                    : Result.Success(ScheduleOf(vacation, segmentToday))
+                    : Result.Success(ScheduleOf(vacation, segmentToday, segmentOnAir))
             );
 
         Stats = Substitute.For<IStreamStatsService>();
@@ -166,7 +167,7 @@ internal sealed partial class BroadcastHelperFixture : IAsyncDisposable
 
     private static int Unix(DateTimeOffset moment) => (int)moment.ToUnixTimeSeconds();
 
-    private static TwitchSchedule ScheduleOf(bool vacation, bool segmentToday)
+    private static TwitchSchedule ScheduleOf(bool vacation, bool segmentToday, bool segmentOnAir)
     {
         List<TwitchScheduleSegment> segments =
         [
@@ -190,6 +191,8 @@ internal sealed partial class BroadcastHelperFixture : IAsyncDisposable
         ];
         if (segmentToday)
             segments.Insert(0, Segment("s1", Utc(2026, 10, 26, 20), 1, "Quick one", null, false));
+        if (segmentOnAir)
+            segments.Insert(0, Segment("s0", Utc(2026, 10, 26, 13), 3, "On air", null, false));
 
         segments.Add(
             Segment("s5", Utc(2026, 10, 28, 19), 3, "Canceled show", "Just Chatting", false) with

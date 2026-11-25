@@ -112,6 +112,31 @@ public sealed class InstalledWidgetSubscriptionSeederTests
             );
     }
 
+    // Owner report 2026-11-25: the emote wall's ChatMessageEnriched test "does nothing at all"; the widget never
+    // read that event, so the catalogue retired it and older installs lose it too.
+    [Fact]
+    public async Task An_emote_wall_install_loses_the_enriched_chat_event_it_never_reads()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        await SeedCatalogueAndChannelAsync(database);
+        Guid emoteWallItemId;
+        await using (WidgetTestDbContext db = database.NewContext())
+            emoteWallItemId = await db
+                .WidgetGalleryItems.Where(item => item.NaturalKey == "emote_wall")
+                .Select(item => item.Id)
+                .SingleAsync();
+        Widget wall = NewWidget(emoteWallItemId, "ChatMessage", "ChatMessageEnriched");
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            db.Widgets.Add(wall);
+            await db.SaveChangesAsync();
+        }
+
+        await RunSeederAsync(database);
+
+        (await SubscriptionsOfAsync(database, wall.Id)).Should().Equal("ChatMessage");
+    }
+
     [Fact]
     public async Task A_second_run_changes_nothing()
     {

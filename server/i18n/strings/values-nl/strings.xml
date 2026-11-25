@@ -5313,7 +5313,6 @@
     <string name="widget_emote_wall_size_label">Emote-grootte (px)</string>
     <string name="widget_emote_wall_animation_label">Animatie</string>
     <string name="widget_emote_wall_providers_label">Emote-providers</string>
-    <string name="widget_emote_wall_accentColor_label">Accentkleur</string>
     <string name="widget_custom_data_source_label">Bron</string>
     <string name="widget_custom_data_source_help">De sleutel van de aangepaste databron, bijv. heartrate.</string>
     <string name="widget_custom_data_field_label">Veld</string>
@@ -5429,6 +5428,10 @@
     <string name="widget_now_playing_youtubeMode_option_video">Video</string>
     <string name="widget_emote_wall_animation_option_float">Zweef omhoog</string>
     <string name="widget_emote_wall_animation_option_rain">Regen omlaag</string>
+    <string name="widget_emote_wall_animation_option_pop">Plop op</string>
+    <string name="widget_emote_wall_animation_option_burst">Spat uit het midden</string>
+    <string name="widget_emote_wall_animation_option_bounce">Stuiter</string>
+    <string name="widget_emote_wall_animation_option_wave">Golf voorbij</string>
     <string name="widget_custom_data_render_option_number">Getal</string>
     <string name="widget_custom_data_render_option_gauge">Meter</string>
     <string name="widget_custom_data_render_option_text">Tekst</string>

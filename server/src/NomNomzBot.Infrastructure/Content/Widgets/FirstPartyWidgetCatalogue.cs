@@ -110,6 +110,9 @@ public static class FirstPartyWidgetCatalogue
     /// </summary>
     private static readonly ObsBrowserSource SoundOnly = new(1, 1, true, false);
 
+    /// <summary>Widgets that draw only their content (the emote wall's emotes): no theme parts, so no look to pick.</summary>
+    private static readonly HashSet<string> Unthemed = new(StringComparer.Ordinal) { "emote_wall" };
+
     /// <summary>
     /// The overlays that draw and play sound: the TTS Caption shows the words and plays the spoken message itself,
     /// and Media Share plays the video's own sound, so OBS audio control is ticked. Shutdown stays off for the same
@@ -551,9 +554,8 @@ public static class FirstPartyWidgetCatalogue
                 ["size"] = 48,
                 ["animation"] = "float",
                 ["providers"] = new List<string>(),
-                ["accentColor"] = "",
             },
-            DefaultEventSubscriptions: ["ChatMessage", "ChatMessageEnriched"]
+            DefaultEventSubscriptions: ["ChatMessage"]
         ),
         new(
             Key: "custom_data",
@@ -729,7 +731,12 @@ public static class FirstPartyWidgetCatalogue
     public static readonly IReadOnlyList<FirstPartyWidgetDefinition> All =
     [
         .. Authored.Select(widget =>
-            widget.ObsSetup == SoundOnly ? widget : widget with { DefaultSettings = Themed(widget) }
+            widget.ObsSetup == SoundOnly || Unthemed.Contains(widget.Key)
+                ? widget
+                : widget with
+                {
+                    DefaultSettings = Themed(widget),
+                }
         ),
     ];
 

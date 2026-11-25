@@ -186,6 +186,23 @@ public sealed class OverlaySdkController : ControllerBase
           }
           if (typeof window !== "undefined" && window.addEventListener)
             window.addEventListener("resize", function () { applyFit(document.documentElement, currentSettings || {}); });
+          // Text on a chosen color is black or white, whichever reads better (WCAG contrast against the color).
+          function inkFor(hex) {
+            var c = [1, 3, 5].map(function (i) {
+              var v = parseInt(hex.substr(i, 2), 16) / 255;
+              return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            });
+            var lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+            return (lum + 0.05) / 0.05 >= 1.05 / (lum + 0.05) ? "#121212" : "#ffffff";
+          }
+          function applyInk(root, theme, color) {
+            var ink = inkFor(color);
+            if (MAIN_VAR[theme] === "--nnz-accent") { root.style.setProperty("--nnz-on-accent", ink); return; }
+            // Print's chosen color is the surface: all its type follows, and accent type takes the ink too.
+            root.style.setProperty("--nnz-text", ink);
+            root.style.setProperty("--nnz-muted", ink === "#ffffff" ? "rgba(255, 255, 255, 0.78)" : "rgba(18, 18, 18, 0.74)");
+            root.style.setProperty("--nnz-accent", ink);
+          }
           function applyTheme(s) {
             var root = typeof document === "undefined" ? null : document.documentElement;
             if (!root || typeof root.setAttribute !== "function" || !root.style) return;
@@ -198,7 +215,11 @@ public sealed class OverlaySdkController : ControllerBase
             // The color order: the widget's own color, then the channel's global color, then the theme's own.
             var global = typeof s.globalAccentColor === "string" ? s.globalAccentColor.trim().toLowerCase() : "";
             var winner = !isThemeOwnColor(color) ? color : (/^#[0-9a-f]{6}$/.test(global) ? global : "");
-            if (winner) root.style.setProperty(MAIN_VAR[theme], winner);
+            ["--nnz-on-accent", "--nnz-text", "--nnz-muted", "--nnz-accent"].forEach(function (v) { if (v !== MAIN_VAR[theme]) root.style.removeProperty(v); });
+            if (winner) {
+              root.style.setProperty(MAIN_VAR[theme], winner);
+              applyInk(root, theme, winner);
+            }
             applyLayout(root, s);
           }
           applyTheme(currentSettings);

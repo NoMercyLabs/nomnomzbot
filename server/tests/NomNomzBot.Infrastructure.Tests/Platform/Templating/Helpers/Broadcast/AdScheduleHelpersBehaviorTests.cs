@@ -156,6 +156,17 @@ public sealed class AdScheduleHelpersBehaviorTests
         rendered.Should().Be("21:00 Quick one | Mon, Fri, Sun | Monday 21:00 | Quick one");
     }
 
+    // Owner report 2026-11-25: during a stream, "Next stream" named the stream on air now, "(in 0 milliseconds)".
+    [Fact]
+    public async Task The_segment_on_air_now_is_never_the_next_stream()
+    {
+        await using BroadcastHelperFixture fixture = new(segmentOnAir: true);
+
+        string rendered = await fixture.RenderAsync("{schedule.next.title} | {schedule.next.at}");
+
+        rendered.Should().Be("Bot night | Friday 20:00");
+    }
+
     [Fact]
     public async Task A_canceled_segment_is_never_listed_or_chosen()
     {

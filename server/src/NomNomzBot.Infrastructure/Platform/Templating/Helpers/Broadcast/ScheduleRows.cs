@@ -48,7 +48,11 @@ internal static class ScheduleRows
         Over(
             key,
             sample,
-            (view, call) => view.Upcoming.Count > 0 ? print(view.Upcoming[0], call) : null,
+            // The segment on air now has started: the next stream is the first one still ahead.
+            (view, call) =>
+                view.Upcoming.FirstOrDefault(s => s.StartTime > call.Now) is { } next
+                    ? print(next, call)
+                    : null,
             args
         );
 

@@ -9,10 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using FluentAssertions;
 using NomNomzBot.Application.Tts.Dtos;
-using NomNomzBot.Infrastructure.Tts;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 

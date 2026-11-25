@@ -81,7 +81,8 @@ public sealed class WidgetSettingsSchemaTests
     [Fact]
     public void Every_widget_that_draws_offers_the_three_themes_and_a_sound_only_widget_offers_none()
     {
-        string[] soundOnly = ["audio", "music_player"];
+        // The emote wall draws only the emotes themselves: no card, no type, no color (Stoney, 2026-11-25).
+        string[] noLook = ["audio", "music_player", "emote_wall"];
 
         foreach (WidgetSettingsSchema schema in Provider.GetAll())
         {
@@ -89,11 +90,11 @@ public sealed class WidgetSettingsSchemaTests
                 f.Key == FirstPartyWidgetCatalogue.ThemeSettingKey
             );
 
-            if (soundOnly.Contains(schema.WidgetKey))
+            if (noLook.Contains(schema.WidgetKey))
             {
                 theme
                     .Should()
-                    .BeNull($"'{schema.WidgetKey}' draws nothing, so it has no look to pick");
+                    .BeNull($"'{schema.WidgetKey}' has no themed parts, so it has no look to pick");
                 continue;
             }
 
@@ -115,6 +116,22 @@ public sealed class WidgetSettingsSchemaTests
                     $"'{schema.WidgetKey}' shows its theme first, not under the other fields"
                 );
         }
+    }
+
+    [Fact]
+    public void The_emote_wall_offers_no_color_and_six_flights()
+    {
+        WidgetSettingsSchema schema = Provider.GetByKey("emote_wall")!;
+
+        schema
+            .Fields.Select(f => f.Key)
+            .Should()
+            .Equal("density", "size", "animation", "providers");
+        schema
+            .Fields.Single(f => f.Key == "animation")
+            .Options!.Select(o => o.Value)
+            .Should()
+            .Equal("float", "rain", "pop", "burst", "bounce", "wave");
     }
 
     [Fact]
