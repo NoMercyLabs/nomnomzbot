@@ -10,9 +10,12 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.PlatformContent.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
@@ -58,7 +61,7 @@ public sealed class PlatformContentDefinitionSeederTests : IAsyncDisposable
         _db.ChannelBuiltinCommands.Add(preExisting);
         await _db.SaveChangesAsync();
 
-        PlatformContentDefinitionSeeder seeder = new(_db);
+        PlatformContentDefinitionSeeder seeder = new(_db, Catalog());
         await seeder.SeedAsync();
 
         PlatformContentDefinition definition = await _db
@@ -81,7 +84,7 @@ public sealed class PlatformContentDefinitionSeederTests : IAsyncDisposable
     [Fact]
     public async Task SeedAsync_CreatesADefinitionAndV1VersionForEveryDefaultKey()
     {
-        PlatformContentDefinitionSeeder seeder = new(_db);
+        PlatformContentDefinitionSeeder seeder = new(_db, Catalog());
         await seeder.SeedAsync();
 
         List<PlatformContentDefinition> definitions = await _db
@@ -101,7 +104,7 @@ public sealed class PlatformContentDefinitionSeederTests : IAsyncDisposable
     [Fact]
     public async Task SeedAsync_IsIdempotent_AndNeverOverwritesAnAlreadyStampedRow()
     {
-        PlatformContentDefinitionSeeder seeder = new(_db);
+        PlatformContentDefinitionSeeder seeder = new(_db, Catalog());
         await seeder.SeedAsync();
 
         Channel channel = await AddChannelAsync("already-stamped-tenant");
@@ -138,6 +141,59 @@ public sealed class PlatformContentDefinitionSeederTests : IAsyncDisposable
             .SingleAsync(b => b.Id == alreadyOnV2.Id);
         Assert.Equal(2, after.PlatformSourceVersion); // untouched, not reset back to v1
         Assert.Equal("some-v2-hash", after.PlatformSourceHash);
+    }
+
+    [Fact]
+    public async Task SeedAsync_GivesEveryRegisteredBuiltinADefinition_AndStampsItsExistingRows()
+    {
+        Channel channel = await AddChannelAsync("quote-tenant");
+        ChannelBuiltinCommand quoteRow = new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = channel.Id,
+            BuiltinKey = "quote",
+            IsEnabled = true,
+            OverridesJson = null,
+        };
+        _db.ChannelBuiltinCommands.Add(quoteRow);
+        await _db.SaveChangesAsync();
+
+        PlatformContentDefinitionSeeder seeder = new(_db, Catalog("quote", "help", "sr"));
+        await seeder.SeedAsync();
+
+        List<string> keys = await _db
+            .PlatformContentDefinitions.AsNoTracking()
+            .Where(d => d.Kind == PlatformContentKinds.Command)
+            .Select(d => d.Key)
+            .ToListAsync();
+        PlatformContentDefinition quote = await _db
+            .PlatformContentDefinitions.AsNoTracking()
+            .SingleAsync(d => d.Kind == PlatformContentKinds.Command && d.Key == "quote");
+        ChannelBuiltinCommand after = await _db
+            .ChannelBuiltinCommands.AsNoTracking()
+            .SingleAsync(b => b.Id == quoteRow.Id);
+
+        Assert.Equal(10, keys.Count); // the 8 defaults, plus quote and help; sr is not doubled
+        Assert.Contains("help", keys);
+        Assert.NotNull(quote.CurrentVersionId);
+        Assert.Equal(quote.Id, after.PlatformSourceDefinitionId);
+        Assert.Equal(1, after.PlatformSourceVersion);
+    }
+
+    private static BuiltinCommandCatalog Catalog(params string[] keys) =>
+        new(keys.Select(key => new KeyOnlyBuiltin(key)));
+
+    /// <summary>A builtin that only carries its key: the seeder reads nothing else from the catalog.</summary>
+    private sealed class KeyOnlyBuiltin(string key) : IBuiltinCommand
+    {
+        public string BuiltinKey => key;
+        public int DefaultCooldownSeconds => 0;
+        public int DefaultMinPermissionLevel => 0;
+
+        public Task<Result<string>> ExecuteAsync(
+            BuiltinCommandContext context,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Success(string.Empty));
     }
 
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();

@@ -12,6 +12,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.PlatformContent.Entities;
 
@@ -53,24 +54,30 @@ public sealed class PlatformContentDefinitionSeeder : ISeeder
     ];
 
     private readonly IApplicationDbContext _db;
+    private readonly IBuiltinCommandCatalog _catalog;
 
-    public PlatformContentDefinitionSeeder(IApplicationDbContext db) => _db = db;
+    public PlatformContentDefinitionSeeder(IApplicationDbContext db, IBuiltinCommandCatalog catalog)
+    {
+        _db = db;
+        _catalog = catalog;
+    }
 
     public int Order => 81;
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
         string defaultHash = PlatformContentHash.ComputeHash(DefaultPayloadJson);
+        List<string> keys = SeedKeys();
 
         Dictionary<string, PlatformContentDefinition> existingDefinitions = await _db
             .PlatformContentDefinitions.Where(d =>
-                d.Kind == PlatformContentKinds.Command && DefaultKeys.Contains(d.Key)
+                d.Kind == PlatformContentKinds.Command && keys.Contains(d.Key)
             )
             .ToDictionaryAsync(d => d.Key, StringComparer.Ordinal, ct);
 
         Dictionary<Guid, PlatformContentDefinition> definitionsById = [];
 
-        foreach (string key in DefaultKeys)
+        foreach (string key in keys)
         {
             if (existingDefinitions.TryGetValue(key, out PlatformContentDefinition? definition))
             {
@@ -117,7 +124,7 @@ public sealed class PlatformContentDefinitionSeeder : ISeeder
 
         List<ChannelBuiltinCommand> unstamped = await _db
             .ChannelBuiltinCommands.Where(b =>
-                DefaultKeys.Contains(b.BuiltinKey) && b.PlatformSourceDefinitionId == null
+                keys.Contains(b.BuiltinKey) && b.PlatformSourceDefinitionId == null
             )
             .ToListAsync(ct);
 
@@ -142,5 +149,12 @@ public sealed class PlatformContentDefinitionSeeder : ISeeder
         }
 
         await _db.SaveChangesAsync(ct);
+    }
+
+    // The default rows plus every builtin registered in code, so a platform admin can edit each one.
+    private List<string> SeedKeys()
+    {
+        IEnumerable<string> registered = _catalog.GetAll().Select(command => command.BuiltinKey);
+        return [.. DefaultKeys.Union(registered, StringComparer.Ordinal)];
     }
 }
