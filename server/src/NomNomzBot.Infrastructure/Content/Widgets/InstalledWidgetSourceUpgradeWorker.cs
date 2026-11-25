@@ -118,7 +118,9 @@ public sealed class InstalledWidgetSourceUpgradeWorker(
         List<Widget> installs = await db
             .Widgets.IgnoreQueryFilters()
             .Where(widget =>
-                widget.GalleryItemId != null && itemIds.Contains(widget.GalleryItemId.Value)
+                widget.DeletedAt == null
+                && widget.GalleryItemId != null
+                && itemIds.Contains(widget.GalleryItemId.Value)
             )
             .ToListAsync(ct);
         installs =
@@ -132,7 +134,10 @@ public sealed class InstalledWidgetSourceUpgradeWorker(
         List<Guid> staleIds = [.. installs.Select(widget => widget.Id)];
         Dictionary<Guid, int> latestVersions = await db
             .WidgetVersions.IgnoreQueryFilters()
-            .Where(version => staleIds.Contains(version.WidgetId))
+            // A failed build never went live, so it is no edit of the channel's.
+            .Where(version =>
+                staleIds.Contains(version.WidgetId) && version.BuildStatus == "success"
+            )
             .GroupBy(version => version.WidgetId)
             .Select(group => new { WidgetId = group.Key, Latest = group.Max(v => v.VersionNumber) })
             .ToDictionaryAsync(row => row.WidgetId, row => row.Latest, ct);

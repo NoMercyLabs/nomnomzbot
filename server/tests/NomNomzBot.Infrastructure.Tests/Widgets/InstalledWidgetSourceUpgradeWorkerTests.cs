@@ -209,18 +209,62 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
         }
         await MoveCatalogueToV2Async(database, item);
 
-        using IHost host = NewHost(
-            database,
-            build,
-            bus,
-            new ListLogger<InstalledWidgetSourceUpgradeWorker>()
-        );
+        ListLogger<InstalledWidgetSourceUpgradeWorker> log = new();
+        using IHost host = NewHost(database, build, bus, log);
         await host.StartAsync().WaitAsync(Patience);
         await WorkerOf(host).ExecuteTask!.WaitAsync(Patience);
 
         (await InstalledRevisionAsync(database, live)).Should().Be(2);
         (await InstalledRevisionAsync(database, deleted)).Should().Be(1);
+        log.Entries.Should()
+            .NotContain(
+                e => e.Level >= LogLevel.Warning,
+                "a deleted widget is not upgraded, so it never fails"
+            );
         await host.StopAsync();
+    }
+
+    [Fact]
+    public async Task A_rebuild_that_failed_is_tried_again_on_the_next_start()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        GatedBuild build = new();
+        IEventBus bus = Substitute.For<IEventBus>();
+        Guid channel = await SeedChannelAsync(database, "tok-a");
+        Guid item = await SeedGalleryItemAsync(database, "alerts", "Alerts");
+        Guid widget = await InstallAsync(database, build, bus, channel, item);
+        await MoveCatalogueToV2Async(database, item);
+        build.FailV2(alertsFails: true, recapThrows: false);
+
+        using (
+            IHost first = NewHost(
+                database,
+                build,
+                bus,
+                new ListLogger<InstalledWidgetSourceUpgradeWorker>()
+            )
+        )
+        {
+            await first.StartAsync().WaitAsync(Patience);
+            await WorkerOf(first).ExecuteTask!.WaitAsync(Patience);
+            await first.StopAsync();
+        }
+        (await InstalledRevisionAsync(database, widget)).Should().Be(1);
+
+        using IHost second = NewHost(
+            database,
+            build,
+            bus,
+            new ListLogger<InstalledWidgetSourceUpgradeWorker>()
+        );
+        await second.StartAsync().WaitAsync(Patience);
+        await WorkerOf(second).ExecuteTask!.WaitAsync(Patience);
+
+        (await InstalledRevisionAsync(database, widget))
+            .Should()
+            .Be(2, "the failed version never went live, so it is no edit of the channel's");
+        (await ServedBundleAsync(database, build, bus, widget)).Should().Be("compiled::V2");
+        await second.StopAsync();
     }
 
     private static InstalledWidgetSourceUpgradeWorker WorkerOf(IHost host) =>
