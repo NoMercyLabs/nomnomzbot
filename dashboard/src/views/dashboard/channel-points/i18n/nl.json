@@ -54,7 +54,8 @@
             "backgroundColor": "Kleur",
             "isEnabled": "Ingeschakeld",
             "isPaused": "Gepauzeerd",
-            "isUserInputRequired": "Kijker typt een bericht"
+            "isUserInputRequired": "Kijker typt een bericht",
+            "autoAccept": "Automatisch accepteren"
           },
           "hints": {
             "title": "De naam die kijkers in de kanaalpuntenlijst zien.",
@@ -68,7 +69,8 @@
             "backgroundColor": "Een hexcode, zoals #9146FF.",
             "isEnabled": "Kijkers kunnen alleen inwisselen als hij aan staat.",
             "isPaused": "Een gepauzeerde beloning blijft zichtbaar maar is niet in te wisselen.",
-            "isUserInputRequired": "De kijker typt bij elke inwisseling een bericht."
+            "isUserInputRequired": "De kijker typt bij elke inwisseling een bericht.",
+            "autoAccept": "De bot rondt elke inwisseling af na de uitvoering. Mislukt die, dan krijgt de kijker de punten terug."
           }
         }
       },

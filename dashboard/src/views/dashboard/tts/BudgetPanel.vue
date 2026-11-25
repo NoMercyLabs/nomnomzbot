@@ -102,7 +102,12 @@ function submit(): void {
         </div>
         <Field>
           <FieldLabel :for="`budget-${budget.provider}`">{{ $t('dashboard.tts.budget.monthly') }}</FieldLabel>
-          <Input :id="`budget-${budget.provider}`" v-model.number="budget.monthlyCharacters" type="number" min="1" class="w-40" />
+          <Input :id="`budget-${budget.provider}`"
+                 v-model.number="budget.monthlyCharacters"
+                 type="number"
+                 min="1"
+                 class="w-40"
+          />
           <FieldInfo>{{ $t('dashboard.tts.budget.usage', {
             used: providerUsage(budget.provider)?.used ?? 0,
             left: providerUsage(budget.provider)?.remaining ?? budget.monthlyCharacters,

@@ -54,7 +54,8 @@
             "backgroundColor": "Color",
             "isEnabled": "On",
             "isPaused": "Paused",
-            "isUserInputRequired": "Viewer must type a message"
+            "isUserInputRequired": "Viewer must type a message",
+            "autoAccept": "Auto accept"
           },
           "hints": {
             "title": "The name viewers see in the channel points list.",
@@ -68,7 +69,8 @@
             "backgroundColor": "A hex code, like #9146FF.",
             "isEnabled": "Viewers can redeem it only while it is on.",
             "isPaused": "A paused reward stays visible but viewers cannot redeem it.",
-            "isUserInputRequired": "The viewer types a message with each redeem."
+            "isUserInputRequired": "The viewer types a message with each redeem.",
+            "autoAccept": "The bot completes each redeem after its run. A failed run refunds the points."
           }
         }
       },

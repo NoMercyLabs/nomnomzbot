@@ -93741,6 +93741,28 @@ export interface components {
              */
             lastActivityAt?: null | string;
         };
+        /** @description One EventSub subscription row of a channel: what it listens to, where it is homed and how it fares. */
+        ChannelDiagnosticEventSub: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            eventType: string;
+            version: string;
+            transport: string;
+            status: string;
+            enabled: boolean;
+            /** Format: int32 */
+            cost?: null | number | string;
+            lastError?: null | string;
+            /** Format: date-time */
+            expiresAt?: null | string;
+            /** Format: date-time */
+            updatedAt: string;
+            conduitId?: null | string;
+            shardId?: null | string;
+        };
         /**
          * @description One page of a channel's runs, in the same row shape as the channel's own run history, and the
          *                 channel's pipelines by name for the pipeline filter.
@@ -93772,6 +93794,8 @@ export interface components {
             tts?: null | components["schemas"]["ChannelDiagnosticTts"];
             /** @description One row per platform and integration link the channel has, with its health. Never a token value. */
             connections?: null | components["schemas"]["ChannelDiagnosticConnection"][];
+            /** @description The channel's own EventSub subscription rows (no platform rows), ordered by event type. */
+            eventSub?: null | components["schemas"]["ChannelDiagnosticEventSub"][];
         };
         /**
          * @description A channel at a glance. The run counts cover the last 24 hours; the last failed run is the newest
@@ -94979,6 +95003,8 @@ export interface components {
             response?: null | string;
             replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             isUserInputRequired?: boolean;
+            /** @description Auto accept: fulfill every redemption after a successful run, refund it after a failed one. */
+            autoAccept?: boolean;
             backgroundColor?: null | string;
             /** Format: int32 */
             maxPerStream?: null | number | string;
@@ -101001,6 +101027,8 @@ export interface components {
             /** @default false */
             speaksViaTts: boolean;
             replyDelivery?: null | components["schemas"]["ReplyDelivery"];
+            /** @default false */
+            autoAccept: boolean;
         };
         RewardsLeaderboardEntry: {
             /** Format: int32 */
@@ -109190,6 +109218,8 @@ export interface components {
             response?: null | string;
             replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             isUserInputRequired?: null | boolean;
+            /** @description Auto accept. Absent leaves it unchanged. */
+            autoAccept?: null | boolean;
             isEnabled?: null | boolean;
             isPaused?: null | boolean;
             backgroundColor?: null | string;

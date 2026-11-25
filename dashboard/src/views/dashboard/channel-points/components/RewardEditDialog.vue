@@ -61,7 +61,7 @@ type NumberKey =
   'globalCooldownSeconds' |
   'timerDurationSeconds';
 type LimitKey = Exclude<NumberKey, 'cost'>;
-type FlagKey = 'isEnabled' | 'isPaused' | 'isUserInputRequired';
+type FlagKey = 'isEnabled' | 'isPaused' | 'isUserInputRequired' | 'autoAccept';
 
 const props = defineProps<{ reward: Reward }>();
 const open = defineModel<boolean>('open', { required: true });
@@ -104,6 +104,7 @@ const flags = ref<Record<FlagKey, boolean>>({
   isEnabled: false,
   isPaused: false,
   isUserInputRequired: false,
+  autoAccept: false,
 });
 const mode = ref<ReplyMode>('simple');
 // Where the typed reply goes: Twitch chat, the chat overlay, both, or nowhere.
@@ -145,6 +146,7 @@ function load(reward: Reward): void {
     isEnabled: reward.isEnabled,
     isPaused: reward.isPaused,
     isUserInputRequired: reward.isUserInputRequired,
+    autoAccept: reward.autoAccept,
   };
 
   delivery.value = deliveryOf(reward.replyDelivery);
@@ -463,10 +465,7 @@ async function duplicate(): Promise<void> {
         />
       </Field>
 
-      <Field
-        v-if="can('reward:manage')"
-        class="md:col-span-2"
-      >
+      <Field v-if="can('reward:manage')">
         <div class="flex items-center gap-1.5">
           <FieldLabel for="reward-isUserInputRequired">{{ $t('dashboard.channelPoints.rewards.dialog.fields.isUserInputRequired') }}</FieldLabel>
           <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.isUserInputRequired') }}</FieldInfo>
@@ -476,6 +475,22 @@ async function duplicate(): Promise<void> {
             id="reward-isUserInputRequired"
             v-model="flags.isUserInputRequired"
             data-field="isUserInputRequired"
+            :disabled="!reward.isManageable"
+          />
+        </div>
+      </Field>
+
+      <!-- Only the app that made a reward may settle its redeems, so an unmanageable reward cannot auto accept. -->
+      <Field v-if="can('reward:manage')">
+        <div class="flex items-center gap-1.5">
+          <FieldLabel for="reward-autoAccept">{{ $t('dashboard.channelPoints.rewards.dialog.fields.autoAccept') }}</FieldLabel>
+          <FieldInfo>{{ $t('dashboard.channelPoints.rewards.dialog.hints.autoAccept') }}</FieldInfo>
+        </div>
+        <div class="flex h-9 items-center">
+          <Switch
+            id="reward-autoAccept"
+            v-model="flags.autoAccept"
+            data-field="autoAccept"
             :disabled="!reward.isManageable"
           />
         </div>

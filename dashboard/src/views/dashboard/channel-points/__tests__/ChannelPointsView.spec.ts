@@ -46,6 +46,7 @@ const baseReward = {
   isManageable: true,
   isPaused: false,
   isOnTwitch: true,
+  autoAccept: false,
   pipelineId: 'p1',
   response: null,
 };
@@ -278,6 +279,7 @@ describe('ChannelPointsView', () => {
     (document.body.querySelector('[data-reward-dialog-enabled]') as HTMLButtonElement).click();
     field('isPaused').click();
     field('isUserInputRequired').click();
+    field('autoAccept').click();
     await flushPromises();
 
     (document.body.querySelector('[data-form-action]') as HTMLButtonElement).click();
@@ -293,6 +295,7 @@ describe('ChannelPointsView', () => {
       isEnabled: false,
       isPaused: true,
       isUserInputRequired: true,
+      autoAccept: true,
       backgroundColor: '#112233',
       maxPerStream: 5,
       maxPerUserPerStream: 2,
@@ -361,6 +364,33 @@ describe('ChannelPointsView', () => {
       expect(switchedOff?.body).toEqual({ isEnabled: false });
       expect(document.body.querySelector('[data-reward-dialog]')).toBeNull();
     });
+  });
+
+  // Stoney 2026-11-24: an unconditional approval on the reward itself; a failed run still refunds (server side).
+  it('shows Auto accept on for a reward that has it, and turning it off saves false', async () => {
+    reward = { ...baseReward, autoAccept: true };
+
+    const view = await open();
+
+    await view.get('[data-reward-edit]').trigger('click');
+    await flushPromises();
+
+    const toggle = document.body.querySelector('[data-field="autoAccept"]') as HTMLButtonElement;
+
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    const label = en.dashboard.channelPoints.rewards.dialog.fields.autoAccept;
+
+    expect(document.body.textContent).toContain(label);
+
+    toggle.click();
+    await flushPromises();
+    (document.body.querySelector('[data-form-action]') as HTMLButtonElement).click();
+    await flushPromises();
+
+    const patch = calls.find((call) => call.method === 'PATCH');
+
+    expect(patch?.body).toMatchObject({ autoAccept: false });
+    expect(reward.autoAccept).toBe(false);
   });
 
   it('saves the color picked with the color picker', async () => {
