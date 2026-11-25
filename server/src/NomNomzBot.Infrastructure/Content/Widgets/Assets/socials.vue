@@ -69,9 +69,9 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-socials {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
 }
 .label {
   margin-bottom: 0;

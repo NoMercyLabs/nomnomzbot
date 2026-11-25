@@ -85,11 +85,21 @@ public static class FirstPartyWidgetCatalogue
     ];
 
     /// <summary>
-    /// A visual overlay: every one is placed with <c>position: fixed</c> against the browser-source edges (anchored
-    /// to a corner, an edge or the centre, or <c>inset: 0</c>), so the source must be the whole 1920 x 1080 canvas
-    /// for the anchor to land where the streamer expects. OBS audio control stays off: none plays sound. Shutdown
-    /// stays off: OBS would unload the page while hidden, so it would miss events and lose what it holds (a queue,
-    /// a round, a rolling window, the chat so far).
+    /// A visual overlay at its own smallest real size: the page lays out inside the browser source, anchored to a
+    /// corner, an edge or the centre of that source with a 4 px margin (so the card's shadow is not clipped), and its
+    /// widths are fixed pixel values, never a share of a 1920 x 1080 screen. A source made earlier at 1920 x 1080
+    /// still looks right: the widget stays in the same corner, edge or centre, at its natural size. OBS audio
+    /// control stays off: none plays sound. Shutdown stays off: OBS would unload the page while hidden, so it would
+    /// miss events and lose what it holds (a queue, a round, a rolling window, the chat so far).
+    /// </summary>
+    private static ObsBrowserSource Overlay(int width, int height) =>
+        new(width, height, false, false);
+
+    /// <summary>
+    /// The overlays whose content really spans the screen, so their source is the whole 1920 x 1080 canvas: the
+    /// emote wall floats emotes the full screen height, the stage runs text and confetti edge to edge, the drop
+    /// game drops parachutes down the screen onto a ground that spans its width, and the raid recap is a full
+    /// scene whose type sizes follow the 1920 x 1080 frame. Every other drawing widget declares a smaller size.
     /// </summary>
     private static readonly ObsBrowserSource FullCanvas = new(1920, 1080, false, false);
 
@@ -101,10 +111,12 @@ public static class FirstPartyWidgetCatalogue
     private static readonly ObsBrowserSource SoundOnly = new(1, 1, true, false);
 
     /// <summary>
-    /// The overlays that draw and play sound: the TTS Caption shows the words on the full canvas and plays the
-    /// spoken message itself, and Media Share plays the video's own sound, so OBS audio control is ticked. Shutdown stays off for the same reason as the rest.
+    /// The overlays that draw and play sound: the TTS Caption shows the words and plays the spoken message itself,
+    /// and Media Share plays the video's own sound, so OBS audio control is ticked. Shutdown stays off for the same
+    /// reason as the rest.
     /// </summary>
-    private static readonly ObsBrowserSource FullCanvasWithSound = new(1920, 1080, true, false);
+    private static ObsBrowserSource OverlayWithSound(int width, int height) =>
+        new(width, height, true, false);
 
     /// <summary>The setting every widget that draws carries: which look of the overlay theme it wears.</summary>
     public const string ThemeSettingKey = "overlayTheme";
@@ -116,7 +128,8 @@ public static class FirstPartyWidgetCatalogue
     [
         new(
             Key: "alerts",
-            ObsSetup: FullCanvas,
+            // The card is up to 600 wide and a sticker alert lands at a random spot in the middle band of the source.
+            ObsSetup: Overlay(1280, 720),
             Name: "Alerts",
             Description: "A one-at-a-time queue of animated alert cards for follows, subs, resubs, gift subs, cheers, "
                 + "raids, and supporter events, with per-type amount thresholds and a custom text template.",
@@ -135,7 +148,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "goal_bar",
-            ObsSetup: FullCanvas,
+            // One 520 px card (drawn at 1.45x) holding a title row, the bar and a foot line.
+            ObsSetup: Overlay(780, 180),
             Name: "Goal Bar",
             Description: "An animated progress bar toward a follower, sub, or bits goal. Reads the authoritative total from "
                 + "goal events and live-increments on matching follows, subs, gifts, and cheers.",
@@ -153,7 +167,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "labels",
-            ObsSetup: FullCanvas,
+            // One tilted pill with a 26 px line of text, room for a 25-character name.
+            ObsSetup: Overlay(640, 120),
             Name: "Labels",
             Description: "A single live stat rendered as styled text — latest follower, latest sub, top cheerer, follower "
                 + "count, or sub count — with an optional format string.",
@@ -176,6 +191,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "drop_game",
+            // Full screen: parachutes fall the whole height onto a ground that spans the width (sizes follow vh and vw).
             ObsSetup: FullCanvas,
             Name: "Drop Game",
             Description: "The live drop-game round on a horizontal track: the target zone, every chatter's landing "
@@ -185,7 +201,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "raffle",
-            ObsSetup: FullCanvas,
+            // One 720 px card (1.45x) with a header and a wrapping roster of entrants.
+            ObsSetup: Overlay(1070, 420),
             Name: "Raffle",
             Description: "The live raffle round: the entrant roster and climbing pot as chatters type !raffle, and "
                 + "the winner reveal + payout board when one entrant takes the whole pot.",
@@ -194,7 +211,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "heist",
-            ObsSetup: FullCanvas,
+            // One 720 px card (1.45x) with a header and a wrapping roster of crew members.
+            ObsSetup: Overlay(1070, 420),
             Name: "Heist",
             Description: "The live heist round: the crew roster and rising escape odds as chatters type !heist, and "
                 + "each member's getaway outcome + payout when the job resolves.",
@@ -203,7 +221,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "crash",
-            ObsSetup: FullCanvas,
+            // One 560 px card (1.45x): a 64 px multiplier, the cash-out chips, then the payout board.
+            ObsSetup: Overlay(840, 560),
             Name: "Crash",
             Description: "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type "
                 + "!crash to lock in their multiplier, and the bust/max reveal + payout board.",
@@ -212,7 +231,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "event_ticker",
-            ObsSetup: FullCanvas,
+            // A one-line bar that fills its source; the width is only the length of the scroll lane.
+            ObsSetup: Overlay(1280, 110),
             Name: "Event Ticker",
             Description: "A horizontal scrolling ticker of recent channel events as compact chips, newest appended and the "
                 + "oldest retired past a retained count, at a configurable speed.",
@@ -227,7 +247,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "chat_box",
-            ObsSetup: FullCanvas,
+            // A 420 px column (1.45x) that stacks the default 12 messages from the bottom, so it needs the full height.
+            ObsSetup: Overlay(660, 1080),
             Name: "Chat Box",
             Description: "Live chat rendered from the decorated message feed — resolved emotes, badges, name colours, "
                 + "and pronouns — with theming, font/size/background controls, timestamps, command/bot filtering, and optional per-message fade.",
@@ -262,7 +283,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "now_playing",
-            ObsSetup: FullCanvas,
+            // The default pill (art, a marquee title, artist, requester) is at most 440 px wide (1.45x).
+            ObsSetup: Overlay(680, 180),
             Name: "Now Playing",
             Description: "A standing display of the current track — pill or card layout, optional album art and an "
                 + "animated progress sweep — that hides itself while nothing plays. Adapts to whichever provider is "
@@ -279,7 +301,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "sr_queue",
-            ObsSetup: FullCanvas,
+            // One 360 px card (1.45x) with a heading and the default 5 rows.
+            ObsSetup: Overlay(550, 370),
             Name: "SR Queue",
             Description: "The upcoming song-request queue as a compact list — position, title, and optional requester "
                 + "and duration — fed by sr_queue snapshot events and hidden while the queue is empty.",
@@ -294,7 +317,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "media_share",
-            ObsSetup: FullCanvasWithSound,
+            // Its root fills the source: a 480p video frame (854 x 480) plus the title line below it.
+            ObsSetup: OverlayWithSound(854, 520),
             Name: "Media Share",
             Description: "Plays the approved viewer-shared Twitch clips and YouTube videos on stream. The server sends "
                 + "load, play, pause, stop, seek and volume commands and this overlay reports its player state back, "
@@ -333,7 +357,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "tts_caption",
-            ObsSetup: FullCanvasWithSound,
+            // One pill up to 700 px wide (1.45x) with a caption of up to three lines.
+            ObsSetup: OverlayWithSound(1040, 200),
             Name: "TTS Caption",
             Description: "Spoken messages (TTS) play from this browser source — keep \"Control audio via OBS\" ON. "
                 + "Shows a speaking indicator with a live caption — animated voice bars, the "
@@ -349,6 +374,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: StageSurface.WidgetKey,
+            // Full screen: effects run edge to edge, fall the whole height and flash the whole frame.
             ObsSetup: FullCanvas,
             Name: "Stage",
             Description: "A transparent full-screen layer for one-off effects a command or pipeline triggers — a text or "
@@ -359,7 +385,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "poll_prediction",
-            ObsSetup: FullCanvas,
+            // One 340 px card (1.45x) with a title and up to five choice bars.
+            ObsSetup: Overlay(520, 520),
             Name: "Poll / Prediction",
             Description: "Live poll and prediction bars — choices with vote percentages, lock state, and the winning "
                 + "outcome highlighted on resolve — shown only while a round runs.",
@@ -382,7 +409,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "redemption_alert",
-            ObsSetup: FullCanvas,
+            // One tilted pill up to 600 px wide (1.45x) with an avatar, a title and two sub lines.
+            ObsSetup: Overlay(900, 220),
             Name: "Redemption Alert",
             Description: "A channel-point redemption popup — one card at a time with the redeemer, reward, cost, and "
                 + "their input — filterable per reward and templatable.",
@@ -398,7 +426,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "countdown_timer",
-            ObsSetup: FullCanvas,
+            // One centered card: a label chip over a 52 px HH:MM:SS readout.
+            ObsSetup: Overlay(440, 190),
             Name: "Countdown / Timer",
             Description: "A countdown to a wall-clock target or for a fixed duration (BRB / starting soon) with a "
                 + "label and completion text — dashboard-controlled live through its widget settings.",
@@ -414,6 +443,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "emote_wall",
+            // Full screen: emotes float up or rain down the whole screen height.
             ObsSetup: FullCanvas,
             Name: "Emote Wall",
             Description: "Emotes from chat float or rain across the screen — harvested from the decorated message "
@@ -430,7 +460,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "custom_data",
-            ObsSetup: FullCanvas,
+            // One small card: a label chip, a 38 px value, and for the gauge a bar with its bounds.
+            ObsSetup: Overlay(260, 230),
             Name: "Custom Data",
             Description: "The live value of a custom data source rendered as a number, gauge, or text — a heart-rate "
                 + "gauge is this widget bound to heartrate.bpm — re-binding live when the source changes.",
@@ -448,7 +479,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "recent_followers",
-            ObsSetup: FullCanvas,
+            // One 300 px card (1.45x) with a heading and the default 5 rows.
+            ObsSetup: Overlay(460, 370),
             Name: "Recent Followers",
             Description: "A persistent standings panel of the most recent followers, newest on top — an always-on "
                 + "list rather than a one-at-a-time alert, with a configurable count and title.",
@@ -462,7 +494,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "sub_train",
-            ObsSetup: FullCanvas,
+            // One pill: the line "Sub train. All aboard." and the count.
+            ObsSetup: Overlay(420, 100),
             Name: "Sub Train",
             Description: "A hype counter that spikes on rapid subs and gift subs and cools down on its own — the "
                 + "count of subs still inside a rolling window (a gift of N counts as N), hidden when the train stops.",
@@ -471,7 +504,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "socials",
-            ObsSetup: FullCanvas,
+            // One tilted pill: a platform chip and a 20 px handle.
+            ObsSetup: Overlay(600, 100),
             Name: "Socials",
             Description: "A config-only rotating handles bar — the streamer's social accounts cross-faded through at "
                 + "a configurable interval. No event feed; the handles come from the widget settings.",
@@ -485,7 +519,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "top_cheerers",
-            ObsSetup: FullCanvas,
+            // One 300 px card (1.45x) with a heading and the default 5 rows.
+            ObsSetup: Overlay(460, 370),
             Name: "Top Cheerers",
             Description: "A ranked board of the session's biggest cheerers by bits — the full leaderboard the labels "
                 + "widget only hints at with its single top cheerer, with a configurable depth and title.",
@@ -501,6 +536,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "raid_recap",
+            // Full screen: a whole scene (credits roll or card grid) whose type sizes follow the 1920 x 1080 frame.
             ObsSetup: FullCanvas,
             Name: "Raid Recap",
             Description: "The stream recap shown as the ending scene when the raid pipeline commits. The widget reads "
@@ -577,7 +613,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "lucky_feather",
-            ObsSetup: FullCanvas,
+            // A banner pill stacked over a holder pill, centered at the bottom.
+            ObsSetup: Overlay(760, 200),
             Name: "Lucky Feather",
             Description: "Shows who holds the Lucky Feather and announces every steal.",
             DefaultSettings: new()

@@ -117,8 +117,8 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-redemption {
-  position: fixed;
-  top: 12%;
+  position: absolute;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
@@ -126,7 +126,7 @@ onUnmounted(() => {
 /* .show is the widget's own in/out switch (driven by `visible`), timed with the shared theme motion. */
 .card {
   min-width: 280px;
-  max-width: 70vw;
+  max-width: 600px;
   opacity: 0;
   transform: translateY(-18px) scale(0.96);
   transition: opacity var(--nnz-out) ease-in, transform var(--nnz-in) var(--nnz-ease);

@@ -113,11 +113,11 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-raffle {
-  position: fixed;
+  position: absolute;
   left: 50%;
-  bottom: 32px;
+  bottom: 4px;
   transform: translateX(-50%);
-  width: min(720px, 90vw);
+  width: 720px;
 }
 .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
 .title { font-size: 20px; }

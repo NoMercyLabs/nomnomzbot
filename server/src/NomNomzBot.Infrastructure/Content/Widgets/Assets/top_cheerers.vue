@@ -62,9 +62,9 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-top-cheerers {
-  position: fixed;
-  right: 24px;
-  top: 24px;
-  width: min(300px, 40vw);
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 300px;
 }
 </style>

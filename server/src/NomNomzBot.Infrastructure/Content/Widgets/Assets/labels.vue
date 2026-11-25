@@ -149,9 +149,9 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-label {
-  position: fixed;
-  left: 24px;
-  bottom: 24px;
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
 }
 .value {
   white-space: nowrap;

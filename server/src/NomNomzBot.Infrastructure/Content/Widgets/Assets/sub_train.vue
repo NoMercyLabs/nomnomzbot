@@ -94,9 +94,9 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-sub-train {
-  position: fixed;
+  position: absolute;
   left: 50%;
-  top: 24px;
+  top: 4px;
   transform: translateX(-50%);
 }
 .label {

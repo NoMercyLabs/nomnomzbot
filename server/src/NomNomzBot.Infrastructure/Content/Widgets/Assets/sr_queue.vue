@@ -105,10 +105,10 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-srqueue {
-  position: fixed;
-  right: 16px;
-  top: 16px;
-  width: min(360px, 34vw);
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 360px;
 }
 .code {
   flex: none;

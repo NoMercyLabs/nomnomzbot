@@ -52,9 +52,9 @@ onUnmounted(() => {
 
 <style scoped>
 .panel {
-  position: fixed;
-  left: 24px;
-  top: 24px;
-  width: min(300px, 40vw);
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 300px;
 }
 </style>

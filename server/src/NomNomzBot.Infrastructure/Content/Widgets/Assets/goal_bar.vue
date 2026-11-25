@@ -117,11 +117,11 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-goal {
-  position: fixed;
+  position: absolute;
   left: 50%;
-  bottom: 40px;
+  bottom: 4px;
   transform: translateX(-50%);
-  width: min(520px, 80vw);
+  width: 520px;
   color: var(--text);
 }
 .row {

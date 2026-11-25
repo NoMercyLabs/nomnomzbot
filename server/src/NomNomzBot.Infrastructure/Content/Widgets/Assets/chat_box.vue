@@ -612,10 +612,10 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-chatbox {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
-  width: min(420px, 40vw);
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  width: 420px;
   zoom: var(--nnz-zoom);
   display: flex;
   flex-direction: column;

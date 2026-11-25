@@ -176,8 +176,8 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-feather {
-  position: fixed;
-  bottom: 5%;
+  position: absolute;
+  bottom: 4px;
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;

@@ -201,17 +201,17 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-pollpred {
-  position: fixed;
+  position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: min(340px, 32vw);
+  width: 340px;
   pointer-events: none;
 }
 .pos-left {
-  left: 16px;
+  left: 4px;
 }
 .pos-right {
-  right: 16px;
+  right: 4px;
 }
 .head {
   display: flex;

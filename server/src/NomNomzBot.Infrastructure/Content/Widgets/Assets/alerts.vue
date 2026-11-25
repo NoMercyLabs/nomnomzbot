@@ -218,13 +218,13 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-alerts {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
 }
 /* .show is the widget's own in/out switch (driven by `visible`), timed with the shared theme motion. */
 .card {
-  position: fixed;
+  position: absolute;
   top: 12%;
   left: 50%;
   min-width: 280px;

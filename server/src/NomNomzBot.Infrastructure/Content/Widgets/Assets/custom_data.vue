@@ -112,9 +112,9 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-customdata {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
   min-width: 160px;
   text-align: center;
   pointer-events: none;

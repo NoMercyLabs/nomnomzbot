@@ -216,10 +216,10 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-nowplaying {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
-  max-width: 46vw;
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  max-width: 440px;
 }
 .box {
   display: flex;

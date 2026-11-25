@@ -74,18 +74,18 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-ttscaption {
-  position: fixed;
+  position: absolute;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  max-width: 80vw;
+  max-width: 700px;
   pointer-events: none;
 }
 .pos-top {
-  top: 24px;
+  top: 4px;
 }
 .pos-bottom {
-  bottom: 24px;
+  bottom: 4px;
 }
 .indicator {
   display: inline-flex;

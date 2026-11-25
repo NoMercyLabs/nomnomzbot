@@ -159,11 +159,11 @@ onUnmounted(() => {
 
 <style scoped>
 .nnz-crash {
-  position: fixed;
+  position: absolute;
   left: 50%;
-  bottom: 32px;
+  bottom: 4px;
   transform: translateX(-50%);
-  width: min(560px, 90vw);
+  width: 560px;
   text-align: center;
 }
 .head { margin-bottom: 4px; }

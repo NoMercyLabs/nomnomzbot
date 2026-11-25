@@ -72,21 +72,49 @@ public sealed class FirstPartyWidgetObsSetupTests
     }
 
     [Fact]
-    public void The_tts_caption_is_a_full_canvas_source_that_ticks_obs_audio_control_because_it_plays_the_speech()
+    public void The_tts_caption_is_a_caption_sized_source_that_ticks_obs_audio_control_because_it_plays_the_speech()
     {
         FirstPartyWidgetDefinition caption = FirstPartyWidgetCatalogue.Find("tts_caption")!;
 
-        caption.ObsSetup.Should().Be(new ObsBrowserSource(1920, 1080, true, false));
+        caption.ObsSetup.Should().Be(new ObsBrowserSource(1040, 200, true, false));
         caption.Description.Should().Contain("keep \"Control audio via OBS\" ON");
     }
 
     [Fact]
-    public void The_media_share_player_is_a_full_canvas_source_that_ticks_obs_audio_control_because_the_video_has_sound()
+    public void The_media_share_player_is_a_video_sized_source_that_ticks_obs_audio_control_because_the_video_has_sound()
     {
         FirstPartyWidgetCatalogue
             .Find("media_share")!
             .ObsSetup.Should()
-            .Be(new ObsBrowserSource(1920, 1080, true, false));
+            .Be(new ObsBrowserSource(854, 520, true, false));
+    }
+
+    [Fact]
+    public void No_widget_that_draws_is_a_full_canvas_source_unless_it_is_on_the_named_full_screen_list()
+    {
+        string[] fullScreenKeys = ["drop_game", "emote_wall", "raid_recap", "stage"];
+        string[] soundOnlyKeys = [WidgetKeyAliases.Audio, WidgetKeyAliases.MusicPlayer];
+
+        List<FirstPartyWidgetDefinition> drawing =
+        [
+            .. FirstPartyWidgetCatalogue.All.Where(w => !soundOnlyKeys.Contains(w.Key)),
+        ];
+
+        drawing.Should().HaveCount(25);
+        foreach (FirstPartyWidgetDefinition widget in drawing)
+        {
+            ObsBrowserSource setup = widget.ObsSetup;
+            bool isFullCanvas = setup.Width == 1920 && setup.Height == 1080;
+
+            setup.Width.Should().BeGreaterThan(1, widget.Key);
+            setup.Height.Should().BeGreaterThan(1, widget.Key);
+            isFullCanvas
+                .Should()
+                .Be(
+                    fullScreenKeys.Contains(widget.Key),
+                    $"{widget.Key} is 1920 x 1080 only if it is full screen"
+                );
+        }
     }
 
     [Fact]
