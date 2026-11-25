@@ -98,6 +98,10 @@ if (-not (Test-Path $stamp) -or (Get-Content $stamp) -ne $lockHash) {
     Set-Content -Path $stamp -Value $lockHash
 }
 
+# The type-check of the whole dashboard needs more than Node's default heap (2026-11-24: it ran out of
+# memory and dumped core). A value the caller set stays.
+if (-not $env:NODE_OPTIONS) { $env:NODE_OPTIONS = '--max-old-space-size=6144' }
+
 Push-Location "$wt/dashboard"
 try {
     $failed = $null

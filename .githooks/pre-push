@@ -58,6 +58,9 @@ if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$lock" ]; then
   echo "$lock" > "$stamp"
 fi
 
+# The type-check of the whole dashboard needs more than Node's default heap (2026-11-24: it ran out of
+# memory, dumped core and blocked a push). A value the caller set stays.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
 npm --prefix "$gate/dashboard" run lint || { echo "pre-push: lint failed, push blocked"; exit 1; }
 npm --prefix "$gate/dashboard" run type-check || { echo "pre-push: type-check failed, push blocked"; exit 1; }
 
