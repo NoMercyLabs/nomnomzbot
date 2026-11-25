@@ -78,11 +78,14 @@ public static class TtsBudgetPlan
         return Result.Success();
     }
 
+    // A config saved before budgets existed stores an empty string (the migration default): no budgets.
     public static IReadOnlyList<TtsProviderBudgetDto> Parse(string json) =>
-        JsonSerializer.Deserialize<List<TtsProviderBudgetDto>>(json) ?? [];
+        string.IsNullOrWhiteSpace(json)
+            ? []
+            : JsonSerializer.Deserialize<List<TtsProviderBudgetDto>>(json) ?? [];
 
     public static IReadOnlyList<string> ParseFallback(string json) =>
-        JsonSerializer.Deserialize<List<string>>(json) ?? [];
+        string.IsNullOrWhiteSpace(json) ? [] : JsonSerializer.Deserialize<List<string>>(json) ?? [];
 
     public static IReadOnlyList<TtsBudgetShareDto> EffectiveShares(TtsProviderBudgetDto budget)
     {
