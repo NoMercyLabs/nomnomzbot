@@ -145,8 +145,8 @@ function rotateNow(): void {
         </template>
       </SummaryRow>
     </div>
-    <form v-if="connection" class="grid gap-3 p-3" @submit.prevent="submit">
-      <fieldset :disabled="!can('vts:config:write')" class="grid gap-3">
+    <form v-if="connection && can('vts:config:write')" class="grid gap-3 p-3" @submit.prevent="submit">
+      <fieldset class="grid gap-3">
         <label class="flex items-center justify-between gap-3 text-sm font-medium">
           {{ $t("dashboard.vts.connection.enabled") }}
           <Switch
@@ -174,12 +174,11 @@ function rotateNow(): void {
             data-vts-mask
             :kinds="connection.eventKinds"
             prefix="dashboard.vts.connection.kinds"
-            :disabled="!can('vts:config:write')"
           />
           <span>{{ $t("dashboard.vts.connection.maskHelp") }}</span>
         </div>
       </fieldset>
-      <div v-if="can('vts:config:write')" class="flex flex-wrap justify-end gap-2">
+      <div class="flex flex-wrap justify-end gap-2">
         <Button
           v-if="mode === 'bridge'"
           data-vts-rotate

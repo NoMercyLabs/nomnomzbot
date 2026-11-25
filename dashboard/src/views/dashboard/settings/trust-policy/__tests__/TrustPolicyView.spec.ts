@@ -278,7 +278,7 @@ describe('Trust policy route', () => {
 
     expect(record!.meta).toMatchObject({
       navMode: 'settings',
-      action: 'trust:policy:read',
+      action: 'trust:policy:manage',
     });
   });
 });

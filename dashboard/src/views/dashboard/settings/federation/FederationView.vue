@@ -156,9 +156,10 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
       </RowGroup>
     </PanelCard>
 
-    <NetworkBlockOptInCard />
+    <!-- Only the broadcaster may make these two choices, so nobody else sees them (Stoney 2026-11-18). -->
+    <NetworkBlockOptInCard v-if="can('moderation:networkblock:optin')" />
 
-    <MassBanOptInCard />
+    <MassBanOptInCard v-if="can('moderation:massban:optout')" />
 
     <InlineNotice v-if="pageError" tone="error" compact class="pt-3">{{ pageError }}</InlineNotice>
   </SettingsPageFrame>

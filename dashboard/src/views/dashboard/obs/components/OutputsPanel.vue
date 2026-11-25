@@ -23,7 +23,6 @@ import {
 } from '@/api/obsOutputs';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -109,11 +108,7 @@ async function stopStream(): Promise<void> {
         :on="streaming"
         :timer="streamTimer"
       >
-        <ReadOnlyScope
-          class="flex items-center gap-2"
-          :read-only="!canBroadcast"
-          :reason="$t('dashboard.obs.needsBroadcast')"
-        >
+        <div v-if="canBroadcast" class="flex items-center gap-2">
           <Button
             v-if="!streaming"
             data-act="start"
@@ -133,7 +128,7 @@ async function stopStream(): Promise<void> {
           >
             {{ $t("dashboard.obs.outputs.stopStream.action") }}
           </Button>
-        </ReadOnlyScope>
+        </div>
       </OutputRow>
 
       <OutputRow
@@ -143,11 +138,7 @@ async function stopStream(): Promise<void> {
         :on="recording"
         :timer="recordTimer"
       >
-        <ReadOnlyScope
-          class="flex items-center gap-2"
-          :read-only="!canBroadcast"
-          :reason="$t('dashboard.obs.needsBroadcast')"
-        >
+        <div v-if="canBroadcast" class="flex items-center gap-2">
           <template v-if="recording">
             <Button
               v-if="!paused"
@@ -188,7 +179,7 @@ async function stopStream(): Promise<void> {
           >
             {{ recording ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start") }}
           </Button>
-        </ReadOnlyScope>
+        </div>
       </OutputRow>
 
       <OutputRow

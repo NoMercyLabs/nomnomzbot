@@ -773,7 +773,7 @@ describe('Permissions route', () => {
 
     expect(record?.meta).toEqual({
       navMode: 'settings',
-      action: 'roles:read',
+      action: 'roles:manage',
       titleKey: 'frame.nav.settingsPages.permissions',
     });
 

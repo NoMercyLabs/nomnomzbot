@@ -214,6 +214,7 @@ const everyKey = [
   'live-ops:ads:read',
   'channel:title:write',
   'integration:write',
+  'channelbot:read',
 ];
 const access = vi.hoisted(() => ({ held: [] as string[] }));
 

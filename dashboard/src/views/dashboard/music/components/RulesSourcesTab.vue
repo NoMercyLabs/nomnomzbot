@@ -90,7 +90,7 @@ function setSourceRung(actionKey: string, rung: string, source: string): void {
             />
           </RuleRow>
           <RuleRow
-            v-if="draft.allowSpotify"
+            v-if="draft.allowSpotify && can('roles:manage')"
             :title="$t('dashboard.music.rules.whoSpotify')"
             :description="$t('dashboard.music.rules.sourceRoleHint')"
           >
@@ -98,7 +98,7 @@ function setSourceRung(actionKey: string, rung: string, source: string): void {
               :model-value="sourceRung(sourceActions.spotify)"
               :options="rungOptions"
               :label="$t('dashboard.music.rules.whoSpotify')"
-              :disabled="!can('roles:manage') || setLevel.isPending.value"
+              :disabled="setLevel.isPending.value"
               data-setting="who-spotify"
               @update:model-value="setSourceRung(sourceActions.spotify, $event, $t('dashboard.music.rules.whoSpotify'))"
             />
@@ -111,7 +111,7 @@ function setSourceRung(actionKey: string, rung: string, source: string): void {
             />
           </RuleRow>
           <RuleRow
-            v-if="draft.allowYouTube"
+            v-if="draft.allowYouTube && can('roles:manage')"
             :title="$t('dashboard.music.rules.whoYouTube')"
             :description="$t('dashboard.music.rules.sourceRoleHint')"
           >
@@ -119,7 +119,7 @@ function setSourceRung(actionKey: string, rung: string, source: string): void {
               :model-value="sourceRung(sourceActions.youtube)"
               :options="rungOptions"
               :label="$t('dashboard.music.rules.whoYouTube')"
-              :disabled="!can('roles:manage') || setLevel.isPending.value"
+              :disabled="setLevel.isPending.value"
               data-setting="who-youtube"
               @update:model-value="setSourceRung(sourceActions.youtube, $event, $t('dashboard.music.rules.whoYouTube'))"
             />

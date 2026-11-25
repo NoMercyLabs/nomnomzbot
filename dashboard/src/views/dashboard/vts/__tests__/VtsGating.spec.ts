@@ -132,16 +132,15 @@ describe('VtsView shows only what the person may use', () => {
     expect(view.find('[data-vts-connection]').exists()).toBe(false);
   });
 
-  it('shows the connection locked and without save with vts:config:read alone', async () => {
+  // A setting a moderator can never change is not shown to them (Stoney 2026-11-18).
+  it('shows the connection status but no form with vts:config:read alone', async () => {
     const view = await open('connection', ['vts:config:read']);
 
     expect(view.find('[data-vts-overall]').exists()).toBe(true);
     expect(view.find('[data-vts-connection]').exists()).toBe(true);
     expect(view.find('[data-vts-save]').exists()).toBe(false);
-
-    const endpoint = view.find<HTMLInputElement>('[data-vts-endpoint]').element;
-
-    expect(endpoint.closest('fieldset')?.disabled).toBe(true);
+    expect(view.find('[data-vts-endpoint]').exists()).toBe(false);
+    expect(view.find('[data-vts-enabled]').exists()).toBe(false);
   });
 
   it('shows save and an open form with vts:config:write', async () => {

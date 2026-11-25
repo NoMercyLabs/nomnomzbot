@@ -113,6 +113,7 @@ export const ownerActionKeys = [
   'moderation:history:read',
   'moderation:massban:optout',
   'moderation:moderator:write',
+  'moderation:networkblock:optin',
   'moderation:note:write',
   'moderation:queue:read',
   'moderation:queue:resolve',

@@ -19,12 +19,14 @@ import ShieldCheck from '~icons/nnz/shield-check';
 import { useSetShieldMode, useShieldMode } from '@/api/shield';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import { Toggle } from '@/components/ui/toggle';
+import { useCan, useChannelIdWhen } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useNarrowScreen } from '@/composables/useLayout';
 
 const { t } = useI18n();
 const { channelId, current } = useCurrentChannel();
-const shield = useShieldMode(channelId);
+const { can } = useCan();
+const shield = useShieldMode(useChannelIdWhen('moderation:shieldmode:read'));
 const setShield = useSetShieldMode(channelId);
 const narrow = useNarrowScreen();
 const asking = ref(false);
@@ -50,7 +52,7 @@ function confirm(): void {
 <template>
   <!-- The state comes from Twitch, so the button shows only once the real state is known. -->
   <Toggle
-    v-if="shield.data.value !== undefined"
+    v-if="shield.data.value !== undefined && can('moderation:shieldmode:write')"
     variant="outline"
     data-slot="shield-toggle"
     :model-value="shield.data.value"

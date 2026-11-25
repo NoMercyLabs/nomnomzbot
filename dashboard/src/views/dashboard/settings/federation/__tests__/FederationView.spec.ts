@@ -351,11 +351,12 @@ describe('Network block opt-in card', () => {
     expect(text?.className).toContain('flex-1');
   });
 
-  it('gives a person without the broadcaster key a read-only state and no switch', async () => {
+  // A choice only the broadcaster may make is not shown to anyone else (Stoney 2026-11-18).
+  it('shows no card and reads nothing without the broadcaster key', async () => {
     await open();
 
-    expect(card().querySelector('button[role="switch"]')).toBeNull();
-    expect(card().querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state')).toBe('off');
+    expect(document.querySelector('[data-view="network-block-opt-in"]')).toBeNull();
+    expect(calls.some((call) => call.path === networkPath)).toBe(false);
   });
 });
 
@@ -383,10 +384,11 @@ describe('Moderator mass ban opt-in card', () => {
     expect(cardSwitch().getAttribute('data-state')).toBe('checked');
   });
 
-  it('gives a person without the broadcaster key a read-only state and no switch', async () => {
+  it('shows no card and reads nothing without the broadcaster key', async () => {
     await open();
 
-    expect(card().querySelector('button[role="switch"]')).toBeNull();
+    expect(document.querySelector('[data-view="mass-ban-opt-in"]')).toBeNull();
+    expect(calls.some((call) => call.path === massBanPath)).toBe(false);
   });
 });
 

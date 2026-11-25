@@ -13,7 +13,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useResourceLimits } from '@/api/resourceLimits';
-import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useChannelIdWhen } from '@/composables/useCan';
 
 const scriptTimeKey = 'sandbox_exec_ms';
 
@@ -22,8 +22,7 @@ const scriptTimeKey = 'sandbox_exec_ms';
 // block: the bot refuses the write itself, and its text is shown instead. Every caller shares one read.
 export function useScriptPlanGate() {
   const { t } = useI18n();
-  const { channelId } = useCurrentChannel();
-  const limits = useResourceLimits(channelId);
+  const limits = useResourceLimits(useChannelIdWhen('billing:read'));
 
   const blocked = computed<boolean>(() => {
     const row = limits.data.value?.find((item) => item.limitKey === scriptTimeKey);

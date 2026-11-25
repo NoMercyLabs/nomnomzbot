@@ -256,8 +256,8 @@ describe('SpamDefenseView', () => {
     expect(scrolled).toEqual(['newcomers']);
   });
 
-  it('is a registered settings route gated by the read key', () => {
+  it('is a registered settings route gated by the broadcaster manage key', () => {
     expect(settingsSpamDefenseRoute.path).toBe('settings/spam-defense');
-    expect(settingsSpamDefenseRoute.meta.action).toBe('spam:policy:read');
+    expect(settingsSpamDefenseRoute.meta.action).toBe('spam:policy:manage');
   });
 });

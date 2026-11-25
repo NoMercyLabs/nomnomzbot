@@ -65,7 +65,8 @@ const botBasicsRoute = {
   name: 'dashboard-settings-bot-basics',
   meta: {
     navMode: 'settings',
-    action: 'dashboard:read',
+    // Every control here needs broadcaster rights, so a moderator does not see the page (Stoney 2026-11-18).
+    action: 'setup:write',
     titleKey: 'frame.nav.settingsPages.botBasics',
   },
   props: { view: 'basics' },
@@ -77,7 +78,7 @@ const botPersonalityRoute = {
   name: 'dashboard-settings-bot-personality',
   meta: {
     navMode: 'settings',
-    action: 'dashboard:read',
+    action: 'setup:write',
     titleKey: 'frame.nav.settingsPages.botPersonality',
   },
   props: { view: 'personality' },

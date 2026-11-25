@@ -20,6 +20,7 @@ import { useStreamInfo, type StreamInfo } from '@/api/stream';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
+import { useChannelIdWhen } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -32,7 +33,7 @@ type Check = {
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const infoQuery = useStreamInfo(channelId);
-const botQuery = useBotStatus(channelId);
+const botQuery = useBotStatus(useChannelIdWhen('channelbot:read'));
 const rewardsQuery = useRewards(channelId);
 const availabilityQuery = useRewardAvailability(channelId);
 const shieldQuery = useShieldMode(channelId);

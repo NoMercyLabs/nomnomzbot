@@ -18,7 +18,8 @@ export const settingsTrustPolicyRoute = {
   name: 'dashboard-settings-trust-policy',
   meta: {
     navMode: 'settings',
-    action: 'trust:policy:read',
+    // Only the broadcaster may change it, so a moderator does not see the page (Stoney 2026-11-18).
+    action: 'trust:policy:manage',
     titleKey: 'frame.nav.settingsPages.trustPolicy',
   },
   component: () =>

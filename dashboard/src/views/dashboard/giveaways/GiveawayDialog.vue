@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCan } from '@/composables/useCan';
+import { useCan, useChannelIdWhen } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
@@ -61,7 +61,9 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const save = useSaveGiveaway(channelId);
-const pools = useCodePools(channelId);
+const pools = useCodePools(useChannelIdWhen('giveaways:codes:write'));
+const shownPrizeModes = computed(() =>
+  prizeModes.filter((mode) => mode !== 'code_pool' || can('giveaways:codes:write')));
 
 const form = ref<GiveawayForm>(formFromGiveaway(props.giveaway));
 const error = ref<string | undefined>(undefined);
@@ -304,7 +306,7 @@ async function submit(): Promise<void> {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem v-for="mode in prizeModes" :key="mode" :value="mode">
+            <SelectItem v-for="mode in shownPrizeModes" :key="mode" :value="mode">
               {{ $t(`dashboard.giveaways.dialog.prize.modes.${mode}`) }}
             </SelectItem>
           </SelectContent>

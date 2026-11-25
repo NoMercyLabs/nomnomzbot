@@ -48,7 +48,7 @@ const twitchLevels = {
   swearing: 0,
 } as const satisfies Record<string, number>;
 
-const access = vi.hoisted(() => ({ write: true }));
+const access = vi.hoisted(() => ({ write: true, twitch: true }));
 
 vi.mock('@/api/client', () => ({ client: http }));
 
@@ -57,7 +57,14 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 }));
 
 vi.mock('@/composables/useCan', () => ({
-  useCan: () => ({ can: (key: string) => key !== 'moderation:automod:write' || access.write }),
+  useCan: () => ({
+    can: (key: string): boolean => {
+      if (key === 'moderation:automod:write')
+        return access.write;
+
+      return key !== 'moderation:automod:twitch:manage' || access.twitch;
+    },
+  }),
 }));
 
 vi.mock('vue-sonner', () => ({
@@ -91,6 +98,7 @@ async function open(): Promise<VueWrapper> {
 beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   access.write = true;
+  access.twitch = true;
 
   http.GET.mockImplementation(async (path) => ({
     data: { data: path === twitchPath
@@ -221,6 +229,16 @@ describe('AutomodView', () => {
     }));
 
     expect(page.get('[data-action="save-twitch"]').attributes('disabled')).toBeDefined();
+  });
+
+  // Levels a moderator can never change are not shown to them (Stoney 2026-11-18).
+  it('shows no Twitch levels without moderation:automod:twitch:manage', async () => {
+    access.twitch = false;
+
+    const view = await open();
+
+    expect(view.find('[data-group="twitch"]').exists()).toBe(false);
+    expect(http.GET.mock.calls.map(([path]) => path)).not.toContain(twitchPath);
   });
 
   it('is read-only without the write action', async () => {

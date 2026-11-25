@@ -213,6 +213,7 @@ function submit(): void {
         </PanelCard>
       </div>
     </ReadOnlyScope>
-    <TwitchAutomodPanel v-if="can('moderation:automod:twitch:read')" />
+    <!-- Levels a person can never change are not shown to them (Stoney 2026-11-18). -->
+    <TwitchAutomodPanel v-if="can('moderation:automod:twitch:manage')" />
   </SettingsPageFrame>
 </template>

@@ -42,7 +42,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowEditDelete from '@/components/layout/RowEditDelete.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { useCan } from '@/composables/useCan';
+import { useCan, useChannelIdWhen } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
@@ -76,7 +76,7 @@ const winnersState = usePanelState(winners, (rows) =>
 const entries = useGiveawayEntries(channelId, focusId);
 const entriesState = usePanelState(entries, (rows) =>
   rows.length === 0);
-const pools = useCodePools(channelId);
+const pools = useCodePools(useChannelIdWhen('giveaways:codes:write'));
 const poolsState = usePanelState(pools, (rows) =>
   rows.length === 0);
 const remove = useDeleteGiveaway(channelId);

@@ -287,7 +287,7 @@ vi.mock('@/api/client', () => ({
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
     known: ref(true),
-    can: (key: string): boolean => key === 'code:script:author',
+    can: (key: string): boolean => key === 'code:script:author' || key === 'billing:read',
   }),
 }));
 

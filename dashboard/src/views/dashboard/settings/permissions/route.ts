@@ -18,7 +18,8 @@ export const settingsPermissionsRoute = {
   name: 'dashboard-settings-permissions',
   meta: {
     navMode: 'settings',
-    action: 'roles:read',
+    // Only the broadcaster may change roles, so a moderator does not see the page (Stoney 2026-11-18).
+    action: 'roles:manage',
     titleKey: 'frame.nav.settingsPages.permissions',
   },
   component: () =>

@@ -151,12 +151,11 @@ const label = computed<string>(() => {
         <a data-change-server :href="installUrl" @click="startInstall">{{ t('dashboard.discord.connection.change') }}</a>
       </Button>
     </div>
-    <div data-streamer-enabled>
+    <div v-if="can('discord:connection:write')" data-streamer-enabled>
       <SettingRow
         :model-value="connection.streamerEnabled"
         :title="t('dashboard.discord.connection.enabled')"
         :description="t('dashboard.discord.connection.enabledHelp')"
-        :readonly="!can('discord:connection:write')"
         :disabled="setEnabled.isPending.value"
         @update:model-value="setEnabled.mutate"
       />

@@ -18,7 +18,8 @@ export const settingsSpamDefenseRoute = {
   path: 'settings/spam-defense',
   name: 'dashboard-settings-spam-defense',
   meta: {
-    action: 'spam:policy:read',
+    // Only the broadcaster may change it, so a moderator does not see the page (Stoney 2026-11-18).
+    action: 'spam:policy:manage',
     titleKey: 'frame.nav.settingsPages.spamDefense',
   },
   component: () =>

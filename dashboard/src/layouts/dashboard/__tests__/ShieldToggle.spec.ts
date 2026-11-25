@@ -17,9 +17,17 @@ import { i18n } from '@/i18n';
 
 import ShieldToggle from '../ShieldToggle.vue';
 
-const { mutate, narrow } = vi.hoisted(() => ({
+const { mutate, narrow, held } = vi.hoisted(() => ({
   mutate: vi.fn<(on: boolean) => void>(),
   narrow: { value: false },
+  held: { keys: ['moderation:shieldmode:read', 'moderation:shieldmode:write'] },
+}));
+
+vi.mock('@/api/access', () => ({
+  useChannelAccess: () => ({
+    known: ref(true),
+    can: (key: string): boolean => held.keys.includes(key),
+  }),
 }));
 
 vi.mock('@/api/shield', () => ({
@@ -34,6 +42,17 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 }));
 
 describe('the Shield Mode toggle', () => {
+  // A moderator below lead may not switch it; the toggle would only answer with a refusal.
+  it('is not shown without moderation:shieldmode:write', () => {
+    held.keys = ['moderation:shieldmode:read'];
+
+    const wrapper = mount(ShieldToggle, { global: { plugins: [i18n] } });
+
+    held.keys = ['moderation:shieldmode:read', 'moderation:shieldmode:write'];
+
+    expect(wrapper.find('[data-slot="shield-toggle"]').exists()).toBe(false);
+  });
+
   it('is a 36px control (h-9), not the 32px small one', () => {
     const classes: string = mount(ShieldToggle, { global: { plugins: [i18n] } })
       .get('[data-slot="shield-toggle"]')

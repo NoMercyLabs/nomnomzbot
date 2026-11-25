@@ -56,7 +56,10 @@ const pool = {
   assigned: 1,
 };
 
-const held = vi.hoisted(() => ({ keys: [] as string[] }));
+const held = vi.hoisted(() => ({
+  keys: [] as string[],
+  reads: [] as string[],
+}));
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
@@ -73,6 +76,8 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string) => {
+      held.reads.push(path);
+
       const byPath = {
         '/api/v{version}/giveaways/{id}/winners': [winner],
         '/api/v{version}/giveaways/{id}/entries': [entry],
@@ -91,6 +96,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   held.keys = [];
+  held.reads = [];
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
 });
@@ -156,5 +162,14 @@ describe('GiveawaysView shows only what the person may use', () => {
     const view = await open(['giveaways:read', 'giveaways:codes:write']);
 
     expect(view.find('[data-pool-row]').exists()).toBe(true);
+    expect(held.reads).toContain('/api/v{version}/giveaways/code-pools');
+  });
+
+  // A moderator may not read code pools; the read would be refused and show a load error.
+  it('never reads the code pools without giveaways:codes:write', async () => {
+    await open(['giveaways:read', 'giveaways:write']);
+
+    expect(held.reads).toContain('/api/v{version}/giveaways');
+    expect(held.reads).not.toContain('/api/v{version}/giveaways/code-pools');
   });
 });

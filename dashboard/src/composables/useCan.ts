@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+import { computed, type ComputedRef } from 'vue';
+
 import { useChannelAccess, type ChannelAccess } from '@/api/access';
 
 import { useCurrentChannel } from './useCurrentChannel';
@@ -20,4 +22,16 @@ export function useCan(): ChannelAccess {
   const { channelId } = useCurrentChannel();
 
   return useChannelAccess(channelId);
+}
+
+// The current channel id, or null while the user may not do `actionKey` there. A channel query given
+// this id stays off for a moderator, so a read the role may not make never shows a load error.
+export function useChannelIdWhen(actionKey: string): ComputedRef<string | null> {
+  const { channelId } = useCurrentChannel();
+  const { can } = useChannelAccess(channelId);
+
+  return computed(() =>
+    can(actionKey)
+      ? channelId.value
+      : null);
 }

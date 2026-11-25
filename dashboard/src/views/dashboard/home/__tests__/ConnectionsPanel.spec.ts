@@ -89,10 +89,12 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+const denied = vi.hoisted(() => ({ keys: [] as string[] }));
+
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
     known: ref(true),
-    can: (): boolean => true,
+    can: (key: string): boolean => !denied.keys.includes(key),
   }),
 }));
 
@@ -114,6 +116,7 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  denied.keys = [];
   answers = freshAnswers();
   assign.mockClear();
   vi.stubGlobal('location', { ...window.location, assign });
@@ -214,6 +217,17 @@ describe('ConnectionsPanel', () => {
     expect(services.contains(row('discord'))).toBe(true);
     expect(services.querySelector('[data-connection="twitch"]')).toBeNull();
     expect(services.querySelector('[data-connection="kick"]')).toBeNull();
+  });
+
+  // A moderator may not read the bot status; the read would be refused and show a load error.
+  it('neither reads nor shows the bot row without channelbot:read', async () => {
+    denied.keys = ['channelbot:read'];
+
+    await open();
+
+    expect(row('spotify')).not.toBeNull();
+    expect(row('bot')).toBeNull();
+    expect(calls.some((call) => call.path.endsWith('/bot/status'))).toBe(false);
   });
 
   it('starts the connect flow for Kick and sends the browser to the page the bot answers', async () => {

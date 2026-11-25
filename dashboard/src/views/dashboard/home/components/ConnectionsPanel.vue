@@ -24,7 +24,7 @@ import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
-import { useCan } from '@/composables/useCan';
+import { useCan, useChannelIdWhen } from '@/composables/useCan';
 import { useConnectWindow } from '@/composables/useConnectWindow';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -44,7 +44,7 @@ const { can } = useCan();
 const platformName = useProviderName();
 
 const connectionsQuery = useConnections(channelId);
-const botQuery = useBotStatus(channelId);
+const botQuery = useBotStatus(useChannelIdWhen('channelbot:read'));
 const statsQuery = useHomeStats(channelId);
 const connect = useConnectIntegration(channelId);
 const connectWindow = useConnectWindow(channelId);
@@ -177,7 +177,7 @@ function connectionLabel(connection: IntegrationStatus): string {
           {{ t('dashboard.home.connections.services') }}
         </h3>
         <RowGroup data-connections-group="services">
-          <div data-connection="bot">
+          <div v-if="can('channelbot:read')" data-connection="bot">
             <SummaryRow
               truncate
               :title="t('dashboard.home.connections.bot')"
