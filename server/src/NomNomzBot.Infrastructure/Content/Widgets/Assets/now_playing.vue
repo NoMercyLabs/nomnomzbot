@@ -96,7 +96,9 @@ function refreshMarquee(): void {
     el.style.removeProperty('--marquee-distance')
     el.style.removeProperty('--marquee-duration')
     // Layout widths, not on-screen ones: translateX works before the theme's zoom, so a zoomed measure overshoots.
-    const overflow: number = el.offsetWidth - titleEl.value.clientWidth
+    const textWidth: number = el.offsetWidth
+    const containerWidth: number = titleEl.value.clientWidth
+    const overflow: number = textWidth - containerWidth
     if (overflow <= 0) return
 
     // The move takes 52% of the cycle (18% to 70%) at about 30 px/s; the rest is the fades and the two holds.

@@ -93,7 +93,28 @@ public sealed class OverlaySdkThemeColorTests
         );
 
         styles[mainVariable].Should().Be("#123abc");
-        styles.Keys.Where(k => k is "--nnz-accent" or "--nnz-surface").Should().Equal(mainVariable);
+        styles.Where(kv => kv.Value == "#123abc").Select(kv => kv.Key).Should().Equal(mainVariable);
+    }
+
+    // Owner report 2026-11-25: a dark chosen color on a print overlay kept dark text, so nothing read.
+    [Theory]
+    [InlineData("print", "#000000", "--nnz-text", "#ffffff")]
+    [InlineData("print", "#ffff00", "--nnz-text", "#121212")]
+    [InlineData("sticker", "#000000", "--nnz-on-accent", "#ffffff")]
+    [InlineData("sticker", "#ffff00", "--nnz-on-accent", "#121212")]
+    public void Text_on_a_chosen_color_is_black_or_white_for_contrast(
+        string theme,
+        string color,
+        string textVariable,
+        string ink
+    )
+    {
+        Dictionary<string, string> styles = Applied(
+            ThemeEngine(),
+            $"{{ overlayTheme: '{theme}', accentColor: '{color}' }}"
+        );
+
+        styles[textVariable].Should().Be(ink);
     }
 
     [Theory]

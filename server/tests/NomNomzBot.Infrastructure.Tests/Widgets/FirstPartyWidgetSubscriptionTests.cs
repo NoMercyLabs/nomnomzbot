@@ -84,7 +84,8 @@ public sealed class FirstPartyWidgetSubscriptionTests
         // Named explicitly, not just covered by the sweep above: this is the wiring the owner's "show the
         // Spotify/YouTube info instead of !sr <query>" depends on, and it has no other guard.
         IEnumerable<FirstPartyWidgetDefinition> chatWidgets = FirstPartyWidgetCatalogue.All.Where(
-            w => w.DefaultEventSubscriptions.Contains("ChatMessage")
+            // The emote wall draws only the emotes of a chat line, never its text, so it needs no track.
+            w => w.DefaultEventSubscriptions.Contains("ChatMessage") && w.Key != "emote_wall"
         );
 
         chatWidgets.Should().NotBeEmpty();
