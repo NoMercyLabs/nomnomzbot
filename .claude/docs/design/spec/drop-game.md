@@ -99,14 +99,20 @@ Modes (`mode`; default single, owner may change):
 - `raid`: a raid starts a group round for `raid_window_s` (default 30).
 - Triggers: chat command (`command`, default `!drop`), channel-point redemption (`redeem_cost`, group variant `redeem_group_cost`), bit cheer (`cheer_min_bits`). Drop arguments: emoji, `me` (avatar), channel emote; the server fetches and caches the image itself (viewer IPs never reach a third party).
 
-## 6. Luck boost (Lucky Feather holder)
+## 6. Luck boost (any stored value, Lucky Feather is one example)
 
-The boost is channel data, never a number in code.
+Stoney, 2026-11-25, verbatim: "And the lucky feather is specific for my channel. So there needs to be a universal way to assign a certain stored value to increase the seed's chance of landing. Whatever, figure it out."
 
-- Setting `luck.holder_boost` (0 to 1, default 0.25, owner may change) and `luck.holder_source` (the channel record type naming the holder, default `lucky_feather`; the same lookup the Lucky Feather pipelines already use).
-- Rule: at drop time the engine asks the holder lookup whether the dropping viewer holds the item. If so, the seeded offset is pulled toward the target: `u' = u * (1 - boost)`. The seed and RNG stream are unchanged, so replay stays exact (the replay test reads the persisted `boostApplied`).
-- The frame carries `boosted:true`; the overlay shows a feather on the payload so the effect is visible to everyone (rule: consequences are visible).
-- Any other buff source (sub tier, VIP) is a second `luck.sources[]` entry with its own boost; the stack is capped by `luck.max_boost` (default 0.6).
+The boost is channel data, never a number or a key in code. No channel gets a luck source by default.
+
+- Setting `luck.sources[]`, empty by default. Each entry is `{ label, kind, key, path, boost, badge }`:
+  - `kind: "storage"`: a channel storage key (the store scripts and bundles write, `IScriptStorage`), and `path` is the JSON path in that value to a viewer id or a list of viewer ids. Example: the Lucky Feather bundle stores `feather.holder`, path `$.userId`.
+  - `kind: "record"`: the viewer has a `Record` row of type `key` (optional `path` and expected value in its `Data`).
+  - `kind: "role"`: the viewer has a platform role (`vip`, `subscriber`, `moderator`) or sub tier `key`.
+  - `boost` 0 to 1. `badge` is an optional image ref drawn on the payload.
+- A bundle that owns a stored value adds its own source on install and removes it on uninstall. Installing the Lucky Feather bundle adds `{label:"Lucky Feather", kind:"storage", key:"feather.holder", path:"$.userId", boost:0.25, badge:feather}`. That is how Stoney's channel gets it, and any channel that installs the bundle gets the same. Any streamer can add or edit an entry by hand in the drop settings form.
+- Rule: at drop time the engine checks every source for the dropping viewer, adds the matching boosts, and caps the sum at `luck.max_boost` (default 0.6). The seeded offset is pulled toward the target: `u' = u * (1 - boost)`. The seed and RNG stream are unchanged, so replay stays exact (the persisted row holds `boostApplied` and the matched source labels).
+- The frame carries `boosted:true` and the matched badges; the overlay draws them on the payload so the effect is visible to everyone (rule: consequences are visible).
 
 ## 7. State after an overlay reload (seed provider)
 
