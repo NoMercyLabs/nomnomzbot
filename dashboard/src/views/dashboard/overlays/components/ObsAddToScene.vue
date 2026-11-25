@@ -15,6 +15,7 @@ import { computed, ref, watch } from 'vue';
 
 import { useChannelAccess } from '@/api/access';
 import { useObsConnectionStatus, useObsInstallOverlays, useObsScenes } from '@/api/obs';
+import InlineNotice from '@/components/layout/InlineNotice.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -107,7 +108,7 @@ function place(): void {
       <FieldLabel>{{ $t('dashboard.overlays.setup.place.name') }}</FieldLabel>
       <Input v-model="sourceName" data-obs-add-name :placeholder="name" />
     </Field>
-    <p v-if="outcome" class="text-sm text-destructive" role="alert">{{ outcome }}</p>
+    <InlineNotice v-if="outcome" tone="error" compact>{{ outcome }}</InlineNotice>
     <Button
       class="justify-self-end"
       data-obs-add-submit

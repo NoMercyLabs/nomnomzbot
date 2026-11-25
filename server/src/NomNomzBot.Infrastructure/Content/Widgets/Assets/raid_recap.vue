@@ -221,6 +221,7 @@ const baseHue = computed<number>(() => {
 
 const rootStyle = computed<Record<string, string>>(() => {
   const style: Record<string, string> = { '--base': `${baseHue.value}deg` };
+  if (cfg.accentColor) style['--nnz-accent'] = cfg.accentColor;
   if (motion.value === 'fit') style['--fit'] = String(fitScale.value);
   return style;
 });
