@@ -336,7 +336,7 @@ public sealed class RewardRedeemedHandlerViewerTemplateTests
     {
         Setup refusedViewer = await BuildAsync(flagOn: true, speaksViaTts: true);
         refusedViewer
-            .H.Executor.ReplayAsync(default, default!, default, default, default!, default)
+            .H.Executor.ReplayAsync(default, default!, default, default, default!)
             .ReturnsForAnyArgs(EventResponseOutcome.None);
 
         await refusedViewer.H.Handler.ReplayAsync(
@@ -353,7 +353,7 @@ public sealed class RewardRedeemedHandlerViewerTemplateTests
             RewardRedeemedHandlerTests.ViewerUserId
         );
         permittedViewer
-            .H.Executor.ReplayAsync(default, default!, default, default, default!, default)
+            .H.Executor.ReplayAsync(default, default!, default, default, default!)
             .ReturnsForAnyArgs(EventResponseOutcome.None);
 
         await permittedViewer.H.Handler.ReplayAsync(
@@ -376,8 +376,6 @@ public sealed class RewardRedeemedHandlerViewerTemplateTests
 
         SpokenText(s).Should().Be("just words");
         s.Bus.Published.Should().BeEmpty();
-        await s
-            .Roles.DidNotReceiveWithAnyArgs()
-            .HasCapabilityAsync(default, default, default!, default);
+        await s.Roles.DidNotReceiveWithAnyArgs().HasCapabilityAsync(default, default, default!);
     }
 }

@@ -32,7 +32,6 @@ public static class TtsBudgetPlan
                     !TtsConfigOptions.Providers.Contains(budget.Provider)
                     || !providers.Add(budget.Provider)
                     || budget.MonthlyCharacters < 1
-                    || budget.Shares is null
                 )
                     return Errors.ValidationFailed(
                         "Every TTS budget needs a unique known provider and a positive limit."

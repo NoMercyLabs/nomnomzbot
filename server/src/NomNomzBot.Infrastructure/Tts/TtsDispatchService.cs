@@ -1200,7 +1200,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct,
                 available.Value
             );
-            if (synthesized.IsSuccess && synthesized.Value.AudioData.Length > 0)
+            if (synthesized is { IsSuccess: true, Value.AudioData.Length: > 0 })
                 return Result.Success(new TtsBudgetedAudio(synthesized.Value, share, reason));
 
             await RecordFailedClipAsync(

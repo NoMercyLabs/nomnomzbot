@@ -11248,6 +11248,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BudgetShare")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<string>("CensoredText")
                         .HasColumnType("text");
 
@@ -11269,6 +11273,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<string>("Provider")
                         .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ProviderOverride")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
@@ -11423,6 +11431,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int?>("ElevenLabsKeyVersion")
                         .HasColumnType("integer");
 
+                    b.Property<string>("FallbackProvidersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
 
@@ -11447,6 +11459,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<bool>("ProfanityCensorEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("ProviderBudgetsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("ReadUsernames")
                         .HasColumnType("boolean");
@@ -11545,6 +11561,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<bool>("Failed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("FallbackReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<DateTime>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -11552,6 +11572,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Share")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasDefaultValue("default");
 
                     b.Property<Guid?>("StreamId")
                         .HasColumnType("uuid");
@@ -11587,6 +11614,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId", "OccurredAt");
 
                     b.HasIndex("BroadcasterId", "StreamId");
+
+                    b.HasIndex("BroadcasterId", "Provider", "Share", "OccurredAt");
 
                     b.ToTable("TtsUsageRecords");
                 });

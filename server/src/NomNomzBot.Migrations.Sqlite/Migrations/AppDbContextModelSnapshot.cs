@@ -11768,6 +11768,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<string>("BudgetShare")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CensoredText")
                         .HasColumnType("TEXT");
 
@@ -11790,6 +11794,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<string>("Provider")
                         .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderOverride")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
@@ -11948,6 +11956,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<int?>("ElevenLabsKeyVersion")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("FallbackProvidersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("INTEGER");
 
@@ -11972,6 +11984,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<bool>("ProfanityCensorEnabled")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProviderBudgetsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("ReadUsernames")
                         .HasColumnType("INTEGER");
@@ -12073,6 +12089,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<bool>("Failed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("FallbackReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("OccurredAt")
                         .HasColumnType("TEXT");
 
@@ -12080,6 +12100,13 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Share")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("default");
 
                     b.Property<Guid?>("StreamId")
                         .HasColumnType("TEXT")
@@ -12116,6 +12143,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasIndex("BroadcasterId", "OccurredAt");
 
                     b.HasIndex("BroadcasterId", "StreamId");
+
+                    b.HasIndex("BroadcasterId", "Provider", "Share", "OccurredAt");
 
                     b.ToTable("TtsUsageRecords");
                 });
