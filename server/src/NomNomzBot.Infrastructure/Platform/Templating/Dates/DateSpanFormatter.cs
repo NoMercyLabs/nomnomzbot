@@ -44,7 +44,8 @@ public static class DateSpanFormatter
         ZonedDateTime a,
         ZonedDateTime b,
         SpanUnit unit,
-        CultureInfo culture
+        CultureInfo culture,
+        bool numberOnly = false
     )
     {
         ZonedDateTime earlier = a.ToInstant() <= b.ToInstant() ? a : b;
@@ -61,7 +62,7 @@ public static class DateSpanFormatter
                     maxUnit: TimeUnit.Year,
                     minUnit: TimeUnit.Second
                 ),
-            _ => Total(earlier, later, unit, culture),
+            _ => Total(earlier, later, unit, culture, numberOnly),
         };
     }
 
@@ -69,7 +70,8 @@ public static class DateSpanFormatter
         ZonedDateTime earlier,
         ZonedDateTime later,
         SpanUnit unit,
-        CultureInfo culture
+        CultureInfo culture,
+        bool numberOnly
     )
     {
         Duration elapsed = later.ToInstant() - earlier.ToInstant();
@@ -92,7 +94,9 @@ public static class DateSpanFormatter
             SpanUnit.Minutes => ((long)elapsed.TotalMinutes, TimeUnit.Minute),
             _ => ((long)elapsed.TotalSeconds, TimeUnit.Second),
         };
-        return Words(word, count, culture);
+        return numberOnly
+            ? count.ToString(CultureInfo.InvariantCulture)
+            : Words(word, count, culture);
     }
 
     private static Period CalendarCount(

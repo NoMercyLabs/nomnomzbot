@@ -66,7 +66,7 @@ public static class DateOutputFormatter
             );
 
         return Result<string>.Success(
-            DateSpanFormatter.Format(value, other.Value, span.Unit, culture)
+            DateSpanFormatter.Format(value, other.Value, span.Unit, culture, span.NumberOnly)
         );
     }
 

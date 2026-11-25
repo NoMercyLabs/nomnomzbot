@@ -24,6 +24,7 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Dates;
 public static partial class DateExpressionParser
 {
     private const string ErrorCode = "TEMPLATE_INVALID_DATE_EXPRESSION";
+    private const string NumberSuffix = "number";
 
     public static Result<DateExpression> Parse(string payload)
     {
@@ -184,9 +185,24 @@ public static partial class DateExpressionParser
     {
         if (argument is null)
             return new SpanOutput(null, SpanUnit.Human);
-        SpanUnit? unit = ParseSpanUnit(argument);
-        return unit is null ? null : new SpanOutput(null, unit.Value);
+        (string unitText, bool numberOnly) = SplitNumberSuffix(argument);
+        SpanUnit? unit = ParseSpanUnit(unitText);
+        return IsValidSpan(unit, numberOnly) ? new SpanOutput(null, unit!.Value, numberOnly) : null;
     }
+
+    /// <summary>Splits a trailing <c>:number</c> off the text; the rest is what came before it.</summary>
+    private static (string Body, bool NumberOnly) SplitNumberSuffix(string text)
+    {
+        int colon = text.LastIndexOf(':');
+        return
+            colon >= 0
+            && text[(colon + 1)..].Trim().Equals(NumberSuffix, StringComparison.OrdinalIgnoreCase)
+            ? (text[..colon], true)
+            : (text, false);
+    }
+
+    private static bool IsValidSpan(SpanUnit? unit, bool numberOnly) =>
+        unit is not null && (!numberOnly || unit is not (SpanUnit.Breakdown or SpanUnit.Human));
 
     /// <summary>
     /// <c>diff:&lt;date&gt;[:&lt;unit&gt;]</c>. The other date may hold colons itself (a time), so the unit is
@@ -197,16 +213,19 @@ public static partial class DateExpressionParser
         if (string.IsNullOrWhiteSpace(argument))
             return null;
 
-        int lastColon = argument.LastIndexOf(':');
+        (string body, bool numberOnly) = SplitNumberSuffix(argument);
+        int lastColon = body.LastIndexOf(':');
         if (lastColon > 0)
         {
-            SpanUnit? unit = ParseSpanUnit(argument[(lastColon + 1)..]);
+            SpanUnit? unit = ParseSpanUnit(body[(lastColon + 1)..]);
             if (unit is not null)
-                return new SpanOutput(argument[..lastColon].Trim(), unit.Value);
-            if (LooksLikeUnitWord(argument[(lastColon + 1)..]))
+                return IsValidSpan(unit, numberOnly)
+                    ? new SpanOutput(body[..lastColon].Trim(), unit.Value, numberOnly)
+                    : null;
+            if (LooksLikeUnitWord(body[(lastColon + 1)..]))
                 return null;
         }
-        return new SpanOutput(argument.Trim(), SpanUnit.Human);
+        return numberOnly ? null : new SpanOutput(body.Trim(), SpanUnit.Human);
     }
 
     private static bool LooksLikeUnitWord(string text) =>

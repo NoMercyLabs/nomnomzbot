@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.ViewerData;
@@ -33,7 +34,8 @@ public sealed class TemplateResolverDateExpressionTests
     private static (TemplateResolver Resolver, ListLogger Logger) Build(
         string? timezone = "Europe/Amsterdam",
         string? language = "en",
-        DateTimeOffset? wentLiveAt = null
+        DateTimeOffset? wentLiveAt = null,
+        ITemplateHelperRegistry? helpers = null
     )
     {
         ViewerDataTestDbContext db = ViewerDataTestDbContext.New();
@@ -58,12 +60,11 @@ public sealed class TemplateResolverDateExpressionTests
             );
 
         ListLogger logger = new();
-        TemplateResolver resolver = new(
-            provider.GetRequiredService<IServiceScopeFactory>(),
-            registry,
-            logger,
-            new FixedTimeProvider(FixedUtc)
-        );
+        IServiceScopeFactory scopes = provider.GetRequiredService<IServiceScopeFactory>();
+        TimeProvider clock = new FixedTimeProvider(FixedUtc);
+        TemplateResolver resolver = helpers is null
+            ? new TemplateResolver(scopes, registry, logger, clock)
+            : new TemplateResolver(scopes, registry, logger, clock, helpers);
         return (resolver, logger);
     }
 
@@ -218,6 +219,67 @@ public sealed class TemplateResolverDateExpressionTests
     public async Task Until_and_since_count_from_now(string template, string expected)
     {
         (await Render(template)).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("{date:2025-09-10|diff:2026-10-26:days:number}", "411")]
+    [InlineData("{date:2025-09-10|diff:2026-10-26:weeks:number}", "58")]
+    [InlineData("{date:2025-09-10|diff:2026-10-26:years:number}", "1")]
+    [InlineData("{date:2026-10-26T10:00|diff:2026-10-26T12:30:minutes:number}", "150")]
+    [InlineData("{date:2026-12-25|until:days:number}", "59")]
+    [InlineData("{date:now|-90m|since:minutes:number}", "90")]
+    [InlineData("{date:2026-10-26T00:00|since:seconds:number}", "55800")]
+    [InlineData("{date:now|since:hours:number}", "0")]
+    public async Task A_number_suffix_outputs_the_bare_count_without_the_unit_word(
+        string template,
+        string expected
+    )
+    {
+        (await Render(template)).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("{math.mul:{date:2025-09-10|diff:2026-10-26:weeks:number}|9}", "522")]
+    [InlineData("{math.mul:{date:now|-90m|since:minutes:number}|2}", "180")]
+    public async Task A_number_suffix_nests_inside_a_math_helper(string template, string expected)
+    {
+        await using ServiceProvider helperServices = new ServiceCollection()
+            .AddTemplateHelpers(typeof(TemplateResolver).Assembly)
+            .BuildServiceProvider();
+        (TemplateResolver resolver, ListLogger _) = Build(
+            helpers: helperServices.GetRequiredService<ITemplateHelperRegistry>()
+        );
+
+        string resolved = await resolver.ResolveAsync(
+            template,
+            new Dictionary<string, string>(),
+            Channel
+        );
+
+        resolved.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("{date:now|since:breakdown:number}")]
+    [InlineData("{date:now|since:human:number}")]
+    [InlineData("{date:now|until:number}")]
+    [InlineData("{date:now|diff:2026-01-01:breakdown:number}")]
+    [InlineData("{date:now|diff:2026-01-01:human:number}")]
+    [InlineData("{date:now|diff:2026-01-01:number}")]
+    public async Task A_number_suffix_on_a_breakdown_or_human_span_is_an_invalid_expression(
+        string template
+    )
+    {
+        (TemplateResolver resolver, ListLogger logger) = Build();
+
+        string resolved = await resolver.ResolveAsync(
+            $"before {template} after",
+            new Dictionary<string, string>(),
+            Channel
+        );
+
+        resolved.Should().Be($"before {template} after");
+        logger.Entries.Count(e => e.Level == LogLevel.Warning).Should().Be(1);
     }
 
     // ── Formatting ──────────────────────────────────────────────────────

@@ -82,5 +82,7 @@ public sealed record OrdinalOutput : DateOutput;
 /// <summary>
 /// <c>until</c>, <c>since</c> (Other is null: compared with now) or <c>diff:&lt;date&gt;</c>, counted in
 /// <see cref="Unit"/>.
+/// A trailing <c>:number</c> (<see cref="NumberOnly"/>) outputs the bare count without the unit word, so the
+/// result can feed a math helper; it is only valid for the total units, never breakdown or human.
 /// </summary>
-public sealed record SpanOutput(string? Other, SpanUnit Unit) : DateOutput;
+public sealed record SpanOutput(string? Other, SpanUnit Unit, bool NumberOnly = false) : DateOutput;
