@@ -30,10 +30,16 @@ param(
     [switch]$Inspect,
     # Run only the slice's filtered tests and skip the unfiltered blast-radius suites. For builders
     # whose branch lands through a batch gate on master that runs every suite before the push.
-    [switch]$FilteredOnly
+    [switch]$FilteredOnly,
+    # Run every leg locally: the unfiltered suites, the unused-using cleanup and the ReSharper inspection.
+    # Without it the gate stays quick (build, slice tests, contract guards, format) and CI runs the rest:
+    # the "Test (backend)" job runs every suite and the "Code cleanup (backend)" job runs the cleanup and
+    # the inspection on the pushed .cs files. Stoney, 2026-11-25: "Can we move the slice Gates to CI?"
+    [switch]$Full
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $Full) { $FilteredOnly = [switch]::new($true) }
 
 # Under `powershell -File` (bash, CI), "-Paths a.cs,b.cs" binds as ONE string; split it so both forms work.
 $Paths = @($Paths | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -221,6 +227,12 @@ try {
 
     Write-Host '== csharpier check (repo-wide, catches files created after the scoped format) =='
     Invoke-Native 'csharpier check failed OUTSIDE the slice files - a generated or forgotten file is unformatted (run: dotnet csharpier format . from server/)' { dotnet csharpier check . }
+
+    if (-not $Full) {
+        Write-Host '== cleanup and inspect skipped: the CI "Code cleanup (backend)" job runs them (pass -Full to run here) =='
+        Write-Host 'SLICE CHECK OK - safe to commit with: git commit --only -m "..." -- <paths>'
+        return
+    }
 
     Write-Host '== cleanup (unused usings, slice files only) =='
     # IDE0005 only (S-cleanup, server/.editorconfig): csharpier is formatting-only and never touches

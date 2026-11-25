@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    # ci/** is a worktree's own gate run (Stoney, 2026-11-25: "Workspaces can do a separate CI right"):
+    # tests, cleanup and dashboard checks only; no image is built or published from it.
+    branches: [master, 'ci/**']
   pull_request:
     branches: [master]
 
@@ -70,6 +72,69 @@ jobs:
 
   # The Vue dashboard: type check, lint, unit tests, production build, and the API contract check that
   # replaces the old KMP contract test (the committed API types must match server/openapi/v1.json).
+  # The two slow legs of scripts/slice-check.ps1, moved here so the local gate stays quick (Stoney,
+  # 2026-11-25: "Can we move the slice Gates to CI?"). Same checks, same scope: only the .cs files this
+  # push or pull request changed. Unused usings (IDE0005) via dotnet format, then the ReSharper
+  # CodeRedundancy and LanguageUsage families, which Roslyn has no equivalent for.
+  cleanup:
+    name: Code cleanup (backend)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Changed C# files
+        id: changed
+        env:
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then BEFORE="$(git merge-base origin/master HEAD)"; fi
+          git diff --name-only --diff-filter=AMR "$BEFORE" HEAD -- 'server/*.cs' \
+            | grep -v '/Migrations/' | sed 's#^server/##' > "$RUNNER_TEMP/changed.txt" || true
+          echo "count=$(grep -c . "$RUNNER_TEMP/changed.txt" || true)" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/changed.txt"
+
+      - name: Restore .NET tools
+        if: steps.changed.outputs.count != '0'
+        working-directory: server
+        run: dotnet tool restore
+
+      - name: Build
+        if: steps.changed.outputs.count != '0'
+        working-directory: server
+        run: dotnet build NomNomzBot.slnx -c Debug
+
+      - name: Unused usings (dotnet format)
+        if: steps.changed.outputs.count != '0'
+        working-directory: server
+        run: xargs -a "$RUNNER_TEMP/changed.txt" dotnet format style NomNomzBot.slnx --verify-no-changes --severity warn --no-restore --include
+
+      - name: ReSharper inspection
+        if: steps.changed.outputs.count != '0'
+        working-directory: server
+        run: |
+          include="$(paste -sd ';' "$RUNNER_TEMP/changed.txt")"
+          dotnet jb inspectcode NomNomzBot.slnx --include="$include" --no-build --format=Xml \
+            --output="$RUNNER_TEMP/inspect.xml" --severity=WARNING
+          python3 - "$RUNNER_TEMP/inspect.xml" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          category = {t.get('Id'): t.get('CategoryId') for t in root.iter('IssueType')}
+          hits = [i for i in root.iter('Issue') if category.get(i.get('TypeId')) in ('CodeRedundancy', 'LanguageUsage')]
+          for i in hits:
+              print(f"::error file=server/{i.get('File')},line={i.get('Line') or 1}::{i.get('Message')}")
+          sys.exit(1 if hits else 0)
+          PY
+
   dashboard:
     name: Dashboard (Vue)
     runs-on: ubuntu-latest
@@ -124,6 +189,7 @@ jobs:
   # so no work is done twice and an untested build never becomes `latest`.
   build:
     name: Build & push image
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -177,13 +243,15 @@ jobs:
   # passed. A registry tag copy: no rebuild, a few seconds. The deploy pulls `latest`, so this is its gate.
   publish:
     name: Publish image tags
-    needs: [test, dashboard, build]
+    needs: [test, cleanup, dashboard, build]
     if: >
       !cancelled() &&
       needs.test.result == 'success' &&
+      needs.cleanup.result == 'success' &&
       needs.dashboard.result == 'success' &&
       needs.build.result == 'success' &&
-      github.event_name == 'push'
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -218,7 +286,8 @@ jobs:
     if: >
       !cancelled() &&
       needs.build.result == 'success' &&
-      github.event_name == 'push'
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
