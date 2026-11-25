@@ -412,12 +412,12 @@ describe('OverlaysView', () => {
     expect(rowNames()).toEqual(['Feather Alert']);
   });
 
-  it('leaves the required overlays out of the list; they live on the OBS page', async () => {
+  it('lists the required overlays too, so their settings can be edited here', async () => {
     required = [{ key: 'audio', widget: widgets.find((row) => row.id === 'w3') }];
     await open();
 
-    expect(rowNames()).toEqual(['Spotify NowPlaying', 'Feather Alert', 'Chat Box']);
-    expect(tabCount('All')).toBe('3');
+    expect(rowNames()).toEqual(['Spotify NowPlaying', 'Feather Alert', 'Audio', 'Chat Box']);
+    expect(tabCount('All')).toBe('4');
   });
 
   it('filters the list by the name typed in the search box', async () => {

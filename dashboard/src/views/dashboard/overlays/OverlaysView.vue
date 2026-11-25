@@ -17,7 +17,7 @@ import VolumeTwo from '~icons/nnz/volume-two';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
+import { useWidgets, type Widget } from '@/api/widgets';
 import DetailEditorPane from '@/components/layout/DetailEditorPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import ListPanel from '@/components/layout/ListPanel.vue';
@@ -52,15 +52,6 @@ const widgets = useWidgets(channelId);
 const audioOpen = ref(false);
 const creating = ref(false);
 
-const required = useRequiredOverlays(channelId);
-
-// The required overlays are shown only on the OBS page; this list is the user's own choices.
-const loaded = computed(() =>
-  widgets.data.value
-    ? withoutRequired(widgets.data.value, required.data.value)
-    : undefined,
-);
-
 // An id in the address looks in every overlay, so a switched-off one stays open on the On tab.
 const {
   view,
@@ -76,7 +67,8 @@ const {
   selected,
 } = useFilteredResourceList({
   query: widgets,
-  items: () => loaded.value,
+  // Every overlay is listed, the required ones too: this page is where their settings are edited.
+  items: () => widgets.data.value,
   filters: FILTERS,
   tabLabel: (tab) => t(`dashboard.overlays.tabs.${tab}`),
   searchText: (widget) => [widget.name],
