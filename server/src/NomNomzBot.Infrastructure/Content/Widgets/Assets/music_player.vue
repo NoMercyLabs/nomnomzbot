@@ -592,7 +592,7 @@ onUnmounted(() => {
   position: fixed;
   left: 16px;
   bottom: 16px;
-  max-width: 46vw;
+  max-width: calc(46 * var(--nnz-vw, 1vw));
   padding: 8px 16px;
   border-radius: 8px;
   color: #fff;

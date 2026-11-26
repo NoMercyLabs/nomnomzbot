@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Reflection;
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Jint;
 using Microsoft.AspNetCore.Mvc;
@@ -229,5 +231,49 @@ public sealed class OverlaySdkThemeColorTests
         Applied(engine, "{ scale: 900 }")["--nnz-scale"].Should().Be("2");
         Applied(engine, "{ scale: 10 }")["--nnz-scale"].Should().Be("0.5");
         Applied(engine, "{}").Keys.Should().NotContain(["--nnz-edge", "--nnz-scale"]);
+    }
+
+    // Audit 2026-11-26: the fit zoom made the page 1.239x, but 100vw inside it stayed 1280 px, so the Chat
+    // Box drew 1586 px wide and its cards were cut off on the right. The SDK hands the widgets one percent of
+    // the browser source in zoomed pixels, the unit a widget uses instead of vw and vh.
+    [Fact]
+    public void The_fit_zoom_gives_the_widgets_one_percent_of_the_browser_source_in_zoomed_pixels()
+    {
+        Engine engine = ThemeEngine();
+        engine.Execute("var window = { innerWidth: 1280, innerHeight: 720 };");
+
+        Dictionary<string, string> styles = Applied(
+            engine,
+            "{ designWidth: 640, designHeight: 480 }"
+        );
+        styles["zoom"].Should().Be("1.5");
+        styles["--nnz-vw"].Should().Be("8.5333px");
+        styles["--nnz-vh"].Should().Be("4.8px");
+
+        Applied(engine, "{}").Keys.Should().NotContain(["zoom", "--nnz-vw", "--nnz-vh"]);
+    }
+
+    [Fact]
+    public void No_first_party_widget_sizes_itself_by_the_raw_viewport_that_the_fit_zoom_does_not_follow()
+    {
+        Assembly assets = typeof(FirstPartyWidgetCatalogue).Assembly;
+        List<string> offenders = [];
+        foreach (string name in assets.GetManifestResourceNames().Where(n => n.EndsWith(".vue")))
+        {
+            using Stream stream = assets.GetManifestResourceStream(name)!;
+            using StreamReader reader = new(stream);
+            string source = reader.ReadToEnd();
+            offenders.AddRange(
+                Regex
+                    .Matches(source, @"(?<!var\(--nnz-v[wh], )(?<![\w.])[\d.]+v(w|h|min|max)\b")
+                    .Select(m => $"{name}: {m.Value}")
+            );
+        }
+
+        offenders
+            .Should()
+            .BeEmpty(
+                "a widget writes calc(N * var(--nnz-vw, 1vw)) and calc(N * var(--nnz-vh, 1vh))"
+            );
     }
 }

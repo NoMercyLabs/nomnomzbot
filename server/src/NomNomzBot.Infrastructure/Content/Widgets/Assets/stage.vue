@@ -223,7 +223,7 @@ onUnmounted(() => {
 }
 @keyframes nnz-run-across {
   from { transform: translateX(-100%); }
-  to { transform: translateX(100vw); }
+  to { transform: translateX(calc(100 * var(--nnz-vw, 1vw))); }
 }
 
 /* confetti: pieces fall from above the top edge to below the bottom edge. */
@@ -233,7 +233,7 @@ onUnmounted(() => {
 }
 .piece {
   position: absolute;
-  top: -5vh;
+  top: calc(-5 * var(--nnz-vh, 1vh));
   border-radius: 2px;
   opacity: 0;
   animation-name: nnz-fall;
@@ -242,7 +242,7 @@ onUnmounted(() => {
 }
 @keyframes nnz-fall {
   0% { opacity: 1; transform: translate(0, 0) rotate(0deg); }
-  100% { opacity: 1; transform: translate(var(--drift), 110vh) rotate(var(--spin)); }
+  100% { opacity: 1; transform: translate(var(--drift), calc(110 * var(--nnz-vh, 1vh))) rotate(var(--spin)); }
 }
 
 /* shake: a tinted frame at the screen edge that shakes with the stage layer and fades out. */

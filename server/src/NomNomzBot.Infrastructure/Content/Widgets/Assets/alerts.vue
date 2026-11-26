@@ -51,7 +51,7 @@ const cardKey = ref<number>(0)
 // Sticker cards (current.value.imageUrl set) get a random on-canvas spot per occurrence, re-rolled every time;
 // non-sticker cards keep the shared fixed top-12%-center placement. cardLeftPct/cardTopPct are the card's CSS
 // left/top as viewport percentages, clamped by margins sized to the card's own worst-case footprint so it can
-// never clip off an edge: the .card rule caps width at 70vw, so a 35% (half-width) left/right margin always
+// never clip off an edge: the .card rule caps width at 70% of the source, so a 35% (half-width) left/right margin always
 // keeps the full width on-screen; the tallest sticker card (120px image + title/detail + padding) is far under
 // 12% of a typical stream-canvas height, so a 12% top/bottom margin covers it with room to spare.
 const cardLeftPct = ref<number>(50)
@@ -229,7 +229,7 @@ onUnmounted(() => {
 /* .show is the widget's own in/out switch (driven by `visible`), timed with the shared theme motion. */
 .card {
   min-width: 280px;
-  max-width: 70vw;
+  max-width: calc(70 * var(--nnz-vw, 1vw));
   opacity: 0;
   translate: 0 -18px;
   scale: 0.96;

@@ -625,15 +625,15 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* The list IS the browser source: it fills it edge to edge (100vh is divided by the zoom the root applies to
-   itself), the newest line sits at the bottom and older lines run off the top. The padding keeps the border and the
-   hard shadow of every card inside the clip. */
+/* The list IS the browser source: it fills it edge to edge (the source size is divided by the zoom the root
+   applies to itself), the newest line sits at the bottom and older lines run off the top. The padding keeps the
+   border and the hard shadow of every card inside the clip. */
 .nnz-placed.nnz-chatbox {
   inset: 0;
   transform: none;
   box-sizing: border-box;
-  width: calc(100vw / var(--nnz-z));
-  height: calc(100vh / var(--nnz-z));
+  width: calc(100 * var(--nnz-vw, 1vw) / var(--nnz-z));
+  height: calc(100 * var(--nnz-vh, 1vh) / var(--nnz-z));
   display: flex;
   flex-direction: column;
   justify-content: flex-end;

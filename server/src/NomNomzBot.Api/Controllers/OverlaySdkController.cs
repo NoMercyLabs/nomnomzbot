@@ -177,12 +177,20 @@ public sealed class OverlaySdkController : ControllerBase
             applyFit(root, s);
           }
           // A first-party overlay is drawn for designWidth x designHeight; in a browser source of another size the
-          // whole page zooms so the overlay fills it, without clipping.
+          // whole page zooms so the overlay fills it, without clipping. Under that zoom 1vw still measures the raw
+          // window, so --nnz-vw and --nnz-vh hold one percent of it in zoomed pixels: a widget sizes by those.
           function applyFit(root, s) {
             var w = Number(s.designWidth), h = Number(s.designHeight);
             var vw = typeof window === "undefined" ? 0 : window.innerWidth, vh = typeof window === "undefined" ? 0 : window.innerHeight;
-            if (!(w > 0 && h > 0 && vw > 0 && vh > 0)) { root.style.removeProperty("zoom"); return; }
-            root.style.setProperty("zoom", String(Math.min(vw / w, vh / h)));
+            if (!(w > 0 && h > 0 && vw > 0 && vh > 0)) {
+              ["zoom", "--nnz-vw", "--nnz-vh"].forEach(function (v) { root.style.removeProperty(v); });
+              return;
+            }
+            var zoom = Math.min(vw / w, vh / h);
+            var percent = function (size) { return Math.round(size / zoom * 100) / 10000 + "px"; };
+            root.style.setProperty("zoom", String(zoom));
+            root.style.setProperty("--nnz-vw", percent(vw));
+            root.style.setProperty("--nnz-vh", percent(vh));
           }
           if (typeof window !== "undefined" && window.addEventListener)
             window.addEventListener("resize", function () { applyFit(document.documentElement, currentSettings || {}); });

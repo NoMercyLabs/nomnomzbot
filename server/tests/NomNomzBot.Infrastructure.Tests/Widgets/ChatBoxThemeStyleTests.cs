@@ -73,7 +73,8 @@ public sealed class ChatBoxThemeStyleTests
         string rule = Rule(".nnz-placed.nnz-chatbox");
 
         rule.Should().Contain("inset: 0");
-        rule.Should().Contain("height: calc(100vh / var(--nnz-z))");
+        rule.Should().Contain("width: calc(100 * var(--nnz-vw, 1vw) / var(--nnz-z))");
+        rule.Should().Contain("height: calc(100 * var(--nnz-vh, 1vh) / var(--nnz-z))");
         rule.Should().Contain("justify-content: flex-end");
         rule.Should().Contain("overflow: hidden");
     }

@@ -235,25 +235,28 @@ onUnmounted(() => {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  --ground: clamp(18px, 3.2vh, 72px);
+  /* One percent of the browser source, right under the fit zoom too. */
+  --vw: var(--nnz-vw, 1vw);
+  --vh: var(--nnz-vh, 1vh);
+  --ground: clamp(18px, calc(3.2 * var(--vh)), 72px);
 }
 .board {
   position: absolute;
-  top: 2.5vh;
-  right: 2vw;
-  width: clamp(200px, 17vw, 560px);
+  top: calc(2.5 * var(--vh));
+  right: calc(2 * var(--vw));
+  width: clamp(200px, calc(17 * var(--vw)), 560px);
   zoom: 1;
-  padding: clamp(10px, 1.2vh, 28px) clamp(12px, 1.1vw, 32px);
+  padding: clamp(10px, calc(1.2 * var(--vh)), 28px) clamp(12px, calc(1.1 * var(--vw)), 32px);
 }
 .board .nnz-chip {
-  font-size: clamp(12px, 1.3vh, 28px);
+  font-size: clamp(12px, calc(1.3 * var(--vh)), 28px);
 }
 .title {
-  font-size: clamp(18px, 2.4vh, 52px);
+  font-size: clamp(18px, calc(2.4 * var(--vh)), 52px);
   margin-bottom: 0.4em;
 }
 .board .nnz-row {
-  font-size: clamp(14px, 1.6vh, 34px);
+  font-size: clamp(14px, calc(1.6 * var(--vh)), 34px);
 }
 .ground {
   position: absolute;
@@ -275,7 +278,7 @@ onUnmounted(() => {
 .center {
   position: absolute;
   bottom: 0;
-  width: clamp(4px, 0.35vw, 12px);
+  width: clamp(4px, calc(0.35 * var(--vw)), 12px);
   height: calc(var(--ground) * 1.6);
   transform: translateX(-50%);
   border-radius: var(--nnz-radius-inner) var(--nnz-radius-inner) 0 0;
@@ -289,7 +292,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  --item: clamp(28px, 5vh, 110px);
+  --item: clamp(28px, calc(5 * var(--vh)), 110px);
 }
 .chute {
   width: calc(var(--item) * 1.9);
@@ -315,12 +318,12 @@ onUnmounted(() => {
 }
 .name {
   zoom: 1;
-  margin-top: 0.4vh;
+  margin-top: calc(0.4 * var(--vh));
   padding: 0.2em 0.7em;
-  font-size: clamp(11px, 1.4vh, 30px);
+  font-size: clamp(11px, calc(1.4 * var(--vh)), 30px);
   font-weight: 800;
   white-space: nowrap;
-  max-width: 14vw;
+  max-width: calc(14 * var(--vw));
   overflow: hidden;
   text-overflow: ellipsis;
   box-shadow: none;
@@ -328,7 +331,7 @@ onUnmounted(() => {
 .score {
   position: absolute;
   bottom: 100%;
-  font-size: clamp(18px, 3vh, 64px);
+  font-size: clamp(18px, calc(3 * var(--vh)), 64px);
   opacity: 0;
 }
 .drop:not(.is-flying) .chute {
@@ -339,10 +342,10 @@ onUnmounted(() => {
 .drop:not(.is-flying) .score {
   animation: pop 1800ms var(--nnz-ease) both;
 }
-.is-large { --item: clamp(48px, 9vh, 200px); }
-.is-medium { --item: clamp(38px, 7vh, 155px); }
-.is-small { --item: clamp(28px, 5vh, 110px); }
-.is-miss { --item: clamp(22px, 4vh, 90px); }
+.is-large { --item: clamp(48px, calc(9 * var(--vh)), 200px); }
+.is-medium { --item: clamp(38px, calc(7 * var(--vh)), 155px); }
+.is-small { --item: clamp(28px, calc(5 * var(--vh)), 110px); }
+.is-miss { --item: clamp(22px, calc(4 * var(--vh)), 90px); }
 .is-miss .payload,
 .is-miss .name {
   opacity: 0.5;
@@ -353,8 +356,8 @@ onUnmounted(() => {
 }
 @keyframes pop {
   0% { opacity: 0; translate: 0 0; scale: 0.6; }
-  20% { opacity: 1; translate: 0 -2vh; scale: 1.15; }
-  80% { opacity: 1; translate: 0 -3vh; scale: 1; }
-  100% { opacity: 0; translate: 0 -5vh; scale: 1; }
+  20% { opacity: 1; translate: 0 calc(-2 * var(--vh)); scale: 1.15; }
+  80% { opacity: 1; translate: 0 calc(-3 * var(--vh)); scale: 1; }
+  100% { opacity: 0; translate: 0 calc(-5 * var(--vh)); scale: 1; }
 }
 </style>
