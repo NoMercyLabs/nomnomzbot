@@ -22,6 +22,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
@@ -144,6 +145,55 @@ public sealed class WidgetServiceCustomSettingsTests : IClassFixture<VueSfcCompi
                 ("accent", "color", "#ff0066", "Accent colour"),
                 ("title", "text", "Hello", "Title")
             );
+    }
+
+    // Owner, 2026-11-26: "the bot ui should now react to config objects from code right?" A system widget whose
+    // code declares settings shows them: a declared key replaces the catalogue field, a new key is added.
+    [Fact]
+    public async Task GetSettingsSchema_SystemWidgetWithDeclaredSettings_MergesThemAndTheCodeWins()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        (Guid channel, Guid widget) = await SeedAsync(database);
+        await using (WidgetTestDbContext seed = database.NewContext())
+        {
+            WidgetGalleryItem item = new() { Name = "Event Ticker", NaturalKey = "event_ticker" };
+            seed.WidgetGalleryItems.Add(item);
+            (await seed.Widgets.FirstAsync(w => w.Id == widget)).GalleryItemId = item.Id;
+            await seed.SaveChangesAsync();
+        }
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db);
+        (
+            await service.SaveProjectAsync(
+                channel.ToString(),
+                widget.ToString(),
+                Project(
+                    """
+                    { "fields": [
+                      { "key": "width", "label": "Band width", "type": "number", "default": 640 },
+                      { "key": "glow", "label": "Glow", "type": "bool", "default": true }
+                    ] }
+                    """
+                )
+            )
+        ).IsSuccess.Should().BeTrue();
+
+        Result<WidgetSettingsSchema> schema = await service.GetSettingsSchemaAsync(
+            channel.ToString(),
+            widget.ToString()
+        );
+
+        schema.IsSuccess.Should().BeTrue(schema.ErrorMessage);
+        schema.Value.WidgetKey.Should().Be("event_ticker");
+        List<string> keys = [.. schema.Value.Fields.Select(f => f.Key)];
+        keys.Should().Contain(["anchor", "fullWidth", "width", "glow"]);
+        keys.Should().OnlyHaveUniqueItems();
+        WidgetSettingsField width = schema.Value.Fields.Single(f => f.Key == "width");
+        (width.Label.Text, width.Default).Should().Be(("Band width", (object)640.0));
+        keys.IndexOf("glow")
+            .Should()
+            .Be(keys.Count - 1, "a new key goes after the catalogue fields");
     }
 
     [Fact]

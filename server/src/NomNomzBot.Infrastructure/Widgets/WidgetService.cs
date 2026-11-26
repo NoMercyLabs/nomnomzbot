@@ -744,10 +744,30 @@ public class WidgetService : IWidgetService
         WidgetSettingsSchema? schema = naturalKey is not null
             ? _settingsSchemas.GetByKey(naturalKey)
             : null;
-        if (schema is not null)
-            return Result.Success(schema);
+        Result<WidgetSettingsSchema> declared = await GetDeclaredSettingsSchemaAsync(
+            widget,
+            cancellationToken
+        );
+        if (schema is null)
+            return declared;
 
-        return await GetDeclaredSettingsSchemaAsync(widget, cancellationToken);
+        // A system widget whose code declares settings shows them too: the code wins per key, a new key is added
+        // after the catalogue fields. No declaration, or one that does not parse, keeps the catalogue form.
+        return Result.Success(declared.IsSuccess ? Merge(schema, declared.Value.Fields) : schema);
+    }
+
+    private static WidgetSettingsSchema Merge(
+        WidgetSettingsSchema catalogue,
+        IReadOnlyList<WidgetSettingsField> declared
+    )
+    {
+        Dictionary<string, WidgetSettingsField> byKey = declared.ToDictionary(f => f.Key);
+        List<WidgetSettingsField> fields =
+        [
+            .. catalogue.Fields.Select(f => byKey.GetValueOrDefault(f.Key, f)),
+            .. declared.Where(f => catalogue.Fields.All(c => c.Key != f.Key)),
+        ];
+        return catalogue with { Fields = fields };
     }
 
     // A custom widget declares its settings in a project-root settings.json; the active version's stored files

@@ -292,6 +292,10 @@
 .nnz-row.is-first {
   background: var(--nnz-row-first-bg);
 }
+/* An empty slot of a list panel: it holds the room of a row, so the panel keeps its full size and its place. */
+.nnz-row.nnz-pad {
+  visibility: hidden;
+}
 .nnz-row .nnz-grow {
   flex: 1 1 auto;
   min-width: 0;
@@ -390,11 +394,20 @@
  * center, right, bottom-left, bottom, bottom-right). It sits that far (--nnz-edge) from the browser source edge
  * it is anchored to. A zoomed card or pill scales its own offsets, so the offset is divided by its zoom and the
  * distance stays the real pixels the streamer set. The theme's shadow reach is added on top, so a hard shadow is
- * never cut off by the source edge.
+ * never cut off by the source edge. A side margin (--nnz-m-top, -right, -bottom, -left) replaces the edge
+ * distance on that one side; on a centered axis the part moves by half the difference of its two margins.
  */
 .nnz-placed {
   --nnz-own-zoom: 1;
+  --nnz-mt: var(--nnz-m-top, var(--nnz-edge));
+  --nnz-mr: var(--nnz-m-right, var(--nnz-edge));
+  --nnz-mb: var(--nnz-m-bottom, var(--nnz-edge));
+  --nnz-ml: var(--nnz-m-left, var(--nnz-edge));
   --nnz-inset: calc(var(--nnz-edge) / var(--nnz-own-zoom) + var(--nnz-shadow-reach));
+  --nnz-inset-top: calc(var(--nnz-mt) / var(--nnz-own-zoom) + var(--nnz-shadow-reach));
+  --nnz-inset-right: calc(var(--nnz-mr) / var(--nnz-own-zoom) + var(--nnz-shadow-reach));
+  --nnz-inset-bottom: calc(var(--nnz-mb) / var(--nnz-own-zoom) + var(--nnz-shadow-reach));
+  --nnz-inset-left: calc(var(--nnz-ml) / var(--nnz-own-zoom) + var(--nnz-shadow-reach));
   position: absolute;
   transform: translate(var(--nnz-tx, 0), var(--nnz-ty, 0));
 }
@@ -407,28 +420,28 @@
   zoom: var(--nnz-z);
 }
 .nnz-placed[data-anchor^='top'] {
-  top: var(--nnz-inset);
+  top: var(--nnz-inset-top);
 }
 .nnz-placed[data-anchor^='bottom'] {
-  bottom: var(--nnz-inset);
+  bottom: var(--nnz-inset-bottom);
 }
 .nnz-placed[data-anchor='left'],
 .nnz-placed[data-anchor='center'],
 .nnz-placed[data-anchor='right'] {
   top: 50%;
-  --nnz-ty: -50%;
+  --nnz-ty: calc(-50% + (var(--nnz-mt) - var(--nnz-mb)) / 2 / var(--nnz-own-zoom));
 }
 .nnz-placed[data-anchor$='left'] {
-  left: var(--nnz-inset);
+  left: var(--nnz-inset-left);
 }
 .nnz-placed[data-anchor$='right'] {
-  right: var(--nnz-inset);
+  right: var(--nnz-inset-right);
 }
 .nnz-placed[data-anchor='top'],
 .nnz-placed[data-anchor='center'],
 .nnz-placed[data-anchor='bottom'] {
   left: 50%;
-  --nnz-tx: -50%;
+  --nnz-tx: calc(-50% + (var(--nnz-ml) - var(--nnz-mr)) / 2 / var(--nnz-own-zoom));
 }
 
 /* ── Motion: every widget enters and leaves the same way ────────────────── */

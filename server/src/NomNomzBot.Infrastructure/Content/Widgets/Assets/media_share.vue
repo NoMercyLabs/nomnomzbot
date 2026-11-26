@@ -113,13 +113,15 @@ function fitCard(): void {
   const box: DOMRect = el.getBoundingClientRect()
   const inner: DOMRect = video.getBoundingClientRect()
   const room: DOMRect = source.getBoundingClientRect()
-  const edge: number = (parseFloat(getComputedStyle(el).getPropertyValue('--nnz-edge')) || 0) * screenScale(source)
+  const style: CSSStyleDeclaration = getComputedStyle(el)
+  // Each side's margin (else the edge offset), in screen pixels.
+  const side = (name: string): number => (parseFloat(style.getPropertyValue(name)) || 0) * screenScale(source)
   // The theme's hard shadow reaches past the card by this much (in the card's own zoomed pixels).
-  const reach: number = (parseFloat(getComputedStyle(el).getPropertyValue('--nnz-shadow-reach')) || 0) * screenScale(el)
+  const reach: number = (parseFloat(style.getPropertyValue('--nnz-shadow-reach')) || 0) * screenScale(el)
   const chromeX: number = box.width - inner.width
   const chromeY: number = box.height - inner.height
-  const roomX: number = room.width - 2 * (edge + reach) - chromeX
-  const roomY: number = room.height - 2 * (edge + reach) - chromeY
+  const roomX: number = room.width - side('--nnz-ml') - side('--nnz-mr') - 2 * reach - chromeX
+  const roomY: number = room.height - side('--nnz-mt') - side('--nnz-mb') - 2 * reach - chromeY
   const videoWidth: number = Math.max(0, Math.min(roomX, roomY * VIDEO_RATIO))
   cardWidth.value = `${Math.floor((videoWidth + chromeX) / screenScale(el))}px`
 }
@@ -434,7 +436,7 @@ onUnmounted(() => {
 /* Starts at the full browser source width less the edge offset; fitCard then narrows it so the 16:9 video
    and the card's padding, border and title fit the height too. The card zoom multiplies the declared size. */
 .nnz-mediashare {
-  width: calc(100 * var(--nnz-vw, 1vw) / var(--nnz-z) - 2 * var(--nnz-inset));
+  width: calc(100 * var(--nnz-vw, 1vw) / var(--nnz-z) - var(--nnz-inset-left) - var(--nnz-inset-right));
   display: flex;
   flex-direction: column;
   gap: 8px;

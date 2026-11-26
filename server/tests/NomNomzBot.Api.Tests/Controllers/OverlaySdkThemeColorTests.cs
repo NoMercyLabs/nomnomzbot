@@ -233,6 +233,25 @@ public sealed class OverlaySdkThemeColorTests
         Applied(engine, "{}").Keys.Should().NotContain(["--nnz-edge", "--nnz-scale"]);
     }
 
+    // Owner report 2026-11-26: one edge distance on every side doubles the gap between two widgets that
+    // share a corner. Each side margin sets its own variable; an empty side keeps the edge distance.
+    [Fact]
+    public void Each_side_margin_sets_its_own_variable_and_an_empty_side_keeps_the_edge_distance()
+    {
+        Engine engine = ThemeEngine();
+
+        Dictionary<string, string> styles = Applied(
+            engine,
+            "{ marginTop: 0, marginRight: 32, marginBottom: '', marginLeft: 5000 }"
+        );
+
+        styles["--nnz-m-top"].Should().Be("0px");
+        styles["--nnz-m-right"].Should().Be("32px");
+        styles["--nnz-m-left"].Should().Be("2000px");
+        styles.Keys.Should().NotContain("--nnz-m-bottom");
+        Applied(engine, "{ marginTop: -4 }").Keys.Should().NotContain("--nnz-m-top");
+    }
+
     // Audit 2026-11-26: the fit zoom made the page 1.239x, but 100vw inside it stayed 1280 px, so the Chat
     // Box drew 1586 px wide and its cards were cut off on the right. The SDK hands the widgets one percent of
     // the browser source in zoomed pixels, the unit a widget uses instead of vw and vh.

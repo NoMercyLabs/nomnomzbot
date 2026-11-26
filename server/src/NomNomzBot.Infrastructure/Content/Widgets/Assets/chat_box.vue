@@ -621,7 +621,7 @@ onUnmounted(() => {
         </template>
         <template v-else>{{ l.message }}</template>
         <!-- Drawn as text (never markup), like the song request mark: the line is the bot's, the viewer only asked. -->
-        <span v-if="l.look && l.look.requestedBy" class="requested-by">requested by {{ l.look.requestedBy }}</span>
+        <span v-if="l.look && l.look.requestedBy" class="requested-by">Requested by {{ l.look.requestedBy }}</span>
       </span>
     </div>
   </TransitionGroup>
@@ -641,7 +641,8 @@ onUnmounted(() => {
   flex-direction: column;
   justify-content: flex-end;
   gap: 16px;
-  padding: calc(var(--nnz-edge) / var(--nnz-z) + 14px);
+  padding: calc(var(--nnz-mt) / var(--nnz-z) + 14px) calc(var(--nnz-mr) / var(--nnz-z) + 14px)
+    calc(var(--nnz-mb) / var(--nnz-z) + 14px) calc(var(--nnz-ml) / var(--nnz-z) + 14px);
   overflow: hidden;
   pointer-events: none;
   font-size: 16px;

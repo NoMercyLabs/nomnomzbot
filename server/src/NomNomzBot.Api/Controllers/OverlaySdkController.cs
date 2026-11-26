@@ -157,8 +157,8 @@ public sealed class OverlaySdkController : ControllerBase
           // own main colour. Each theme has one main colour variable (print: its surface; the others: their accent),
           // and every colour the theme derives from it follows. An empty colour, "reset", a colour that is already
           // some theme's main colour (the default the settings form shows), or a default accent from before the
-          // themes, all mean "the theme's own colour". The layout settings edgeOffset (px) and scale (%) set the
-          // two layout variables the placed parts read.
+          // themes, all mean "the theme's own colour". The layout settings edgeOffset (px), scale (%) and the four side
+          // margins (px; an empty side keeps the edge distance) set the layout variables the placed parts read.
           var THEMES = ["sticker", "ink", "print", "classic"];
           var MAIN_VAR = { sticker: "--nnz-accent", ink: "--nnz-accent", print: "--nnz-surface", classic: "--nnz-accent" };
           var MAIN_COLOR = { sticker: "#ff2d6f", ink: "#c8ff2e", print: "#d4ff3a", classic: "#9146ff" };
@@ -171,6 +171,13 @@ public sealed class OverlaySdkController : ControllerBase
             var edge = Number(s.edgeOffset);
             if (s.edgeOffset !== "" && s.edgeOffset != null && isFinite(edge) && edge >= 0) root.style.setProperty("--nnz-edge", Math.min(edge, 2000) + "px");
             else root.style.removeProperty("--nnz-edge");
+            ["Top", "Right", "Bottom", "Left"].forEach(function (side) {
+              var raw = s["margin" + side];
+              var px = Number(raw);
+              var name = "--nnz-m-" + side.toLowerCase();
+              if (raw !== "" && raw != null && isFinite(px) && px >= 0) root.style.setProperty(name, Math.min(px, 2000) + "px");
+              else root.style.removeProperty(name);
+            });
             var scale = Number(s.scale);
             if (s.scale !== "" && s.scale != null && isFinite(scale) && scale > 0) root.style.setProperty("--nnz-scale", String(Math.min(200, Math.max(50, scale)) / 100));
             else root.style.removeProperty("--nnz-scale");

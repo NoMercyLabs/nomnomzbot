@@ -122,8 +122,11 @@ export function clampNumber(
 ): JsonValue | undefined {
   const parsed = numberOrNull(typed);
 
+  // A field that starts empty (a side margin: empty means "use the edge offset") goes back to empty when cleared.
   if (parsed === null)
-    return fallback;
+    return typed.trim() === '' && field.default === ''
+      ? ''
+      : fallback;
 
   const min = numberOrNull(field.min);
   const max = numberOrNull(field.max);

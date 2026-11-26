@@ -3098,8 +3098,16 @@
       "events": {
         "label": "Event types"
       },
+      "fullWidth": {
+        "help": "The bar spans the whole browser source. Turn it off to set your own width.",
+        "label": "Full width"
+      },
       "speed": {
         "label": "Scroll speed"
+      },
+      "width": {
+        "help": "The bar width when full width is off. It never gets wider than the browser source.",
+        "label": "Width (px)"
       }
     },
     "gallery": {
@@ -3500,6 +3508,22 @@
       "edgeOffset": {
         "help": "The gap between the overlay and the edge it sticks to.",
         "label": "Distance from the edge (px)"
+      },
+      "marginBottom": {
+        "help": "The gap to the bottom edge. Leave it empty to use the distance from the edge.",
+        "label": "Bottom margin (px)"
+      },
+      "marginLeft": {
+        "help": "The gap to the left edge. Leave it empty to use the distance from the edge.",
+        "label": "Left margin (px)"
+      },
+      "marginRight": {
+        "help": "The gap to the right edge. Leave it empty to use the distance from the edge.",
+        "label": "Right margin (px)"
+      },
+      "marginTop": {
+        "help": "The gap to the top edge. Leave it empty to use the distance from the edge.",
+        "label": "Top margin (px)"
       },
       "scale": {
         "help": "Makes the whole overlay smaller or bigger. 100 is the normal size.",

@@ -230,7 +230,7 @@ onUnmounted(() => {
           </div>
           <div class="nnz-sub artist">{{ artist || ' ' }}</div>
           <div v-if="requestedBy" class="nnz-sub requester">
-            requested by
+            Requested by
             <span class="requester-name" :style="requestedByColor ? { color: requestedByColor } : undefined">{{ requestedBy || ' ' }}</span>
           </div>
           <div v-if="cfg.showProgressBar" class="nnz-track bar"><div class="nnz-fill" :style="{ width: progressPct + '%' }"></div></div>
@@ -250,9 +250,14 @@ onUnmounted(() => {
 <style scoped>
 /* The box keeps one width whatever the title length, so it never jumps between songs; the anchor puts it in its corner. */
 .nnz-placed.nnz-nowplaying {
-  /* The zoomed box inside carries the shadow, so its reach is zoomed too. */
-  --nnz-inset: calc(var(--nnz-edge) + var(--nnz-shadow-reach) * var(--nnz-z));
-  width: min(calc(100% - 2 * var(--nnz-inset)), 616px);
+  /* The zoomed box inside carries the shadow, so its reach is zoomed too; each side keeps its own margin. */
+  --reach: calc(var(--nnz-shadow-reach) * var(--nnz-z));
+  --nnz-inset: calc(var(--nnz-edge) + var(--reach));
+  --nnz-inset-top: calc(var(--nnz-mt) + var(--reach));
+  --nnz-inset-right: calc(var(--nnz-mr) + var(--reach));
+  --nnz-inset-bottom: calc(var(--nnz-mb) + var(--reach));
+  --nnz-inset-left: calc(var(--nnz-ml) + var(--reach));
+  width: min(calc(100% - var(--nnz-ml) - var(--nnz-mr) - 2 * var(--reach)), 616px);
 }
 .box {
   display: flex;

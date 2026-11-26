@@ -122,7 +122,7 @@ describe('the chat box widget draws the bot overlay line', () => {
 
     expect(wrapper.find('.name').text()).toBe('NomNomzBot');
     expect(wrapper.find('.frag-html').html()).toContain('CHOO CHOO');
-    expect(wrapper.find('.requested-by').text()).toBe('requested by Viewer One');
+    expect(wrapper.find('.requested-by').text()).toBe('Requested by Viewer One');
     expect(wrapper.find('.head').text()).not.toContain('Viewer One');
   });
 
@@ -137,7 +137,7 @@ describe('the chat box widget draws the bot overlay line', () => {
 
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(wrapper.find('.requested-by').text()).toBe('requested by <script>steal()</script>');
+    expect(wrapper.find('.requested-by').text()).toBe('Requested by <script>steal()</script>');
     expect(wrapper.find('.requested-by script').exists()).toBe(false);
   });
 

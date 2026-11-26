@@ -187,6 +187,52 @@ public sealed class WidgetLayoutSettingsTests
     }
 
     [Fact]
+    public void The_19_sized_overlays_each_have_four_empty_side_margins_from_0_to_2000()
+    {
+        foreach (string key in AnchorToday.Keys)
+        {
+            Dictionary<string, WidgetSettingsField> fields = SchemaOf(key)
+                .Fields.ToDictionary(f => f.Key);
+
+            foreach (string side in FirstPartyWidgetCatalogue.MarginSettingKeys)
+            {
+                fields.Should().ContainKey(side, key);
+                (fields[side].Type, fields[side].Default, fields[side].Min, fields[side].Max)
+                    .Should()
+                    .Be(("number", (object)"", (double?)0, (double?)2000), $"{key}.{side}");
+            }
+        }
+    }
+
+    // Owner, 2026-11-26: "i need to be able to set margin on all sides". A side margin larger than the edge
+    // distance moves the box inward, so the browser source grows by that much or the box is cut off.
+    [Fact]
+    public void A_side_margin_larger_than_the_edge_distance_grows_the_browser_source_by_the_difference()
+    {
+        FirstPartyWidgetDefinition queue = FirstPartyWidgetCatalogue.Find("sr_queue")!;
+
+        ObsBrowserSource margins = FirstPartyWidgetObsSizing.For(
+            queue,
+            new Dictionary<string, object>
+            {
+                ["marginTop"] = 32,
+                ["marginRight"] = 32,
+                ["marginBottom"] = "",
+                ["marginLeft"] = 0,
+            }
+        );
+        ObsBrowserSource biggerEdge = FirstPartyWidgetObsSizing.For(
+            queue,
+            new Dictionary<string, object> { ["edgeOffset"] = 20 }
+        );
+
+        (margins.Width - queue.ObsSetup.Width).Should().Be(28 - 4, "right +28, left -4");
+        (margins.Height - queue.ObsSetup.Height).Should().Be(28, "top +28, bottom keeps the edge");
+        (biggerEdge.Width - queue.ObsSetup.Width).Should().Be(32);
+        (biggerEdge.Height - queue.ObsSetup.Height).Should().Be(32);
+    }
+
+    [Fact]
     public void An_overlay_without_a_layout_block_keeps_its_size_whatever_is_saved()
     {
         FirstPartyWidgetDefinition stage = FirstPartyWidgetCatalogue.Find("stage")!;

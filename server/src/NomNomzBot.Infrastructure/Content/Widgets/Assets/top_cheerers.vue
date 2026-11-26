@@ -63,6 +63,7 @@ onUnmounted(() => {
       </div>
     </TransitionGroup>
     <div v-if="shown.length === 0" class="nnz-row nnz-sub">No bits yet. Your move.</div>
+    <div v-for="n in Math.max(0, cfg.count - Math.max(1, shown.length))" :key="'pad' + n" class="nnz-row nnz-pad" aria-hidden="true"><span class="nnz-grow">&nbsp;</span></div>
   </div>
 </template>
 

@@ -108,13 +108,15 @@ onUnmounted(() => {
         <span v-if="cfg.showRequester && it.requestedBy" class="nnz-end req">{{ it.requestedBy }}</span>
         <span v-if="cfg.showDuration && it.durationSec > 0" class="nnz-end dur">{{ fmtDuration(it.durationSec) }}</span>
       </div>
+      <div v-for="n in Math.max(0, cfg.count - items.length)" :key="'pad' + n" class="nnz-row nnz-pad" aria-hidden="true"><span class="nnz-grow">&nbsp;</span></div>
     </div>
   </Transition>
 </template>
 
 <style scoped>
+/* The same on-screen width as the Now Playing card (616 px), so the two stack as one column. */
 .nnz-srqueue {
-  width: 360px;
+  width: calc(616px / var(--nnz-own-zoom));
 }
 .code {
   flex: none;

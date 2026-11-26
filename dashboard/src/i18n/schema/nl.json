@@ -3098,8 +3098,16 @@
       "events": {
         "label": "Gebeurtenistypen"
       },
+      "fullWidth": {
+        "help": "De balk vult de hele browserbron. Zet dit uit om zelf een breedte te kiezen.",
+        "label": "Volle breedte"
+      },
       "speed": {
         "label": "Scrollsnelheid"
+      },
+      "width": {
+        "help": "De breedte van de balk als volle breedte uit staat. Nooit breder dan de browserbron.",
+        "label": "Breedte (px)"
       }
     },
     "gallery": {
@@ -3500,6 +3508,22 @@
       "edgeOffset": {
         "help": "De ruimte tussen de overlay en de rand waaraan hij vastzit.",
         "label": "Afstand tot de rand (px)"
+      },
+      "marginBottom": {
+        "help": "De ruimte tot de onderrand. Laat leeg om de afstand tot de rand te gebruiken.",
+        "label": "Marge onder (px)"
+      },
+      "marginLeft": {
+        "help": "De ruimte tot de linkerrand. Laat leeg om de afstand tot de rand te gebruiken.",
+        "label": "Marge links (px)"
+      },
+      "marginRight": {
+        "help": "De ruimte tot de rechterrand. Laat leeg om de afstand tot de rand te gebruiken.",
+        "label": "Marge rechts (px)"
+      },
+      "marginTop": {
+        "help": "De ruimte tot de bovenrand. Laat leeg om de afstand tot de rand te gebruiken.",
+        "label": "Marge boven (px)"
       },
       "scale": {
         "help": "Maakt de hele overlay kleiner of groter. 100 is de normale grootte.",

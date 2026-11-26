@@ -5239,6 +5239,10 @@
     <string name="widget_event_ticker_speed_label">Scrollsnelheid</string>
     <string name="widget_event_ticker_count_label">Aantal bewaarde items</string>
     <string name="widget_event_ticker_accentColor_label">Accentkleur</string>
+    <string name="widget_event_ticker_fullWidth_label">Volle breedte</string>
+    <string name="widget_event_ticker_fullWidth_help">De balk vult de hele browserbron. Zet dit uit om zelf een breedte te kiezen.</string>
+    <string name="widget_event_ticker_width_label">Breedte (px)</string>
+    <string name="widget_event_ticker_width_help">De breedte van de balk als volle breedte uit staat. Nooit breder dan de browserbron.</string>
     <string name="widget_chat_box_theme_label">Berichtstijl</string>
     <string name="widget_chat_box_fontFamily_label">Lettertype</string>
     <string name="widget_chat_box_fontFamily_help">Leeg gebruikt de standaard van de overlay.</string>
@@ -5397,6 +5401,14 @@
     <string name="widget_shared_anchor_help">Aan welke rand of hoek van de browserbron deze overlay vastzit.</string>
     <string name="widget_shared_edgeOffset_label">Afstand tot de rand (px)</string>
     <string name="widget_shared_edgeOffset_help">De ruimte tussen de overlay en de rand waaraan hij vastzit.</string>
+    <string name="widget_shared_marginTop_label">Marge boven (px)</string>
+    <string name="widget_shared_marginTop_help">De ruimte tot de bovenrand. Laat leeg om de afstand tot de rand te gebruiken.</string>
+    <string name="widget_shared_marginRight_label">Marge rechts (px)</string>
+    <string name="widget_shared_marginRight_help">De ruimte tot de rechterrand. Laat leeg om de afstand tot de rand te gebruiken.</string>
+    <string name="widget_shared_marginBottom_label">Marge onder (px)</string>
+    <string name="widget_shared_marginBottom_help">De ruimte tot de onderrand. Laat leeg om de afstand tot de rand te gebruiken.</string>
+    <string name="widget_shared_marginLeft_label">Marge links (px)</string>
+    <string name="widget_shared_marginLeft_help">De ruimte tot de linkerrand. Laat leeg om de afstand tot de rand te gebruiken.</string>
     <string name="widget_shared_scale_label">Grootte (%)</string>
     <string name="widget_shared_scale_help">Maakt de hele overlay kleiner of groter. 100 is de normale grootte.</string>
     <string name="widget_option_anchor_top_left">Linksboven</string>

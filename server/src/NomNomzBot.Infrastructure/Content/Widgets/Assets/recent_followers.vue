@@ -52,6 +52,7 @@ onUnmounted(() => {
         <span class="nnz-grow">{{ name }}</span>
       </div>
       <div v-if="shown.length === 0" class="nnz-row nnz-sub">Nobody yet. Be the first.</div>
+      <div v-for="n in Math.max(0, cfg.count - Math.max(1, shown.length))" :key="'pad' + n" class="nnz-row nnz-pad" aria-hidden="true"><span class="nnz-grow">&nbsp;</span></div>
     </div>
   </div>
 </template>

@@ -54,8 +54,8 @@ public sealed class NowPlayingAnchorTests
         source
             .Should()
             .Contain(
-                "  width: min(calc(100% - 2 * var(--nnz-inset)), 616px);\n}",
-                "the box keeps one width between songs and still fits a narrow browser source"
+                "  width: min(calc(100% - var(--nnz-ml) - var(--nnz-mr) - 2 * var(--reach)), 616px);\n}",
+                "the box keeps one width between songs and still fits a narrow browser source, inside its own left and right margins"
             );
     }
 }

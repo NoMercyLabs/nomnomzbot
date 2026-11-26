@@ -5255,6 +5255,10 @@
     <string name="widget_event_ticker_speed_label">Scroll speed</string>
     <string name="widget_event_ticker_count_label">Items kept</string>
     <string name="widget_event_ticker_accentColor_label">Accent color</string>
+    <string name="widget_event_ticker_fullWidth_label">Full width</string>
+    <string name="widget_event_ticker_fullWidth_help">The bar spans the whole browser source. Turn it off to set your own width.</string>
+    <string name="widget_event_ticker_width_label">Width (px)</string>
+    <string name="widget_event_ticker_width_help">The bar width when full width is off. It never gets wider than the browser source.</string>
     <string name="widget_chat_box_theme_label">Message style</string>
     <string name="widget_chat_box_fontFamily_label">Font family</string>
     <string name="widget_chat_box_fontFamily_help">Blank uses the overlay default.</string>
@@ -5413,6 +5417,14 @@
     <string name="widget_shared_anchor_help">Which edge or corner of the browser source this overlay sticks to.</string>
     <string name="widget_shared_edgeOffset_label">Distance from the edge (px)</string>
     <string name="widget_shared_edgeOffset_help">The gap between the overlay and the edge it sticks to.</string>
+    <string name="widget_shared_marginTop_label">Top margin (px)</string>
+    <string name="widget_shared_marginTop_help">The gap to the top edge. Leave it empty to use the distance from the edge.</string>
+    <string name="widget_shared_marginRight_label">Right margin (px)</string>
+    <string name="widget_shared_marginRight_help">The gap to the right edge. Leave it empty to use the distance from the edge.</string>
+    <string name="widget_shared_marginBottom_label">Bottom margin (px)</string>
+    <string name="widget_shared_marginBottom_help">The gap to the bottom edge. Leave it empty to use the distance from the edge.</string>
+    <string name="widget_shared_marginLeft_label">Left margin (px)</string>
+    <string name="widget_shared_marginLeft_help">The gap to the left edge. Leave it empty to use the distance from the edge.</string>
     <string name="widget_shared_scale_label">Size (%)</string>
     <string name="widget_shared_scale_help">Makes the whole overlay smaller or bigger. 100 is the normal size.</string>
     <string name="widget_option_anchor_top_left">Top left</string>

@@ -153,6 +153,17 @@ public static class FirstPartyWidgetCatalogue
     /// <summary>The distance in pixels between the overlay and the browser source edge it is anchored to.</summary>
     public const string EdgeOffsetSettingKey = "edgeOffset";
 
+    /// <summary>
+    /// The four side margins in pixels. Each replaces the edge distance on its own side; an empty value keeps it.
+    /// </summary>
+    public static readonly IReadOnlyList<string> MarginSettingKeys =
+    [
+        "marginTop",
+        "marginRight",
+        "marginBottom",
+        "marginLeft",
+    ];
+
     /// <summary>The size of the overlay in percent of its natural size.</summary>
     public const string ScaleSettingKey = "scale";
 
@@ -318,6 +329,8 @@ public static class FirstPartyWidgetCatalogue
                 ["events"] = new List<string>(SupporterAndTwitchEvents),
                 ["speed"] = 60,
                 ["count"] = 20,
+                ["fullWidth"] = true,
+                ["width"] = 800,
                 ["accentColor"] = "",
             },
             DefaultEventSubscriptions: [.. SupporterAndTwitchEvents]
@@ -739,6 +752,8 @@ public static class FirstPartyWidgetCatalogue
             settings[EdgeOffsetSettingKey] =
                 widget.Key == "alerts" ? AlertsDefaultEdgeOffset : DefaultEdgeOffset;
             settings[ScaleSettingKey] = DefaultScale;
+            foreach (string key in MarginSettingKeys)
+                settings[key] = "";
         }
         return settings;
     }

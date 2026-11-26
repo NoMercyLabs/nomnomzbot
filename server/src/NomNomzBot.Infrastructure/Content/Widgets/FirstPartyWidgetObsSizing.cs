@@ -70,17 +70,40 @@ public static class FirstPartyWidgetObsSizing
                 + (Rows(definition, saved, MaxChoicesKey) - DefaultRows) * PollChoicePx,
             _ => basis.Height,
         };
-        double scale = definition.DefaultSettings.ContainsKey(
+        bool placed = definition.DefaultSettings.ContainsKey(
             FirstPartyWidgetCatalogue.ScaleSettingKey
-        )
-            ? Scale(saved)
-            : 1.0;
+        );
+        double scale = placed ? Scale(saved) : 1.0;
+        (double extraWidth, double extraHeight) = placed ? MarginGrowth(definition, saved) : (0, 0);
 
         return basis with
         {
-            Width = (int)Math.Ceiling(basis.Width * scale),
-            Height = (int)Math.Ceiling(Math.Max(1, height) * scale),
+            Width = Math.Max(1, (int)Math.Ceiling(basis.Width * scale + extraWidth)),
+            Height = Math.Max(1, (int)Math.Ceiling(Math.Max(1, height) * scale + extraHeight)),
         };
+    }
+
+    // The catalogue size holds the default edge distance on every side. A side margin, or a changed edge
+    // distance where a side has no margin, moves the box by the difference; margins are screen pixels, so they
+    // are not scaled.
+    private static (double Width, double Height) MarginGrowth(
+        FirstPartyWidgetDefinition definition,
+        IReadOnlyDictionary<string, object> saved
+    )
+    {
+        double defaultEdge =
+            Number(definition.DefaultSettings, FirstPartyWidgetCatalogue.EdgeOffsetSettingKey)
+            ?? FirstPartyWidgetCatalogue.DefaultEdgeOffset;
+        double edge = Number(saved, FirstPartyWidgetCatalogue.EdgeOffsetSettingKey) ?? defaultEdge;
+        // The same rule as the SDK: a negative or empty margin keeps the edge distance, a margin stops at 2000.
+        double Side(string key) =>
+            Number(saved, key) is >= 0 and double margin ? Math.Min(margin, 2000) : edge;
+        IReadOnlyList<string> sides = FirstPartyWidgetCatalogue.MarginSettingKeys;
+
+        return (
+            Side(sides[1]) + Side(sides[3]) - 2 * defaultEdge,
+            Side(sides[0]) + Side(sides[2]) - 2 * defaultEdge
+        );
     }
 
     private static int ChatBoxHeight(

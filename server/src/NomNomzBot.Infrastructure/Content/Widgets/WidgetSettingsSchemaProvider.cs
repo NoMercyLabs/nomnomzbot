@@ -160,8 +160,24 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     FirstPartyWidgetCatalogue.MaxScale,
                     5
                 ),
+                .. FirstPartyWidgetCatalogue.MarginSettingKeys.Select(key => MarginField(d, key)),
             ]
             : [];
+
+    // One side's own gap to the source edge; empty keeps the edge distance on that side.
+    private static WidgetSettingsField MarginField(FirstPartyWidgetDefinition d, string key) =>
+        new(
+            key,
+            new($"widget.shared.{key}.label"),
+            Number,
+            Layout,
+            DefaultOf(d, key),
+            new($"widget.shared.{key}.help"),
+            null,
+            0,
+            2000,
+            1
+        );
 
     public IReadOnlyList<WidgetSettingsSchema> GetAll() => _all;
 
@@ -226,6 +242,8 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Multi(d, "events", Content, EventOptions),
                 NumberField(d, "speed", Behaviour, min: 0),
                 NumberField(d, "count", Behaviour, min: 1, max: 50, step: 1),
+                Bool(d, "fullWidth", Layout, help: true),
+                NumberField(d, "width", Layout, min: 100, max: 3840, step: 1, help: true),
                 Accent(d),
             ],
             "chat_box" =>
