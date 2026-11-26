@@ -465,6 +465,28 @@
           "label": "Top of the board"
         }
       },
+      "livegame": {
+        "cancelled": {
+          "description": "A round was called off for another reason and the bets were refunded.",
+          "label": "Round called off"
+        },
+        "cancelledfewplayers": {
+          "description": "A round closed with too few players and the bets were refunded.",
+          "label": "Too few players"
+        },
+        "opened": {
+          "description": "A round with no entry fee opened.",
+          "label": "Round opened"
+        },
+        "openedbet": {
+          "description": "A round with an entry fee opened.",
+          "label": "Round with a bet opened"
+        },
+        "settled": {
+          "description": "A round ended and the winners were paid.",
+          "label": "Round paid out"
+        }
+      },
       "lurk": {
         "accountunresolved": {
           "description": "The viewer's account could not be found.",
@@ -1227,8 +1249,12 @@
         "discord_invite": "The Discord invite link",
         "game_balance": "The player's balance after the game",
         "game_bet": "The amount bet",
+        "game_join": "What viewers type to join",
+        "game_lobby": "How long the round stays open",
+        "game_minbet": "The smallest bet to join",
         "game_name": "The game's chat command",
         "game_payout": "The amount won",
+        "game_winners": "The players who won",
         "leaderboard_count": "How many entries are listed",
         "leaderboard_list": "The top entries",
         "leaderboard_metric": "What the leaderboard ranks",

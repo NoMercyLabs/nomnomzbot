@@ -465,6 +465,28 @@
           "label": "Top van de ranglijst"
         }
       },
+      "livegame": {
+        "cancelled": {
+          "description": "Een ronde is om een andere reden afgeblazen en de inzetten zijn terugbetaald.",
+          "label": "Ronde afgeblazen"
+        },
+        "cancelledfewplayers": {
+          "description": "Een ronde sloot met te weinig spelers en de inzetten zijn terugbetaald.",
+          "label": "Te weinig spelers"
+        },
+        "opened": {
+          "description": "Een ronde zonder inzet is geopend.",
+          "label": "Ronde geopend"
+        },
+        "openedbet": {
+          "description": "Een ronde met een inzet is geopend.",
+          "label": "Ronde met inzet geopend"
+        },
+        "settled": {
+          "description": "Een ronde is afgelopen en de winnaars zijn uitbetaald.",
+          "label": "Ronde uitbetaald"
+        }
+      },
       "lurk": {
         "accountunresolved": {
           "description": "Het account van de kijker is niet gevonden.",
@@ -1227,8 +1249,12 @@
         "discord_invite": "De Discord-uitnodigingslink",
         "game_balance": "Het saldo van de speler na het spel",
         "game_bet": "Het ingezette bedrag",
+        "game_join": "Wat kijkers typen om mee te doen",
+        "game_lobby": "Hoe lang de ronde open blijft",
+        "game_minbet": "De kleinste inzet om mee te doen",
         "game_name": "Het chatcommando van het spel",
         "game_payout": "Het gewonnen bedrag",
+        "game_winners": "De spelers die wonnen",
         "leaderboard_count": "Hoeveel items er staan",
         "leaderboard_list": "De beste items",
         "leaderboard_metric": "Waarop de ranglijst rangschikt",

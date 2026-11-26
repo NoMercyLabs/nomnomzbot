@@ -267,4 +267,18 @@
     <string name="builtin_reply_var_game_bet">The amount bet</string>
     <string name="builtin_reply_var_game_payout">The amount won</string>
     <string name="builtin_reply_var_game_balance">The player's balance after the game</string>
+    <string name="builtin_reply_var_game_join">What viewers type to join</string>
+    <string name="builtin_reply_var_game_lobby">How long the round stays open</string>
+    <string name="builtin_reply_var_game_minbet">The smallest bet to join</string>
+    <string name="builtin_reply_var_game_winners">The players who won</string>
+    <string name="builtin_reply_livegame_opened_label">Round opened</string>
+    <string name="builtin_reply_livegame_opened_description">A round with no entry fee opened.</string>
+    <string name="builtin_reply_livegame_openedbet_label">Round with a bet opened</string>
+    <string name="builtin_reply_livegame_openedbet_description">A round with an entry fee opened.</string>
+    <string name="builtin_reply_livegame_settled_label">Round paid out</string>
+    <string name="builtin_reply_livegame_settled_description">A round ended and the winners were paid.</string>
+    <string name="builtin_reply_livegame_cancelledfewplayers_label">Too few players</string>
+    <string name="builtin_reply_livegame_cancelledfewplayers_description">A round closed with too few players and the bets were refunded.</string>
+    <string name="builtin_reply_livegame_cancelled_label">Round called off</string>
+    <string name="builtin_reply_livegame_cancelled_description">A round was called off for another reason and the bets were refunded.</string>
 </resources>

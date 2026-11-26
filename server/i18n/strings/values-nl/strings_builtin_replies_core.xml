@@ -267,4 +267,18 @@
     <string name="builtin_reply_var_game_bet">Het ingezette bedrag</string>
     <string name="builtin_reply_var_game_payout">Het gewonnen bedrag</string>
     <string name="builtin_reply_var_game_balance">Het saldo van de speler na het spel</string>
+    <string name="builtin_reply_var_game_join">Wat kijkers typen om mee te doen</string>
+    <string name="builtin_reply_var_game_lobby">Hoe lang de ronde open blijft</string>
+    <string name="builtin_reply_var_game_minbet">De kleinste inzet om mee te doen</string>
+    <string name="builtin_reply_var_game_winners">De spelers die wonnen</string>
+    <string name="builtin_reply_livegame_opened_label">Ronde geopend</string>
+    <string name="builtin_reply_livegame_opened_description">Een ronde zonder inzet is geopend.</string>
+    <string name="builtin_reply_livegame_openedbet_label">Ronde met inzet geopend</string>
+    <string name="builtin_reply_livegame_openedbet_description">Een ronde met een inzet is geopend.</string>
+    <string name="builtin_reply_livegame_settled_label">Ronde uitbetaald</string>
+    <string name="builtin_reply_livegame_settled_description">Een ronde is afgelopen en de winnaars zijn uitbetaald.</string>
+    <string name="builtin_reply_livegame_cancelledfewplayers_label">Te weinig spelers</string>
+    <string name="builtin_reply_livegame_cancelledfewplayers_description">Een ronde sloot met te weinig spelers en de inzetten zijn terugbetaald.</string>
+    <string name="builtin_reply_livegame_cancelled_label">Ronde afgeblazen</string>
+    <string name="builtin_reply_livegame_cancelled_description">Een ronde is om een andere reden afgeblazen en de inzetten zijn terugbetaald.</string>
 </resources>
