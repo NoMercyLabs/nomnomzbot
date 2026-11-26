@@ -244,13 +244,31 @@ public sealed class OverlaySdkThemeColorTests
 
         Dictionary<string, string> styles = Applied(
             engine,
-            "{ designWidth: 640, designHeight: 480 }"
+            "{ designWidth: 1920, designHeight: 1080 }"
         );
-        styles["zoom"].Should().Be("1.5");
-        styles["--nnz-vw"].Should().Be("8.5333px");
-        styles["--nnz-vh"].Should().Be("4.8px");
+        styles["zoom"].Should().Be("0.6666666666666666");
+        styles["--nnz-vw"].Should().Be("19.2px");
+        styles["--nnz-vh"].Should().Be("10.8px");
 
         Applied(engine, "{}").Keys.Should().NotContain(["zoom", "--nnz-vw", "--nnz-vh"]);
+    }
+
+    // Stoney, live 2026-11-26: "i picked right bottom indeed, and its left aligned... its not moving to any
+    // corner". A 680 x 180 Now Playing in a bigger browser source zoomed up until it filled the source, so no
+    // anchor could move it (and the TTS card filled the canvas the same way). The fit only shrinks.
+    [Fact]
+    public void The_fit_zoom_never_grows_a_widget_past_its_design_size_so_the_anchor_can_place_it()
+    {
+        Engine engine = ThemeEngine();
+        engine.Execute("var window = { innerWidth: 1920, innerHeight: 1080 };");
+
+        Dictionary<string, string> styles = Applied(
+            engine,
+            "{ designWidth: 680, designHeight: 180 }"
+        );
+        styles["zoom"].Should().Be("1");
+        styles["--nnz-vw"].Should().Be("19.2px");
+        styles["--nnz-vh"].Should().Be("10.8px");
     }
 
     [Fact]
@@ -275,5 +293,28 @@ public sealed class OverlaySdkThemeColorTests
             .BeEmpty(
                 "a widget writes calc(N * var(--nnz-vw, 1vw)) and calc(N * var(--nnz-vh, 1vh))"
             );
+    }
+
+    // Live 2026-11-26: Now Playing's box set width: calc(100% / var(--nnz-z)). Chromium 128+ already resolves a
+    // zoomed box's percentage against its zoomed share, so the zoom was divided out twice and the card covered
+    // two thirds of its slot, on the left. A zoomed part sizes by auto width or by --nnz-vw, never by % / zoom.
+    [Fact]
+    public void No_first_party_widget_divides_a_percentage_by_the_zoom()
+    {
+        Assembly assets = typeof(FirstPartyWidgetCatalogue).Assembly;
+        List<string> offenders = [];
+        foreach (string name in assets.GetManifestResourceNames().Where(n => n.EndsWith(".vue")))
+        {
+            using Stream stream = assets.GetManifestResourceStream(name)!;
+            using StreamReader reader = new(stream);
+            string source = reader.ReadToEnd();
+            offenders.AddRange(
+                Regex
+                    .Matches(source, @"[\d.]+%\s*/\s*var\(--nnz-(z|own-zoom)\)")
+                    .Select(m => $"{name}: {m.Value}")
+            );
+        }
+
+        offenders.Should().BeEmpty("a percentage on a zoomed part is already in zoomed pixels");
     }
 }

@@ -128,6 +128,7 @@ public sealed partial class OverlayHostController : ControllerBase
             window.WIDGET_NAME={{JsLiteral(entry.Name)}};
             window.WIDGET_SETTINGS={{JsLiteral(entry.Settings)}};
             window.WIDGET_EVENT_SUBSCRIPTIONS={{JsLiteral(entry.EventSubscriptions)}};
+            window.WIDGET_PAGE_VERSION={{JsLiteral(OverlayPageVersion.Of(entry.ContentHash))}};
             </script>
             """;
     }

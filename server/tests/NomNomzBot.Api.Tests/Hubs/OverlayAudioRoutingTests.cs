@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Api.Controllers;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
@@ -615,6 +616,64 @@ public sealed class OverlayAudioRoutingTests
         await page.Hub.JoinWidget(captionWidget.ToString());
 
         await page.Caller.Received(1).WidgetReload();
+    }
+
+    // A deploy swaps the container: the OBS page reconnects to the new one but still runs the old theme, SDK and
+    // widget build. The join compares what the page loaded with what the server now serves.
+    [Theory]
+    [InlineData("old-bundle-hash", true)]
+    [InlineData("new-bundle-hash", false)]
+    public async Task A_page_that_loaded_an_older_build_is_told_to_reload_on_join(
+        string loadedBundleHash,
+        bool reloads
+    )
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid nowPlaying = await SeedWidgetAsync(db, "now_playing");
+        await ActivateBuildAsync(db, nowPlaying, "new-bundle-hash");
+        Joined page = await ConnectedPageAsync(db, "obs-conn");
+
+        JoinWidgetResponse response = await page.Hub.JoinWidgetWithSdk(
+            nowPlaying.ToString(),
+            OverlayPageVersion.Of(loadedBundleHash)
+        );
+
+        response.Success.Should().BeTrue();
+        await page.Caller.Received(reloads ? 1 : 0).WidgetReload();
+    }
+
+    [Fact]
+    public async Task A_page_from_before_page_versions_reports_only_its_sdk_hash_and_is_told_to_reload()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid nowPlaying = await SeedWidgetAsync(db, "now_playing");
+        await ActivateBuildAsync(db, nowPlaying, "new-bundle-hash");
+        Joined page = await ConnectedPageAsync(db, "old-page-conn");
+
+        await page.Hub.JoinWidgetWithSdk(nowPlaying.ToString(), "815036b98ce4");
+
+        await page.Caller.Received(1).WidgetReload();
+    }
+
+    private static async Task ActivateBuildAsync(
+        WidgetTestDbContext db,
+        Guid widgetId,
+        string contentHash
+    )
+    {
+        WidgetVersion version = new()
+        {
+            WidgetId = widgetId,
+            BroadcasterId = Broadcaster,
+            VersionNumber = 1,
+            BuildStatus = "success",
+            ContentHash = contentHash,
+        };
+        db.WidgetVersions.Add(version);
+        Widget widget =
+            await db.Widgets.FindAsync(widgetId) ?? throw new InvalidOperationException();
+        widget.ActiveVersionId = version.Id;
+        await db.SaveChangesAsync();
     }
 
     // ── TtsSpeakBroadcastHandler: audio rides the raw target only ──

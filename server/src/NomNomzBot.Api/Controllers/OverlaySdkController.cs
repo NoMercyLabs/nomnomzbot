@@ -176,9 +176,10 @@ public sealed class OverlaySdkController : ControllerBase
             else root.style.removeProperty("--nnz-scale");
             applyFit(root, s);
           }
-          // A first-party overlay is drawn for designWidth x designHeight; in a browser source of another size the
-          // whole page zooms so the overlay fills it, without clipping. Under that zoom 1vw still measures the raw
-          // window, so --nnz-vw and --nnz-vh hold one percent of it in zoomed pixels: a widget sizes by those.
+          // A first-party overlay is drawn for designWidth x designHeight; in a smaller browser source the whole
+          // page zooms out so the overlay fits, without clipping. It never zooms in: in a bigger source the overlay
+          // keeps its design size and its anchor places it. Under that zoom 1vw still measures the raw window, so
+          // --nnz-vw and --nnz-vh hold one percent of it in zoomed pixels: a widget sizes by those.
           function applyFit(root, s) {
             var w = Number(s.designWidth), h = Number(s.designHeight);
             var vw = typeof window === "undefined" ? 0 : window.innerWidth, vh = typeof window === "undefined" ? 0 : window.innerHeight;
@@ -186,7 +187,7 @@ public sealed class OverlaySdkController : ControllerBase
               ["zoom", "--nnz-vw", "--nnz-vh"].forEach(function (v) { root.style.removeProperty(v); });
               return;
             }
-            var zoom = Math.min(vw / w, vh / h);
+            var zoom = Math.min(1, vw / w, vh / h);
             var percent = function (size) { return Math.round(size / zoom * 100) / 10000 + "px"; };
             root.style.setProperty("zoom", String(zoom));
             root.style.setProperty("--nnz-vw", percent(vw));
@@ -317,7 +318,7 @@ public sealed class OverlaySdkController : ControllerBase
                   liveSinceJoin = {};
                   seedFrames = [];
                   if (widgetId)
-                    ws.send(JSON.stringify({ type: 1, invocationId: "join", target: "JoinWidgetWithSdk", arguments: [widgetId, "__SDK_VERSION__"] }) + RS);
+                    ws.send(JSON.stringify({ type: 1, invocationId: "join", target: "JoinWidgetWithSdk", arguments: [widgetId, window.WIDGET_PAGE_VERSION || "__SDK_VERSION__"] }) + RS);
                   return;
                 }
 

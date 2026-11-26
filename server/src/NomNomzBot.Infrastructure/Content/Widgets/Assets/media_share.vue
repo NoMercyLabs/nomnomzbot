@@ -434,7 +434,7 @@ onUnmounted(() => {
 /* Starts at the full browser source width less the edge offset; fitCard then narrows it so the 16:9 video
    and the card's padding, border and title fit the height too. The card zoom multiplies the declared size. */
 .nnz-mediashare {
-  width: calc(100% / var(--nnz-z) - 2 * var(--nnz-inset));
+  width: calc(100 * var(--nnz-vw, 1vw) / var(--nnz-z) - 2 * var(--nnz-inset));
   display: flex;
   flex-direction: column;
   gap: 8px;

@@ -13,6 +13,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Controllers;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
@@ -168,6 +169,25 @@ public class OverlayHub : Hub<IOverlayClient>
     }
 
     /// <summary>
+    /// A deploy swaps the container; an OBS page reconnects to the new one but still runs the theme, SDK and widget
+    /// build it loaded. When the build it reports is not the one served now, it reloads to pick up the new code.
+    /// </summary>
+    private async Task ReloadIfPageIsStaleAsync(Widget? widget, string reportedPageVersion)
+    {
+        if (widget?.ActiveVersionId is not Guid activeVersionId)
+            return;
+        string? contentHash = await _db
+            .WidgetVersions.AsNoTracking()
+            .Where(v => v.Id == activeVersionId && v.BuildStatus == "success")
+            .Select(v => v.ContentHash)
+            .FirstOrDefaultAsync();
+        if (string.IsNullOrEmpty(contentHash))
+            return;
+        if (reportedPageVersion != OverlayPageVersion.Of(contentHash))
+            await Clients.Caller.WidgetReload();
+    }
+
+    /// <summary>
     /// The join an SDK that predates the single audio route sends. That SDK still plays every widget event it
     /// receives, so it would double the sound: join it, then make it reload to pick up the current SDK.
     /// </summary>
@@ -220,6 +240,7 @@ public class OverlayHub : Hub<IOverlayClient>
                     w.Id == parsedWidgetId && w.BroadcasterId == broadcasterId
                 )
             : null;
+        await ReloadIfPageIsStaleAsync(widget, sdkVersion);
 
         string? naturalKey = await NaturalKeyAsync(widget);
         if (WidgetKeyAliases.Canonical(naturalKey) == OverlayPresenceRegistry.AudioSourceNaturalKey)

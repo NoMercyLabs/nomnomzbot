@@ -258,7 +258,7 @@ onUnmounted(() => {
   display: flex;
   align-items: stretch;
   gap: var(--nnz-gap);
-  width: calc(100% / var(--nnz-z)); /* the box is zoomed by --nnz-z, so its share is divided back */
+  /* No width: an auto width fills the slot in every Chromium zoom model; a percentage on a zoomed box does not. */
   box-sizing: border-box;
 }
 .meta {

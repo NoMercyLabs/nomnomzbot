@@ -222,11 +222,12 @@ public sealed partial class OverlaySdkSurfaceDriftTests
                 "WIDGET_EVENT_SUBSCRIPTIONS",
                 "WIDGET_ID",
                 "WIDGET_NAME",
+                "WIDGET_PAGE_VERSION",
                 "WIDGET_SETTINGS",
                 "WIDGET_TOKEN"
             );
-        // The id, name and token are the SDK's (NomNomz.widget and its own requests): widget code is not
-        // invited to read them, so only the config a widget really consumes is declared.
+        // The id, name, page version and token are the SDK's (NomNomz.widget, the stale-page reload on join and its
+        // own requests): widget code is not invited to read them, so only the config a widget consumes is declared.
         declared.Should().Equal("WIDGET_EVENT_SUBSCRIPTIONS", "WIDGET_SETTINGS");
     }
 

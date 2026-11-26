@@ -89,7 +89,9 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     // Mapped (not throwing) so S-REPLAY-CORRELATION tests can seed a REAL ChannelEvent row and prove a
     // capture's ChannelEventId actually resolves against it — not just string equality in isolation.
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
-    public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
+
+    // Mapped so the overlay join can compare the page's loaded build with the widget's active one.
+    public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
@@ -120,6 +122,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         });
 
         b.Entity<AlertQueueEntry>(e => e.HasKey(a => a.Id));
+
+        b.Entity<WidgetVersion>(e => e.HasKey(v => v.Id));
 
         b.Entity<WidgetGalleryItem>(e =>
         {
@@ -163,6 +167,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         typeof(ChannelEvent),
         typeof(AlertQueueEntry),
         typeof(WidgetGalleryItem),
+        typeof(WidgetVersion),
         typeof(ChannelAudioMix),
         typeof(NomNomzBot.Domain.Chat.Entities.FavoriteEmote),
         typeof(User),
