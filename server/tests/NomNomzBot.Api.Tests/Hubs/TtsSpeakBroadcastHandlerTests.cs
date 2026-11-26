@@ -89,6 +89,72 @@ public sealed class TtsSpeakBroadcastHandlerTests
     }
 
     [Fact]
+    public async Task The_caption_names_the_viewer_by_display_name_not_by_user_id()
+    {
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Widget caption = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "TTS caption",
+            IsEnabled = true,
+            EventSubscriptions = ["tts_speak"],
+        };
+        db.Widgets.Add(caption);
+        db.Users.Add(
+            new()
+            {
+                TwitchUserId = "39863651",
+                Username = "meeper",
+                UsernameNormalized = "meeper",
+                DisplayName = "Meeper",
+            }
+        );
+        await db.SaveChangesAsync();
+        TtsSpeakBroadcastHandler handler = new(
+            db,
+            widgets,
+            Substitute.For<IOverlayPresenceRegistry>(),
+            new ChannelAudioMixService(db),
+            Substitute.For<IMusicDuckScheduler>(),
+            NullLogger<TtsSpeakBroadcastHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Text = "hello chat",
+                VoiceId = "en-US-AvaNeural",
+                Provider = "azure",
+                CharacterCount = 10,
+                DurationMs = 2500,
+                RequestedByTwitchUserId = "39863651",
+                DispatchMode = "self_host",
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                caption.Id.ToString(),
+                Arg.Is<WidgetEventDto>(evt => UserOf(evt.Data) == "Meeper"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    private static string? UserOf(object? data) =>
+        data is null
+            ? null
+            : JsonSerializer
+                .SerializeToElement(data, OverlayWireJson.Options)
+                .GetProperty("user")
+                .GetString();
+
+    [Fact]
     public async Task Dispatched_utterance_stays_quiet_for_unsubscribed_widgets()
     {
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
@@ -138,7 +204,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
         JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("text").GetString() == "hello chat"
             && json.GetProperty("voice").GetString() == "en-US-AvaNeural"
-            && json.GetProperty("user").GetString() == "u1"
+            && json.GetProperty("user").GetString() == ""
             && json.GetProperty("durationMs").GetInt32() == 2500
             && json.GetProperty("audioUrl").ValueKind == JsonValueKind.Null;
     }

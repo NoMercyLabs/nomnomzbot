@@ -466,11 +466,11 @@
         }
       },
       "livegame": {
-        "cancelled": {
+        "canceled": {
           "description": "Een ronde is om een andere reden afgeblazen en de inzetten zijn terugbetaald.",
           "label": "Ronde afgeblazen"
         },
-        "cancelledfewplayers": {
+        "canceledfewplayers": {
           "description": "Een ronde sloot met te weinig spelers en de inzetten zijn terugbetaald.",
           "label": "Te weinig spelers"
         },

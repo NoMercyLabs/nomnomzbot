@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -87,7 +88,7 @@ public sealed class TtsSpeakBroadcastHandler(
             new TtsSpeakWidgetPayload(
                 @event.Text,
                 @event.VoiceId,
-                @event.RequestedByTwitchUserId,
+                await DisplayNameOfAsync(@event.RequestedByTwitchUserId, cancellationToken),
                 @event.DurationMs,
                 AudioUrl: null
             ),
@@ -100,6 +101,19 @@ public sealed class TtsSpeakBroadcastHandler(
             channelEventId: @event.ChannelEventId,
             cancellationToken
         );
+    }
+
+    /// <summary>The caption names the viewer, never their platform id; an unknown requester shows no name.</summary>
+    private async Task<string> DisplayNameOfAsync(string? twitchUserId, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(twitchUserId))
+            return "";
+        string? name = await db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId == twitchUserId)
+            .Select(u => u.DisplayName)
+            .FirstOrDefaultAsync(ct);
+        return name ?? "";
     }
 
     /// <summary>

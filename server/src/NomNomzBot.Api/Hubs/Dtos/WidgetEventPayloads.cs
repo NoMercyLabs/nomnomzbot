@@ -16,7 +16,7 @@ namespace NomNomzBot.Api.Hubs.Dtos;
 // The widget-event payloads that have no richer dashboard twin. Each is the one shape both the live handler and
 // the dashboard's Test button send, so a test fire can never carry fewer fields than the stream does.
 
-/// <summary><c>tts_speak</c>: one dispatched utterance. <c>User</c> is the requester's platform user id.</summary>
+/// <summary><c>tts_speak</c>: one dispatched utterance. <c>User</c> is the requester's display name ("" when unknown).</summary>
 public record TtsSpeakWidgetPayload(
     string Text,
     string Voice,

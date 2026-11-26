@@ -31,9 +31,9 @@ public static partial class BuiltinResponseSlots
         public const string Settled = "settled";
 
         /// <summary>A round closed with too few players, bets refunded; <c>{game.name}</c> is set.</summary>
-        public const string CancelledFewPlayers = "cancelledfewplayers";
+        public const string CancelledFewPlayers = "canceledfewplayers";
 
         /// <summary>A round called off for any other reason, bets refunded; <c>{game.name}</c> is set.</summary>
-        public const string Cancelled = "cancelled";
+        public const string Cancelled = "canceled";
     }
 }

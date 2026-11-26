@@ -513,7 +513,7 @@ interface NnzTrackSavedWidgetPayload {
   isSaved: boolean;
 }
 
-/** tts_speak: one dispatched utterance. User is the requester's platform user id. */
+/** tts_speak: one dispatched utterance. User is the requester's display name ("" when unknown). */
 interface NnzTtsSpeakWidgetPayload {
   text: string;
   voice: string;

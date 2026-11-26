@@ -140,6 +140,14 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
         b.Entity<NomNomzBot.Domain.Chat.Entities.FavoriteEmote>(e => e.HasKey(f => f.Id));
 
+        b.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.Ignore(u => u.Pronoun);
+            e.Ignore(u => u.AltPronoun);
+            e.Ignore(u => u.Channel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -157,6 +165,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         typeof(WidgetGalleryItem),
         typeof(ChannelAudioMix),
         typeof(NomNomzBot.Domain.Chat.Entities.FavoriteEmote),
+        typeof(User),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -172,7 +181,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();

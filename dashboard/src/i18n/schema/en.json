@@ -466,11 +466,11 @@
         }
       },
       "livegame": {
-        "cancelled": {
+        "canceled": {
           "description": "A round was called off for another reason and the bets were refunded.",
           "label": "Round called off"
         },
-        "cancelledfewplayers": {
+        "canceledfewplayers": {
           "description": "A round closed with too few players and the bets were refunded.",
           "label": "Too few players"
         },

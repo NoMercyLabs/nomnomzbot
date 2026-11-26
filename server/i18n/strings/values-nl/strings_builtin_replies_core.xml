@@ -277,8 +277,8 @@
     <string name="builtin_reply_livegame_openedbet_description">Een ronde met een inzet is geopend.</string>
     <string name="builtin_reply_livegame_settled_label">Ronde uitbetaald</string>
     <string name="builtin_reply_livegame_settled_description">Een ronde is afgelopen en de winnaars zijn uitbetaald.</string>
-    <string name="builtin_reply_livegame_cancelledfewplayers_label">Te weinig spelers</string>
-    <string name="builtin_reply_livegame_cancelledfewplayers_description">Een ronde sloot met te weinig spelers en de inzetten zijn terugbetaald.</string>
-    <string name="builtin_reply_livegame_cancelled_label">Ronde afgeblazen</string>
-    <string name="builtin_reply_livegame_cancelled_description">Een ronde is om een andere reden afgeblazen en de inzetten zijn terugbetaald.</string>
+    <string name="builtin_reply_livegame_canceledfewplayers_label">Te weinig spelers</string>
+    <string name="builtin_reply_livegame_canceledfewplayers_description">Een ronde sloot met te weinig spelers en de inzetten zijn terugbetaald.</string>
+    <string name="builtin_reply_livegame_canceled_label">Ronde afgeblazen</string>
+    <string name="builtin_reply_livegame_canceled_description">Een ronde is om een andere reden afgeblazen en de inzetten zijn terugbetaald.</string>
 </resources>

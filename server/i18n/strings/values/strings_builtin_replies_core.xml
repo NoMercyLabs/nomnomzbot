@@ -277,8 +277,8 @@
     <string name="builtin_reply_livegame_openedbet_description">A round with an entry fee opened.</string>
     <string name="builtin_reply_livegame_settled_label">Round paid out</string>
     <string name="builtin_reply_livegame_settled_description">A round ended and the winners were paid.</string>
-    <string name="builtin_reply_livegame_cancelledfewplayers_label">Too few players</string>
-    <string name="builtin_reply_livegame_cancelledfewplayers_description">A round closed with too few players and the bets were refunded.</string>
-    <string name="builtin_reply_livegame_cancelled_label">Round called off</string>
-    <string name="builtin_reply_livegame_cancelled_description">A round was called off for another reason and the bets were refunded.</string>
+    <string name="builtin_reply_livegame_canceledfewplayers_label">Too few players</string>
+    <string name="builtin_reply_livegame_canceledfewplayers_description">A round closed with too few players and the bets were refunded.</string>
+    <string name="builtin_reply_livegame_canceled_label">Round called off</string>
+    <string name="builtin_reply_livegame_canceled_description">A round was called off for another reason and the bets were refunded.</string>
 </resources>

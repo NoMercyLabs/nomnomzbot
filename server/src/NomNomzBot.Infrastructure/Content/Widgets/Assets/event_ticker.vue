@@ -115,6 +115,12 @@ function holdPlace(retired: number): void {
   })
 }
 
+// Each copy is at least as wide as the band, so the loop runs across the whole band, never in a small strip.
+const bandEl = ref<HTMLElement | null>(null)
+const bandWidth = ref(0)
+let resize: ResizeObserver | null = null
+const copyStyle = computed<Record<string, string>>(() => ({ 'min-width': bandWidth.value + 'px' }))
+
 function frame(t: number): void {
   if (!last) last = t
   const dt: number = t - last
@@ -127,7 +133,8 @@ function frame(t: number): void {
     if (w > 0 && -offset >= w) offset += w
     track.style.transform = 'translateX(' + offset + 'px)'
   } else {
-    offset = 0
+    // An empty band waits off its right edge, so the first chip slides in from the right.
+    offset = bandWidth.value
   }
   raf = requestAnimationFrame(frame)
 }
@@ -135,6 +142,12 @@ function frame(t: number): void {
 const handlers: Record<string, (d: unknown, t?: string, meta?: NnzEventMeta) => void> = {}
 
 onMounted(() => {
+  if (bandEl.value) {
+    bandWidth.value = bandEl.value.clientWidth
+    offset = bandWidth.value
+    resize = new ResizeObserver(() => { if (bandEl.value) bandWidth.value = bandEl.value.clientWidth })
+    resize.observe(bandEl.value)
+  }
   raf = requestAnimationFrame(frame)
   if (typeof NomNomz === 'undefined') return
   NomNomz.onSettings((s: NnzWidgetSettings) => {
@@ -154,6 +167,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (raf) cancelAnimationFrame(raf)
+  if (resize) resize.disconnect()
   if (typeof NomNomz === 'undefined') return
   Object.entries(handlers).forEach(([type, fn]) => NomNomz.off(type, fn))
 })
@@ -161,14 +175,14 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the bar. -->
-  <div class="nnz-widget nnz-ticker" :style="bandStyle">
+  <div ref="bandEl" class="nnz-widget nnz-ticker" :style="bandStyle">
     <div ref="trackEl" class="track">
-      <div ref="copyEl" class="copy">
+      <div ref="copyEl" class="copy" :style="copyStyle">
         <span v-for="c in chips" :key="c.id" class="nnz-pill chip">
           <span class="icon nnz-accent-text">{{ c.icon }}</span><span class="text">{{ c.text }}</span>
         </span>
       </div>
-      <div class="copy" aria-hidden="true">
+      <div class="copy" :style="copyStyle" aria-hidden="true">
         <span v-for="c in chips" :key="'d' + c.id" class="nnz-pill chip">
           <span class="icon nnz-accent-text">{{ c.icon }}</span><span class="text">{{ c.text }}</span>
         </span>
@@ -204,6 +218,11 @@ onUnmounted(() => {
   padding-bottom: 6px;
   font-size: 15px;
   font-weight: 700;
+  animation: chip-in 0.4s ease-out;
+}
+@keyframes chip-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
 }
 .icon {
   font-size: 14px;
