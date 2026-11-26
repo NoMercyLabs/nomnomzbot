@@ -194,7 +194,7 @@ onUnmounted(() => {
   <Transition name="nnz">
     <div v-if="isPlaying && track" class="nnz-widget nnz-placed nnz-nowplaying" :class="'layout-' + cfg.layout" :data-anchor="cfg.anchor">
       <div class="box" :class="cfg.layout === 'card' ? 'nnz-card' : 'nnz-pill'">
-        <img v-if="cfg.showArt && artUrl" class="nnz-avatar art" :src="artUrl" alt="">
+        <img v-if="cfg.showArt && artUrl" class="nnz-avatar art" :src="artUrl" alt="" @error="artUrl = ''">
         <span v-else class="note nnz-accent-text">&#9835;</span>
         <div class="meta">
           <div ref="titleEl" class="track">
