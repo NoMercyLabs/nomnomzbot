@@ -10,9 +10,11 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
+using NomNomzBot.Infrastructure.Tests.Seeding;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomCode;
 
@@ -298,6 +300,31 @@ public sealed class JintScriptExecutorTests
         r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
         r.VariablesOut["out"].Should().Be("ok");
         r.HostCallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_host_fault_stays_hidden_from_the_script_but_reaches_the_server_log()
+    {
+        ListLogger<JintScriptExecutor> log = new();
+        JintScriptExecutor sut = new(log);
+        StubBridge bridge = new((_, _) => throw new InvalidOperationException("db is gone"));
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(
+                Request("bot.call('chat.send', 'hi');"),
+                Grant("chat.send"),
+                bridge
+            )
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Faulted);
+        r.ErrorMessage.Should().Be("Script execution faulted.");
+        log.Entries.Should()
+            .ContainSingle(e =>
+                e.Level == LogLevel.Warning
+                && e.Message.Contains("exec-1")
+                && e.Message.Contains("InvalidOperationException: db is gone")
+            );
     }
 
     /// <summary>

@@ -15,6 +15,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Jint;
 using Jint.Runtime;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
@@ -33,6 +35,16 @@ namespace NomNomzBot.Infrastructure.CustomCode.Jint;
 /// </summary>
 public sealed partial class JintScriptExecutor : IScriptExecutor
 {
+    private readonly ILogger<JintScriptExecutor> _logger;
+
+    public JintScriptExecutor()
+        : this(NullLogger<JintScriptExecutor>.Instance) { }
+
+    public JintScriptExecutor(ILogger<JintScriptExecutor> logger)
+    {
+        _logger = logger;
+    }
+
     public ScriptRuntimeKind Runtime => ScriptRuntimeKind.Jint;
 
     // The ceiling on a single nnz.time.sleep(ms) call — comfortably covers the going use case (holding a
@@ -588,9 +600,15 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             errorPosition = LocateRuntimeError(ex, request.CompiledJs);
             failureShape = new(RunFailureKind.ScriptError);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Fail-closed: never surface a sandbox escape / host exception to the caller.
+            // Fail-closed: never surface a sandbox escape / host exception to the caller; only the server log sees it.
+            _logger.LogWarning(
+                ex,
+                "Script execution {ExecutionId} for channel {Channel} faulted outside the script.",
+                request.ExecutionId,
+                grant.BroadcasterId
+            );
             outcome = ScriptExecutionOutcome.Faulted;
             error = "Script execution faulted.";
             failureShape = new(
