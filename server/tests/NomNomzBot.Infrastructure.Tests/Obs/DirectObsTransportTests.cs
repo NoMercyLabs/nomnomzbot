@@ -59,11 +59,15 @@ public sealed class DirectObsTransportTests
 
         public void QueueClose() => _incoming.Writer.TryWrite(null);
 
-        public Task SendAsync(string frameJson, CancellationToken ct)
+        /// <summary>Runs before a frame is sent: a test can hold a send open, or make it throw.</summary>
+        public Func<string, Task>? BeforeSend { get; set; }
+
+        public async Task SendAsync(string frameJson, CancellationToken ct)
         {
+            if (BeforeSend is not null)
+                await BeforeSend(frameJson);
             lock (_gate)
                 _sent.Add(frameJson);
-            return Task.CompletedTask;
         }
 
         public async Task<string?> ReceiveTextAsync(CancellationToken ct) =>
@@ -185,6 +189,51 @@ public sealed class DirectObsTransportTests
                 "the v5 handshake is base64(sha256(base64(sha256(password+salt)) + challenge))"
             );
         identify.GetProperty("d").GetProperty("eventSubscriptions").GetInt32().Should().Be(0xFFF);
+    }
+
+    // CI flake 2026-11-25/26 (ObsDirectConnectionKeeperTests, line 87): a request on the dropped session
+    // failed after the redial and dropped the NEW session, so the channel stayed offline until the next sweep.
+    [Fact]
+    public async Task A_request_failing_on_a_dropped_session_leaves_the_new_session_connected()
+    {
+        Harness h = Build();
+        QueueHandshake(h.Socket);
+        (await h.Transport.ConnectAsync(Channel)).IsSuccess.Should().BeTrue();
+
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Socket.BeforeSend = async frame =>
+        {
+            if (!frame.Contains("\"op\":6"))
+                return;
+            await release.Task;
+            throw new IOException("socket closed");
+        };
+        Task<Result<ObsResponse>> stale = h.Transport.SendAsync(
+            Channel,
+            Guid.CreateVersion7(),
+            new("GetVersion", null)
+        );
+        h.Socket.QueueClose();
+        await WaitUntilAsync(() => !h.Transport.IsConnected(Channel));
+
+        FakeObsSocket second = new();
+        QueueHandshake(second);
+        h.Factory.ConnectAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IObsSocket>(second));
+        (await h.Transport.ConnectAsync(Channel)).IsSuccess.Should().BeTrue();
+
+        release.SetResult();
+        Result<ObsResponse> result = await stale.WaitAsync(TimeSpan.FromSeconds(20));
+
+        result.ErrorCode.Should().Be("OBS_NOT_CONNECTED", "the stale request failed");
+        h.Transport.IsConnected(Channel).Should().BeTrue("only the dropped session may be removed");
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(20));
+        while (!condition())
+            await Task.Delay(10, deadline.Token);
     }
 
     [Fact]

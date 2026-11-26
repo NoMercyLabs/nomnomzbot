@@ -226,7 +226,7 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            await DropSessionAsync(broadcasterId, ex.Message);
+            await DropSessionAsync(broadcasterId, session, ex.Message);
             return Result.Failure<JsonElement>(
                 "The OBS connection dropped mid-request.",
                 "OBS_NOT_CONNECTED"
@@ -544,13 +544,14 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
         }
         finally
         {
-            await DropSessionAsync(broadcasterId, "connection closed");
+            await DropSessionAsync(broadcasterId, session, "connection closed");
         }
     }
 
-    private async Task DropSessionAsync(Guid broadcasterId, string reason)
+    /// <summary>Drops this exact session; a newer session already redialed under the same channel stays.</summary>
+    private async Task DropSessionAsync(Guid broadcasterId, ObsSession session, string reason)
     {
-        if (!_sessions.TryRemove(broadcasterId, out ObsSession? session))
+        if (!_sessions.TryRemove(KeyValuePair.Create(broadcasterId, session)))
             return;
         foreach (TaskCompletionSource<JsonElement> pending in session.Pending.Values)
             pending.TrySetException(new InvalidOperationException("OBS connection dropped."));
@@ -565,8 +566,8 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
 
     public async ValueTask DisposeAsync()
     {
-        foreach (Guid broadcasterId in _sessions.Keys.ToList())
-            await DropSessionAsync(broadcasterId, "shutdown");
+        foreach (KeyValuePair<Guid, ObsSession> entry in _sessions.ToList())
+            await DropSessionAsync(entry.Key, entry.Value, "shutdown");
     }
 
     /// <summary>Sync bridge for containers disposed synchronously (tests); production uses DisposeAsync.</summary>
