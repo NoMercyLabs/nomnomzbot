@@ -792,7 +792,7 @@ public sealed class LiveGameEngineTests
         h.Chat.SentMessages.Should()
             .ContainSingle()
             .Which.Should()
-            .Be("Fake Game was cancelled. Any bets are refunded.");
+            .Be("Fake Game was canceled. Any bets are refunded.");
     }
 
     [Fact]
