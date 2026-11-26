@@ -199,7 +199,7 @@ public sealed class WidgetLayoutSettingsTests
                 fields.Should().ContainKey(side, key);
                 (fields[side].Type, fields[side].Default, fields[side].Min, fields[side].Max)
                     .Should()
-                    .Be(("number", (object)"", (double?)0, (double?)2000), $"{key}.{side}");
+                    .Be(("number", "", 0, 2000), $"{key}.{side}");
             }
         }
     }

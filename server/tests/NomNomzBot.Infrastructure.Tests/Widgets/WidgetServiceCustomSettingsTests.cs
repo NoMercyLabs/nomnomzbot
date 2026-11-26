@@ -190,7 +190,7 @@ public sealed class WidgetServiceCustomSettingsTests : IClassFixture<VueSfcCompi
         keys.Should().Contain(["anchor", "fullWidth", "width", "glow"]);
         keys.Should().OnlyHaveUniqueItems();
         WidgetSettingsField width = schema.Value.Fields.Single(f => f.Key == "width");
-        (width.Label.Text, width.Default).Should().Be(("Band width", (object)640.0));
+        (width.Label.Text, width.Default).Should().Be(("Band width", 640.0));
         keys.IndexOf("glow")
             .Should()
             .Be(keys.Count - 1, "a new key goes after the catalogue fields");
