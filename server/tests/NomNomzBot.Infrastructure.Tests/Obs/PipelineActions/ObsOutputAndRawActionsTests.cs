@@ -122,6 +122,59 @@ public sealed class ObsOutputAndRawActionsTests
     }
 
     [Fact]
+    public async Task ObsRequest_NestedRequestData_ReachesObsAsANestedObjectNotText()
+    {
+        IObsControlService obs = Substitute.For<IObsControlService>();
+        ObsRequest? captured = null;
+        obs.RequestAsync(
+                Arg.Any<Guid>(),
+                Arg.Do<ObsRequest>(r => captured = r),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new ObsResponse(true, null, null)));
+
+        string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"obs_request","request_type":"SetSceneItemTransform","request_data":{"sceneName":"Main","sceneItemId":71,"sceneItemTransform":{"scaleX":1.5,"crop":[1,2]}}}}]}""";
+
+        PipelineExecutionResult result = await CreateEngine(obs).ExecuteAsync(Request(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        System
+            .Text.Json.JsonSerializer.Serialize(captured!.RequestData)
+            .Should()
+            .Contain(
+                "\"sceneItemTransform\":{\"scaleX\":1.5,\"crop\":[1,2]}",
+                "OBS refuses a nested field sent as text (\"must be an object\")"
+            );
+    }
+
+    [Fact]
+    public async Task ObsRequestBatch_NestedRequestData_ReachesObsAsANestedObjectNotText()
+    {
+        IObsControlService obs = Substitute.For<IObsControlService>();
+        IReadOnlyList<ObsRequest>? captured = null;
+        obs.RequestBatchAsync(
+                Arg.Any<Guid>(),
+                Arg.Do<ObsRequestBatch>(b => captured = b.Requests),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<ObsResponse>>([new ObsResponse(true, null, null)])
+            );
+
+        string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"obs_request_batch","requests":[{"request_type":"SetInputSettings","request_data":{"inputName":"SR Queue","inputSettings":{"width":698,"height":309}}}]}}]}""";
+
+        PipelineExecutionResult result = await CreateEngine(obs).ExecuteAsync(Request(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        System
+            .Text.Json.JsonSerializer.Serialize(captured![0].RequestData)
+            .Should()
+            .Contain("\"inputSettings\":{\"width\":698,\"height\":309}");
+    }
+
+    [Fact]
     public async Task ObsRequest_WhenObsIsNotConnected_FailsWithTheTransportCodeAndKeepsTheMessageInLastError()
     {
         IObsControlService obs = Substitute.For<IObsControlService>();

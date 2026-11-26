@@ -212,8 +212,12 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
     {
         if (action.Parameters is null || !action.Parameters.TryGetValue(key, out JsonElement elem))
             return null;
-        if (elem.ValueKind != JsonValueKind.Object)
-            return null;
+        return elem.ValueKind == JsonValueKind.Object ? ReadObject(elem) : null;
+    }
+
+    // A nested object or array stays JSON, because OBS refuses a nested field sent as text ("must be an object").
+    internal static Dictionary<string, object?> ReadObject(JsonElement elem)
+    {
         Dictionary<string, object?> data = new();
         foreach (JsonProperty property in elem.EnumerateObject())
             data[property.Name] = property.Value.ValueKind switch
@@ -223,7 +227,7 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
                 JsonValueKind.Null => null,
-                _ => property.Value.GetRawText(),
+                _ => property.Value.Clone(),
             };
         return data;
     }
@@ -278,24 +282,11 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
                 || !item.TryGetProperty("request_type", out JsonElement typeEl)
             )
                 return ActionResult.Failure("each batch entry needs a 'request_type'");
-            Dictionary<string, object?>? data = null;
-            if (
+            Dictionary<string, object?>? data =
                 item.TryGetProperty("request_data", out JsonElement dataEl)
                 && dataEl.ValueKind == JsonValueKind.Object
-            )
-            {
-                data = new();
-                foreach (JsonProperty property in dataEl.EnumerateObject())
-                    data[property.Name] = property.Value.ValueKind switch
-                    {
-                        JsonValueKind.String => property.Value.GetString(),
-                        JsonValueKind.Number => property.Value.GetDouble(),
-                        JsonValueKind.True => true,
-                        JsonValueKind.False => false,
-                        JsonValueKind.Null => null,
-                        _ => property.Value.GetRawText(),
-                    };
-            }
+                    ? ObsRequestAction.ReadObject(dataEl)
+                    : null;
             requests.Add(new(typeEl.GetString() ?? "", data));
         }
 
