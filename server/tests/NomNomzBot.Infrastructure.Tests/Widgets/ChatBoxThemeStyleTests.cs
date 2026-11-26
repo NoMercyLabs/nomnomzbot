@@ -32,7 +32,7 @@ public sealed class ChatBoxThemeStyleTests
             "NomNomzBot.Infrastructure.Content.Widgets.Assets.chat_box.vue"
         );
         stream.Should().NotBeNull();
-        using System.IO.StreamReader reader = new(stream!);
+        using StreamReader reader = new(stream);
         return reader.ReadToEnd();
     }
 
