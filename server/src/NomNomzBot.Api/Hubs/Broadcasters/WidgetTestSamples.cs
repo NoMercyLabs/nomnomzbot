@@ -63,6 +63,58 @@ internal static class WidgetTestSamples
                 : Fallback()
         );
 
+    /// <summary>The sample <paramref name="widgetKey"/>'s own widget draws for <paramref name="eventType"/>: a game
+    /// overlay shares its event names with the other game, so the raffle gets a raffle round, not a drop.</summary>
+    public static object For(string eventType, DateTimeOffset now, string? widgetKey) =>
+        widgetKey is not null
+        && ByWidget.TryGetValue(widgetKey, out Dictionary<string, Func<object>>? own)
+        && own.TryGetValue(eventType, out Func<object>? sample)
+            ? MarkAsTest(sample())
+            : For(eventType, now);
+
+    private static readonly Dictionary<string, Dictionary<string, Func<object>>> ByWidget = new()
+    {
+        ["raffle"] = new()
+        {
+            ["game.lobby"] = () =>
+                new GameJoinFrame
+                {
+                    Player = "TestViewer",
+                    Stake = 50,
+                    Pot = 150,
+                    Entrants =
+                    [
+                        new() { Player = "TestWinner", Stake = 100 },
+                        new() { Player = "TestViewer", Stake = 50 },
+                    ],
+                },
+            ["game.resolved"] = () =>
+                new GameResultsFrame
+                {
+                    Pot = 150,
+                    Winner = "TestWinner",
+                    Payout = 150,
+                    Results =
+                    [
+                        new()
+                        {
+                            Player = "TestWinner",
+                            Stake = 100,
+                            Won = true,
+                            Payout = 150,
+                        },
+                        new()
+                        {
+                            Player = "TestViewer",
+                            Stake = 50,
+                            Won = false,
+                            Payout = 0,
+                        },
+                    ],
+                },
+        },
+    };
+
     // Identity-based, so the wire shape of a sample stays exactly the live shape: the dispatch asks this to
     // learn that a payload is a preview, and a test event then plays without changing any stored state.
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
@@ -363,8 +415,8 @@ internal static class WidgetTestSamples
         ["custom.heartrate"] = _ => new CustomDataWidgetPayload(
             new Dictionary<string, string> { ["bpm"] = "142" }
         ),
-        // Live-game frames share a `kind`-discriminated envelope across all four game widgets. The samples are
-        // the drop game's frames: the lobby opens, a player drops, the round resolves.
+        // Live-game frames share a `kind`-discriminated envelope across both game widgets. The samples are
+        // the drop game's frames: the lobby opens, a player drops, the round resolves. The raffle's own are in ByWidget.
         ["game.lobby"] = _ => new GameRoundOpenFrame
         {
             LobbySeconds = 30,

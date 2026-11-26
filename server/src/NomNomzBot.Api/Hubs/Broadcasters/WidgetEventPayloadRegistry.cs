@@ -35,8 +35,6 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
     [
         typeof(GameRoundOpenFrame),
         typeof(GameJoinFrame),
-        typeof(GameMultiplierFrame),
-        typeof(GameCashoutFrame),
         typeof(GameDropFrame),
     ];
 

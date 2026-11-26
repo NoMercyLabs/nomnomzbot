@@ -5191,8 +5191,6 @@
     <string name="widget_drop_game_accentColor_label">Accentkleur</string>
     <string name="widget_raffle_hideAfterMs_label">Verbergen na (ms)</string>
     <string name="widget_raffle_accentColor_label">Accentkleur</string>
-    <string name="widget_heist_hideAfterMs_label">Verbergen na (ms)</string>
-    <string name="widget_heist_accentColor_label">Accentkleur</string>
     <string name="widget_lucky_feather_idleText_label">Tekst als niemand hem heeft</string>
     <string name="widget_lucky_feather_stolenTemplate_label">Tekst van de steelbanner</string>
     <string name="widget_lucky_feather_stolenTemplate_help">Gebruik {thief} en {victim}. Leeg gebruikt de ingebouwde tekst.</string>
@@ -5237,8 +5235,6 @@
     <string name="widget_raid_recap_labels_label">Teksten</string>
     <string name="widget_raid_recap_labels_help">De woorden op het scherm, als JSON. Sleutels zoals title, kpi.duration en block.subs.</string>
     <string name="widget_raid_recap_accentColor_label">Accentkleur</string>
-    <string name="widget_crash_hideAfterMs_label">Verbergen na (ms)</string>
-    <string name="widget_crash_accentColor_label">Accentkleur</string>
     <string name="widget_event_ticker_events_label">Gebeurtenistypen</string>
     <string name="widget_event_ticker_speed_label">Scrollsnelheid</string>
     <string name="widget_event_ticker_count_label">Aantal bewaarde items</string>
@@ -5253,6 +5249,10 @@
     <string name="widget_chat_box_showTimestamps_label">Tijdstempels tonen</string>
     <string name="widget_chat_box_maxMessages_label">Max. aantal berichten</string>
     <string name="widget_chat_box_fadeAfterMs_label">Vervagen na (ms, 0 = nooit)</string>
+    <string name="widget_chat_box_flow_label">Berichtrichting</string>
+    <string name="widget_chat_box_flow_option_up">Nieuwste onderaan</string>
+    <string name="widget_chat_box_flow_option_down">Nieuwste bovenaan</string>
+    <string name="widget_chat_box_flow_option_top">Begin bovenaan, nieuwste eronder</string>
     <string name="widget_chat_box_showAvatar_label">Profielfoto tonen</string>
     <string name="widget_chat_box_showBadges_label">Badges tonen</string>
     <string name="widget_chat_box_showRoleBadge_label">Rolbadge tonen</string>
@@ -6413,10 +6413,6 @@
     <string name="widget_gallery_drop_game_description">De lopende dropspel-ronde op een horizontaal spoor: de doelzone, de landingsmarkering van elke chatter zodra die !drop typt, en het uitbetalingsbord als de ronde eindigt.</string>
     <string name="widget_gallery_raffle_name">Verloting</string>
     <string name="widget_gallery_raffle_description">De lopende verlotingsronde: de deelnemerslijst en de groeiende pot zodra chatters !raffle typen, en de onthulling van de winnaar met uitbetalingsbord wanneer één deelnemer de hele pot wint.</string>
-    <string name="widget_gallery_heist_name">Overval</string>
-    <string name="widget_gallery_heist_description">De lopende overvalronde: de bemanningslijst en de stijgende kans op ontsnappen zodra chatters !heist typen, en de uitkomst en uitbetaling per bemanningslid wanneer de klus is afgelopen.</string>
-    <string name="widget_gallery_crash_name">Crash</string>
-    <string name="widget_gallery_crash_description">De lopende crashronde: een grote stijgende multiplier, de uitbetalingsticker zodra chatters !crash typen om hun multiplier vast te zetten, en de onthulling van de crash of het maximum met uitbetalingsbord.</string>
     <string name="widget_gallery_event_ticker_name">Eventticker</string>
     <string name="widget_gallery_event_ticker_description">Een horizontaal scrollende ticker met recente kanaalevents als compacte chips. De nieuwste komt erbij, de oudste verdwijnt boven een ingesteld aantal, op een instelbare snelheid.</string>
     <string name="widget_gallery_chat_box_name">Chatvenster</string>

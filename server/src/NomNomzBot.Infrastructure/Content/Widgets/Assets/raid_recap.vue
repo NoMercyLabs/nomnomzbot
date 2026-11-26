@@ -624,7 +624,7 @@ onUnmounted(() => {
 [data-nnz-theme='ink'] .recap[data-hue='day'] { --nnz-accent: hsl(var(--base) 100% 62%); } /* theme-exempt: the stream-date accent, lighter on the black surface */
 /* The theme tokens that read the accent are set again here, so a day hue or the streamer's accentColor reaches them. */
 :root:not([data-nnz-theme]) .recap,
-[data-nnz-theme='sticker'] .recap { --nnz-shadow: 6px 6px 0 var(--nnz-accent), 6px 6px 0 4px var(--nnz-line); --nnz-num-text: var(--nnz-accent); }
+[data-nnz-theme='sticker'] .recap { --nnz-shadow: 6px 6px 0 var(--nnz-accent), 6px 6px 0 4px var(--nnz-line); --nnz-num-text: var(--nnz-accent-text); }
 [data-nnz-theme='ink'] .recap { --nnz-num-bg: var(--nnz-accent); }
 .recap .nnz-card { zoom: 1; }
 .recap[data-visible='true'] { opacity: 1; }
@@ -690,7 +690,7 @@ h1 { font-size: 64px; letter-spacing: -1px; line-height: 1; margin: 0; }
 }
 .label { align-self: flex-start; font-size: 17px; letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 12px; }
 .kpi .num { font-size: 60px; line-height: 1; font-variant-numeric: tabular-nums; }
-.kpi.lead .num { font-size: 76px; color: var(--nnz-accent); }
+.kpi.lead .num { font-size: 76px; color: var(--nnz-accent-text); }
 .kpi .note { margin-top: 8px; font-size: 18px; color: var(--nnz-muted); font-weight: 600; }
 .big { font-size: 44px; line-height: 1; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
 .big small { font-size: 20px; font-weight: 600; color: var(--nnz-muted); margin-left: 8px; }

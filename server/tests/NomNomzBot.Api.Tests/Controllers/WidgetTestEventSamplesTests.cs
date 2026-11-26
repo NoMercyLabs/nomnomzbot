@@ -33,7 +33,7 @@ public sealed class WidgetTestEventSamplesTests
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private static Dictionary<string, object> Samples()
+    private static async Task<Dictionary<string, object>> Samples()
     {
         using ApiTestDbContext db = ApiTestDbContext.New();
         WidgetTestEventController controller = new(
@@ -42,24 +42,27 @@ public sealed class WidgetTestEventSamplesTests
             Substitute.For<IOverlayPresenceRegistry>(),
             TimeProvider.System
         );
-        IActionResult result = controller.Samples(Guid.CreateVersion7().ToString());
+        IActionResult result = await controller.Samples(
+            Guid.CreateVersion7().ToString(),
+            CancellationToken.None
+        );
         return ((StatusResponseDto<Dictionary<string, object>>)((ObjectResult)result).Value!).Data!;
     }
 
     [Fact]
-    public void Every_event_type_the_Test_button_can_fire_has_its_sample_in_the_table()
+    public async Task Every_event_type_the_Test_button_can_fire_has_its_sample_in_the_table()
     {
-        Dictionary<string, object> samples = Samples();
+        Dictionary<string, object> samples = await Samples();
 
         samples.Keys.Should().Contain(WidgetTestSamples.EventTypes);
         samples.Should().ContainKey("_default");
     }
 
     [Fact]
-    public void A_sample_in_the_table_carries_the_fields_the_live_event_sends()
+    public async Task A_sample_in_the_table_carries_the_fields_the_live_event_sends()
     {
         // The Kotlin copy's follow had only "user"; the live follow also carries login, avatar and standing.
-        JsonElement follow = JsonSerializer.SerializeToElement(Samples()["follow"], Json);
+        JsonElement follow = JsonSerializer.SerializeToElement((await Samples())["follow"], Json);
 
         follow.GetProperty("login").GetString().Should().NotBeNullOrEmpty();
         follow.GetProperty("avatarUrl").GetString().Should().StartWith("https://");
@@ -67,9 +70,12 @@ public sealed class WidgetTestEventSamplesTests
     }
 
     [Fact]
-    public void An_unknown_event_falls_back_to_the_same_payload_the_server_fires_for_it()
+    public async Task An_unknown_event_falls_back_to_the_same_payload_the_server_fires_for_it()
     {
-        JsonElement fallback = JsonSerializer.SerializeToElement(Samples()["_default"], Json);
+        JsonElement fallback = JsonSerializer.SerializeToElement(
+            (await Samples())["_default"],
+            Json
+        );
         JsonElement fired = JsonSerializer.SerializeToElement(
             WidgetTestSamples.For("__nothing_declares_this__", DateTimeOffset.UnixEpoch),
             Json
@@ -79,9 +85,9 @@ public sealed class WidgetTestEventSamplesTests
     }
 
     [Fact]
-    public void The_table_carries_a_sample_for_every_event_the_widget_catalogue_declares()
+    public async Task The_table_carries_a_sample_for_every_event_the_widget_catalogue_declares()
     {
-        Dictionary<string, object> samples = Samples();
+        Dictionary<string, object> samples = await Samples();
 
         List<string> missing =
         [
@@ -94,9 +100,9 @@ public sealed class WidgetTestEventSamplesTests
     }
 
     [Fact]
-    public void The_sound_events_carry_the_fields_the_overlay_SDK_reads_from_the_raw_hub_targets()
+    public async Task The_sound_events_carry_the_fields_the_overlay_SDK_reads_from_the_raw_hub_targets()
     {
-        Dictionary<string, object> samples = Samples();
+        Dictionary<string, object> samples = await Samples();
 
         JsonElement play = JsonSerializer.SerializeToElement(samples["play_sound"], Json);
         string url = play.GetProperty("playbackUrl").GetString()!;
@@ -114,9 +120,9 @@ public sealed class WidgetTestEventSamplesTests
     }
 
     [Fact]
-    public void The_test_event_has_a_real_sample_not_the_bare_fallback()
+    public async Task The_test_event_has_a_real_sample_not_the_bare_fallback()
     {
-        Dictionary<string, object> samples = Samples();
+        Dictionary<string, object> samples = await Samples();
 
         JsonElement test = JsonSerializer.SerializeToElement(samples["test"], Json);
         test.GetProperty("user").GetString().Should().NotBeNullOrEmpty();

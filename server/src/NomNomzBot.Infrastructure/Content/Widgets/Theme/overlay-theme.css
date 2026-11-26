@@ -41,14 +41,18 @@
   --nnz-radius-inner: 10px;
   --nnz-radius-pill: 22px;
   --nnz-shadow: 6px 6px 0 var(--nnz-accent), 6px 6px 0 4px #121212;
+  /* How far the hard part of the shadow reaches past the box; a pinned widget keeps this room to the source edge. */
+  --nnz-shadow-reach: 10px;
   --nnz-chip-bg: #121212;
   --nnz-chip-text: #ffffff;
   --nnz-row-bg: transparent;
   --nnz-row-first-bg: rgba(18, 18, 18, 0.07);
   --nnz-row-radius: 10px;
   --nnz-row-shadow: none;
+  /* Accent as small type on the white card: a darker shade of the same accent, so it reads (4.5:1). */
+  --nnz-accent-text: color-mix(in srgb, var(--nnz-accent) 78%, #121212);
   --nnz-num-bg: transparent;
-  --nnz-num-text: var(--nnz-accent);
+  --nnz-num-text: var(--nnz-accent-text);
   --nnz-track: rgba(18, 18, 18, 0.12);
   --nnz-fill: var(--nnz-accent);
   --nnz-title-shadow: none;
@@ -79,14 +83,16 @@
   --nnz-radius-inner: 16px;
   --nnz-radius-pill: 999px;
   --nnz-shadow: 0 0 0 3px #ffffff, 0 10px 30px rgba(0, 0, 0, 0.6);
+  --nnz-shadow-reach: 10px;
   --nnz-chip-bg: #ffffff;
   --nnz-chip-text: #121212;
   --nnz-row-bg: rgba(255, 255, 255, 0.07);
   --nnz-row-first-bg: rgba(255, 255, 255, 0.14);
   --nnz-row-radius: 999px;
   --nnz-row-shadow: none;
+  --nnz-accent-text: var(--nnz-accent);
   --nnz-num-bg: var(--nnz-accent);
-  --nnz-num-text: #121212;
+  --nnz-num-text: var(--nnz-on-accent);
   --nnz-track: rgba(255, 255, 255, 0.16);
   --nnz-fill: var(--nnz-accent);
   --nnz-title-shadow: none;
@@ -108,14 +114,17 @@
   --nnz-radius-inner: 6px;
   --nnz-radius-pill: 10px;
   --nnz-shadow: none;
+  --nnz-shadow-reach: 0px;
+  /* Type on an accent tile takes the ink the overlay picks for the chosen accent (black or white, whichever reads). */
   --nnz-chip-bg: var(--nnz-accent);
-  --nnz-chip-text: #ffffff;
+  --nnz-chip-text: var(--nnz-on-accent);
   --nnz-row-bg: rgba(255, 255, 255, 0.06);
   --nnz-row-first-bg: color-mix(in srgb, var(--nnz-accent) 22%, transparent);
   --nnz-row-radius: 6px;
   --nnz-row-shadow: none;
+  --nnz-accent-text: var(--nnz-accent);
   --nnz-num-bg: var(--nnz-accent);
-  --nnz-num-text: #ffffff;
+  --nnz-num-text: var(--nnz-on-accent);
   --nnz-track: rgba(255, 255, 255, 0.14);
   --nnz-fill: var(--nnz-accent);
   --nnz-title-shadow: none;
@@ -141,11 +150,14 @@
   --nnz-radius-inner: 3px;
   --nnz-radius-pill: 6px;
   --nnz-shadow: 6px 6px 0 #121212;
+  --nnz-shadow-reach: 6px;
   --nnz-chip-bg: #121212;
   --nnz-chip-text: var(--nnz-surface);
   --nnz-row-bg: transparent;
   --nnz-row-first-bg: rgba(18, 18, 18, 0.12);
   --nnz-row-radius: 3px;
+  /* Pink type on the lime would not read: accent type is the black ink, as it is when a color is chosen. */
+  --nnz-accent-text: var(--nnz-text);
   --nnz-num-bg: #121212;
   --nnz-num-text: var(--nnz-surface);
   --nnz-track: rgba(18, 18, 18, 0.18);
@@ -257,10 +269,10 @@
   color: var(--nnz-muted);
 }
 
+/* Accent type: each theme's --nnz-accent-text is the accent shade that reads on its own surface. */
 .nnz-accent-text {
-  color: var(--nnz-accent);
+  color: var(--nnz-accent-text);
 }
-/* Sticker's accent on white is the crimson; on the dark themes it is the lime. Both pass on their surface. */
 
 /* A row in a list. The first row is the one that matters. */
 .nnz-row {
@@ -377,11 +389,12 @@
  * Placement: a sized overlay's root carries .nnz-placed and data-anchor (one of top-left, top, top-right, left,
  * center, right, bottom-left, bottom, bottom-right). It sits that far (--nnz-edge) from the browser source edge
  * it is anchored to. A zoomed card or pill scales its own offsets, so the offset is divided by its zoom and the
- * distance stays the real pixels the streamer set.
+ * distance stays the real pixels the streamer set. The theme's shadow reach is added on top, so a hard shadow is
+ * never cut off by the source edge.
  */
 .nnz-placed {
   --nnz-own-zoom: 1;
-  --nnz-inset: calc(var(--nnz-edge) / var(--nnz-own-zoom));
+  --nnz-inset: calc(var(--nnz-edge) / var(--nnz-own-zoom) + var(--nnz-shadow-reach));
   position: absolute;
   transform: translate(var(--nnz-tx, 0), var(--nnz-ty, 0));
 }

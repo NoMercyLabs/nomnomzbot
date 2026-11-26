@@ -221,6 +221,23 @@ onUnmounted(() => {
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
+/* Each theme draws the runner the way it draws its panels: sticker and print get a hard outline with an offset
+   shadow (print's in its lime surface), ink gets its white ring, classic keeps the soft shadow above. */
+[data-nnz-theme='sticker'] .runner,
+[data-nnz-theme='print'] .runner,
+[data-nnz-theme='ink'] .runner {
+  -webkit-text-stroke: 8px var(--nnz-line);
+  paint-order: stroke fill;
+}
+/* A drop-shadow filter shadows the outlined glyph as one shape; a text-shadow skips the outline and looks smeared. */
+[data-nnz-theme='sticker'] .runner {
+  text-shadow: none;
+  filter: drop-shadow(6px 6px 0 var(--nnz-line));
+}
+[data-nnz-theme='print'] .runner {
+  text-shadow: none;
+  filter: drop-shadow(8px 8px 0 var(--nnz-surface));
+}
 @keyframes nnz-run-across {
   from { transform: translateX(-100%); }
   to { transform: translateX(calc(100 * var(--nnz-vw, 1vw))); }

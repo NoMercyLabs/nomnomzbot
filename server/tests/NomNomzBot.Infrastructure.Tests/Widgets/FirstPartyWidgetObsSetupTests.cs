@@ -100,7 +100,7 @@ public sealed class FirstPartyWidgetObsSetupTests
             .. FirstPartyWidgetCatalogue.All.Where(w => !soundOnlyKeys.Contains(w.Key)),
         ];
 
-        drawing.Should().HaveCount(25);
+        drawing.Should().HaveCount(23);
         foreach (FirstPartyWidgetDefinition widget in drawing)
         {
             ObsBrowserSource setup = widget.ObsSetup;

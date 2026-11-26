@@ -93,6 +93,38 @@ const title = ref<string>('')
 const sourceType = ref<string>('')
 const visible = ref<boolean>(false)
 const ytMount = ref<HTMLElement | null>(null)
+const card = ref<HTMLElement | null>(null)
+const frame = ref<HTMLElement | null>(null)
+const cardWidth = ref<string>('')
+
+// The video area stays exactly 16:9. The card takes the widest width whose 16:9 frame, plus the card's own
+// padding, border and title, still fits the browser source less the edge offset. It measures on screen
+// (getBoundingClientRect includes every zoom), then turns the screen width back into the card's own pixels.
+const VIDEO_RATIO: number = 16 / 9
+function screenScale(el: HTMLElement): number {
+  const own: number = parseFloat(getComputedStyle(el).width)
+  return own > 0 ? el.getBoundingClientRect().width / own : 1
+}
+function fitCard(): void {
+  const el: HTMLElement | null = card.value
+  const video: HTMLElement | null = frame.value
+  const source: HTMLElement | null | undefined = el?.parentElement
+  if (!el || !video || !source) return
+  const box: DOMRect = el.getBoundingClientRect()
+  const inner: DOMRect = video.getBoundingClientRect()
+  const room: DOMRect = source.getBoundingClientRect()
+  const edge: number = (parseFloat(getComputedStyle(el).getPropertyValue('--nnz-edge')) || 0) * screenScale(source)
+  // The theme's hard shadow reaches past the card by this much (in the card's own zoomed pixels).
+  const reach: number = (parseFloat(getComputedStyle(el).getPropertyValue('--nnz-shadow-reach')) || 0) * screenScale(el)
+  const chromeX: number = box.width - inner.width
+  const chromeY: number = box.height - inner.height
+  const roomX: number = room.width - 2 * (edge + reach) - chromeX
+  const roomY: number = room.height - 2 * (edge + reach) - chromeY
+  const videoWidth: number = Math.max(0, Math.min(roomX, roomY * VIDEO_RATIO))
+  cardWidth.value = `${Math.floor((videoWidth + chromeX) / screenScale(el))}px`
+}
+// The fit waits a frame: a resize inside the observer callback is a "ResizeObserver loop" error in the page.
+const fitObserver: ResizeObserver = new ResizeObserver(() => requestAnimationFrame(fitCard))
 
 let requestId: string | null = null
 let durationSeconds: number = 0
@@ -356,12 +388,16 @@ function onCommand(d: MediaShareCommand | null | undefined): void {
 }
 
 onMounted(() => {
+  if (card.value?.parentElement) fitObserver.observe(card.value.parentElement)
+  if (card.value) fitObserver.observe(card.value)
   if (typeof NomNomz === 'undefined') return
   NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.showTitle === 'boolean') cfg.showTitle = s.showTitle
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
     if (typeof s.anchor === 'string' && s.anchor) cfg.anchor = s.anchor
+    // The edge offset and scale change the room without resizing anything the observer watches.
+    requestAnimationFrame(fitCard)
   })
   NomNomz.on('media_share_command', onCommand)
   startReporting()
@@ -369,6 +405,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.clearInterval(reportTimer)
+  fitObserver.disconnect()
   if (typeof NomNomz === 'undefined') return
   NomNomz.off('media_share_command', onCommand)
 })
@@ -377,11 +414,13 @@ onUnmounted(() => {
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only sizes the frame. -->
   <div
+    ref="card"
     class="nnz-widget nnz-card nnz-placed nnz-mediashare"
     :class="{ 'is-hidden': !visible }"
     :data-anchor="cfg.anchor"
+    :style="cardWidth ? { width: cardWidth } : undefined"
   >
-    <div class="frame">
+    <div ref="frame" class="frame">
       <div v-show="sourceType === 'twitch_clip'" id="nnz-clip-player" class="player" />
       <div v-show="sourceType === 'youtube'" ref="ytMount" class="player" />
     </div>
@@ -390,10 +429,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Fills the browser source less the edge offset on each side; the card zoom multiplies the declared size. */
+/* Starts at the full browser source width less the edge offset; fitCard then narrows it so the 16:9 video
+   and the card's padding, border and title fit the height too. The card zoom multiplies the declared size. */
 .nnz-mediashare {
-  width: calc((100% - 2 * var(--nnz-edge)) / var(--nnz-z));
-  height: calc((100% - 2 * var(--nnz-edge)) / var(--nnz-z));
+  width: calc(100% / var(--nnz-z) - 2 * var(--nnz-inset));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -403,8 +442,9 @@ onUnmounted(() => {
   visibility: hidden;
 }
 .frame {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   border-radius: var(--nnz-radius-inner);
   overflow: hidden;
   background: #000; /* theme-exempt: a video's black letterbox */

@@ -1331,28 +1331,28 @@ public sealed class ChatMessageHandlerTests
 
     // ── live-game precedence: an active round shadows a same-named command ────
 
-    private const string HeistKeyword = "!heist";
-    private const string HeistCommand = "heist";
+    private const string RaffleKeyword = "!raffle";
+    private const string RaffleCommand = "raffle";
 
     [Fact]
     public async Task An_active_game_session_shadows_a_same_named_command_which_never_dispatches()
     {
-        // THE BUG: !heist is both an authored command AND the active Heist round's input keyword. The chat
+        // THE BUG: !raffle is both an authored command AND the active raffle's input keyword. The chat
         // event fans out to ChatMessageHandler and LiveGameInputListener independently, so both would fire —
-        // the operator's command AND the join. During a live round the game must win (typing !heist means
-        // JOIN the heist), so the command path stands down.
+        // the operator's command AND the join. During a live round the game must win (typing !raffle means
+        // JOIN the raffle), so the command path stands down.
         ChannelContext ctx = NewChannelContext();
-        AddTemplateCommand(ctx, HeistCommand, "Command heist fired");
+        AddTemplateCommand(ctx, RaffleCommand, "Command raffle fired");
 
         LiveGameSessionRegistry games = new();
-        games.TryRegister(ActiveHeistSession()).Should().BeTrue();
+        games.TryRegister(ActiveRaffleSession()).Should().BeTrue();
 
         (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
             ctx,
             games
         );
 
-        await sut.HandleAsync(MessageEvent(HeistKeyword), CancellationToken.None);
+        await sut.HandleAsync(MessageEvent(RaffleKeyword), CancellationToken.None);
 
         // No reply, no send, and — critically — no fabricated execution fact (analytics must not count it).
         await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default!);
@@ -1361,20 +1361,20 @@ public sealed class ChatMessageHandlerTests
             .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(default!);
 
         // The guard is a READ-ONLY deferral: it never mutated or terminated the round, so LiveGameInputListener
-        // (the authoritative consumer on its own fan-out) still owns the message and its !heist keyword.
+        // (the authoritative consumer on its own fan-out) still owns the message and its !raffle keyword.
         games.TryGet(Broadcaster, out LiveGameSessionRuntime? still).Should().BeTrue();
         still!.Terminal.Should().BeFalse();
         still.Phase.Should().Be(LiveGamePhase.Lobby);
-        still.Game.Manifest.InputKeywords.Should().Contain(HeistKeyword);
+        still.Game.Manifest.InputKeywords.Should().Contain(RaffleKeyword);
     }
 
     [Fact]
     public async Task With_no_active_game_session_the_same_named_command_dispatches_normally()
     {
-        // No round running: the guard finds nothing in the registry and the !heist command runs as usual —
+        // No round running: the guard finds nothing in the registry and the !raffle command runs as usual —
         // proving the guard suppresses ONLY while a live session claims the keyword, never otherwise.
         ChannelContext ctx = NewChannelContext();
-        AddTemplateCommand(ctx, HeistCommand, "Command heist fired");
+        AddTemplateCommand(ctx, RaffleCommand, "Command raffle fired");
 
         LiveGameSessionRegistry games = new(); // empty — no active round
 
@@ -1383,20 +1383,20 @@ public sealed class ChatMessageHandlerTests
             games
         );
 
-        await sut.HandleAsync(MessageEvent(HeistKeyword), CancellationToken.None);
+        await sut.HandleAsync(MessageEvent(RaffleKeyword), CancellationToken.None);
 
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
                 Arg.Any<string>(),
                 "msg-1",
-                "Command heist fired",
+                "Command raffle fired",
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
-                    e.CommandName == HeistCommand && e.Succeeded
+                    e.CommandName == RaffleCommand && e.Succeeded
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -1405,14 +1405,14 @@ public sealed class ChatMessageHandlerTests
     [Fact]
     public async Task An_active_game_session_does_not_shadow_a_command_it_does_not_claim()
     {
-        // A Heist round is live (it claims !heist only). An UNRELATED authored command (!drop) must still
+        // A raffle is live (it claims !raffle only). An UNRELATED authored command (!drop) must still
         // dispatch — the guard is scoped to the ACTIVE session's keywords, it does not swallow every command
         // while a game runs. This is the discriminating case: if the guard over-matched, !drop would vanish.
         ChannelContext ctx = NewChannelContext();
         AddTemplateCommand(ctx, "drop", "Command drop fired");
 
         LiveGameSessionRegistry games = new();
-        games.TryRegister(ActiveHeistSession()).Should().BeTrue();
+        games.TryRegister(ActiveRaffleSession()).Should().BeTrue();
 
         (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
             ctx,
@@ -1437,7 +1437,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
 
-        // The Heist round is untouched — still active and still owning !heist for its listener.
+        // The raffle is untouched — still active and still owning !raffle for its listener.
         games.TryGet(Broadcaster, out LiveGameSessionRuntime? still).Should().BeTrue();
         still!.Terminal.Should().BeFalse();
     }
@@ -2522,14 +2522,14 @@ public sealed class ChatMessageHandlerTests
             ChannelName = "stoney_eagle",
         };
 
-    /// <summary>A live Heist round in its join lobby — the real <see cref="HeistGame"/> so its manifest keyword
-    /// (<c>!heist</c>) is exactly what the guard matches against, no test-only stand-in.</summary>
-    private static LiveGameSessionRuntime ActiveHeistSession() =>
+    /// <summary>A live raffle in its join lobby — the real <see cref="RaffleGame"/> so its manifest keyword
+    /// (<c>!raffle</c>) is exactly what the guard matches against, no test-only stand-in.</summary>
+    private static LiveGameSessionRuntime ActiveRaffleSession() =>
         new()
         {
             SessionId = Guid.CreateVersion7(),
             BroadcasterId = Broadcaster,
-            Game = new HeistGame(),
+            Game = new RaffleGame(),
             GameConfigId = Guid.CreateVersion7(),
             Config = new(null, null, null, null),
             JoinClosesAt = DateTime.UtcNow.AddSeconds(60),

@@ -17,7 +17,7 @@ using NomNomzBot.Domain.Widgets.Entities;
 namespace NomNomzBot.Infrastructure.Games;
 
 /// <summary>
-/// Gives a live-game overlay (<c>raffle</c>, <c>heist</c>) its round back after a reload: the frame that opened the
+/// Gives a live-game overlay (<c>raffle</c>, <c>drop_game</c>) its round back after a reload: the frame that opened the
 /// session and the newest frame since, replayed exactly as the engine pushed them. A settled or cancelled round
 /// stays seedable only for the widget's own <c>hideAfterMs</c> (the time the widget would still show it). No
 /// session of this game gives no frame. One class serves both widgets, keyed by the natural key it is built with,

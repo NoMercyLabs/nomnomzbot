@@ -12,17 +12,6 @@
       "descriptionKey": "widget.gallery.goal_bar.description"
     },
     {
-      "id": "01M5H0EZ9HE0FTM7WK5V7G1M92",
-      "name": "Crash",
-      "description": "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type !crash to lock in their multiplier, and the bust/max reveal + payout board.",
-      "framework": "vue",
-      "trustTier": "first_party",
-      "installCount": 0,
-      "availableInSaaS": true,
-      "nameKey": "widget.gallery.crash.name",
-      "descriptionKey": "widget.gallery.crash.description"
-    },
-    {
       "id": "01M5H0EZ9HEFTAMK401DNE4455",
       "name": "Event Ticker",
       "description": "A horizontal scrolling ticker of recent channel events as compact chips, newest appended and the oldest retired past a retained count, at a configurable speed.",
@@ -43,17 +32,6 @@
       "availableInSaaS": true,
       "nameKey": "widget.gallery.chat_box.name",
       "descriptionKey": "widget.gallery.chat_box.description"
-    },
-    {
-      "id": "01M5H0EZ9HEPCV3Q1XTW5H0ZH8",
-      "name": "Heist",
-      "description": "The live heist round: the crew roster and rising escape odds as chatters type !heist, and each member's getaway outcome + payout when the job resolves.",
-      "framework": "vue",
-      "trustTier": "first_party",
-      "installCount": 0,
-      "availableInSaaS": true,
-      "nameKey": "widget.gallery.heist.name",
-      "descriptionKey": "widget.gallery.heist.description"
     },
     {
       "id": "01M5H0EZ9HESMTZX4CHK7AB6F2",
@@ -233,5 +211,5 @@
     }
   ],
   "hasMore": false,
-  "total": 21
+  "total": 19
 }

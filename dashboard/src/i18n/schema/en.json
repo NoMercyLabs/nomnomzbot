@@ -2934,6 +2934,14 @@
       "fadeAfterMs": {
         "label": "Fade after (ms, 0 = never)"
       },
+      "flow": {
+        "label": "Message flow",
+        "option": {
+          "down": "Newest on top",
+          "top": "Start at the top, newest below",
+          "up": "Newest at the bottom"
+        }
+      },
       "fontFamily": {
         "help": "Blank uses the overlay default.",
         "label": "Font family"
@@ -2992,14 +3000,6 @@
       "target": {
         "help": "ISO date-time to count down to; blank uses the duration.",
         "label": "Target time"
-      }
-    },
-    "crash": {
-      "accentColor": {
-        "label": "Accent color"
-      },
-      "hideAfterMs": {
-        "label": "Hide after (ms)"
       }
     },
     "custom_data": {
@@ -3093,10 +3093,6 @@
         "description": "A countdown to a wall-clock target or for a fixed duration (BRB / starting soon) with a label and completion text. The dashboard controls it live through its widget settings.",
         "name": "Countdown / Timer"
       },
-      "crash": {
-        "description": "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type !crash to lock in their multiplier, and the bust/max reveal + payout board.",
-        "name": "Crash"
-      },
       "custom_data": {
         "description": "The live value of a custom data source rendered as a number, gauge, or text. A heart-rate gauge is this widget bound to heartrate.bpm. It re-binds live when the source changes.",
         "name": "Custom Data"
@@ -3116,10 +3112,6 @@
       "goal_bar": {
         "description": "An animated progress bar toward a follower, sub, or bits goal. Reads the authoritative total from goal events and live-increments on matching follows, subs, gifts, and cheers.",
         "name": "Goal Bar"
-      },
-      "heist": {
-        "description": "The live heist round: the crew roster and rising escape odds as chatters type !heist, and each member’s getaway outcome + payout when the job resolves.",
-        "name": "Heist"
       },
       "labels": {
         "description": "A single live stat rendered as styled text (latest follower, latest sub, top cheerer, follower count, or sub count) with an optional format string.",
@@ -3224,14 +3216,6 @@
       "content": "Content",
       "data": "Data",
       "layout": "Layout"
-    },
-    "heist": {
-      "accentColor": {
-        "label": "Accent color"
-      },
-      "hideAfterMs": {
-        "label": "Hide after (ms)"
-      }
     },
     "labels": {
       "accentColor": {

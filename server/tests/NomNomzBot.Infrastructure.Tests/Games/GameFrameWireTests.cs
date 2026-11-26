@@ -34,8 +34,6 @@ public sealed class GameFrameWireTests
     [
         typeof(GameRoundOpenFrame),
         typeof(GameJoinFrame),
-        typeof(GameMultiplierFrame),
-        typeof(GameCashoutFrame),
         typeof(GameDropFrame),
         typeof(GameResultsFrame),
         typeof(GameCancelledFrame),
@@ -135,32 +133,14 @@ public sealed class GameFrameWireTests
         return frames;
     }
 
-    private static readonly string[] GameNames =
-    [
-        "crash-cashout-and-bust",
-        "crash-cap",
-        "drop",
-        "heist",
-        "raffle",
-    ];
+    private static readonly string[] GameNames = ["drop", "raffle"];
 
     public static TheoryData<string> Games => [.. GameNames];
 
     private static Task<List<Dictionary<string, object?>>> DriveByName(string name) =>
         name switch
         {
-            // First draw misses the opening bust; the second survives nothing: bust on the first climb.
-            "crash-cashout-and-bust" => DriveAsync(
-                new CrashGame(),
-                new Sequence(0.99, 0.99),
-                1,
-                1,
-                true
-            ),
-            // Every draw survives, so the climb runs to the cap.
-            "crash-cap" => DriveAsync(new CrashGame(), new Sequence(0.99, 0.0), 80, 0, false),
             "drop" => DriveAsync(new DropGame(), new Sequence(0.3, 0.5, 0.9), 0, 0, false),
-            "heist" => DriveAsync(new HeistGame(), new Sequence(0.1, 0.9), 0, 0, false),
             "raffle" => DriveAsync(new RaffleGame(), new Sequence(0.2, 0.7), 0, 0, false),
             _ => throw new ArgumentOutOfRangeException(nameof(name), name, null),
         };
@@ -277,7 +257,7 @@ public sealed class GameFrameWireTests
 
         seen.Should()
             .BeEquivalentTo(
-                ["round_open", "join", "progress", "cashout", "bust", "cap", "drop", "results"],
+                ["round_open", "join", "drop", "results"],
                 "a kind this drive never reaches is a kind the wire test cannot hold to its record"
             );
     }

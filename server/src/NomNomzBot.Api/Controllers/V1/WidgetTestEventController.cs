@@ -20,6 +20,7 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
 
@@ -58,13 +59,13 @@ public sealed class WidgetTestEventController : BaseController
     [RequireAction("widget:read")]
     [HttpGet("test-event/samples")]
     [ProducesResponseType<StatusResponseDto<Dictionary<string, object>>>(StatusCodes.Status200OK)]
-    public IActionResult Samples(string channelId) =>
-        Ok(
-            new StatusResponseDto<Dictionary<string, object>>
-            {
-                Data = WidgetTestSamples.Table(_clock.GetUtcNow()),
-            }
-        );
+    public async Task<IActionResult> Samples(string channelId, CancellationToken ct)
+    {
+        Dictionary<string, object> table = WidgetTestSamples.Table(_clock.GetUtcNow());
+        if (TryDecode(channelId, out Guid broadcasterId))
+            await UseOwnChannelAsync(table[RaidRecapEvent], broadcasterId, ct);
+        return Ok(new StatusResponseDto<Dictionary<string, object>> { Data = table });
+    }
 
     /// <summary>Fire a sample event of <paramref name="request"/>.EventType at the one widget <paramref name="widgetId"/>.</summary>
     [RequireAction("widget:write")]
@@ -82,16 +83,10 @@ public sealed class WidgetTestEventController : BaseController
         if (string.IsNullOrWhiteSpace(request.EventType))
             return BadRequestResponse("An eventType is required.");
 
-        if (
-            !GuidUlidCodec.TryDecode(channelId, out Guid broadcasterId)
-            && !Guid.TryParse(channelId, out broadcasterId)
-        )
+        if (!TryDecode(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        if (
-            !GuidUlidCodec.TryDecode(widgetId, out Guid targetId)
-            && !Guid.TryParse(widgetId, out targetId)
-        )
+        if (!TryDecode(widgetId, out Guid targetId))
             return BadRequestResponse("Invalid widget id.");
 
         Widget? widget = await _db
@@ -107,7 +102,12 @@ public sealed class WidgetTestEventController : BaseController
             ? WidgetTestSamples.MarkAsTest(
                 custom.ToDictionary(pair => pair.Key, pair => Normalize(pair.Value))
             )
-            : WidgetTestSamples.For(request.EventType, _clock.GetUtcNow());
+            : WidgetTestSamples.For(
+                request.EventType,
+                _clock.GetUtcNow(),
+                await GalleryKeyAsync(widget, ct)
+            );
+        await UseOwnChannelAsync(data, broadcasterId, ct);
 
         // The same push a real event makes, but to this one widget's hub group only: a test on one overlay's
         // page must never play on the channel's other overlays. Only a widget that is on and subscribes the
@@ -133,6 +133,45 @@ public sealed class WidgetTestEventController : BaseController
                 ),
             }
         );
+    }
+
+    private const string RaidRecapEvent = "raid_recap.show";
+
+    private async Task<string?> GalleryKeyAsync(Widget widget, CancellationToken ct) =>
+        widget.GalleryItemId is not { } galleryId
+            ? null
+            : await _db
+                .WidgetGalleryItems.AsNoTracking()
+                .Where(g => g.Id == galleryId)
+                .Select(g => g.NaturalKey)
+                .FirstOrDefaultAsync(ct);
+
+    private static bool TryDecode(string id, out Guid value) =>
+        GuidUlidCodec.TryDecode(id, out value) || Guid.TryParse(id, out value);
+
+    /// <summary>A recap sample shows the channel's own name and profile picture, as a real raid does: the widget's
+    /// avatar watermark has nothing to draw from a made-up channel. The numbers stay sample numbers.</summary>
+    private async Task UseOwnChannelAsync(object sample, Guid broadcasterId, CancellationToken ct)
+    {
+        if (sample is not StreamStatsDto recap)
+            return;
+        StreamStatsChannelDto? own = await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Join(
+                _db.Users.AsNoTracking(),
+                c => c.OwnerUserId,
+                u => u.Id,
+                (c, u) =>
+                    new StreamStatsChannelDto
+                    {
+                        Name = u.DisplayName,
+                        AvatarUrl = u.ProfileImageUrl,
+                    }
+            )
+            .FirstOrDefaultAsync(ct);
+        if (own is not null)
+            recap.Channel = own;
     }
 
     /// <summary>Coerce a value (a <see cref="JsonElement"/> when it came from the request body) to a plain CLR

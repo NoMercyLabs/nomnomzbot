@@ -16,8 +16,9 @@ import { dashboardRoutes } from '../dashboard';
 describe('the Games page', () => {
   const games = (dashboardRoutes.children ?? []).find((route) => route.name === 'dashboard-games');
 
-  it('is served by the coming-soon page, not by a built games view', () => {
-    expect(games?.meta?.comingSoon).toBe('games');
+  it('is served by the built games view, where a game is turned on and started', () => {
+    expect(games?.meta?.comingSoon).toBeUndefined();
+    expect(games?.component).toBeTypeOf('function');
   });
 
   it('keeps the address and the sidebar action key', () => {

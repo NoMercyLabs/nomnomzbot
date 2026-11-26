@@ -1,6 +1,6 @@
 # Interface Specification — Live Games Subsystem (interactive overlay games)
 
-**Status:** Engine built. Games built: **Drop** (`drop_game`), **Raffle** (`raffle`), **Heist** (`heist`), **Crash** (`crash`) — each with its first-party overlay widget and default `GameConfig`. Remaining: **Battle Royale, Trivia, Bingo** (tier 1) and **Marble Race, Plinko, Wheel, Horse Race** (tier 2, art-gated) — see §4.2. Each is one new `ILiveGame` class; no engine edit.
+**Status:** Engine built. Games built: **Drop** (`drop_game`), **Raffle** (`raffle`) — each with its first-party overlay widget and default `GameConfig`. **Heist and Crash were removed on 2026-11-26.** Stoney, verbatim: "So the way I see it is that Heist is completely useless. It is not a proper Twitch game. And Crash is also pretty useless. Like, I don't know, these are not fun games to me. You may as well just remove them from the system." A new game must give the player a real choice during the round, not only a stake and a dice roll. Remaining: **Battle Royale, Trivia, Bingo** (tier 1) and **Marble Race, Plinko, Wheel, Horse Race** (tier 2, art-gated) — see §4.2. Each is one new `ILiveGame` class; no engine edit.
 **Sources of truth:** locked schema `2026-06-16-database-schema.md` (Domain K — `GameConfig` K.7, `GamePlay` K.9, the currency ledger K.2/K.3); economy `economy.md` (`ICurrencyAccountService`, `IGameService`); widgets `widgets-overlays.md` (`IWidgetEventNotifier`, `widget_event`); pipeline `commands-pipelines.md` (`ICommandAction`/`ActionContext` §3.13); platform `platform-conventions.md` (`IRunOnceGuard`, `IEventBus`, auto-discovery); roles `roles-permissions.md` (Gate-2 keys, planes).
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; **explicit types — never `var`** (IDE0008 = error); async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; Newtonsoft.Json for app JSON; surrogate PK `Guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete global filter; PolyForm Noncommercial header on every source file.
 
@@ -221,13 +221,13 @@ To ship dropgame (and every future game), drop in:
 2. **A `drop_game` first-party overlay widget** (widgets-overlays catalogue) keyed `OverlayWidgetKey="drop_game"` — renders the `game.<phase>` frames (parachutes, target, scoreboard).
 3. **A default `GameConfig` seed** (`GameType="drop_game"`, `Category=minigame`, bet/cooldown/`MaxPlaysPerStream`, `ConfigJson` target/precision).
 
-Auto-discovery registers (1); the engine, REST, the `start_live_game` action, the dashboard Games page, ledger, and overlay push all work **unchanged**. Plinko, heist-live, battle-royale follow the identical three-artifact shape.
+Auto-discovery registers (1); the engine, REST, the `start_live_game` action, the dashboard Games page, ledger, and overlay push all work **unchanged**. Plinko and battle-royale follow the identical three-artifact shape.
 
 ### 4.2 Overlay delivery tiers (the art problem — decided)
 
 The `ILiveGame` class needs no art; only its `OverlayWidgetKey` does. Games therefore split by how much their overlay demands, and **that split is the build order**:
 
-- **Tier 1 — data overlays (ship first, no illustration).** The overlay is styled data + motion the design system already provides: a name list, a climbing counter, a countdown, a struck-through roster, a card grid. **Heist, Raffle, Crash (shipped); Battle Royale, Trivia, Bingo (remaining).** Authored first-party from `frontend-design-system` primitives — no designer dependency.
+- **Tier 1 — data overlays (ship first, no illustration).** The overlay is styled data + motion the design system already provides: a name list, a climbing counter, a countdown, a struck-through roster, a card grid. **Raffle (shipped); Battle Royale, Trivia, Bingo (remaining).** Authored first-party from `frontend-design-system` primitives — no designer dependency.
 - **Tier 2 — art/physics overlays (engine-ready, art-gated).** The overlay needs illustration or physics: parachutes, marbles, a Plinko board, a prize wheel. **Drop (shipped); Marble Race, Plinko, Wheel, Horse Race (remaining).** The engine runs them today; each ships when its overlay widget exists — authored by the designer or arriving via the verified-community gallery + clone-to-edit (`widgets-overlays.md`). **No engine change when the art lands** — the game class and config are already valid; only the `OverlayWidgetKey` target appears.
 
 ---
@@ -276,7 +276,7 @@ AS-BUILT: there is no `Games/DependencyInjection.cs` and no `AddLiveGames()`. Th
 |---|---|---|---|
 | `ILiveGameEngine` | `LiveGameEngine` | Scoped (the concrete `LiveGameEngine` is registered too; the interface resolves to it) | orchestration; depends on `IApplicationDbContext`, `IGameService` (economy), `IChatProvider`, `IWidgetEventNotifier` (widgets), `ILiveGameCatalog`, `ILiveGameOverlayResolver`, `LiveGameSessionRegistry`, `IGameRandomizer`, `IEventBus` |
 | `ILiveGameCatalog` | `LiveGameCatalog` | Singleton | built from all discovered `ILiveGame` |
-| `ILiveGame` (each game) | `DropGame`, `RaffleGame`, `HeistGame`, `CrashGame` | Singleton | **auto-discovered** by `services.AddImplementationsOf<ILiveGame>(infrastructure, ServiceLifetime.Singleton)` — adding a game class is the only edit. Pure/stateless ⇒ singleton-safe. |
+| `ILiveGame` (each game) | `DropGame`, `RaffleGame` | Singleton | **auto-discovered** by `services.AddImplementationsOf<ILiveGame>(infrastructure, ServiceLifetime.Singleton)` — adding a game class is the only edit. Pure/stateless ⇒ singleton-safe. |
 | `ILiveGameOverlayResolver` | `LiveGameOverlayResolver` | Scoped | gallery `NaturalKey` → the channel's installed, enabled widget (D5) |
 | `LiveGameSessionRegistry` | `LiveGameSessionRegistry` | Singleton | live per-channel round state shared by the engine, the chat listener and the runner |
 | `LiveGameRunner` | `LiveGameRunner` | `BackgroundService` (hosted-worker scan) | 1-second wall-clock sweep; startup crash sweep under `IRunOnceGuard` |

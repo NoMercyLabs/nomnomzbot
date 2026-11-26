@@ -216,7 +216,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Text(d, "formatString", Content, help: true),
                 Accent(d),
             ],
-            "drop_game" or "raffle" or "heist" or "crash" =>
+            "drop_game" or "raffle" =>
             [
                 NumberField(d, "hideAfterMs", Behaviour, min: 0, step: 100),
                 Accent(d),
@@ -238,6 +238,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showTimestamps", Content),
                 NumberField(d, "maxMessages", Behaviour, min: 1),
                 NumberField(d, "fadeAfterMs", Behaviour, min: 0, step: 100),
+                SelectField(d, "flow", Behaviour, Opts(d, "flow", "up", "down", "top")),
                 Bool(d, "showAvatar", Content),
                 Bool(d, "showBadges", Content),
                 Bool(d, "showRoleBadge", Content),

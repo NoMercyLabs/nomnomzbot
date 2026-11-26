@@ -41,8 +41,8 @@ public sealed class NowPlayingArtFallbackTests
         source
             .Should()
             .Contain(
-                "<img v-if=\"cfg.showArt && artUrl\" class=\"nnz-avatar art\" :src=\"artUrl\" alt=\"\" @error=\"artUrl = ''\">"
+                "<span v-if=\"cfg.showArt\" :ref=\"trackArt\" class=\"nnz-avatar art\" :style=\"{ width: artSize + 'px' }\">\n          <img v-if=\"artUrl\" class=\"art-img\" :src=\"artUrl\" alt=\"\" @error=\"artUrl = ''\">\n          <span v-else class=\"note nnz-accent-text\">&#9835;</span>\n        </span>",
+                "the cover frame keeps its size and holds the note when the picture is gone"
             );
-        source.Should().Contain("<span v-else class=\"note nnz-accent-text\">&#9835;</span>");
     }
 }

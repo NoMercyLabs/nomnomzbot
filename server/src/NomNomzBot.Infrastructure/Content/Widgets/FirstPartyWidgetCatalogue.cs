@@ -198,8 +198,6 @@ public static class FirstPartyWidgetCatalogue
         ["goal_bar"] = "bottom",
         ["labels"] = "bottom-left",
         ["raffle"] = "bottom",
-        ["heist"] = "bottom",
-        ["crash"] = "bottom",
         ["event_ticker"] = "center",
         ["chat_box"] = "bottom-left",
         ["now_playing"] = "bottom-left",
@@ -309,26 +307,6 @@ public static class FirstPartyWidgetCatalogue
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(
-            Key: "heist",
-            // One 720 px card (1.45x) with a header and a wrapping roster of crew members.
-            ObsSetup: Overlay(1070, 420),
-            Name: "Heist",
-            Description: "The live heist round: the crew roster and rising escape odds as chatters type !heist, and "
-                + "each member's getaway outcome + payout when the job resolves.",
-            DefaultSettings: new() { ["accentColor"] = "", ["hideAfterMs"] = 12000 },
-            DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
-        ),
-        new(
-            Key: "crash",
-            // One 560 px card (1.45x): a 64 px multiplier, the cash-out chips, then the payout board.
-            ObsSetup: Overlay(840, 560),
-            Name: "Crash",
-            Description: "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type "
-                + "!crash to lock in their multiplier, and the bust/max reveal + payout board.",
-            DefaultSettings: new() { ["accentColor"] = "", ["hideAfterMs"] = 12000 },
-            DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
-        ),
-        new(
             Key: "event_ticker",
             // A one-line bar that fills its source; the width is only the length of the scroll lane.
             ObsSetup: Overlay(1280, 110),
@@ -347,8 +325,8 @@ public static class FirstPartyWidgetCatalogue
         new(
             Key: "chat_box",
             // A 420 px column (1.45x) that stacks the default 5 messages from the bottom. The height is what
-            // FirstPartyWidgetObsSizing gives at the default settings: 5 messages of 111 px, plus the padding.
-            ObsSetup: Overlay(660, 581),
+            // FirstPartyWidgetObsSizing gives at the default settings: 5 messages of 154 px, plus the padding.
+            ObsSetup: Overlay(660, 796),
             Name: "Chat Box",
             Description: "Live chat rendered from the decorated message feed — resolved emotes, badges, name colours, "
                 + "and pronouns — with theming, font/size/background controls, timestamps, command/bot filtering, and optional per-message fade.",
@@ -362,6 +340,7 @@ public static class FirstPartyWidgetCatalogue
                 ["showTimestamps"] = false,
                 ["maxMessages"] = 5,
                 ["fadeAfterMs"] = 0,
+                ["flow"] = "up",
                 ["showAvatar"] = true,
                 ["showBadges"] = true,
                 ["showRoleBadge"] = false,

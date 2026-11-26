@@ -44,6 +44,7 @@ import { dashboardCatalogRoute } from '@/views/dashboard/catalog/route';
 import { dashboardChannelPointsRoute } from '@/views/dashboard/channel-points/route';
 import { dashboardChatRoute, dashboardViewerChatRoute } from '@/views/dashboard/chat/route';
 import { dashboardCommandsRoute } from '@/views/dashboard/commands/route';
+import { dashboardGamesRoute } from '@/views/dashboard/games/route';
 import { dashboardHomeRoute } from '@/views/dashboard/home/route';
 import { dashboardDiscordRoute } from '@/views/dashboard/discord/route';
 import { dashboardMusicRoute } from '@/views/dashboard/music/route';
@@ -96,6 +97,7 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardSoundsRoute,
   dashboardGiveawaysRoute,
   dashboardQuotesRoute,
+  dashboardGamesRoute,
   dashboardPipelinesRoute,
   dashboardPipelineRoute,
   dashboardScriptsRoute,

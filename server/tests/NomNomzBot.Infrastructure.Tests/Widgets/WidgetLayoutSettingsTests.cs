@@ -32,8 +32,6 @@ public sealed class WidgetLayoutSettingsTests
         ["goal_bar"] = "bottom",
         ["labels"] = "bottom-left",
         ["raffle"] = "bottom",
-        ["heist"] = "bottom",
-        ["crash"] = "bottom",
         ["event_ticker"] = "center",
         ["chat_box"] = "bottom-left",
         ["now_playing"] = "bottom-left",
@@ -65,9 +63,9 @@ public sealed class WidgetLayoutSettingsTests
         new WidgetSettingsSchemaProvider().GetByKey(key)!;
 
     [Fact]
-    public void The_21_sized_overlays_each_have_anchor_edge_offset_and_scale_with_the_place_they_sit_today()
+    public void The_19_sized_overlays_each_have_anchor_edge_offset_and_scale_with_the_place_they_sit_today()
     {
-        AnchorToday.Should().HaveCount(21);
+        AnchorToday.Should().HaveCount(19);
 
         foreach ((string key, string anchor) in AnchorToday)
         {
@@ -143,7 +141,7 @@ public sealed class WidgetLayoutSettingsTests
     }
 
     [Fact]
-    public void The_default_chat_box_is_far_smaller_than_1080_and_each_message_adds_its_own_height()
+    public void The_default_chat_box_fits_its_5_messages_under_1080_and_each_message_adds_its_own_height()
     {
         FirstPartyWidgetDefinition chat = FirstPartyWidgetCatalogue.Find("chat_box")!;
         Dictionary<string, object> defaults = new(chat.DefaultSettings);
@@ -159,11 +157,13 @@ public sealed class WidgetLayoutSettingsTests
         );
 
         defaults["maxMessages"].Should().Be(5);
-        basic.Height.Should().BeLessThan(700);
+        basic.Height.Should().BeLessThan(1080);
         basic.Should().Be(chat.ObsSetup, "the catalogue size is the size at the default settings");
+        // Rendered in every theme: a one-line message with its name row is 114 px, plus a 23 px gap. The size
+        // counts 1.5 lines of text, so a message is 154 px and 5 wrapped messages still fit.
         (sixMessages.Height - basic.Height)
             .Should()
-            .Be(111, "one message adds 111 px at font size 16");
+            .Be(154, "one message, name row included, adds 154 px at font size 16");
         bigFont.Height.Should().BeGreaterThan(basic.Height);
     }
 

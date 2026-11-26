@@ -199,6 +199,13 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
                         : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
             );
 
+        // The gallery row a widget came from: the test-event route reads its NaturalKey to pick the
+        // widget's own samples. Its two collections are value-converted in production and unread here.
+        b.Entity<WidgetGalleryItem>().HasKey(e => e.Id);
+        b.Entity<WidgetGalleryItem>()
+            .Ignore(e => e.DefaultSettings)
+            .Ignore(e => e.DefaultEventSubscriptions);
+
         // Plane-C IAM tables — scalar/enum-only, so they materialize on SQLite as-is.
         b.Entity<IamPermission>().HasKey(e => e.Id);
         b.Entity<IamRole>().HasKey(e => e.Id);
@@ -241,6 +248,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(SavingsJar),
         typeof(SavingsJarMembership),
         typeof(Widget),
+        typeof(WidgetGalleryItem),
         typeof(RenderedAlertCapture),
         typeof(IamPermission),
         typeof(IamRole),
@@ -284,7 +292,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.PickLists.Entities.PickList> PickLists => throw new NotSupportedException();
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
-    public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
+    public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();

@@ -11,7 +11,7 @@
 
 namespace NomNomzBot.Infrastructure.Games.Frames;
 
-/// <summary>One member of a heist crew or raffle entrant list.</summary>
+/// <summary>One raffle entrant.</summary>
 public sealed record GameRosterEntry
 {
     public required string Player { get; init; }

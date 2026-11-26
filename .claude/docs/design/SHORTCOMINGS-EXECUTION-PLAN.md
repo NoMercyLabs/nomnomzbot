@@ -38,6 +38,26 @@ no further setup": "that was what i was thinking about, but lets put that on the
 
 ---
 
+## OWNER REQUEST 2026-11-26 — an admin's change to a system widget wins over the shipped file
+
+Owner, verbatim: "and then there is the issue of you puttin all the system widgets as physical files in the
+source code, this means a change made my me is either impossible in the admin pannel or it gets reverted next
+update... i REALLY need you to take this more serious"
+
+Cause found 2026-11-26: `FirstPartyWidgetCatalogueSeeder` runs on every start and writes the embedded
+`Assets/{key}.vue` over the gallery row (source, name, description, defaults) and bumps `SourceRevision`. An
+admin publish (`PlatformContentService.ApplyWidgetFanOutAsync`) rebuilds the installed widgets but never writes
+the gallery row, so new installs get the repo file, and the next deploy's seeder plus
+`InstalledWidgetSourceUpgradeWorker` put the repo file back on every widget the admin changed.
+
+### S-WIDGET-ADMIN-WINS: the database copy an admin published is the source of truth
+Done when: an admin publish writes the gallery row (source, defaults, a revision bump) and marks it
+admin-owned (a schema change in BOTH migration sets); the seeder never overwrites an admin-owned row and offers a
+newly shipped file as a draft version on the admin definition instead; the upgrade worker spreads the admin
+source; a test publishes a change, runs the seeder with a different shipped file, and proves the admin source
+stays on the gallery row and on an installed widget. The bigger redesign (admin authors, consumers only
+configure) stays the co-working session under FUTURE INITIATIVE below.
+
 ## OWNER REQUEST 2026-11-10 — the default overlay widgets become one NomNomzBot look
 
 Owner, verbatim: "most of the default overlay widgets are half-assed and super ugly. they need to be humanized
@@ -1604,7 +1624,7 @@ Benchmark (rule research-is-a-benchmark): `benchmarks/drop-game.md`. Spec: `spec
 
 - **S-DROP-SEED** The server draws a 64-bit seed per drop, computes the landing from it, and sends `{seed, spawnX, landingX}`; the overlay path ends exactly at `landingX`. Done-when: unit test re-runs the generator from a persisted seed and gets the same `landingX`; a measured per-drop CPU and bytes line replaces the estimate in the spec.
 - **S-DROP-SETTINGS** One dashboard form edits `DropRules` (command word, fixed or random target, mode, timers, volumes, hide-until-drop, announce template); values validate on save and persist in the `drop_game` `GameConfig`. Done-when: E2E change the command word and `!drop` stops while the new word starts a drop.
-- **S-DROP-THEMEPACK** Theme packs: `pack.json` loader, slot rendering (background, foreground, carrier, payload, target, landed with grow-by-score, sounds) and the default `parachute` pack. Done-when: E2E renders `parachute` from its manifest with no art path in widget code.
+- **S-DROP-THEMEPACK** Theme packs: `pack.json` loader, slot rendering (background, foreground, carrier, payload, target, landed with grow-by-score, sounds) and the default `parachute` pack. Done-when: E2E renders `parachute` from its manifest with no art path in widget code, and a render sheet shows it finished in all 4 overlay themes, with no hint card and no empty board on screen (Stoney 2026-11-26: "i want a nicely made dropgame in every theme AND i want my codinggarden dropgame").
 - **S-DROP-RESPONSIVE** The overlay draws on a 1920x1080 stage and rescales live. Done-when: E2E at 1280x720 and 3840x2160 shows the same layout, and a resize mid-flight does not jump the drop.
 - **S-DROP-PACK-EAGLE** The `eagle-nest` pack (flyover eagle, meat payload, nest target) built on the pack format with no server change; swap without reload. Done-when: E2E swaps packs with a drop in flight, the flight finishes in the old pack, the next drop uses the new one. Needs art from the designer; the placeholder SVG pack ships until then.
 - **S-DROP-LUCK** Lucky Feather holder luck from channel data (`luck.holder_boost`, `luck.holder_source`, `luck.max_boost`), frame flag `boosted`, feather shown on the payload. Done-when: test over 10,000 seeded drops shows the holder lands closer by the expected factor and boost 0 equals no holder; changing the setting changes the result without a deploy.

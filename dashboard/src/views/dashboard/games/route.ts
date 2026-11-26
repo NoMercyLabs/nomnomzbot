@@ -9,15 +9,17 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Domain.Platform;
+import type { RouteRecordRaw } from 'vue-router';
 
-namespace NomNomzBot.Infrastructure.Games.Frames;
+import { loadPage } from '@/i18n';
 
-/// <summary>Crash's running multiplier: a tick (<c>progress</c>), the bust, or the cap being reached.</summary>
-public sealed record GameMultiplierFrame
-{
-    [WireLiteral("progress", "bust", "cap")]
-    public required string Kind { get; init; }
-
-    public required double Multiplier { get; init; }
-}
+export const dashboardGamesRoute = {
+  path: 'games',
+  name: 'dashboard-games',
+  meta: { action: 'games:session:read' },
+  component: () =>
+    loadPage(
+      () => import('./GamesView.vue'),
+      (locale) => import(`./i18n/${locale}.json`),
+    ),
+} as const satisfies RouteRecordRaw;

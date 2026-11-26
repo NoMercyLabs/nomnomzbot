@@ -5207,8 +5207,6 @@
     <string name="widget_drop_game_accentColor_label">Accent color</string>
     <string name="widget_raffle_hideAfterMs_label">Hide after (ms)</string>
     <string name="widget_raffle_accentColor_label">Accent color</string>
-    <string name="widget_heist_hideAfterMs_label">Hide after (ms)</string>
-    <string name="widget_heist_accentColor_label">Accent color</string>
     <string name="widget_lucky_feather_idleText_label">Text while nobody holds it</string>
     <string name="widget_lucky_feather_stolenTemplate_label">Steal banner text</string>
     <string name="widget_lucky_feather_stolenTemplate_help">Use {thief} and {victim}. Blank uses the built-in text.</string>
@@ -5253,8 +5251,6 @@
     <string name="widget_raid_recap_labels_label">Texts</string>
     <string name="widget_raid_recap_labels_help">The words on the screen, as JSON. Keys such as title, kpi.duration and block.subs.</string>
     <string name="widget_raid_recap_accentColor_label">Accent color</string>
-    <string name="widget_crash_hideAfterMs_label">Hide after (ms)</string>
-    <string name="widget_crash_accentColor_label">Accent color</string>
     <string name="widget_event_ticker_events_label">Event types</string>
     <string name="widget_event_ticker_speed_label">Scroll speed</string>
     <string name="widget_event_ticker_count_label">Items kept</string>
@@ -5269,6 +5265,10 @@
     <string name="widget_chat_box_showTimestamps_label">Show timestamps</string>
     <string name="widget_chat_box_maxMessages_label">Max messages</string>
     <string name="widget_chat_box_fadeAfterMs_label">Fade after (ms, 0 = never)</string>
+    <string name="widget_chat_box_flow_label">Message flow</string>
+    <string name="widget_chat_box_flow_option_up">Newest at the bottom</string>
+    <string name="widget_chat_box_flow_option_down">Newest on top</string>
+    <string name="widget_chat_box_flow_option_top">Start at the top, newest below</string>
     <string name="widget_chat_box_showAvatar_label">Show profile picture</string>
     <string name="widget_chat_box_showBadges_label">Show badges</string>
     <string name="widget_chat_box_showRoleBadge_label">Show role badge</string>
@@ -6440,10 +6440,6 @@
     <string name="widget_gallery_drop_game_description">The live drop-game round on a horizontal track: the target zone, every chatter’s landing marker as they type !drop, and the payout scoreboard when the round resolves.</string>
     <string name="widget_gallery_raffle_name">Raffle</string>
     <string name="widget_gallery_raffle_description">The live raffle round: the entrant roster and climbing pot as chatters type !raffle, and the winner reveal + payout board when one entrant takes the whole pot.</string>
-    <string name="widget_gallery_heist_name">Heist</string>
-    <string name="widget_gallery_heist_description">The live heist round: the crew roster and rising escape odds as chatters type !heist, and each member’s getaway outcome + payout when the job resolves.</string>
-    <string name="widget_gallery_crash_name">Crash</string>
-    <string name="widget_gallery_crash_description">The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type !crash to lock in their multiplier, and the bust/max reveal + payout board.</string>
     <string name="widget_gallery_event_ticker_name">Event Ticker</string>
     <string name="widget_gallery_event_ticker_description">A horizontal scrolling ticker of recent channel events as compact chips, newest appended and the oldest retired past a retained count, at a configurable speed.</string>
     <string name="widget_gallery_chat_box_name">Chat Box</string>

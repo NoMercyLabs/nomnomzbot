@@ -55,13 +55,14 @@ public sealed class GameService(
         ("duel", GameCategory.Minigame, null, null, null),
         // Live overlay games (live-games.md §4.1/§4.2) — seeded disabled like every game; each reads its
         // own knobs from ConfigJson with in-code defaults. drop_game: payout = multiplier × stake inside
-        // the win radius. raffle: pot-based single-winner draw (no multiplier). heist: independent escape
-        // rolls, payout = 1.8× on success. crash: dynamic rising multiplier (no fixed multiplier column).
+        // the win radius. raffle: pot-based single-winner draw (no multiplier).
         ("drop_game", GameCategory.Minigame, null, null, 2m),
         ("raffle", GameCategory.Gambling, null, null, null),
-        ("heist", GameCategory.Gambling, null, null, 1.8m),
-        ("crash", GameCategory.Gambling, null, null, null),
     ];
+
+    // Heist and Crash were removed on 2026-11-26; a channel seeded before then still holds their config rows,
+    // which are never listed again.
+    private static readonly string[] RemovedGames = ["heist", "crash"];
 
     // Safe baseline (limits-safety-baseline-then-tier): a GAMBLING game always has at least this per-user
     // cooldown, even if configured to 0 — otherwise a chat command that debits/credits the wallet is a
@@ -85,7 +86,11 @@ public sealed class GameService(
     )
     {
         List<GameConfig> rows = await db
-            .GameConfigs.Where(g => g.BroadcasterId == broadcasterId && g.DeletedAt == null)
+            .GameConfigs.Where(g =>
+                g.BroadcasterId == broadcasterId
+                && g.DeletedAt == null
+                && !RemovedGames.Contains(g.GameType)
+            )
             .OrderBy(g => g.GameType)
             .ToListAsync(ct);
 

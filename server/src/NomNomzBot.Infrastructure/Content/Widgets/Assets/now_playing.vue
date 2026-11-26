@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0  (c) NoMercy Labs -->
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
@@ -38,6 +38,20 @@ const durationMs = ref<number>(0)
 const progressMs = ref<number>(0)
 const titleEl = ref<HTMLElement | null>(null)
 const marqueeEl = ref<HTMLElement | null>(null)
+
+// The cover is a square as tall as the text block, so its gap to the box edge is the same on top, bottom and left.
+// CSS stretches its height; a stretched height cannot set the width, so the observer copies it over. The copy
+// waits a frame: a resize inside the observer callback is a "ResizeObserver loop" error in the page.
+const artSize = ref<number>(0)
+const artObserver: ResizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
+  const size: number = entries[0]?.borderBoxSize[0]?.blockSize ?? 0
+  requestAnimationFrame(() => { artSize.value = size })
+})
+
+function trackArt(el: Element | ComponentPublicInstance | null): void {
+  artObserver.disconnect()
+  if (el instanceof HTMLElement) artObserver.observe(el)
+}
 
 // Heart-pulse: fires once per like/unlike (track_saved_changed), independent of the standing
 // now_playing snapshot — a transient animation, not a persisted "is this liked" badge.
@@ -180,6 +194,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopTicking()
+  artObserver.disconnect()
   if (previewTimer) window.clearTimeout(previewTimer)
   if (heartPulseTimeout) window.clearTimeout(heartPulseTimeout)
   if (typeof NomNomz === 'undefined') return
@@ -194,19 +209,32 @@ onUnmounted(() => {
   <Transition name="nnz">
     <div v-if="isPlaying && track" class="nnz-widget nnz-placed nnz-nowplaying" :class="'layout-' + cfg.layout" :data-anchor="cfg.anchor">
       <div class="box" :class="cfg.layout === 'card' ? 'nnz-card' : 'nnz-pill'">
-        <img v-if="cfg.showArt && artUrl" class="nnz-avatar art" :src="artUrl" alt="" @error="artUrl = ''">
+        <!-- The cover frame keeps its size with or without a picture: a missing or broken cover shows the note in it. -->
+        <span v-if="cfg.showArt" :ref="trackArt" class="nnz-avatar art" :style="{ width: artSize + 'px' }">
+          <img v-if="artUrl" class="art-img" :src="artUrl" alt="" @error="artUrl = ''">
+          <span v-else class="note nnz-accent-text">&#9835;</span>
+        </span>
         <span v-else class="note nnz-accent-text">&#9835;</span>
+        <!-- The sizer holds the height of every row, so the box never changes size between songs; the shown rows
+             spread evenly over that height, so a song with no requester leaves no hole. -->
         <div class="meta">
+          <div class="sizer" aria-hidden="true">
+            <div class="track">&nbsp;</div>
+            <div class="nnz-sub artist">&nbsp;</div>
+            <div class="nnz-sub requester">&nbsp;</div>
+            <div v-if="cfg.showProgressBar" class="nnz-track bar"></div>
+          </div>
+          <div class="content">
           <div ref="titleEl" class="track">
             <span ref="marqueeEl" class="track-text">{{ track }}</span>
           </div>
           <div class="nnz-sub artist">{{ artist || ' ' }}</div>
-          <!-- The row keeps its place without a requester, so the card never changes height between songs. -->
-          <div class="nnz-sub requester" :style="requestedBy ? undefined : { visibility: 'hidden' }">
+          <div v-if="requestedBy" class="nnz-sub requester">
             requested by
             <span class="requester-name" :style="requestedByColor ? { color: requestedByColor } : undefined">{{ requestedBy || ' ' }}</span>
           </div>
           <div v-if="cfg.showProgressBar" class="nnz-track bar"><div class="nnz-fill" :style="{ width: progressPct + '%' }"></div></div>
+          </div>
         </div>
       </div>
       <span
@@ -220,37 +248,75 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* The box spans the browser source from edge to edge, whatever the title length; the anchor sets top or bottom. */
+/* The box keeps one width whatever the title length, so it never jumps between songs; the anchor puts it in its corner. */
 .nnz-placed.nnz-nowplaying {
-  left: var(--nnz-edge);
-  right: var(--nnz-edge);
-  --nnz-tx: 0;
+  /* The zoomed box inside carries the shadow, so its reach is zoomed too. */
+  --nnz-inset: calc(var(--nnz-edge) + var(--nnz-shadow-reach) * var(--nnz-z));
+  width: min(calc(100% - 2 * var(--nnz-inset)), 616px);
 }
 .box {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--nnz-gap);
   width: calc(100% / var(--nnz-z)); /* the box is zoomed by --nnz-z, so its share is divided back */
   box-sizing: border-box;
 }
 .meta {
   flex: 1;
+  align-self: center;
 }
 .note {
   flex: none;
+  align-self: center;
   font-size: 20px;
 }
-/* The cover is the biggest thing in the box; its corner and border come from the theme's .nnz-avatar. */
+/* The cover stretches to the text block's height; size containment keeps the picture's own size out of that height.
+   The left padding matches the top and bottom padding, and the corner sits concentric inside the box's. */
+.art {
+  align-self: stretch;
+  height: auto;
+  contain: size;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.art .note {
+  font-size: 28px;
+}
+.layout-pill .box {
+  padding-left: 10px;
+}
 .layout-pill .art {
-  width: 52px;
-  height: 52px;
+  border-radius: max(4px, calc(var(--nnz-radius-pill) - 10px));
+}
+.layout-card .box {
+  padding-left: 12px;
 }
 .layout-card .art {
-  width: 80px;
-  height: 80px;
+  border-radius: max(4px, calc(var(--nnz-radius) - 12px));
 }
 .meta {
   min-width: 0;
+  display: grid;
+}
+.sizer,
+.content {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.sizer {
+  visibility: hidden;
+}
+.content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
 }
 .track {
   font-size: 16px;

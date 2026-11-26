@@ -64,7 +64,7 @@ public sealed class OverlayHubJoinSeedTests
     public async Task Join_returns_an_empty_seed_when_no_provider_matches_the_widgets_natural_key()
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
-        Guid widgetId = AddWidget(db, "heist");
+        Guid widgetId = AddWidget(db, "raffle");
         await db.SaveChangesAsync();
         FakeProvider goalBar = new(
             "goal_bar",

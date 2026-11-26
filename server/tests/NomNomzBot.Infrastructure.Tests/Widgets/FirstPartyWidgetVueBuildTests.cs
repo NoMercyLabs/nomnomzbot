@@ -51,8 +51,6 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
     [InlineData("labels")]
     [InlineData("drop_game")]
     [InlineData("raffle")]
-    [InlineData("heist")]
-    [InlineData("crash")]
     [InlineData("recent_followers")]
     [InlineData("sub_train")]
     [InlineData("socials")]

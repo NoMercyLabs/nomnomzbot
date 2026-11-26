@@ -24,12 +24,12 @@ namespace NomNomzBot.Infrastructure.Content.Widgets;
 public static class FirstPartyWidgetObsSizing
 {
     /// <summary>
-    /// Pixels one chat message adds to the chat box at the 1.45 zoom of the theme. A message is a line with 8 px
-    /// padding above and below, a 4 px border on each side (the sticker look), and text at 1.5 times the font
-    /// size; messages wrap, so the text is counted as 1.5 lines on average. Plus the 16 px gap to the next one.
-    /// At the default font size of 16: (1.5 lines x 1.5 x 16 + 16 + 8 + 16) x 1.45 = 110 px.
+    /// Pixels one chat message adds to the chat box at the 1.45 zoom of the theme. A message is a 30 px name row
+    /// and the text, with 8 px padding above and below, a 4 px border on each side (the sticker look), and text at
+    /// 1.5 times the font size; messages wrap, so the text is counted as 1.5 lines on average. Plus the 16 px gap
+    /// to the next one. At the default font size of 16: (1.5 lines x 1.5 x 16 + 30 + 16 + 8 + 16) x 1.45 = 154 px.
     /// </summary>
-    private const double ChatLineChrome = 16 + 8 + 16;
+    private const double ChatLineChrome = 30 + 16 + 8 + 16;
     private const double ChatAverageLines = 1.5;
     private const double ChatLineHeight = 1.5;
     private const double ThemeZoom = 1.45;

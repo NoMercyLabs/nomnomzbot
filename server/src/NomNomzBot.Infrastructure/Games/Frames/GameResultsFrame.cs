@@ -14,8 +14,8 @@ using NomNomzBot.Domain.Platform;
 namespace NomNomzBot.Infrastructure.Games.Frames;
 
 /// <summary>
-/// The round resolved. Each game adds its own summary next to <c>results</c>: crash where it crashed, drop the
-/// target and radius, heist the odds and crew size, raffle the pot and the winner.
+/// The round resolved. Each game adds its own summary next to <c>results</c>: drop the target and radius,
+/// raffle the pot and the winner.
 /// </summary>
 public sealed record GameResultsFrame
 {
@@ -24,17 +24,9 @@ public sealed record GameResultsFrame
 
     public required IReadOnlyList<GameResultRow> Results { get; init; }
 
-    public double? CrashedAt { get; init; }
-
-    public bool? Capped { get; init; }
-
     public double? Target { get; init; }
 
     public double? Radius { get; init; }
-
-    public double? SuccessChance { get; init; }
-
-    public int? CrewSize { get; init; }
 
     public long? Pot { get; init; }
 

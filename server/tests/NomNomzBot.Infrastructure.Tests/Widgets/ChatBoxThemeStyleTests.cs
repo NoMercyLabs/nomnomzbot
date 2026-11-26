@@ -12,6 +12,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using FluentAssertions;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Infrastructure.Content.Widgets;
 
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
@@ -103,5 +104,34 @@ public sealed class ChatBoxThemeStyleTests
         Asset.Should().Contain(".link-card:link,\n.link-card:visited,");
         Asset.Should().Contain(".link,\n.link:link,\n.link:visited,");
         Rule(".link-card").Should().Contain("text-decoration: none");
+    }
+
+    [Fact]
+    public void The_flow_setting_stacks_messages_up_down_or_from_the_top()
+    {
+        WidgetSettingsField flow = new WidgetSettingsSchemaProvider()
+            .GetByKey("chat_box")!
+            .Fields.Single(f => f.Key == "flow");
+        flow.Type.Should().Be("select");
+        flow.Options!.Select(o => o.Value).Should().Equal("up", "down", "top");
+        flow.Default.Should().Be("up");
+        FirstPartyWidgetCatalogue
+            .All.Single(w => w.Key == "chat_box")
+            .DefaultSettings["flow"]
+            .Should()
+            .Be("up");
+
+        Asset.Should().Contain(":data-flow=\"cfg.flow\"");
+        Asset.Should().Contain("s.flow === 'down'");
+        Rule(".nnz-chatbox[data-flow='down']").Should().Contain("flex-direction: column-reverse");
+        Rule(".nnz-chatbox[data-flow='top']::after").Should().Contain("flex: 1 0 0");
+    }
+
+    [Fact]
+    public void A_list_on_the_right_lines_up_its_names_and_text_on_the_right()
+    {
+        Rule(".nnz-chatbox[data-anchor$='right'] .line").Should().Contain("text-align: right");
+        Rule(".nnz-chatbox[data-anchor$='right'] .head").Should().Contain("margin-left: auto");
+        Rule(".nnz-chatbox[data-anchor='bottom'] .line").Should().Contain("text-align: center");
     }
 }

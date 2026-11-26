@@ -14,7 +14,7 @@ namespace NomNomzBot.Application.Commands.Builtin.Personality;
 public static partial class BuiltinResponseSlots
 {
     /// <summary>
-    /// The bot's own announcements of a live round (drop game, heist, crash, raffle). No command owns this
+    /// The bot's own announcements of a live round (drop game, raffle). No command owns this
     /// group: the game engine speaks it at round open, settle and cancel.
     /// </summary>
     public static class LiveGame

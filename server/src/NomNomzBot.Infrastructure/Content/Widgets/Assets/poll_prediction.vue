@@ -230,7 +230,7 @@ onUnmounted(() => {
 }
 .choice.won .label,
 .choice.won .value {
-  color: var(--nnz-accent);
+  color: var(--nnz-accent-text);
   font-weight: 800;
 }
 .row {

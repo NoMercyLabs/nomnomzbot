@@ -567,44 +567,21 @@ interface NnzVoiceTriggerWidgetEventPayload {
   stickerImageUrl?: string | null;
 }
 
-/** The lobby opened. Each game adds the setting its widget draws: crash the cap, drop the target, heist the odds. */
+/** The lobby opened. The drop game adds the target its widget draws. */
 interface NnzGameRoundOpenFrame {
   kind: 'round_open';
   lobbySeconds: number;
-  maxMultiplier?: number | null;
   target?: number | null;
   radius?: number | null;
-  successChance?: number | null;
 }
 
-/** A player bought in. Crash adds the multiplier they ride from; heist the crew so far and its odds; raffle the pot and the entrants so far. */
+/** A player bought in. The raffle adds the pot and the entrants so far. */
 interface NnzGameJoinFrame {
   kind: 'join';
   player: string;
   stake: number;
-  entry?: number | null;
-  /** Crash only: lobby or running, the phase the player joined in. */
-  phase?: string | null;
-  crewSize?: number | null;
-  successChance?: number | null;
-  crew?: NnzGameRosterEntry[] | null;
   pot?: number | null;
   entrants?: NnzGameRosterEntry[] | null;
-}
-
-/** Crash's running multiplier: a tick (progress), the bust, or the cap being reached. */
-interface NnzGameMultiplierFrame {
-  kind: 'progress' | 'bust' | 'cap';
-  multiplier: number;
-}
-
-/** A crash player cashed out at the current multiplier. */
-interface NnzGameCashoutFrame {
-  kind: 'cashout';
-  player: string;
-  multiplier: number;
-  payout: number;
-  crewSize: number;
 }
 
 /** A drop-game player landed their marker. */
@@ -626,16 +603,12 @@ interface NnzGameDropFrame {
   spawnX: number;
 }
 
-/** The round resolved. Each game adds its own summary next to results: crash where it crashed, drop the target and radius, heist the odds and crew size, raffle the pot and the winner. */
+/** The round resolved. Each game adds its own summary next to results: drop the target and radius, raffle the pot and the winner. */
 interface NnzGameResultsFrame {
   kind: 'results';
   results: NnzGameResultRow[];
-  crashedAt?: number | null;
-  capped?: boolean | null;
   target?: number | null;
   radius?: number | null;
-  successChance?: number | null;
-  crewSize?: number | null;
   pot?: number | null;
   winner?: string | null;
   payout?: number | null;
@@ -882,23 +855,21 @@ interface NnzSongRequestQueueSnapshotItem {
   code: string;
 }
 
-/** One member of a heist crew or raffle entrant list. */
+/** One raffle entrant. */
 interface NnzGameRosterEntry {
   player: string;
   stake: number;
 }
 
-/** One player's outcome in a GameResultsFrame. Each game fills the fields it has: crash sends cashedAt (null when the player busted); drop sends landed, distance (both null when the player never dropped) and won, with no stake; heist sends escaped; raffle sends won. */
+/** One player's outcome in a GameResultsFrame. Each game fills the fields it has: drop sends landed, distance (both null when the player never dropped) and won, with no stake; raffle sends won. */
 interface NnzGameResultRow {
   player: string;
   stake?: number | null;
-  cashedAt?: number | null;
   landed?: number | null;
   distance?: number | null;
   /** The drop game's 0 to 100 score; null when the player never dropped. */
   score?: number | null;
   won?: boolean | null;
-  escaped?: boolean | null;
   payout: number;
 }
 
@@ -2077,8 +2048,8 @@ interface NnzWidgetEventMap {
   'supporter.merch': NnzSupporterAlertPayload;
   'supporter.charity': NnzSupporterAlertPayload;
   'voice_trigger': NnzVoiceTriggerWidgetEventPayload;
-  'game.lobby': NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameMultiplierFrame | NnzGameCashoutFrame | NnzGameDropFrame;
-  'game.running': NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameMultiplierFrame | NnzGameCashoutFrame | NnzGameDropFrame;
+  'game.lobby': NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameDropFrame;
+  'game.running': NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameDropFrame;
   'game.resolved': NnzGameResultsFrame | NnzGameCancelledFrame;
   'play_sound': NnzPlaySoundPayload;
   'stop_sound': NnzStopSoundPayload;
@@ -2141,8 +2112,8 @@ type NnzWidgetAnyEvent =
   | [eventType: 'supporter.merch', data: NnzSupporterAlertPayload]
   | [eventType: 'supporter.charity', data: NnzSupporterAlertPayload]
   | [eventType: 'voice_trigger', data: NnzVoiceTriggerWidgetEventPayload]
-  | [eventType: 'game.lobby', data: NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameMultiplierFrame | NnzGameCashoutFrame | NnzGameDropFrame]
-  | [eventType: 'game.running', data: NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameMultiplierFrame | NnzGameCashoutFrame | NnzGameDropFrame]
+  | [eventType: 'game.lobby', data: NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameDropFrame]
+  | [eventType: 'game.running', data: NnzGameRoundOpenFrame | NnzGameJoinFrame | NnzGameDropFrame]
   | [eventType: 'game.resolved', data: NnzGameResultsFrame | NnzGameCancelledFrame]
   | [eventType: 'play_sound', data: NnzPlaySoundPayload]
   | [eventType: 'stop_sound', data: NnzStopSoundPayload]

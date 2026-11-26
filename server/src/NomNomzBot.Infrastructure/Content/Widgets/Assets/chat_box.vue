@@ -18,6 +18,7 @@ interface ChatBoxConfig {
   theme: string          // 'dark' | 'light' | 'transparent'
   maxMessages: number
   fadeAfterMs: number    // 0 = never fade
+  flow: string           // 'up' = newest at the bottom | 'down' = newest on top | 'top' = start at the top, newest below
   showAvatar: boolean
   showBadges: boolean
   showRoleBadge: boolean // a small uppercase role label before the name; off by default
@@ -38,6 +39,7 @@ const cfg = reactive<ChatBoxConfig>({
   theme: 'dark',
   maxMessages: 5,
   fadeAfterMs: 0,
+  flow: 'up',
   showAvatar: true,
   showBadges: true,
   showRoleBadge: false,
@@ -509,6 +511,7 @@ onMounted(() => {
     if (typeof s.theme === 'string' && s.theme) cfg.theme = s.theme
     if (isFinite(Number(s.maxMessages)) && Number(s.maxMessages) > 0) cfg.maxMessages = Number(s.maxMessages)
     if (isFinite(Number(s.fadeAfterMs)) && Number(s.fadeAfterMs) >= 0) cfg.fadeAfterMs = Number(s.fadeAfterMs)
+    if (s.flow === 'up' || s.flow === 'down' || s.flow === 'top') cfg.flow = s.flow
     if (typeof s.showAvatar === 'boolean') cfg.showAvatar = s.showAvatar
     if (typeof s.showBadges === 'boolean') cfg.showBadges = s.showBadges
     if (typeof s.showRoleBadge === 'boolean') cfg.showRoleBadge = s.showRoleBadge
@@ -545,7 +548,7 @@ onUnmounted(() => {
 
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the lines. -->
-  <TransitionGroup tag="div" name="nnz" class="nnz-widget nnz-placed nnz-zoomed nnz-chatbox" :class="'theme-' + cfg.theme" :data-anchor="cfg.anchor" :style="rootStyle">
+  <TransitionGroup tag="div" name="nnz" class="nnz-widget nnz-placed nnz-zoomed nnz-chatbox" :class="'theme-' + cfg.theme" :data-anchor="cfg.anchor" :data-flow="cfg.flow" :style="rootStyle">
     <div
       v-for="l in lines"
       :key="l.id"
@@ -644,6 +647,18 @@ onUnmounted(() => {
   font-size: 16px;
   line-height: 1.5;
 }
+/* Newest on top: the list runs from the top down and the oldest lines leave at the bottom. */
+.nnz-chatbox[data-flow='down'] {
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+}
+/* Start at the top: a spacer takes the free space below the lines, so they sit at the top until the
+   list is full. The list keeps its bottom alignment, so a full list still drops the oldest line off the top. */
+.nnz-chatbox[data-flow='top']::after {
+  content: '';
+  flex: 1 0 0;
+  margin-top: -16px;
+}
 .nnz-chatbox[data-anchor$='left'] {
   align-items: flex-start;
 }
@@ -654,6 +669,25 @@ onUnmounted(() => {
 .nnz-chatbox[data-anchor='center'],
 .nnz-chatbox[data-anchor='bottom'] {
   align-items: center;
+}
+/* A list on the right reads from the right: the name row and the text line up on the right edge too. */
+.nnz-chatbox[data-anchor$='right'] .line {
+  text-align: right;
+}
+.nnz-chatbox[data-anchor$='right'] .head {
+  margin-left: auto;
+}
+/* A list in the middle centres its name rows and its text. */
+.nnz-chatbox[data-anchor='top'] .line,
+.nnz-chatbox[data-anchor='center'] .line,
+.nnz-chatbox[data-anchor='bottom'] .line {
+  text-align: center;
+}
+.nnz-chatbox[data-anchor='top'] .head,
+.nnz-chatbox[data-anchor='center'] .head,
+.nnz-chatbox[data-anchor='bottom'] .head {
+  margin-left: auto;
+  margin-right: auto;
 }
 .line {
   box-sizing: border-box;
@@ -974,10 +1008,10 @@ onUnmounted(() => {
   font-weight: 700;
 }
 .chat-gif {
-  /* Content, not a glyph — big enough to actually read, capped so one GIF can't blow out the chat column. */
+  /* Content, not a glyph — big enough to actually read, capped so a few GIF messages still fit the column. */
   display: block;
   max-width: 100%;
-  max-height: 8em;
+  max-height: 5em;
   width: auto;
   border-radius: 6px;
   margin: 4px 0 0;
@@ -1013,7 +1047,7 @@ onUnmounted(() => {
    server); these caps only keep it inside the chat column. !important because inline css would win otherwise. */
 .frag-html :deep(img),
 .frag-html :deep(video) {
-  max-height: 300px !important;
+  max-height: 5em !important;
   object-fit: contain;
   vertical-align: middle;
 }

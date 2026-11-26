@@ -13,7 +13,7 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Games.Frames;
 
-/// <summary>The lobby opened. Each game adds the setting its widget draws: crash the cap, drop the target, heist the odds.</summary>
+/// <summary>The lobby opened. The drop game adds the target its widget draws.</summary>
 public sealed record GameRoundOpenFrame
 {
     [WireLiteral("round_open")]
@@ -21,11 +21,7 @@ public sealed record GameRoundOpenFrame
 
     public required int LobbySeconds { get; init; }
 
-    public double? MaxMultiplier { get; init; }
-
     public double? Target { get; init; }
 
     public double? Radius { get; init; }
-
-    public double? SuccessChance { get; init; }
 }

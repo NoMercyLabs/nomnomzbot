@@ -23,7 +23,7 @@ namespace NomNomzBot.Infrastructure.Tests.Games;
 public sealed class LiveGameSeedRegistrationTests
 {
     [Fact]
-    public void The_crash_overlay_has_a_live_game_seed_provider_registered_under_its_key()
+    public void The_raffle_and_drop_overlays_have_a_live_game_seed_provider_registered_under_their_keys()
     {
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
@@ -60,6 +60,6 @@ public sealed class LiveGameSeedRegistrationTests
                 .Select(p => p.NaturalKey),
         ];
 
-        gameSeedKeys.Should().Contain("crash");
+        gameSeedKeys.Should().BeEquivalentTo(["raffle", "drop_game"]);
     }
 }

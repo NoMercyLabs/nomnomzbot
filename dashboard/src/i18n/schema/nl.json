@@ -2934,6 +2934,14 @@
       "fadeAfterMs": {
         "label": "Vervagen na (ms, 0 = nooit)"
       },
+      "flow": {
+        "label": "Berichtrichting",
+        "option": {
+          "down": "Nieuwste bovenaan",
+          "top": "Begin bovenaan, nieuwste eronder",
+          "up": "Nieuwste onderaan"
+        }
+      },
       "fontFamily": {
         "help": "Leeg gebruikt de standaard van de overlay.",
         "label": "Lettertype"
@@ -2992,14 +3000,6 @@
       "target": {
         "help": "ISO-datumtijd om naartoe af te tellen; leeg gebruikt de duur.",
         "label": "Doeltijd"
-      }
-    },
-    "crash": {
-      "accentColor": {
-        "label": "Accentkleur"
-      },
-      "hideAfterMs": {
-        "label": "Verbergen na (ms)"
       }
     },
     "custom_data": {
@@ -3093,10 +3093,6 @@
         "description": "Een aftelling naar een tijdstip op de klok of voor een vaste duur (zo terug / stream begint zo) met een label en eindtekst. Live te bedienen via de widgetinstellingen in het dashboard.",
         "name": "Aftelling / Timer"
       },
-      "crash": {
-        "description": "De lopende crashronde: een grote stijgende multiplier, de uitbetalingsticker zodra chatters !crash typen om hun multiplier vast te zetten, en de onthulling van de crash of het maximum met uitbetalingsbord.",
-        "name": "Crash"
-      },
       "custom_data": {
         "description": "De live waarde van een eigen databron als getal, meter of tekst. Een hartslagmeter is deze widget gekoppeld aan heartrate.bpm. Hij koppelt live opnieuw koppelt als de bron wijzigt.",
         "name": "Eigen data"
@@ -3116,10 +3112,6 @@
       "goal_bar": {
         "description": "Een geanimeerde voortgangsbalk richting een doel voor volgers, subs of bits. Leest het officiële totaal uit doel-events en telt live mee bij passende volgers, subs, gifts en cheers.",
         "name": "Doelbalk"
-      },
-      "heist": {
-        "description": "De lopende overvalronde: de bemanningslijst en de stijgende kans op ontsnappen zodra chatters !heist typen, en de uitkomst en uitbetaling per bemanningslid wanneer de klus is afgelopen.",
-        "name": "Overval"
       },
       "labels": {
         "description": "Eén live statistiek als opgemaakte tekst (laatste volger, laatste sub, topcheerer, aantal volgers of aantal subs) met een optioneel opmaakformaat.",
@@ -3224,14 +3216,6 @@
       "content": "Inhoud",
       "data": "Gegevens",
       "layout": "Indeling"
-    },
-    "heist": {
-      "accentColor": {
-        "label": "Accentkleur"
-      },
-      "hideAfterMs": {
-        "label": "Verbergen na (ms)"
-      }
     },
     "labels": {
       "accentColor": {
