@@ -124,7 +124,9 @@ function fitCard(): void {
   cardWidth.value = `${Math.floor((videoWidth + chromeX) / screenScale(el))}px`
 }
 // The fit waits a frame: a resize inside the observer callback is a "ResizeObserver loop" error in the page.
-const fitObserver: ResizeObserver = new ResizeObserver(() => requestAnimationFrame(fitCard))
+// A page without ResizeObserver (a test DOM) keeps the first fit only.
+const fitObserver: ResizeObserver | null =
+  typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => requestAnimationFrame(fitCard))
 
 let requestId: string | null = null
 let durationSeconds: number = 0
@@ -388,8 +390,8 @@ function onCommand(d: MediaShareCommand | null | undefined): void {
 }
 
 onMounted(() => {
-  if (card.value?.parentElement) fitObserver.observe(card.value.parentElement)
-  if (card.value) fitObserver.observe(card.value)
+  if (card.value?.parentElement) fitObserver?.observe(card.value.parentElement)
+  if (card.value) fitObserver?.observe(card.value)
   if (typeof NomNomz === 'undefined') return
   NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
@@ -405,7 +407,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.clearInterval(reportTimer)
-  fitObserver.disconnect()
+  fitObserver?.disconnect()
   if (typeof NomNomz === 'undefined') return
   NomNomz.off('media_share_command', onCommand)
 })

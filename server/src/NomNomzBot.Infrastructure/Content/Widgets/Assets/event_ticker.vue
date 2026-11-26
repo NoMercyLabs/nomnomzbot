@@ -145,8 +145,10 @@ onMounted(() => {
   if (bandEl.value) {
     bandWidth.value = bandEl.value.clientWidth
     offset = bandWidth.value
-    resize = new ResizeObserver(() => { if (bandEl.value) bandWidth.value = bandEl.value.clientWidth })
-    resize.observe(bandEl.value)
+    if (typeof ResizeObserver !== 'undefined') {
+      resize = new ResizeObserver(() => { if (bandEl.value) bandWidth.value = bandEl.value.clientWidth })
+      resize.observe(bandEl.value)
+    }
   }
   raf = requestAnimationFrame(frame)
   if (typeof NomNomz === 'undefined') return

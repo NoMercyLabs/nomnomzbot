@@ -89,7 +89,7 @@ public sealed class LiveGameAnnouncer(
             reason == MinPlayersUnmet
                 ? BuiltinResponseSlots.LiveGame.CancelledFewPlayers
                 : BuiltinResponseSlots.LiveGame.Cancelled,
-            $"{manifest.DisplayName} was cancelled. Any bets are refunded.",
+            $"{manifest.DisplayName} was canceled. Any bets are refunded.",
             new() { ["game.name"] = manifest.DisplayName },
             ct
         );

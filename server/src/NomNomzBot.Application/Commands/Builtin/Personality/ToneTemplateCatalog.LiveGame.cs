@@ -119,11 +119,11 @@ public static partial class ToneTemplateCatalog
             key,
             BuiltinResponseSlots.LiveGame.Cancelled,
             variables: ["game.name"],
-            informative: ["{game.name} was cancelled. Any bets are refunded."],
-            friendly: ["{game.name} was cancelled, sorry! Any bets are back with you."],
-            sassy: ["{game.name} was cancelled. Any bets are refunded. Nobody wins today."],
-            hype: ["{game.name} WAS CANCELLED! ANY BETS ARE REFUNDED. WE'LL BE BACK!"],
-            chill: ["{game.name} was cancelled. any bets are refunded."]
+            informative: ["{game.name} was canceled. Any bets are refunded."],
+            friendly: ["{game.name} was canceled, sorry! Any bets are back with you."],
+            sassy: ["{game.name} was canceled. Any bets are refunded. Nobody wins today."],
+            hype: ["{game.name} WAS CANCELED! ANY BETS ARE REFUNDED. WE'LL BE BACK!"],
+            chill: ["{game.name} was canceled. any bets are refunded."]
         );
     }
 
