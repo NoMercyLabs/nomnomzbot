@@ -67,7 +67,11 @@ server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db-wal
 # dashboard (Vue)
 dashboard/node_modules
 dashboard/dist
+# A crashed Node process (vue-tsc out of memory) dumps core.<pid> into the working directory.
+dashboard/core.*
 
+# Python bytecode from the scripts/ helpers.
+__pycache__/
 
 # doc (documentation files)
 docs/community-safety-feedback.md
