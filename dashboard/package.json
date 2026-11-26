@@ -11,7 +11,7 @@
     "test:e2e": "playwright test",
     "build-only": "vite build && vite build --config vite.overlay-player.config.ts",
     "build-site": "vite build --config vite.site.config.ts --mode site",
-    "type-check": "vue-tsc --build",
+    "type-check": "node --max-old-space-size=6144 node_modules/vue-tsc/bin/vue-tsc.js --build",
     "gen:schema-words": "node scripts/gen-schema-words.mjs",
     "gen:pwa-icons": "pwa-assets-generator",
     "gen:api": "openapi-typescript ../server/openapi/v1.json -o src/api/schema.d.ts && node scripts/stamp-schema.mjs",
