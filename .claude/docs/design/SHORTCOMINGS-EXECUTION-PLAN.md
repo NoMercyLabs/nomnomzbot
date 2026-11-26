@@ -38,6 +38,20 @@ no further setup": "that was what i was thinking about, but lets put that on the
 
 ---
 
+## INCIDENT 2026-11-26 — the box disk filled to 91%; EventJournals is 24 GB
+
+Arc cleaned the box disk from 91% to 59% on 2026-11-26. The direct cause was 510 Postgres core dumps (core
+dumps are now off). The lasting cause is `EventJournals`: 24 GB for 226,779 rows, about 100 KB per row.
+
+### S-JOURNAL-SIZE: an event journal row stays small, and the table has a retention rule
+Done when: the rows that make a row about 100 KB are named from the live table (event type, column, payload
+part); the payload stores what replay needs and no copies of large blobs (audio, images, raw API pages); old
+rows are trimmed or compacted by a retention rule that replay and the import read models still survive (a
+test replays a channel after the trim and gets the same read models); the live table size is measured
+before and after; a health check warns before the disk passes 80%.
+
+---
+
 ## OWNER REQUEST 2026-11-26 — an admin's change to a system widget wins over the shipped file
 
 Owner, verbatim: "and then there is the issue of you puttin all the system widgets as physical files in the
