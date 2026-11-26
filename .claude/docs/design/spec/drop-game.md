@@ -30,7 +30,9 @@ The client builds its path from `seed` (cosmetic sway and wind only) and is forc
 
 Replay: the persisted row holds `seed`, config snapshot id and `landingX`. A test re-runs the generator from the seed and must get the same `landingX` (this is the audit and bug-report tool).
 
-Cost per drop (design estimate, not measured; S-DROP-SEED adds a benchmark test that measures it):
+Measured per drop (2026-11-26, `DropCostTests`, 100,000 drops, release-agnostic debug test run): seeded flight 0.21 us CPU, frame JSON write 10.0 us CPU, wire frame 157 bytes. The table below is the older design estimate; the CPU and bytes rows are replaced by this line (both come in under the estimate).
+
+Cost per drop (design estimate):
 
 | Item | Value | How derived |
 | --- | --- | --- |

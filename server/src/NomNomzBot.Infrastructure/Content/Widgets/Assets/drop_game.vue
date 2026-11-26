@@ -182,7 +182,7 @@ onUnmounted(() => {
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file draws the stage. -->
   <Transition name="nnz">
   <div v-if="visible" class="nnz-widget nnz-drop">
-    <div class="nnz-card board">
+    <div v-if="phase !== 'lobby' || best.length" class="nnz-card board">
       <div class="nnz-chip">Drop Game</div>
       <template v-if="phase === 'cancelled'">
         <div class="nnz-title title">Called off. Next time.</div>
@@ -195,7 +195,6 @@ onUnmounted(() => {
         </div>
       </template>
       <template v-else>
-        <div class="nnz-title title">Type !drop to play</div>
         <div v-for="(f, i) in best" :key="f.id" class="nnz-row" :class="{ 'is-first': i === 0 }">
           <span class="nnz-num">{{ i + 1 }}</span>
           <span class="nnz-grow">{{ f.player }}</span>
