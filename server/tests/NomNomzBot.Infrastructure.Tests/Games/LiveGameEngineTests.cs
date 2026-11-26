@@ -33,6 +33,7 @@ using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Games.Catalog;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -301,6 +302,12 @@ public sealed class LiveGameEngineTests
         LiveGameFrameStore Frames
     );
 
+    /// <summary>The real announcer over the real composer and template engine — the line asserted is the line chat reads.</summary>
+    private static LiveGameAnnouncer NewAnnouncer(
+        EventStoreTestDbContext db,
+        RecordingChatProvider chat
+    ) => new(TestBuiltinComposer.Create(), db, chat, NullLogger<LiveGameAnnouncer>.Instance);
+
     private static Harness New(SqliteTestDatabase database, params ILiveGame[] games)
     {
         FakeTimeProvider clock = new(new(2026, 7, 17, 14, 0, 0, TimeSpan.Zero));
@@ -346,6 +353,7 @@ public sealed class LiveGameEngineTests
             frames,
             new FixedRandomizer(),
             bus,
+            NewAnnouncer(db, chat),
             clock,
             NullLogger<LiveGameEngine>.Instance
         );
@@ -598,6 +606,8 @@ public sealed class LiveGameEngineTests
         h.Bus.Published.OfType<LiveGameCancelledEvent>()
             .Should()
             .ContainSingle(e => e.Reason == "startup_sweep");
+        h.Chat.SentMessages.Should()
+            .BeEmpty("a restart sweep clears leftovers without a chat line");
     }
 
     [Fact]
@@ -620,6 +630,7 @@ public sealed class LiveGameEngineTests
             h.Frames,
             new FixedRandomizer(),
             h.Bus,
+            NewAnnouncer(h.Db, h.Chat),
             h.Clock,
             NullLogger<LiveGameEngine>.Instance
         );
@@ -664,6 +675,124 @@ public sealed class LiveGameEngineTests
         )
             .Should()
             .Be(2, "one refund per stake — the retry reversed nothing more");
+    }
+
+    private static ILiveGame RealGame(string key) =>
+        key switch
+        {
+            "drop_game" => new DropGame(),
+            "raffle" => new RaffleGame(),
+            _ => throw new ArgumentOutOfRangeException(nameof(key), key, "not a live game"),
+        };
+
+    [Theory]
+    [InlineData("drop_game", "Drop Game", "!drop", 60)]
+    [InlineData("raffle", "Raffle", "!raffle", 90)]
+    public async Task Opening_a_round_tells_chat_the_join_word_the_lobby_time_and_the_minimum_bet(
+        string gameKey,
+        string displayName,
+        string joinWord,
+        int lobbySeconds
+    )
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, RealGame(gameKey));
+        SeedConfig(h.Db, gameKey);
+
+        (await h.Engine.StartAsync(Channel, new(gameKey, PlayerA))).IsSuccess.Should().BeTrue();
+
+        h.Chat.SentMessages.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(
+                $"{displayName} is open! Type {joinWord} to join, or {joinWord} <bet> to pick your bet (minimum 10). You have {lobbySeconds} seconds."
+            );
+    }
+
+    [Fact]
+    public async Task A_round_that_closes_with_too_few_players_says_so_in_chat()
+    {
+        const string gameKey = "raffle";
+        const string displayName = "Raffle";
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, RealGame(gameKey));
+        SeedConfig(h.Db, gameKey);
+        await h.Engine.StartAsync(Channel, new(gameKey, null));
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", $"!{gameKey} 40");
+        h.Chat.SentMessages.Clear();
+
+        h.Clock.Advance(TimeSpan.FromSeconds(91));
+        await h.Engine.AdvanceClockAsync(Channel);
+
+        (await h.Db.GameSessions.AsNoTracking().SingleAsync())
+            .CancelReason.Should()
+            .Be("min_players_unmet");
+        h.Chat.SentMessages.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be($"{displayName} closed because not enough people joined. Any bets are refunded.");
+    }
+
+    [Fact]
+    public async Task A_paid_out_round_tells_chat_the_winner_count_and_the_total_paid()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new FakeGame());
+        SeedConfig(h.Db);
+        await h.Engine.StartAsync(Channel, new("fake_game", PlayerA));
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!join 40");
+        await h.Engine.HandleChatInputAsync(Channel, PlayerB, "Bob", "!join");
+        h.Chat.SentMessages.Clear();
+
+        h.Clock.Advance(TimeSpan.FromSeconds(31));
+        await h.Engine.AdvanceClockAsync(Channel);
+
+        // Alice staked 40 and Bob 10; both win 2x their stake: 80 + 20.
+        h.Chat.SentMessages.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be("Fake Game is over. Winners: 2. Paid out: 100.");
+    }
+
+    [Fact]
+    public async Task A_real_game_that_pays_out_announces_its_result()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedConfig(h.Db, "drop_game");
+        await h.Engine.StartAsync(Channel, new("drop_game", null));
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!drop 40");
+        h.Chat.SentMessages.Clear();
+
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        await h.Engine.AdvanceClockAsync(Channel);
+
+        GameSession session = await h.Db.GameSessions.AsNoTracking().SingleAsync();
+        session.Status.Should().Be(GameSessionStatus.Settled);
+        h.Chat.SentMessages.Should()
+            .ContainSingle()
+            .Which.Should()
+            .MatchRegex(@"^Drop Game is over\. Winners: \d+\. Paid out: \d+\.$");
+    }
+
+    [Fact]
+    public async Task A_host_cancel_tells_chat_the_round_was_cancelled_and_bets_are_back()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new FakeGame());
+        SeedConfig(h.Db);
+        Result<GameSessionDto> started = await h.Engine.StartAsync(
+            Channel,
+            new("fake_game", PlayerA)
+        );
+        h.Chat.SentMessages.Clear();
+
+        (await h.Engine.CancelAsync(Channel, started.Value.Id)).IsSuccess.Should().BeTrue();
+
+        h.Chat.SentMessages.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be("Fake Game was cancelled. Any bets are refunded.");
     }
 
     [Fact]
@@ -713,6 +842,7 @@ public sealed class LiveGameEngineTests
         services.AddSingleton<IGameRandomizer>(new FixedRandomizer());
         services.AddSingleton<TimeProvider>(h.Clock);
         services.AddSingleton<IChatProvider>(h.Chat);
+        services.AddSingleton<ILiveGameAnnouncer>(NewAnnouncer(h.Db, h.Chat));
         services.AddSingleton<ILogger<LiveGameEngine>>(NullLogger<LiveGameEngine>.Instance);
         services.AddScoped<LiveGameEngine>();
         IServiceScopeFactory scopeFactory = services

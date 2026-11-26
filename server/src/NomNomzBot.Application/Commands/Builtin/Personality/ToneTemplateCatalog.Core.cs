@@ -28,6 +28,7 @@ public static partial class ToneTemplateCatalog
         AddRewardSlots(catalog);
         foreach (string gameKey in GameKeys)
             AddGameSlots(catalog, gameKey);
+        AddLiveGameSlots(catalog);
     }
 
     private static void AddLurkAndAccountAgeSlots(Dictionary<(string, string), SlotEntry> catalog)
@@ -610,5 +611,6 @@ public static partial class ToneTemplateCatalog
         samples["game.bet"] = "50";
         samples["game.payout"] = "100";
         samples["game.balance"] = "1250";
+        AddLiveGameSamples(samples);
     }
 }

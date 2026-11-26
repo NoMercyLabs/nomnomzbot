@@ -25,6 +25,7 @@ public static partial class ToneTemplateCatalog
         AddDutchSystemSlots(catalog);
         foreach (string gameKey in GameKeys)
             AddDutchGameSlots(catalog, gameKey);
+        AddDutchLiveGameSlots(catalog);
     }
 
     private static void AddDutchLurkAndAccountAgeSlots(

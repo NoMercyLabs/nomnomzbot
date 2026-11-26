@@ -46,6 +46,7 @@ public sealed class LiveGameEngine(
     LiveGameFrameStore frameStore,
     IGameRandomizer randomizer,
     IEventBus eventBus,
+    ILiveGameAnnouncer announcer,
     TimeProvider clock,
     ILogger<LiveGameEngine> logger
 ) : ILiveGameEngine
@@ -150,6 +151,8 @@ public sealed class LiveGameEngine(
             },
             ct
         );
+        if (!runtime.Terminal)
+            await announcer.AnnounceOpenedAsync(broadcasterId, manifest, config.MinBet ?? 1, ct);
         return Result.Success(ToDto(session));
     }
 
@@ -193,6 +196,13 @@ public sealed class LiveGameEngine(
         session.ResolvedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
         await PublishCancelledAsync(session, "host_cancel", ct);
+        if (catalog.TryGet(session.GameType, out ILiveGame? orphanGame))
+            await announcer.AnnounceCancelledAsync(
+                broadcasterId,
+                orphanGame.Manifest,
+                "host_cancel",
+                ct
+            );
         return Result.Success();
     }
 
@@ -554,6 +564,13 @@ public sealed class LiveGameEngine(
             ct
         );
         await PushFrameAsync(runtime, resolution.FinalOverlayPayload, ct);
+        await announcer.AnnounceSettledAsync(
+            runtime.BroadcasterId,
+            manifest,
+            winnerCount,
+            totalPaidOut,
+            ct
+        );
     }
 
     private async Task CancelInternalAsync(
@@ -581,6 +598,12 @@ public sealed class LiveGameEngine(
                 ["cancelled"] = true,
                 ["reason"] = reason,
             },
+            ct
+        );
+        await announcer.AnnounceCancelledAsync(
+            runtime.BroadcasterId,
+            runtime.Game.Manifest,
+            reason,
             ct
         );
     }

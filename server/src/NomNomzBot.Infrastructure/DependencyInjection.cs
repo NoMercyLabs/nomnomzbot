@@ -1570,6 +1570,10 @@ public static class DependencyInjection
             Application.Games.Services.ILiveGameOverlayResolver,
             Games.LiveGameOverlayResolver
         >();
+        services.AddScoped<
+            Application.Games.Services.ILiveGameAnnouncer,
+            Games.LiveGameAnnouncer
+        >();
         services.AddScoped<Games.LiveGameEngine>();
         services.AddScoped<Application.Games.Services.ILiveGameEngine>(sp =>
             sp.GetRequiredService<Games.LiveGameEngine>()

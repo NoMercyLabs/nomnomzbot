@@ -320,6 +320,7 @@ public sealed class CrashGameTests
             new LiveGameFrameStore(),
             engineRandom,
             bus,
+            Substitute.For<ILiveGameAnnouncer>(),
             clock,
             NullLogger<LiveGameEngine>.Instance
         );
