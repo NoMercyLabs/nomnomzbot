@@ -44,6 +44,10 @@ public static class RateLimitPolicyRegistration
         options.AddPolicy(AnonymousRateLimitPolicy.PolicyName, AnonymousRateLimitPolicy.Partition);
         options.AddPolicy(ReadAloudRateLimitPolicy.PolicyName, ReadAloudRateLimitPolicy.Partition);
         options.AddPolicy(
+            OverlayImagesRateLimitPolicy.PolicyName,
+            OverlayImagesRateLimitPolicy.Partition
+        );
+        options.AddPolicy(
             LivePlaylistRateLimitPolicy.PolicyName,
             LivePlaylistRateLimitPolicy.Partition
         );

@@ -71,7 +71,7 @@ internal static class OverlayImageEncoder
     {
         string head = Encoding
             .UTF8.GetString(source, 0, Math.Min(source.Length, 2048))
-            .TrimStart('﻿', ' ', '\t', '\r', '\n');
+            .TrimStart((char)0xFEFF, ' ', '\t', '\r', '\n');
         return head.StartsWith('<') && head.Contains("<svg", StringComparison.OrdinalIgnoreCase);
     }
 

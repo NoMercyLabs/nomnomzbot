@@ -30,7 +30,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/overlay/images")]
 [AllowAnonymous]
 [Tags("Overlay")]
-[EnableRateLimiting(RateLimitPolicyNames.Anonymous)]
+[EnableRateLimiting(RateLimitPolicyNames.OverlayImages)]
 public class OverlayImagesController : BaseController
 {
     private const string ImmutableForAYear = "public, max-age=31536000, immutable";
