@@ -130,6 +130,8 @@ x-api-service: &api-service
       condition: service_healthy
     redis:
       condition: service_healthy
+    api-data-init:
+      condition: service_completed_successfully
   healthcheck:
     test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
     interval: 15s
@@ -146,6 +148,18 @@ x-api-service: &api-service
     - nomnomzbot
 
 services:
+  # The API runs as the image's `app` user (uid 1654) and creates its data folders on first use. A volume
+  # created or copied as root (a host move, an old install) refuses every new folder, so this one-shot step
+  # gives the whole volume to `app` before either colour starts.
+  api-data-init:
+    image: busybox:1.37
+    user: "0:0"
+    command: ["chown", "-R", "1654:1654", "/app/data"]
+    network_mode: none
+    volumes:
+      - api_data:/app/data
+    restart: "no"
+
   caddy:
     image: caddy:2-alpine
     container_name: nomnomzbot-caddy

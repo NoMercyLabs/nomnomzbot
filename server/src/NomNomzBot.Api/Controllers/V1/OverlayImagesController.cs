@@ -46,9 +46,11 @@ public class OverlayImagesController : BaseController
 
     /// <summary>The source image as WebP at the width bucket for <paramref name="w"/>.</summary>
     [HttpGet]
-    [Produces("image/webp")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    // Per status, not [Produces]: a [Produces] filter forces every body to image/webp, so a JSON refusal became 406.
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, "image/webp")]
     [ProducesResponseType(StatusCodes.Status304NotModified)]
+    [ProducesResponseType(typeof(StatusResponseDto<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(StatusResponseDto<object>), StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> Get(
         [FromQuery] string? src,
         [FromQuery] int w,

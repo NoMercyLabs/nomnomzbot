@@ -25,7 +25,22 @@
 # saas is RESTRICTED: you may not earn money with NomNomzBot (no selling it, no paid hosting or paid service built on it). That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. See DEPLOY.md.
 
 services:
+  # The API runs as the image's `app` user (uid 1654) and creates its data folders on first use. A volume
+  # created or copied as root (a host move, an old install) refuses every new folder, so this one-shot step
+  # gives the whole volume to `app` before the API starts.
+  api-data-init:
+    image: busybox:1.37
+    user: "0:0"
+    command: ["chown", "-R", "1654:1654", "/app/data"]
+    network_mode: none
+    volumes:
+      - lite_data:/app/data
+    restart: "no"
+
   api:
+    depends_on:
+      api-data-init:
+        condition: service_completed_successfully
     # Default: the published image, built and tested by CI. Building it yourself (`--build`, with
     # API_IMAGE=nomnomzbot-api:local in .env) needs a lot of memory for Docker.
     image: ${API_IMAGE:-ghcr.io/nomercylabs/nomnomzbot:stable}
