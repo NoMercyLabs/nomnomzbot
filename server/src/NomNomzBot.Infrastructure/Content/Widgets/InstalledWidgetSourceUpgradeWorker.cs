@@ -30,7 +30,8 @@ namespace NomNomzBot.Infrastructure.Content.Widgets;
 /// It runs in the background after the host has started, never in the seed phase: a rebuild takes about 4 s per
 /// widget, and doing it before the host listens kept /health/ready down for minutes on every deploy. Until a rebuild
 /// finishes, the widget keeps serving its last good build (the active version only moves after a successful build,
-/// and a failed build leaves the install revision alone so the next start retries).
+/// and a failed build leaves the install revision alone). A failed rebuild is tried once more after the others,
+/// when the startup load is gone; one that fails again waits for the next start.
 /// </summary>
 public sealed class InstalledWidgetSourceUpgradeWorker(
     IServiceScopeFactory scopeFactory,
@@ -86,13 +87,32 @@ public sealed class InstalledWidgetSourceUpgradeWorker(
             return; // another instance is upgrading this startup.
 
         List<Widget> stale = await FindStaleUntouchedInstallsAsync(ct);
-        Dictionary<Guid, List<string>> failuresByChannel = [];
-        foreach (Widget widget in stale)
+        Dictionary<Widget, string> failedOnce = await UpgradeEachAsync(stale, ct);
+        // A compile can time out under the startup load; once the other rebuilds are done it usually fits.
+        Dictionary<Widget, string> failedTwice = await UpgradeEachAsync([.. failedOnce.Keys], ct);
+        LogFailures(failedTwice);
+    }
+
+    private async Task<Dictionary<Widget, string>> UpgradeEachAsync(
+        List<Widget> widgets,
+        CancellationToken ct
+    )
+    {
+        Dictionary<Widget, string> failed = [];
+        foreach (Widget widget in widgets)
         {
             string? failure = await UpgradeOneAsync(widget, ct);
             if (failure is not null)
-                AddFailure(failuresByChannel, widget.BroadcasterId, failure);
+                failed[widget] = failure;
         }
+        return failed;
+    }
+
+    private void LogFailures(Dictionary<Widget, string> failed)
+    {
+        Dictionary<Guid, List<string>> failuresByChannel = [];
+        foreach ((Widget widget, string failure) in failed)
+            AddFailure(failuresByChannel, widget.BroadcasterId, failure);
 
         foreach ((Guid channelId, List<string> failures) in failuresByChannel)
             logger.LogWarning(

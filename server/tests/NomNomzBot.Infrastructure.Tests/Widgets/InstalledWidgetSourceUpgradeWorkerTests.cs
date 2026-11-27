@@ -129,13 +129,14 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
         Guid recapWidget = await InstallAsync(database, build, bus, channel, recap);
         await MoveCatalogueToV2Async(database, alerts);
         await MoveCatalogueToV2Async(database, recap);
-        build.FailV2(alertsFails: true, recapThrows: true);
+        build.BreakEveryV2();
 
         ListLogger<InstalledWidgetSourceUpgradeWorker> log = new();
         using IHost host = NewHost(database, build, bus, log);
         await host.StartAsync().WaitAsync(Patience);
         await WorkerOf(host).ExecuteTask!.WaitAsync(Patience);
 
+        build.V2Calls.Should().Be(4, "each widget is built, then retried once in the same pass");
         log.Entries.Where(e => e.Level >= LogLevel.Warning)
             .Should()
             .ContainSingle("two failed widgets of one channel are one log line")
@@ -147,6 +148,40 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
             .Should()
             .Be(1, "a failed rebuild retries next start");
         (await InstalledRevisionAsync(database, recapWidget)).Should().Be(1);
+        await host.StopAsync();
+    }
+
+    [Fact]
+    public async Task A_rebuild_that_fails_once_is_retried_after_the_others_and_goes_live_in_the_same_start()
+    {
+        // Live 2026-11-27: the chat box compile timed out under startup load and kept its old build until the
+        // next deploy, while the same rebuild took 5 s once the box was quiet.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        GatedBuild build = new();
+        IEventBus bus = Substitute.For<IEventBus>();
+        Guid channel = await SeedChannelAsync(database, "tok-a");
+        Guid alerts = await SeedGalleryItemAsync(database, "alerts", "Alerts");
+        Guid recap = await SeedGalleryItemAsync(database, "raid_recap", "Raid Recap");
+        Guid alertsWidget = await InstallAsync(database, build, bus, channel, alerts);
+        Guid recapWidget = await InstallAsync(database, build, bus, channel, recap);
+        await MoveCatalogueToV2Async(database, alerts);
+        await MoveCatalogueToV2Async(database, recap);
+        build.FailV2(alertsFails: true, recapThrows: false);
+
+        ListLogger<InstalledWidgetSourceUpgradeWorker> log = new();
+        using IHost host = NewHost(database, build, bus, log);
+        await host.StartAsync().WaitAsync(Patience);
+        await WorkerOf(host).ExecuteTask!.WaitAsync(Patience);
+
+        build.V2Calls.Should().Be(3, "alerts fails, raid recap builds, then alerts is retried");
+        (await InstalledRevisionAsync(database, alertsWidget)).Should().Be(2);
+        (await InstalledRevisionAsync(database, recapWidget)).Should().Be(2);
+        (await ServedBundleAsync(database, build, bus, alertsWidget)).Should().Be("compiled::V2");
+        log.Entries.Should()
+            .NotContain(
+                e => e.Level >= LogLevel.Warning,
+                "the retry went live, nothing is left over"
+            );
         await host.StopAsync();
     }
 
@@ -234,7 +269,7 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
         Guid item = await SeedGalleryItemAsync(database, "alerts", "Alerts");
         Guid widget = await InstallAsync(database, build, bus, channel, item);
         await MoveCatalogueToV2Async(database, item);
-        build.FailV2(alertsFails: true, recapThrows: false);
+        build.BreakEveryV2();
 
         using (
             IHost first = NewHost(
@@ -250,6 +285,7 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
             await first.StopAsync();
         }
         (await InstalledRevisionAsync(database, widget)).Should().Be(1);
+        build.FixV2();
 
         using IHost second = NewHost(
             database,
@@ -438,7 +474,10 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
         private bool _held;
         private bool _alertsFails;
         private bool _recapThrows;
+        private bool _everyV2Breaks;
         private int _v2Calls;
+
+        public int V2Calls => _v2Calls;
 
         public TaskCompletionSource EnteredV2 { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -462,6 +501,11 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
             _recapThrows = recapThrows;
         }
 
+        // Every V2 build breaks, so the same-pass retry breaks too: odd calls fail, even calls throw.
+        public void BreakEveryV2() => _everyV2Breaks = true;
+
+        public void FixV2() => _everyV2Breaks = false;
+
         private async Task<Result<WidgetBuildOutput>> BuildAsync(WidgetBuildInput input)
         {
             string source = input.Files[input.Manifest.Entry];
@@ -474,6 +518,10 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
             EnteredV2.TrySetResult();
             if (_held)
                 await _gate.Task;
+            if (_everyV2Breaks)
+                return call % 2 == 1
+                    ? Result.Failure<WidgetBuildOutput>("esbuild exploded", "WIDGET_BUILD_FAILED")
+                    : throw new InvalidOperationException("esbuild missing");
             if (_alertsFails && call == 1)
                 return Result.Failure<WidgetBuildOutput>("esbuild exploded", "WIDGET_BUILD_FAILED");
             if (_recapThrows && call == 2)
