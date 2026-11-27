@@ -602,6 +602,24 @@ public static class DependencyInjection
             )
             .AddChatEmoteResilienceHandler();
 
+        // Overlay image optimizer: a fetched URL is caller-chosen, so redirects are off here and followed by hand
+        // (each hop re-checked against the host allow-list). No resilience handler: a retry would re-download.
+        services
+            .AddHttpClient(
+                Overlays.Images.OverlayImageSourceFetcher.ClientName,
+                client => client.Timeout = TimeSpan.FromSeconds(15)
+            )
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new SocketsHttpHandler { AllowAutoRedirect = false }
+            );
+        services.AddSingleton(_ => new Overlays.Images.OverlayImageDiskCache(
+            SelfHostDataPaths.OverlayImageCacheDirectory
+        ));
+        services.AddSingleton<
+            Application.Overlays.Services.IOverlayImageOptimizer,
+            Overlays.Images.OverlayImageOptimizer
+        >();
+
         // The alejo.io pronoun reference client — fetched once at boot by PronounSeeder to keep the seeded
         // pronoun set current (the resilience pipeline owns the per-attempt 10s timeout + retries).
         services.AddSingleton<

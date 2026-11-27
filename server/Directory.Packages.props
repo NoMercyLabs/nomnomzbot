@@ -29,6 +29,12 @@
     <!-- PasswordHasher<TUser> for native email+password login (identity-auth — never hand-rolled hashing).
          The lightweight core package only — no EF stores, no UI, no cookie auth. -->
   </ItemGroup>
+  <ItemGroup Label="Image optimization (libvips; MIT, unlike ImageSharp)">
+    <PackageVersion Include="NetVips" Version="3.2.0" />
+    <PackageVersion Include="NetVips.Native.linux-x64" Version="8.18.7" />
+    <PackageVersion Include="NetVips.Native.linux-arm64" Version="8.18.7" />
+    <PackageVersion Include="NetVips.Native.win-x64" Version="8.18.7" />
+  </ItemGroup>
   <ItemGroup Label="Validation">
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />

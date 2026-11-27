@@ -53,6 +53,10 @@ public static class SelfHostDataPaths
     /// <summary>The pre-made introduction clip of each TTS voice, so a voice preview plays without a provider call.</summary>
     public static string TtsSamplesDirectory => Ensure(Path.Combine(BaseDirectory, "tts-samples"));
 
+    /// <summary>The converted WebP copies of remote overlay images; size-capped, safe to delete at any time.</summary>
+    public static string OverlayImageCacheDirectory =>
+        Ensure(Path.Combine(BaseDirectory, "overlay-image-cache"));
+
     /// <summary>Durable storage for broadcaster-uploaded media assets (the widget/overlay asset library).</summary>
     public static string AssetsDirectory => Ensure(Path.Combine(BaseDirectory, "assets"));
 
