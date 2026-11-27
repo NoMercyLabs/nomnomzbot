@@ -335,8 +335,8 @@ function badgeSrc(url: string): string {
 
 // The server already sanitized this html; only each img src changes, to the same sized address as a plain emote
 // or a chat GIF (the column's widest image).
-function htmlWithSizedImages(html: string): string {
-  if (!html.includes('<img')) return html
+function htmlWithSizedImages(html: string | undefined): string {
+  if (!html?.includes('<img')) return html ?? ''
   const box = document.createElement('template')
   box.innerHTML = html
   box.content.querySelectorAll('img').forEach((img) => {
