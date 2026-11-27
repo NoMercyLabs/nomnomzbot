@@ -119,6 +119,114 @@ public sealed class OverlaySdkThemeColorTests
         styles[textVariable].Should().Be(ink);
     }
 
+    // Audit 2026-11-27: on a print overlay in #fe0853 the muted labels of the raid recap read 3.28:1, under
+    // WCAG AA. The muted type was a fixed 74% of the ink, whatever the chosen color. It now stays that soft
+    // only while it still reads 4.5:1 on the color, and turns to the full ink when nothing softer does.
+    [Theory]
+    [InlineData("#fe0853")]
+    [InlineData("#e6094d")]
+    [InlineData("#ff0000")]
+    [InlineData("#767676")]
+    [InlineData("#808080")]
+    [InlineData("#00a000")]
+    [InlineData("#0000ff")]
+    [InlineData("#000000")]
+    [InlineData("#ffff00")]
+    public void Muted_text_on_a_chosen_print_color_reads_at_least_4_5_to_1(string color)
+    {
+        Dictionary<string, string> styles = Applied(
+            ThemeEngine(),
+            $"{{ overlayTheme: 'print', accentColor: '{color}' }}"
+        );
+
+        double[] surface = Rgb(color);
+        double[] muted = Composite(styles["--nnz-muted"], surface);
+
+        Contrast(muted, surface).Should().BeGreaterThanOrEqualTo(4.5, styles["--nnz-muted"]);
+    }
+
+    [Fact]
+    public void Muted_text_keeps_the_soft_look_on_a_color_where_it_already_reads()
+    {
+        Applied(ThemeEngine(), "{ overlayTheme: 'print', accentColor: '#ffff00' }")["--nnz-muted"]
+            .Should()
+            .Be("rgba(18, 18, 18, 0.74)");
+    }
+
+    // In print the chosen color is the surface and the accent is its ink. A widget that tints its surface with
+    // the accent darkens the very color the ink was picked for, and its type drops under AA (the raid recap
+    // read 4.03:1 with full black ink). Every such tint is set back to the plain surface in print.
+    [Fact]
+    public void No_first_party_widget_tints_the_print_surface_with_the_accent()
+    {
+        Assembly assets = typeof(FirstPartyWidgetCatalogue).Assembly;
+        List<string> offenders = [];
+        foreach (string name in assets.GetManifestResourceNames().Where(n => n.EndsWith(".vue")))
+        {
+            using Stream stream = assets.GetManifestResourceStream(name)!;
+            using StreamReader reader = new(stream);
+            string source = reader.ReadToEnd();
+            foreach (
+                Match block in Regex.Matches(
+                    source,
+                    @"^([^\s{}][^{}\n]*?)\s*\{[^}]*color-mix\(in srgb, var\(--nnz-surface\)[^)]*var\(--nnz-accent\)\)",
+                    RegexOptions.Multiline
+                )
+            )
+            {
+                string selector = block.Groups[1].Value.Trim();
+                if (
+                    !source.Contains(
+                        $"[data-nnz-theme='print'] {selector} {{ background: var(--nnz-surface); }}"
+                    )
+                )
+                    offenders.Add($"{name}: {selector}");
+            }
+        }
+
+        offenders.Should().BeEmpty("print keeps its chosen surface color pure under the ink");
+    }
+
+    private static double[] Rgb(string hex) =>
+        [.. new[] { 1, 3, 5 }.Select(i => (double)Convert.ToInt32(hex.Substring(i, 2), 16))];
+
+    /// <summary>An <c>rgba(r, g, b, a)</c> or <c>#rrggbb</c> color painted over an opaque background.</summary>
+    private static double[] Composite(string color, double[] background)
+    {
+        if (color.StartsWith('#'))
+            return Rgb(color);
+        double[] parts =
+        [
+            .. color
+                .Replace("rgba(", "")
+                .Replace(")", "")
+                .Split(',')
+                .Select(p => double.Parse(p, System.Globalization.CultureInfo.InvariantCulture)),
+        ];
+        double alpha = parts[3];
+        return [.. background.Select((b, i) => (parts[i] * alpha) + (b * (1 - alpha)))];
+    }
+
+    private static double Luminance(double[] rgb)
+    {
+        double[] linear =
+        [
+            .. rgb.Select(v =>
+            {
+                double c = v / 255;
+                return c <= 0.03928 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
+            }),
+        ];
+        return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2]);
+    }
+
+    private static double Contrast(double[] a, double[] b)
+    {
+        double la = Luminance(a);
+        double lb = Luminance(b);
+        return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("reset")]

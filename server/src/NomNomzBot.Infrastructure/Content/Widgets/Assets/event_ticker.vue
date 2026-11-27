@@ -88,10 +88,11 @@ function isOffscreen(s: Slot): boolean {
 }
 
 // A new chip joins behind the other new chips that wait off screen, so a burst shows in the order it came. It goes
-// before the chips that come round again, so it shows up next, not after a full loop.
+// before the chips that come round again, so it shows up next, not after a full loop. A test fire goes before every
+// waiting chip: it lives only TEST_SHOW_MS, so it must come on screen at once.
 function addSlot(chip: Chip, once: boolean): Slot {
   const slot: Slot = { key: ++keySeq, chip, x: bandWidth.value, w: 0, once, fresh: true, el: null }
-  let at: number = belt.findIndex((s: Slot) => isOffscreen(s) && !s.fresh)
+  let at: number = belt.findIndex((s: Slot) => isOffscreen(s) && (once || !s.fresh))
   if (at === -1) at = belt.length
   const before: Slot | undefined = belt[at - 1]
   slot.x = Math.max(bandWidth.value, before ? rightOf(before) + spacing : 0)
@@ -263,14 +264,18 @@ onUnmounted(() => {
 <template>
   <!-- The look comes from /overlay/theme.css (.nnz-* parts, --nnz-* tokens); this file only places the bar. -->
   <div ref="bandEl" class="nnz-widget nnz-ticker" :style="bandStyle">
+    <!-- The slot moves, the pill inside it is zoomed by the theme: a transform on the zoomed pill itself would be
+         zoomed too, and the chip would be drawn 1.45x further right than the belt thinks. -->
     <span
       v-for="s in slots"
       :key="s.key"
       :ref="(el) => setEl(s, el)"
-      class="nnz-pill chip"
+      class="slot"
       :style="{ transform: 'translateX(' + s.x + 'px)' }"
     >
-      <span class="icon nnz-accent-text">{{ s.chip.icon }}</span><span class="text">{{ s.chip.text }}</span>
+      <span class="nnz-pill chip">
+        <span class="icon nnz-accent-text">{{ s.chip.icon }}</span><span class="text">{{ s.chip.text }}</span>
+      </span>
     </span>
   </div>
 </template>
@@ -283,9 +288,13 @@ onUnmounted(() => {
   overflow: hidden;
   transform: translate(var(--tx), var(--ty));
 }
-.chip {
+.slot {
   grid-area: 1 / 1;
   justify-self: start;
+  display: inline-flex;
+  will-change: transform;
+}
+.chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -294,7 +303,6 @@ onUnmounted(() => {
   padding-bottom: 6px;
   font-size: 15px;
   font-weight: 700;
-  will-change: transform;
 }
 .icon {
   font-size: 14px;

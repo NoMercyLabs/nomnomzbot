@@ -620,6 +620,8 @@ onUnmounted(() => {
   opacity: 0;
   transition: opacity 0.8s ease;
 }
+/* Print: the chosen color IS the surface and its ink is picked against it, so a tint would break that contrast. */
+[data-nnz-theme='print'] .recap { background: var(--nnz-surface); }
 .recap[data-hue='day'] { --nnz-accent: hsl(var(--base) 100% 45%); } /* theme-exempt: the accent computed from the stream date (hueByDay) */
 [data-nnz-theme='ink'] .recap[data-hue='day'] { --nnz-accent: hsl(var(--base) 100% 62%); } /* theme-exempt: the stream-date accent, lighter on the black surface */
 /* The theme tokens that read the accent are set again here, so a day hue or the streamer's accentColor reaches them. */

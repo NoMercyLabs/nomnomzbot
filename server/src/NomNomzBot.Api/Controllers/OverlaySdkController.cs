@@ -203,20 +203,42 @@ public sealed class OverlaySdkController : ControllerBase
           if (typeof window !== "undefined" && window.addEventListener)
             window.addEventListener("resize", function () { applyFit(document.documentElement, currentSettings || {}); });
           // Text on a chosen color is black or white, whichever reads better (WCAG contrast against the color).
-          function inkFor(hex) {
-            var c = [1, 3, 5].map(function (i) {
-              var v = parseInt(hex.substr(i, 2), 16) / 255;
+          function luminance(rgb) {
+            var c = rgb.map(function (v) {
+              v = v / 255;
               return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
             });
-            var lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-            return (lum + 0.05) / 0.05 >= 1.05 / (lum + 0.05) ? "#121212" : "#ffffff";
+            return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+          }
+          function rgbOf(hex) {
+            return [1, 3, 5].map(function (i) { return parseInt(hex.substr(i, 2), 16); });
+          }
+          function inkFor(hex) {
+            // Compared with the real dark ink (#121212), not pure black, so a mid grey gets the ink that truly reads.
+            var lum = luminance(rgbOf(hex));
+            var dark = luminance(rgbOf("#121212"));
+            return (lum + 0.05) / (dark + 0.05) >= 1.05 / (lum + 0.05) ? "#121212" : "#ffffff";
+          }
+          // Muted type keeps its soft look, but never below WCAG AA (4.5:1) on the chosen color: the ink grows
+          // more opaque until it reads.
+          function mutedFor(ink, hex) {
+            var inkRgb = rgbOf(ink === "#ffffff" ? "#ffffff" : "#121212");
+            var back = rgbOf(hex);
+            var lumBack = luminance(back);
+            for (var a = ink === "#ffffff" ? 0.78 : 0.74; a < 1; a += 0.02) {
+              var mixed = inkRgb.map(function (v, i) { return Math.round(v * a + back[i] * (1 - a)); });
+              var lumMix = luminance(mixed);
+              var ratio = (Math.max(lumMix, lumBack) + 0.05) / (Math.min(lumMix, lumBack) + 0.05);
+              if (ratio >= 4.5) return "rgba(" + inkRgb.join(", ") + ", " + a.toFixed(2) + ")";
+            }
+            return ink;
           }
           function applyInk(root, theme, color) {
             var ink = inkFor(color);
             if (MAIN_VAR[theme] === "--nnz-accent") { root.style.setProperty("--nnz-on-accent", ink); return; }
             // Print's chosen color is the surface: all its type follows, and accent type takes the ink too.
             root.style.setProperty("--nnz-text", ink);
-            root.style.setProperty("--nnz-muted", ink === "#ffffff" ? "rgba(255, 255, 255, 0.78)" : "rgba(18, 18, 18, 0.74)");
+            root.style.setProperty("--nnz-muted", mutedFor(ink, color));
             root.style.setProperty("--nnz-accent", ink);
           }
           function applyTheme(s) {
