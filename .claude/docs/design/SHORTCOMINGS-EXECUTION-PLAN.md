@@ -106,9 +106,8 @@ shape, texture, voice) with the picked direction, and PRODUCT-ALIGNMENT.md links
 
 ### S-OVL-MIGRATE: what the theme move left open
 The 25 drawing widgets use the theme (2026-11-10). Done when: every widget has a placement setting that keeps
-the center clear, event texts are not Twitch-only where the event exists on other platforms, the chat box's own
-dark and light setting is merged into the theme choice, and Raid Recap draws from the theme or keeps its
-color-per-day look by the owner's decision.
+the center clear, event texts are not Twitch-only where the event exists on other platforms, and the chat box's
+own dark and light setting is merged into the theme choice.
 
 ### S-OVL-RECOLOR: one setting changes the theme and accent of the whole set
 Each widget has its own theme and accent setting (2026-11-10). Done when: one channel-level setting changes the
