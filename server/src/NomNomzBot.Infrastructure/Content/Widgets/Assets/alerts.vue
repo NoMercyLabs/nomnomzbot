@@ -8,6 +8,11 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 // happens in onMounted; nothing here touches the DOM at module load.
 type Payload = Record<string, unknown>
 
+// An image drawn cssPx wide loads through the overlay image endpoint at that size.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
 function asPayload(data: unknown): Payload {
   return data !== null && typeof data === 'object' ? (data as Payload) : {}
 }
@@ -212,7 +217,7 @@ onUnmounted(() => {
     >
       <span class="nnz-face"></span>
       <div class="body">
-        <img v-if="current.imageUrl" class="sticker" :src="current.imageUrl" alt="" />
+        <img v-if="current.imageUrl" class="sticker" :src="sized(current.imageUrl, 240)" alt="" />
         <div class="nnz-title">{{ current.title }}</div>
         <div v-if="current.detail" class="nnz-sub">{{ current.detail }}</div>
       </div>

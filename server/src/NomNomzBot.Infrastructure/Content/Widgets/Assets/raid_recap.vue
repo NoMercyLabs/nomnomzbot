@@ -95,6 +95,11 @@ const cfg = reactive({
 });
 
 // An empty or unknown zone means the viewer's own browser time zone.
+// An image drawn cssPx wide loads through the overlay image endpoint at that size.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
 function knownZone(value: string): string {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value });
@@ -531,7 +536,7 @@ onUnmounted(() => {
   <div v-if="recap" ref="root" class="nnz-widget recap" :data-visible="visible ? 'true' : 'false'" :data-layout="cfg.layout" :data-motion="motion" :data-hue="cfg.hueByDay ? 'day' : undefined" :style="rootStyle">
     <div v-if="cfg.layout === 'credits'" class="credits">
       <header class="nnz-card top">
-        <img v-if="avatarUrl" class="nnz-avatar avatar" :src="avatarUrl" crossorigin="anonymous" alt="" />
+        <img v-if="avatarUrl" class="nnz-avatar avatar" :src="sized(avatarUrl, 128)" crossorigin="anonymous" alt="" />
         <div class="who">
           <h1 class="nnz-title title">{{ label('title') }}</h1>
           <div v-if="channelName" class="channel">{{ channelName }}</div>
@@ -587,7 +592,7 @@ onUnmounted(() => {
 
       <section class="grid" :style="gridStyle">
         <div v-for="p in placed" :key="p.card.key" class="nnz-card card block" :class="{ sparse: p.card.rows.length <= 3, bare: p.card.rows.length === 0 }" :data-block="p.card.key" :style="cellStyle(p)">
-          <img v-if="p.watermark && avatarUrl" class="watermark" :src="avatarUrl" crossorigin="anonymous" alt="" />
+          <img v-if="p.watermark && avatarUrl" class="watermark" :src="sized(avatarUrl, 256)" crossorigin="anonymous" alt="" />
           <div class="nnz-chip label">{{ label('block.' + p.card.key) }}</div>
           <div v-if="p.card.big" class="nnz-title big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
           <div v-if="p.card.rows.length" class="scroll" :class="{ fit: p.card.note }">

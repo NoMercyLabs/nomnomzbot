@@ -48,6 +48,11 @@ const artObserver: ResizeObserver = new ResizeObserver((entries: ResizeObserverE
   requestAnimationFrame(() => { artSize.value = size })
 })
 
+// An image drawn cssPx wide loads through the overlay image endpoint at that size.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
 function trackArt(el: Element | ComponentPublicInstance | null): void {
   artObserver.disconnect()
   if (el instanceof HTMLElement) artObserver.observe(el)
@@ -211,7 +216,7 @@ onUnmounted(() => {
       <div class="box" :class="cfg.layout === 'card' ? 'nnz-card' : 'nnz-pill'">
         <!-- The cover frame keeps its size with or without a picture: a missing or broken cover shows the note in it. -->
         <span v-if="cfg.showArt" :ref="trackArt" class="nnz-avatar art" :style="{ width: artSize + 'px' }">
-          <img v-if="artUrl" class="art-img" :src="artUrl" alt="" @error="artUrl = ''">
+          <img v-if="artUrl" class="art-img" :src="sized(artUrl, 96)" alt="" @error="artUrl = ''">
           <span v-else class="note nnz-accent-text">&#9835;</span>
         </span>
         <span v-else class="note nnz-accent-text">&#9835;</span>

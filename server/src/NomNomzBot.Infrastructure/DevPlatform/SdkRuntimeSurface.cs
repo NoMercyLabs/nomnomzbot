@@ -334,6 +334,13 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("  reportError(message: string): void;");
         sb.AppendLine(
+            "  /** The address of an image through the overlay image endpoint: a WebP at twice cssPx, the width the element is drawn at."
+        );
+        sb.AppendLine(
+            "   *  Returns url unchanged when it is empty, data:, blob:, an .svg, not https, or already optimized. Use it for every img src. */"
+        );
+        sb.AppendLine("  image(url: string | null | undefined, cssPx: number): string;");
+        sb.AppendLine(
             "  /** A YouTube player page tells the bot what it plays: state is 'PLAYING', 'PAUSED' or 'ENDED', positionMs the"
         );
         sb.AppendLine(

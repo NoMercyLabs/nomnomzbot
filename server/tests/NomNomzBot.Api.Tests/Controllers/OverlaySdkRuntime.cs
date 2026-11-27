@@ -29,7 +29,7 @@ internal sealed class OverlaySdkRuntime
         var window = this;
         window.addEventListener = function () {};
         var console = { error: function () {}, warn: function () {}, log: function () {} };
-        var location = { search: "?token=overlay-token&widgetId=widget-1", protocol: "https:", host: "bot.test", reload: function () {} };
+        var location = { search: "?token=overlay-token&widgetId=widget-1", protocol: "https:", host: "bot.test", origin: "https://bot.test", reload: function () {} };
         function URLSearchParams(query) {
           var values = {};
           query.replace(/^\?/, "").split("&").forEach(function (pair) {
@@ -65,7 +65,9 @@ internal sealed class OverlaySdkRuntime
           __elements.push(el);
           return el;
         }
+        var __documentListeners = [];
         var document = {
+          addEventListener: function (type, handler, capture) { __documentListeners.push({ type: type, handler: handler, capture: capture }); },
           getElementById: function () { return null; },
           createElement: __element,
           body: { appendChild: function () {} },
@@ -126,6 +128,9 @@ internal sealed class OverlaySdkRuntime
 
     /// <summary>Every frame the page sent over its socket.</summary>
     public string SentFrames => _engine.Evaluate("__sockets[0].sent.join('|')").ToString();
+
+    /// <summary>The engine itself, for a test that needs a typed result.</summary>
+    public Engine Engine => _engine;
 
     public void Evaluate(string script) => _engine.Evaluate(script);
 

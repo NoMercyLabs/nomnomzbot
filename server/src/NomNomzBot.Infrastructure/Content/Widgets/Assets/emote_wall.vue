@@ -45,6 +45,11 @@ interface ChatFragment {
   cheermote?: { urls?: FragmentUrls }
 }
 
+// An image drawn cssPx wide loads through the overlay image endpoint at that size.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
 function firstUrl(urls: FragmentUrls | undefined, keys: string[]): string {
   if (!urls) return ''
   for (const key of keys) {
@@ -120,7 +125,7 @@ onUnmounted(() => {
       v-for="e in emotes"
       :key="e.id"
       class="emote"
-      :src="e.url"
+      :src="sized(e.url, e.size)"
       alt=""
       :style="{
         left: e.left + 'vw',

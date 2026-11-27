@@ -38,6 +38,11 @@ const visible = ref<boolean>(false)
 const cardKey = ref<number>(0)
 let timer: number | undefined
 
+// An image drawn cssPx wide loads through the overlay image endpoint at that size.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
 function enabled(d: Partial<NnzWidgetEventMap['reward_redeemed']>): boolean {
   if (!cfg.rewards.length) return true
   const id: string = (d && d.rewardId) || ''
@@ -108,7 +113,7 @@ onUnmounted(() => {
   <div class="nnz-widget nnz-placed nnz-redemption" :data-anchor="cfg.anchor">
     <div v-if="current" :key="cardKey" class="nnz-pill nnz-tilt card" :class="{ show: visible }">
       <span class="nnz-face"></span>
-      <img v-if="current.avatarUrl" class="nnz-avatar" :src="current.avatarUrl" alt="">
+      <img v-if="current.avatarUrl" class="nnz-avatar" :src="sized(current.avatarUrl, 44)" alt="">
       <div class="body">
         <div class="nnz-title">{{ headline(current) }}</div>
         <div v-if="current.cost > 0" class="nnz-sub">{{ current.cost }} points</div>

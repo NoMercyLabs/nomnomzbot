@@ -216,7 +216,45 @@
     return Promise.resolve(String(template));
   }
 
+  // Same helper and same retry as /overlay/sdk.js, so a preview shows the optimized image the stream will show. The
+  // sandboxed preview frame has an opaque origin ("null"): an https address is still wrapped, and the frame's base
+  // address (the editor's own origin) resolves the endpoint path.
+  var IMAGE_PATH = "/api/v1/overlay/images";
+  function pageOrigin() {
+    var origin = typeof location !== "undefined" ? location.origin : "";
+    return origin && origin !== "null" ? origin : "";
+  }
+  function image(url, cssPx) {
+    var src = url == null ? "" : String(url);
+    if (!src || /^(data|blob):/i.test(src) || /\.svg([?#]|$)/i.test(src)) return src;
+    var origin = pageOrigin();
+    var absolute = src;
+    if (/^\/\//.test(src)) absolute = "https:" + src;
+    else if (src.charAt(0) === "/") absolute = origin + src;
+    else if (!/^[a-z][a-z0-9+.-]*:/i.test(src) && origin) absolute = origin + "/" + src;
+    if (!/^https:\/\//i.test(absolute) || absolute.indexOf(origin + IMAGE_PATH + "?") === 0) return src;
+    var drawn = Number(cssPx);
+    if (!(drawn > 0)) return src;
+    var width = Math.min(1024, Math.max(1, Math.ceil(drawn * 2)));
+    return IMAGE_PATH + "?src=" + encodeURIComponent(absolute) + "&w=" + width;
+  }
+  function retryOriginal(e) {
+    var img = e && e.target;
+    if (!img || img.tagName !== "IMG" || img.getAttribute("data-nnz-image-retried")) return;
+    var src = String(img.src || "");
+    var found = src.indexOf(IMAGE_PATH + "?") >= 0 ? /[?&]src=([^&]*)/.exec(src) : null;
+    if (!found) return;
+    try {
+      var original = decodeURIComponent(found[1]);
+      img.setAttribute("data-nnz-image-retried", "1");
+      e.stopPropagation();
+      img.src = original;
+    } catch (_) {}
+  }
+  if (typeof document !== "undefined" && document.addEventListener) document.addEventListener("error", retryOriginal, true);
+
   var api = {
+    image: image,
     on: on,
     off: off,
     onAny: onAny,

@@ -2205,6 +2205,9 @@ interface NnzOverlaySdk {
   defineSettings<const D extends NnzSettingsDeclaration>(declaration: D): NnzDeclaredSettings<D>;
   /** Logs the message and reports it to the server as a widget runtime error. */
   reportError(message: string): void;
+  /** The address of an image through the overlay image endpoint: a WebP at twice cssPx, the width the element is drawn at.
+   *  Returns url unchanged when it is empty, data:, blob:, an .svg, not https, or already optimized. Use it for every img src. */
+  image(url: string | null | undefined, cssPx: number): string;
   /** A YouTube player page tells the bot what it plays: state is 'PLAYING', 'PAUSED' or 'ENDED', positionMs the
    *  playhead in milliseconds. Resolves true when the bot accepted it; rejects when the overlay is offline. */
   reportYouTubePlayerState(videoId: string, state: string, positionMs: number): Promise<boolean>;

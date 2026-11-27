@@ -55,6 +55,10 @@ public sealed class OverlaySdkController : ControllerBase
            data.streamStats({ stream?, metrics }) -> Promise: the stream window plus the requested metric keys.
            template.render(template, values?) -> Promise<string>: the template rendered for this channel with any helper.
            spotify.playbackToken() -> Promise<{ token } | { error: "blocked" | "error" }>, never rejects.
+           image(url, cssPx) -> string: the address of url through the overlay image endpoint (a WebP at twice cssPx,
+           the width the element is drawn at, for high-DPI output). It returns url unchanged when it is empty, data:,
+           blob:, an .svg, not https once resolved against the page origin, or already an optimized address. An
+           optimized image that fails to load is retried once from its original source.
            widget.id / widget.name: who this page is. The widget never holds or parses the token. */
         (function () {
           "use strict";
@@ -724,7 +728,46 @@ public sealed class OverlaySdkController : ControllerBase
             });
           }
 
+          // The overlay image endpoint serves a WebP at the width bucket of w, so a widget never loads a source image
+          // larger than it draws. The helper only builds the address; widgets keep the raw source URL in their data.
+          var IMAGE_PATH = "/api/v1/overlay/images";
+          function pageOrigin() {
+            var origin = typeof location !== "undefined" ? location.origin : "";
+            return origin && origin !== "null" ? origin : "";
+          }
+          function image(url, cssPx) {
+            var src = url == null ? "" : String(url);
+            if (!src || /^(data|blob):/i.test(src) || /\.svg([?#]|$)/i.test(src)) return src;
+            var origin = pageOrigin();
+            var absolute = src;
+            if (/^\/\//.test(src)) absolute = "https:" + src;
+            else if (src.charAt(0) === "/") absolute = origin + src;
+            else if (!/^[a-z][a-z0-9+.-]*:/i.test(src) && origin) absolute = origin + "/" + src;
+            if (!/^https:\/\//i.test(absolute) || absolute.indexOf(origin + IMAGE_PATH + "?") === 0) return src;
+            var drawn = Number(cssPx);
+            if (!(drawn > 0)) return src;
+            var width = Math.min(1024, Math.max(1, Math.ceil(drawn * 2)));
+            return IMAGE_PATH + "?src=" + encodeURIComponent(absolute) + "&w=" + width;
+          }
+          // An optimized image that fails to load is retried once from its original source. The widget's own error
+          // handler does not see the first failure, so it cannot hide an image that is being retried.
+          function retryOriginal(e) {
+            var img = e && e.target;
+            if (!img || img.tagName !== "IMG" || img.getAttribute("data-nnz-image-retried")) return;
+            var src = String(img.src || "");
+            var found = src.indexOf(IMAGE_PATH + "?") >= 0 ? /[?&]src=([^&]*)/.exec(src) : null;
+            if (!found) return;
+            try {
+              var original = decodeURIComponent(found[1]);
+              img.setAttribute("data-nnz-image-retried", "1");
+              e.stopPropagation();
+              img.src = original;
+            } catch (_) {}
+          }
+          if (typeof document !== "undefined" && document.addEventListener) document.addEventListener("error", retryOriginal, true);
+
           var api = {
+            image: image,
             on: on,
             off: off,
             onAny: onAny,

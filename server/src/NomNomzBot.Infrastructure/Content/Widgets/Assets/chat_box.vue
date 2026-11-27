@@ -315,6 +315,24 @@ function cheermoteUrl(fr: ChatFragment): string {
   return firstUrl(fr && fr.cheermote && fr.cheermote.urls, ['2', '1', '3'])
 }
 
+// An image drawn cssPx wide loads through the overlay image endpoint at that size. Emotes are 1.5em tall and up
+// to 4x as wide, so they get 6em. The preload uses the same helpers, so it fetches exactly what the line draws.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
+function emoteSrc(fr: ChatFragment): string {
+  return sized(emoteUrl(fr), cfg.fontSize * 6)
+}
+
+function cheermoteSrc(fr: ChatFragment): string {
+  return sized(cheermoteUrl(fr), cfg.fontSize * 6)
+}
+
+function badgeSrc(url: string): string {
+  return sized(url, cfg.fontSize * 1.125)
+}
+
 // Twitch's native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): the fragment already carries a
 // directly-fetchable url — no separate resolve step, unlike media-share's clip/video lookups.
 function gifUrl(fr: ChatFragment): string {
@@ -376,15 +394,15 @@ function isFilteredOut(m: Payload): boolean {
 }
 
 function fragmentImageUrl(fr: ChatFragment): string {
-  if (fr.type === 'emote') return emoteUrl(fr)
-  if (fr.type === 'cheermote') return cheermoteUrl(fr)
+  if (fr.type === 'emote') return emoteSrc(fr)
+  if (fr.type === 'cheermote') return cheermoteSrc(fr)
   return ''
 }
 
 // The images a line really draws: its emotes and cheermotes when emotes are on, its badges when badges are on.
 function lineImageUrls(line: ChatLine): string[] {
   const emotes: string[] = cfg.showEmotes ? line.fragments.map(fragmentImageUrl) : []
-  return Array.from(new Set(emotes.concat(line.badgeUrls).filter((u: string) => !!u)))
+  return Array.from(new Set(emotes.concat(line.badgeUrls.map(badgeSrc)).filter((u: string) => !!u)))
 }
 
 function decodeImage(url: string): Promise<void> {
@@ -568,8 +586,8 @@ onUnmounted(() => {
       <span class="head" :class="{ 'head-colored': !!headColors(l).length }" :style="headStyle(l)">
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
         <span v-if="l.provider !== 'twitch'" class="platform" :class="'platform-' + l.provider">{{ PROVIDER_LABEL[l.provider] || l.provider }}</span>
-        <img v-if="cfg.showAvatar && l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
-        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="" decoding="sync">
+        <img v-if="cfg.showAvatar && l.avatarUrl" class="avatar" :src="sized(l.avatarUrl, cfg.fontSize * 1.25)" alt="">
+        <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="badgeSrc(b)" alt="" decoding="sync">
         <span v-if="cfg.showRoleBadge && l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
         <span class="name">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
@@ -578,7 +596,7 @@ onUnmounted(() => {
       <span class="body">
         <!-- The bot resolved what this line meant: show THAT, not the command the viewer typed. -->
         <a v-if="l.card" class="link-card" :href="l.card.linkUrl" target="_blank" rel="noopener noreferrer">
-          <img v-if="l.card.imageUrl" class="link-card-art" :src="l.card.imageUrl" alt="">
+          <img v-if="l.card.imageUrl" class="link-card-art" :src="sized(l.card.imageUrl, 40)" alt="">
           <span class="link-card-text">
             <span class="link-card-title">{{ l.card.title }}</span>
             <span v-if="l.card.description" class="link-card-sub">{{ l.card.description }}</span>
@@ -590,16 +608,16 @@ onUnmounted(() => {
                  is the only place that turns text into an html fragment, and it sanitizes before it ever gets here. -->
             <span v-if="fr.type === 'html'" class="frag-html" v-html="fr.text"></span>
             <!-- Twitch / third-party emote image -->
-            <img v-else-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="emoteUrl(fr)" :alt="fr.text" decoding="sync">
+            <img v-else-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="emoteSrc(fr)" :alt="fr.text" decoding="sync">
             <!-- Cheermote: the animated bits image plus its tier-coloured amount -->
             <template v-else-if="fr.type === 'cheermote' && fr.cheermote">
-              <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteUrl(fr)" :alt="fr.text" decoding="sync">
+              <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteSrc(fr)" :alt="fr.text" decoding="sync">
               <span class="cheer-bits" :style="fragColor(fr.cheermote.colorHex)">{{ fr.cheermote.bits }}</span>
             </template>
             <!-- Twitch native chat GIF (GIPHY-backed, Tier 2+ sub feature): the fragment carries a real,
                  directly-fetchable url, so it renders inline like an emote — just at GIF scale, since it IS
                  the message's content rather than a small inline glyph. fr.text is Twitch's own caption/alt. -->
-            <img v-else-if="fr.type === 'gif' && gifUrl(fr)" class="chat-gif" :src="gifUrl(fr)" :alt="fr.text">
+            <img v-else-if="fr.type === 'gif' && gifUrl(fr)" class="chat-gif" :src="sized(gifUrl(fr), 420)" :alt="fr.text">
             <!-- @mention: a highlighted chip always, additionally tinted with the mentioned user's chat colour
                  when known — a mention must stand out even with no known colour. -->
             <span v-else-if="fr.type === 'mention' && fr.mention" class="mention" :style="mentionStyle(fr.mention.color)">{{ '@' + (fr.mention.displayName || fr.mention.username || '') }}</span>
@@ -608,7 +626,7 @@ onUnmounted(() => {
                  so a pasted link showed as raw text no matter what the server had learned about it. -->
             <a v-else-if="fr.type === 'link' && fr.linkUrl && fr.linkPreview && fr.linkPreview.title"
                class="link-card" :href="fr.linkUrl" target="_blank" rel="noopener noreferrer">
-              <img v-if="fr.linkPreview.imageUrl" class="link-card-art" :src="fr.linkPreview.imageUrl" alt="">
+              <img v-if="fr.linkPreview.imageUrl" class="link-card-art" :src="sized(fr.linkPreview.imageUrl, 40)" alt="">
               <span class="link-card-text">
                 <span class="link-card-title">{{ fr.linkPreview.title }}</span>
                 <span v-if="fr.linkPreview.description" class="link-card-sub">{{ fr.linkPreview.description }}</span>

@@ -50,6 +50,11 @@ let bannerTimer: number | undefined
 // A paint's colour/gradient renders as the NAME's own style, exactly like chat_box.vue's paintNameStyle —
 // background-clip: text for a gradient/image paint, a flat colour otherwise, falling back to the theme
 // default when the holder wears none.
+// An image drawn cssPx wide loads through the overlay image endpoint at that size.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
 function paintNameStyle(p: ChatPaint | null): Record<string, string> {
   if (!p) return {}
   const style: Record<string, string> = {}
@@ -168,7 +173,7 @@ onUnmounted(() => {
       <span class="nnz-title">{{ bannerText }}</span>
     </div>
     <div v-if="holder" class="nnz-pill holder-card">
-      <img v-if="holder.avatarUrl" class="nnz-avatar avatar" :src="holder.avatarUrl" alt="">
+      <img v-if="holder.avatarUrl" class="nnz-avatar avatar" :src="sized(holder.avatarUrl, 32)" alt="">
       <div v-else class="badge">&#129413;</div>
       <span class="name" :class="{ 'name-painted': holder.paint && (holder.paint.backgroundImage || holder.paint.color) }" :style="holderNameStyle">{{ holder.displayName }}</span>
       <span class="nnz-sub holds">holds the Feather</span>

@@ -50,6 +50,11 @@ let pending: NnzDropPack | null = null
 let observer: ResizeObserver | undefined
 const started = new Set<number>()
 
+// An image drawn cssPx wide loads through the overlay image endpoint at that size.
+function sized(url: string, cssPx: number): string {
+  return typeof NomNomz === 'undefined' ? url : NomNomz.image(url, cssPx)
+}
+
 const best = computed<Flight[]>(() =>
   flights.value
     .filter((f) => f.down)
@@ -472,7 +477,7 @@ onUnmounted(() => {
                 v-if="f.image && !f.imageFailed"
                 class="frame picture"
                 :class="{ 'is-round': f.image.round }"
-                :src="f.image.src"
+                :src="sized(f.image.src, slots.payload.size.w)"
                 alt=""
                 @error="f.imageFailed = true"
               />
