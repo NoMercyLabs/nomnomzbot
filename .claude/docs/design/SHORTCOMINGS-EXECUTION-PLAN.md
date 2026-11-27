@@ -109,17 +109,6 @@ The 25 drawing widgets use the theme (2026-11-10). Done when: every widget has a
 the center clear, event texts are not Twitch-only where the event exists on other platforms, and the chat box's
 own dark and light setting is merged into the theme choice.
 
-### S-OVL-IMAGE-OPT: every overlay image is optimized, wherever it comes from
-Stoney, 2026-11-27: "we need to make sure images are optimized in overlays no matter where they come from."
-Today 8 widgets (alerts, chat box, drop game, emote wall, lucky feather, now playing, raid recap, redemption
-alert) draw avatars, emotes, cheermotes, GIFs, link previews and cover art at the source's full size. Done when:
-one server image endpoint fetches an image from an allow-listed https host only (Twitch, 7TV, BTTV, FFZ, twemoji,
-Spotify, YouTube, Discord, Tenor/Giphy, the channel's own uploads), resizes it to a width bucket, returns WebP
-(animated stays animated), caches it on disk with a size cap and long immutable cache headers; one overlay runtime
-helper rewrites every widget image through it at the drawn size and falls back to the original on error; tests
-prove the size, the format, the kept animation, the refused host and the cache hit; and a live overlay shows the
-smaller bytes. You may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs.
-
 ### S-OVL-RECOLOR: one setting changes the theme and accent of the whole set
 Each widget has its own theme and accent setting (2026-11-10). Done when: one channel-level setting changes the
 theme and the accent of every default widget, and a widget's own setting still wins when the streamer set it.
