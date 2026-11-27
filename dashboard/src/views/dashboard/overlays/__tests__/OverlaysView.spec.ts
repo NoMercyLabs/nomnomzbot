@@ -214,6 +214,24 @@ vi.mock('@/api/client', () => ({
         return { data: { data: copy }, response: { status: 201, ok: true } };
       }
 
+      // The bot builds the system version as a new saved version: the code is no longer the owner's edit.
+      if (path.endsWith('/update-from-gallery')) {
+        const id = String(options?.params?.path?.widgetId);
+
+        widgets = widgets.map((row) =>
+          row.id === id
+            ? {
+                ...row,
+                isCustomized: false,
+                galleryUpdateAvailable: false,
+              }
+            : row);
+
+        const updated = widgets.find((row) => row.id === id);
+
+        return { data: { data: updated }, response: { status: 200, ok: true } };
+      }
+
       if (path.endsWith('/widgets/install/{galleryItemId}')) {
         const item = gallery.find((row) => row.id === options?.params?.path?.galleryItemId);
         const installed = widget('w7', String(item?.name), {
@@ -724,6 +742,49 @@ describe('OverlaysView', () => {
     expect(posts[0]!.path).toBe('/api/v{version}/channels/{channelId}/widgets/install/{galleryItemId}');
     expect(rowNames()).toContain('Goal Bar');
     expect(router.currentRoute.value.query.id).toBe('w7');
+  });
+
+  it('takes the system update of an edited built-in overlay only after the confirm, then drops the Edited badge', async () => {
+    widgets = widgets.map((row) =>
+      row.id === 'w4'
+        ? {
+            ...row,
+            source: 'first_party',
+            galleryItemId: 'g1',
+            galleryUpdateAvailable: true,
+          }
+        : row);
+
+    await open('/app/overlays?id=w4');
+
+    expect(detail().textContent).toContain('A newer system version exists.');
+
+    button('Update to system version').click();
+    await settle();
+
+    const confirm = (): string => document.body.querySelector('[role="alertdialog"]')?.textContent ?? '';
+
+    expect(confirm()).toContain('Update Chat Box to the system version?');
+    expect(confirm()).toContain('Your settings stay.');
+    expect(calls.some((call) => call.path.endsWith('/update-from-gallery'))).toBe(false);
+
+    button('Update overlay').click();
+    await settle();
+
+    const updates = calls.filter((call) => call.path.endsWith('/update-from-gallery'));
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0]?.method).toBe('POST');
+    expect(detail().textContent).not.toContain('Edited');
+    expect(detail().textContent).not.toContain('A newer system version exists.');
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
+  });
+
+  it('offers no system update when the overlay already runs the system version', async () => {
+    await open('/app/overlays?id=w1');
+
+    expect(detail().textContent).not.toContain('A newer system version exists.');
+    expect([...document.body.querySelectorAll('button')].some((b) => b.textContent?.includes('Update to system version'))).toBe(false);
   });
 
   it('duplicates the open overlay with its code and opens the copy', async () => {

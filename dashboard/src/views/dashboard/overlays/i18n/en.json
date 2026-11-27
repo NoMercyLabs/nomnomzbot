@@ -170,6 +170,15 @@
         "copied": "Address copied",
         "editCode": "Edit code",
         "noAddress": "This overlay has no address yet.",
+        "update": {
+          "notice": "A newer system version exists. Your edited code keeps the old one.",
+          "button": "Update to system version",
+          "title": "Update {name} to the system version?",
+          "replaces": "The system code replaces your edited code.",
+          "keeps": "Your settings stay.",
+          "history": "Your edited code stays in the version history, so you can roll back.",
+          "action": "Update overlay"
+        },
         "health": {
           "title": "Health",
           "works": "Works",

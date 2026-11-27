@@ -563,6 +563,7 @@ export const apiOperations = {
   'save widget settings': 'widgets',
   'create widget': 'widgets',
   'duplicate widget': 'widgets',
+  'update widget from gallery': 'widgets',
   'widget gallery': 'widgets',
   'install widget': 'widgets',
   'widget blast radius': 'widgets',

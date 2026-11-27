@@ -28,10 +28,12 @@ import {
   useDuplicateWidget,
   useSetWidgetEnabled,
   useTestWidgetEvent,
+  useUpdateWidgetFromGallery,
   type Widget,
   type WidgetTestResult,
 } from '@/api/widgets';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
@@ -154,6 +156,24 @@ async function confirmDelete(): Promise<void> {
   confirmOpen.value = false;
 }
 
+// An edited built-in overlay keeps its own code when the system version changes; the owner takes the
+// update here. The old code stays in the version history, so the change can be rolled back.
+const updateFromGallery = useUpdateWidgetFromGallery(channelId);
+const updateOpen = ref(false);
+const updateError = ref<string | undefined>(undefined);
+
+async function confirmUpdate(): Promise<void> {
+  updateError.value = undefined;
+
+  try {
+    await updateFromGallery.mutateAsync(props.widget.id);
+  } catch (failure) {
+    updateError.value = errorText(failure, t);
+  }
+
+  updateOpen.value = false;
+}
+
 const runTone = computed<StatusTone>(() =>
   props.widget.lastRuntimeError
     ? 'bad'
@@ -271,6 +291,20 @@ async function sendTest(eventType: string): Promise<void> {
           <p v-if="widget.description" class="text-sm text-muted-foreground">
             {{ widget.description }}
           </p>
+          <InlineNotice v-if="widget.galleryUpdateAvailable" data-gallery-update tone="info">
+            {{ $t("dashboard.overlays.detail.update.notice") }}
+            <template v-if="can('widget:write')" #action>
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="updateFromGallery.isPending.value"
+                @click="updateOpen = true"
+              >
+                {{ $t("dashboard.overlays.detail.update.button") }}
+              </Button>
+            </template>
+          </InlineNotice>
+          <InlineNotice v-if="updateError" tone="error" compact>{{ updateError }}</InlineNotice>
         </div>
         <div class="ml-auto flex flex-wrap items-center gap-3">
           <label
@@ -425,6 +459,18 @@ async function sendTest(eventType: string): Promise<void> {
       :save="editor.save"
       :preview-action="editor.previewAction"
       @close="editor.close"
+    />
+    <ConfirmDialog
+      v-model:open="updateOpen"
+      :title="$t('dashboard.overlays.detail.update.title', { name: widget.name })"
+      :consequences="[
+        $t('dashboard.overlays.detail.update.replaces'),
+        $t('dashboard.overlays.detail.update.keeps'),
+        $t('dashboard.overlays.detail.update.history'),
+      ]"
+      :action="$t('dashboard.overlays.detail.update.action')"
+      :pending="updateFromGallery.isPending.value"
+      @confirm="confirmUpdate()"
     />
   </DetailPane>
 </template>

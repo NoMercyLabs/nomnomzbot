@@ -365,6 +365,34 @@ export function useDuplicateWidget(
   });
 }
 
+// An edited built-in overlay never takes a new system version by itself. This takes it on the owner's
+// word: the bot saves the system code as a new version, keeps the settings, and the old code stays in
+// the version history.
+export function useUpdateWidgetFromGallery(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, string, undefined>({
+    mutationFn: async (widgetId: string): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/widgets/{widgetId}/update-from-gallery',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          widgetId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('update widget from gallery', error, response.status);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: widgetsKey(toValue(channelId)) });
+    },
+  });
+}
+
 export type WidgetBlastRadius = components['schemas']['BlastRadius'];
 
 // What else uses the overlay, counted by the bot. The confirm shows it before anything is deleted.

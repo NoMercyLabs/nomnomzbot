@@ -170,6 +170,15 @@
         "copied": "Adres gekopieerd",
         "editCode": "Code bewerken",
         "noAddress": "Deze overlay heeft nog geen adres.",
+        "update": {
+          "notice": "Er is een nieuwere systeemversie. Je aangepaste code houdt de oude.",
+          "button": "Bijwerken naar systeemversie",
+          "title": "{name} bijwerken naar de systeemversie?",
+          "replaces": "De systeemcode vervangt je aangepaste code.",
+          "keeps": "Je instellingen blijven.",
+          "history": "Je aangepaste code blijft in de versiegeschiedenis, dus je kunt terugzetten.",
+          "action": "Overlay bijwerken"
+        },
         "health": {
           "title": "Gezondheid",
           "works": "Werkt",
