@@ -333,6 +333,19 @@ function badgeSrc(url: string): string {
   return sized(url, cfg.fontSize * 1.125)
 }
 
+// The server already sanitized this html; only each img src changes, to the same sized address as a plain emote
+// or a chat GIF (the column's widest image).
+function htmlWithSizedImages(html: string): string {
+  if (!html.includes('<img')) return html
+  const box = document.createElement('template')
+  box.innerHTML = html
+  box.content.querySelectorAll('img').forEach((img) => {
+    const src = img.getAttribute('src')
+    if (src) img.setAttribute('src', sized(src, img.classList.contains('emote') ? cfg.fontSize * 6 : 420))
+  })
+  return box.innerHTML
+}
+
 // Twitch's native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): the fragment already carries a
 // directly-fetchable url — no separate resolve step, unlike media-share's clip/video lookups.
 function gifUrl(fr: ChatFragment): string {
@@ -606,7 +619,7 @@ onUnmounted(() => {
           <template v-for="(fr, i) in l.fragments" :key="i">
             <!-- Backend-sanitized rich HTML (e.g. a subscriber's <marquee>/formatting). Rendered as-is; the server
                  is the only place that turns text into an html fragment, and it sanitizes before it ever gets here. -->
-            <span v-if="fr.type === 'html'" class="frag-html" v-html="fr.text"></span>
+            <span v-if="fr.type === 'html'" class="frag-html" v-html="htmlWithSizedImages(fr.text)"></span>
             <!-- Twitch / third-party emote image -->
             <img v-else-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="emoteSrc(fr)" :alt="fr.text" decoding="sync">
             <!-- Cheermote: the animated bits image plus its tier-coloured amount -->

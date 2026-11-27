@@ -124,6 +124,7 @@ public sealed class OverlaySdkImageTests
     [InlineData("chat_box", ":src=\"cheermoteSrc(fr)\"")]
     [InlineData("chat_box", ":src=\"sized(gifUrl(fr), 420)\"")]
     [InlineData("chat_box", ":src=\"sized(fr.linkPreview.imageUrl, 40)\"")]
+    [InlineData("chat_box", "v-html=\"htmlWithSizedImages(fr.text)\"")]
     [InlineData("drop_game", ":src=\"sized(f.image.src, slots.payload.size.w)\"")]
     [InlineData("emote_wall", ":src=\"sized(e.url, e.size)\"")]
     [InlineData("lucky_feather", ":src=\"sized(holder.avatarUrl, 32)\"")]
@@ -188,17 +189,23 @@ public sealed class OverlaySdkImageTests
             .Should()
             .Be(1, "the widget's own error handler must not hide an image that is being retried");
 
-        engine.Execute("img.src = NomNomz.image('https://other.test/second.png', 32); fail();");
+        // Vue reuses the element: the next song's art lands on the same img and gets its own retry.
+        engine.Execute("img.src = NomNomz.image('https://i.scdn.co/image/next', 32); fail();");
+        engine.Evaluate("img.src").ToString().Should().Be("https://i.scdn.co/image/next");
+        engine.Evaluate("stopped").AsNumber().Should().Be(2);
+
+        // The same optimized address failing again is not retried a second time; the widget sees it.
+        engine.Execute("img.src = NomNomz.image('https://i.scdn.co/image/next', 32); fail();");
         engine
             .Evaluate("img.src")
             .ToString()
             .Should()
-            .Be(Wrapped("https://other.test/second.png", 64));
+            .Be(Wrapped("https://i.scdn.co/image/next", 64));
         engine
             .Evaluate("stopped")
             .AsNumber()
             .Should()
-            .Be(1, "the second failure reaches the widget");
+            .Be(2, "a repeat failure of the same address reaches the widget");
     }
 
     [Theory]

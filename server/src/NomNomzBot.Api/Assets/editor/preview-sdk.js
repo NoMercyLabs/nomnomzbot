@@ -240,13 +240,15 @@
   }
   function retryOriginal(e) {
     var img = e && e.target;
-    if (!img || img.tagName !== "IMG" || img.getAttribute("data-nnz-image-retried")) return;
+    if (!img || img.tagName !== "IMG") return;
     var src = String(img.src || "");
+    // The mark holds the address that was retried: Vue reuses an img for the next image, which gets its own retry.
+    if (img.getAttribute("data-nnz-image-retried") === src) return;
     var found = src.indexOf(IMAGE_PATH + "?") >= 0 ? /[?&]src=([^&]*)/.exec(src) : null;
     if (!found) return;
     try {
       var original = decodeURIComponent(found[1]);
-      img.setAttribute("data-nnz-image-retried", "1");
+      img.setAttribute("data-nnz-image-retried", src);
       e.stopPropagation();
       img.src = original;
     } catch (_) {}
