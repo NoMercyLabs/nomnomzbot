@@ -46,17 +46,21 @@ if (-not (Test-Path $plan)) { throw "plan not found: $plan" }
 [string]$bulletStart = '^- (\[[ xX]\] )?\*\*'
 [string]$headingStart = '^#{1,6} '
 [string]$sliceStart = $bulletStart + [regex]::Escape($Slice) + '\*\*'
+# a slice can also be its own heading ("### ID: title"); 46 of them could not be closed before 2026-11-27
+[string]$sliceHeading = $headingStart + [regex]::Escape($Slice) + ':'
 
 while ($i -lt $lines.Length) {
     [string]$line = $lines[$i]
     # exact-id match, first hit only: a wildcard here also deleted siblings (S006 took S006b with it)
-    if (-not $found -and $line -cmatch $sliceStart) {
+    [bool]$isHeading = $line -cmatch $sliceHeading
+    if (-not $found -and ($isHeading -or $line -cmatch $sliceStart)) {
         $found = $true
         $i++
         # a bullet runs until the next bullet, the next heading of any level, a marker comment, or a rule
-        # (the last slice before <!-- parity:end --> once took the marker with it)
+        # (the last slice before <!-- parity:end --> once took the marker with it); a heading slice owns its
+        # bullets, so only the next heading, marker or rule ends it
         while ($i -lt $lines.Length -and
-               $lines[$i] -cnotmatch $bulletStart -and
+               ($isHeading -or $lines[$i] -cnotmatch $bulletStart) -and
                $lines[$i] -cnotmatch $headingStart -and
                -not $lines[$i].StartsWith('<!--') -and
                $lines[$i].Trim() -ne '---') { $i++ }
