@@ -41,4 +41,10 @@ public sealed record GameDropFrame
 
     /// <summary>Where the item enters at the top, 0 to 100; the flight still ends on <see cref="LandingX"/>.</summary>
     public required double SpawnX { get; init; }
+
+    /// <summary>
+    /// The picture the viewer dropped (<c>!drop me</c>, an emote or an emoji) in place of the pack's payload art;
+    /// null drops the pack's own art.
+    /// </summary>
+    public GameDropImage? Image { get; init; }
 }

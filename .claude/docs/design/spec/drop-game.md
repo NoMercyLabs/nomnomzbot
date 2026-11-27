@@ -99,7 +99,7 @@ Modes (`mode`; default single, owner may change):
 - `group`: a lobby window (`lobby_s`, default 60, existing manifest value) collects drops; all fly together on start.
 - `queue`: mods use `!queuedrop` to collect and `!startdrop` to release (PixelPlush parity); `!resetdrop` cancels and refunds.
 - `raid`: a raid starts a group round for `raid_window_s` (default 30).
-- Triggers: chat command (`command`, default `!drop`), channel-point redemption (`redeem_cost`, group variant `redeem_group_cost`), bit cheer (`cheer_min_bits`). Drop arguments: emoji, `me` (avatar), channel emote; the server fetches and caches the image itself (viewer IPs never reach a third party).
+- Triggers: chat command (`command`, default `!drop`), channel-point redemption (`redeem_cost`, group variant `redeem_group_cost`), bit cheer (`cheer_min_bits`). Drop arguments: emoji, `me` (avatar), channel emote. The server builds the image URL itself from fixed patterns only: the viewer's Twitch profile image, the Twitch emote CDN for an emote fragment of the message, and twemoji for an emoji. A viewer can never supply a URL, so there is no fetch proxy and no SSRF surface. (Decision 2026-11-27, replaces "the server fetches and caches the image": the overlay runs in the streamer's OBS, never in a viewer's browser, so a cache protected no viewer, and the chat and feather overlays already load the same CDN images.) The frame carries `image: { src, round }`; null means the pack's own payload art.
 
 ## 6. Luck boost (any stored value, Lucky Feather is one example)
 

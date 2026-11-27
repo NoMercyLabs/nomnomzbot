@@ -16,7 +16,9 @@ using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Chat;
 
 namespace NomNomzBot.Infrastructure.Games.EventHandlers;
 
@@ -70,7 +72,38 @@ public sealed class LiveGameInputListener(
             @event.UserDisplayName,
             @event.Message,
             cancellationToken,
-            ChatMentionName.For(@event.UserDisplayName, @event.UserLogin)
+            ChatMentionName.For(@event.UserDisplayName, @event.UserLogin),
+            new(user.Value.ProfileImageUrl, [.. Emotes(@event.Fragments)])
         );
     }
+
+    /// <summary>
+    /// Each emote of the message with its image link: the decorated emote's largest image when the decoration
+    /// step resolved it, otherwise the Twitch CDN link built from the emote id EventSub gave.
+    /// </summary>
+    private static IEnumerable<LiveGameInputEmote> Emotes(
+        IReadOnlyList<ChatMessageFragment> fragments
+    )
+    {
+        foreach (ChatMessageFragment fragment in fragments)
+        {
+            if (fragment.Type != "emote" || string.IsNullOrEmpty(fragment.Text))
+                continue;
+            string? url = LargestUrl(fragment.Emote?.Urls);
+            if (url is null && fragment.EmoteId is not null)
+                url = LargestUrl(
+                    TwitchEmoteMapper.BuildUrls(
+                        fragment.EmoteId,
+                        fragment.EmoteFormats.Contains("animated")
+                    )
+                );
+            if (url is not null)
+                yield return new(fragment.Text, url);
+        }
+    }
+
+    private static string? LargestUrl(IReadOnlyDictionary<string, string>? urls) =>
+        urls is null || urls.Count == 0
+            ? null
+            : urls.MaxBy(u => u.Key, StringComparer.Ordinal).Value;
 }

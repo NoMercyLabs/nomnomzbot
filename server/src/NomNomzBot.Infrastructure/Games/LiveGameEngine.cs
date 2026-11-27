@@ -272,7 +272,8 @@ public sealed class LiveGameEngine(
         string displayName,
         string message,
         CancellationToken ct = default,
-        string? chatName = null
+        string? chatName = null,
+        LiveGameInputMedia? media = null
     )
     {
         if (
@@ -345,7 +346,7 @@ public sealed class LiveGameEngine(
 
             LiveGameTransition transition = await runtime.Game.OnInputAsync(
                 BuildState(runtime),
-                new(player, keyword, [.. tokens.Skip(1)], message),
+                new(player, keyword, [.. tokens.Skip(1)], message, media),
                 ct
             );
             bool maxReached =

@@ -71,13 +71,29 @@ public sealed record LiveGameParticipant(
     long Stake
 );
 
-/// <summary>One matched chat input: the participant, the keyword that matched, and the remaining tokens.</summary>
+/// <summary>
+/// One matched chat input: the participant, the keyword that matched, the remaining tokens, and the pictures the
+/// message carries (null when the input came from somewhere without them).
+/// </summary>
 public sealed record LiveGameInput(
     LiveGameParticipant Player,
     string Keyword,
     IReadOnlyList<string> Args,
-    string RawMessage
+    string RawMessage,
+    LiveGameInputMedia? Media = null
 );
+
+/// <summary>
+/// The pictures a chat input can point at: the sender's own profile image and each platform emote in the
+/// message, with the image link the platform gave for it. A game picks from these; a viewer never sends a link.
+/// </summary>
+public sealed record LiveGameInputMedia(
+    string? AvatarUrl,
+    IReadOnlyList<LiveGameInputEmote> Emotes
+);
+
+/// <summary>One emote of the message: the text that names it in chat, and its image link.</summary>
+public sealed record LiveGameInputEmote(string Code, string ImageUrl);
 
 /// <summary>A hook's outcome: optionally push an overlay frame, optionally trigger resolution.</summary>
 public sealed record LiveGameTransition(

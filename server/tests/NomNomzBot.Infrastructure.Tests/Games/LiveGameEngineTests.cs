@@ -22,9 +22,13 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Games.Dtos;
 using NomNomzBot.Application.Games.Services;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
@@ -33,6 +37,7 @@ using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Games.Catalog;
+using NomNomzBot.Infrastructure.Games.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -957,5 +962,124 @@ public sealed class LiveGameEngineTests
         (await RaffleSeed(h).SeedAsync(Channel, RaffleWidget([]), CancellationToken.None))
             .Should()
             .BeEmpty("the running session is not a raffle");
+    }
+
+    private const string AliceAvatar =
+        "https://static-cdn.jtvnw.net/user-default-pictures/alice.png";
+
+    /// <summary>The real chat listener in front of the real engine: chat message in, overlay drop frame out.</summary>
+    private static async Task<Dictionary<string, object?>> DropFromChatAsync(
+        Harness h,
+        string message,
+        IReadOnlyList<ChatMessageFragment> fragments
+    )
+    {
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new UserDto(
+                        PlayerA.ToString(),
+                        "alice",
+                        "Alice",
+                        AliceAvatar,
+                        null,
+                        DateTime.UnixEpoch,
+                        DateTime.UnixEpoch
+                    )
+                )
+            );
+        ServiceProvider services = new ServiceCollection()
+            .AddSingleton(h.Engine)
+            .BuildServiceProvider();
+        LiveGameInputListener listener = new(
+            h.Registry,
+            services.GetRequiredService<IServiceScopeFactory>(),
+            users
+        );
+
+        await listener.HandleAsync(
+            new ChatMessageReceivedEvent
+            {
+                BroadcasterId = Channel,
+                MessageId = "m-drop-1",
+                TwitchBroadcasterId = "channel",
+                UserId = "1001",
+                UserDisplayName = "Alice",
+                UserLogin = "alice",
+                Message = message,
+                Fragments = fragments,
+                Badges = [],
+                IsSubscriber = false,
+                IsVip = false,
+                IsModerator = false,
+                IsBroadcaster = false,
+            }
+        );
+
+        return h
+            .Overlay.Sent.Select(f => f.Data)
+            .OfType<Dictionary<string, object?>>()
+            .Single(d => Equals(d.GetValueOrDefault("kind"), "drop"));
+    }
+
+    [Fact]
+    public async Task A_chat_drop_with_an_emote_reaches_the_overlay_as_that_emotes_twitch_picture()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedConfig(h.Db, "drop_game");
+        await h.Engine.StartAsync(Channel, new("drop_game", null));
+
+        Dictionary<string, object?> frame = await DropFromChatAsync(
+            h,
+            "!drop Kappa",
+            [
+                new() { Type = "text", Text = "!drop " },
+                new()
+                {
+                    Type = "emote",
+                    Text = "Kappa",
+                    EmoteId = "25",
+                    EmoteFormats = ["static"],
+                },
+            ]
+        );
+
+        Dictionary<string, object?> image = frame["image"]
+            .Should()
+            .BeAssignableTo<Dictionary<string, object?>>()
+            .Subject;
+        image["src"].Should().Be("https://static-cdn.jtvnw.net/emoticons/v2/25/static/dark/3.0");
+        image["round"].Should().Be(false);
+    }
+
+    [Fact]
+    public async Task A_chat_drop_me_reaches_the_overlay_as_the_viewers_round_avatar()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedConfig(h.Db, "drop_game");
+        await h.Engine.StartAsync(Channel, new("drop_game", null));
+
+        Dictionary<string, object?> frame = await DropFromChatAsync(
+            h,
+            "!drop me",
+            [new() { Type = "text", Text = "!drop me" }]
+        );
+
+        Dictionary<string, object?> image = frame["image"]
+            .Should()
+            .BeAssignableTo<Dictionary<string, object?>>()
+            .Subject;
+        image["src"].Should().Be(AliceAvatar);
+        image["round"].Should().Be(true);
     }
 }

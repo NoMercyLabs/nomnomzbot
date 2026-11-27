@@ -601,6 +601,8 @@ interface NnzGameDropFrame {
   seed: string;
   /** Where the item enters at the top, 0 to 100; the flight still ends on LandingX. */
   spawnX: number;
+  /** The picture the viewer dropped (!drop me, an emote or an emoji) in place of the pack's payload art; null drops the pack's own art. */
+  image?: NnzGameDropImage | null;
 }
 
 /** The round resolved. Each game adds its own summary next to results: drop the target and radius, raffle the pot and the winner. */
@@ -859,6 +861,12 @@ interface NnzSongRequestQueueSnapshotItem {
 interface NnzGameRosterEntry {
   player: string;
   stake: number;
+}
+
+/** A dropped picture: a server-built https link, and whether it is drawn as a circle (an avatar). */
+interface NnzGameDropImage {
+  src: string;
+  round: boolean;
 }
 
 /** One player's outcome in a GameResultsFrame. Each game fills the fields it has: drop sends landed, distance (both null when the player never dropped) and won, with no stake; raffle sends won. */
@@ -2234,6 +2242,8 @@ interface NnzDropPackSlot {
   anchor?: string;
   size: NnzDropPackSize;
   z?: number;
+  /** Payload only: how many pixels the payload hangs up into the carrier. */
+  tuck?: number;
 }
 
 /** The landing band (src null: no band art). hitbox.y is where a payload stands; hitbox.w is the marker art's scoring width. */
@@ -2244,14 +2254,15 @@ interface NnzDropPackTarget extends Omit<NnzDropPackSlot, 'src'> {
   marker?: NnzDropPackSlot;
 }
 
-/** What stays on the ground: a stage picture by score, scaled from minScale to maxScale. */
+/** What stays on the ground: a stage picture by score, scaled from minScale to maxScale over growMs. A null miss leaves the payload standing. */
 interface NnzDropPackLanded {
   anchor?: string;
   size: NnzDropPackSize;
   z?: number;
   growWithScore?: { minScale: number; maxScale: number };
+  growMs?: number;
   stages: { minScore: number; src: string }[];
-  miss?: { src: string };
+  miss?: { src: string } | null;
 }
 
 /** The pack.json of a drop-game theme pack. */

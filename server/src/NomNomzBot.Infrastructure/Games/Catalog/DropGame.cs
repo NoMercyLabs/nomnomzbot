@@ -89,6 +89,7 @@ public sealed class DropGame : ILiveGame
         state.Data[dropKey] = landed;
         // Persisted with the round state (GameSession.StateJson), so the result can be recomputed later.
         state.Data[$"dropSeed:{input.Player.UserId}"] = seedText;
+        DropImage? image = DropImage.Pick(input);
 
         return Task.FromResult(
             LiveGameTransition.Push(
@@ -104,6 +105,13 @@ public sealed class DropGame : ILiveGame
                     ["distance"] = distance,
                     ["hit"] = distance <= radius,
                     ["score"] = Score(distance, radius),
+                    ["image"] = image is null
+                        ? null
+                        : new Dictionary<string, object?>
+                        {
+                            ["src"] = image.Src,
+                            ["round"] = image.Round,
+                        },
                 }
             )
         );

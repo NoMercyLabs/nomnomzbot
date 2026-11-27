@@ -572,6 +572,10 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  anchor?: string;");
         sb.AppendLine("  size: NnzDropPackSize;");
         sb.AppendLine("  z?: number;");
+        sb.AppendLine(
+            "  /** Payload only: how many pixels the payload hangs up into the carrier. */"
+        );
+        sb.AppendLine("  tuck?: number;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine(
@@ -585,15 +589,16 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine(
-            "/** What stays on the ground: a stage picture by score, scaled from minScale to maxScale. */"
+            "/** What stays on the ground: a stage picture by score, scaled from minScale to maxScale over growMs. A null miss leaves the payload standing. */"
         );
         sb.AppendLine("interface NnzDropPackLanded {");
         sb.AppendLine("  anchor?: string;");
         sb.AppendLine("  size: NnzDropPackSize;");
         sb.AppendLine("  z?: number;");
         sb.AppendLine("  growWithScore?: { minScale: number; maxScale: number };");
+        sb.AppendLine("  growMs?: number;");
         sb.AppendLine("  stages: { minScore: number; src: string }[];");
-        sb.AppendLine("  miss?: { src: string };");
+        sb.AppendLine("  miss?: { src: string } | null;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/** The pack.json of a drop-game theme pack. */");

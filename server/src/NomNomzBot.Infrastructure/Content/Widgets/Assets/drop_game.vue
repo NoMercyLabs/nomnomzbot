@@ -15,6 +15,9 @@ interface Flight {
   score: number
   hit: boolean
   down: boolean
+  // The viewer's own picture (!drop me, an emote, an emoji); null, or a link that fails, draws the pack's art.
+  image: { src: string; round: boolean } | null
+  imageFailed: boolean
 }
 interface Winner { player: string; payout: number }
 interface Row { key: string; rank: number; player: string; value: string; payout: boolean }
@@ -161,16 +164,23 @@ const markerStyle = computed(() => {
   }
 })
 
+// An 'outline' label is the text color edged in the background color (SeedlingDrop's outlined names);
+// any other tag is a filled pill.
+const outlined = computed<boolean>(() => pack.value?.labels?.tag === 'outline')
+
 function labelStyle(): Record<string, string> {
   const colors = pack.value?.labels?.colors
   const out: Record<string, string> = {}
   if (colors?.text?.startsWith('--nnz-')) out.color = 'var(' + colors.text + ')'
-  if (colors?.background?.startsWith('--nnz-')) out.background = 'var(' + colors.background + ')'
+  if (colors?.background?.startsWith('--nnz-')) {
+    out[outlined.value ? '--drop-edge' : 'background'] = 'var(' + colors.background + ')'
+  }
   return out
 }
 
-function initial(player: string): string {
-  return (Array.from(player.trim())[0] ?? '?').toUpperCase()
+// The name grows with the score, as in SeedlingDrop (score / 100 x 2.5rem), with a floor so a low score stays readable.
+function plantNameStyle(f: Flight): Record<string, string> {
+  return { ...labelStyle(), fontSize: Math.max(14, f.score * 0.4) + 'px' }
 }
 
 // A higher score grows a bigger plant: the scale runs from the pack's minScale to its maxScale.
@@ -189,16 +199,64 @@ function landedDrawing(f: Flight): string {
   return drawing(stageFor?.src)
 }
 
-function landedStyle(f: Flight): Record<string, string> {
+// Once down, the payload gives way to what landed; a miss with no miss art leaves the payload standing.
+function isGone(f: Flight): boolean {
+  return f.down && landedDrawing(f) !== ''
+}
+
+function landedSize(f: Flight): Box {
+  const landed = slots.value?.landed
+  if (!landed) return { w: 0, h: 0 }
+  const k = f.score > 0 ? growthOf(f) : 1
+  return { w: landed.size.w * k, h: landed.size.h * k }
+}
+
+// The plant and its name grow together from the ground point, over the pack's growMs.
+function plantStyle(f: Flight): Record<string, string> {
   const landed = slots.value?.landed
   if (!landed) return {}
-  const k = f.score > 0 ? growthOf(f) : 1
-  const w = landed.size.w * k
-  const h = landed.size.h * k
+  const w = landedSize(f).w
   return {
-    ...boxStyle({ w, h }, landed.z),
+    zIndex: String(landed.z ?? 2),
+    width: w + 'px',
     left: (f.landingX * stage.value.w) / 100 - w / 2 + 'px',
-    top: groundY.value - h + 'px',
+    bottom: stage.value.h - groundY.value + 'px',
+    animationDuration: (landed.growMs ?? 900) + 'ms',
+  }
+}
+
+function landedStyle(f: Flight): Record<string, string> {
+  const size = landedSize(f)
+  return { width: size.w + 'px', height: size.h + 'px' }
+}
+
+// The drop's box is the payload; the carrier hangs above it, its lines reaching tuck px down over the payload.
+function dropStyle(): Record<string, string> {
+  const s = slots.value
+  if (!s) return {}
+  const tuck = s.payload.tuck ?? 0
+  const carrierH = s.carrier?.size.h ?? 0
+  return {
+    width: s.payload.size.w + 'px',
+    height: s.payload.size.h + 'px',
+    zIndex: String(s.payload.z ?? 3),
+    '--drop-tuck': tuck + 'px',
+    '--drop-lift': Math.max(0, carrierH - tuck) + 'px',
+  }
+}
+
+// A steady swing of ±sway degrees about the middle of the whole drop (name, carrier and payload), each drop
+// at its own seeded point in the swing.
+const NAME_HEIGHT = 40
+function swayStyle(f: Flight): Record<string, string> {
+  const s = slots.value
+  if (!s) return {}
+  const lift = Math.max(0, (s.carrier?.size.h ?? 0) - (s.payload.tuck ?? 0))
+  const middle = (s.payload.size.h - lift - NAME_HEIGHT) / 2
+  return {
+    '--drop-sway': (pack.value?.motion.sway ?? 0) + 'deg',
+    transformOrigin: '50% ' + middle + 'px',
+    animationDelay: -Math.round(seeded(f.seed, f.player)() * 2000) + 'ms',
   }
 }
 
@@ -240,8 +298,8 @@ function seeded(seed: string, player: string): () => number {
   }
 }
 
-// The server decides the result. The path starts at spawnX above the stage, sways with the seed (cosmetic only),
-// and ends exactly on the server's landingX, standing on the ground: the sway fades to zero at the last frame.
+// The server decides the result. Like SeedlingDrop, a drop moves at a steady speed in a straight line, from spawnX
+// above the stage to the server's landingX, standing on the ground; the swing is the sway layer's own.
 function fly(el: Element | null, f: Flight): void {
   if (!(el instanceof HTMLElement) || started.has(f.id) || !slots.value) return
   started.add(f.id)
@@ -249,22 +307,12 @@ function fly(el: Element | null, f: Flight): void {
   if (typeof el.animate !== 'function') { land(f); return }
   const payload = slots.value.payload.size
   const carrier = slots.value.carrier?.size ?? { w: 0, h: 0 }
-  const rand = seeded(f.seed, f.player)
-  const sway = pack.value?.motion.sway ?? 0
-  const amplitude = (3 + rand() * 6) * (stage.value.w / 100)
-  const turns = 1.5 + rand() * 2
-  const offset = rand() * Math.PI * 2
-  const fromY = -(payload.h + carrier.h)
+  const fromY = -(payload.h + carrier.h + NAME_HEIGHT)
   const toY = groundY.value - payload.h
-  const steps = 24
-  const frames: Keyframe[] = []
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps
-    const wave = Math.sin(offset + t * turns * Math.PI * 2)
-    const x = ((f.spawnX + (f.landingX - f.spawnX) * t) * stage.value.w) / 100 + amplitude * wave * (1 - t)
-    const y = fromY + (toY - fromY) * t
-    frames.push({ transform: 'translate(' + (x - payload.w / 2) + 'px, ' + y + 'px) rotate(' + wave * sway * (1 - t) + 'deg)' })
-  }
+  const at = (x: number, y: number): Keyframe => ({
+    transform: 'translate(' + ((x * stage.value.w) / 100 - payload.w / 2) + 'px, ' + y + 'px)',
+  })
+  const frames: Keyframe[] = [at(f.spawnX, fromY), at(f.landingX, toY)]
   const animation = el.animate(frames, { duration: FLIGHT_MS, easing: 'linear', fill: 'forwards' })
   animation.onfinish = () => land(f)
 }
@@ -334,6 +382,8 @@ function onFrame(d: GameFrame): void {
       score: d.score ?? (d.hit ? 50 : 0),
       hit: d.hit,
       down: false,
+      image: d.image ?? null,
+      imageFailed: false,
     }]
     return
   }
@@ -401,7 +451,10 @@ onUnmounted(() => {
           <span v-if="markerStyle && slots.target.marker" class="marker art" :style="markerStyle" v-html="drawing(slots.target.marker.src)"></span>
 
           <template v-for="f in flights" :key="f.id">
-            <span v-if="f.down" class="landed art" :style="landedStyle(f)" v-html="landedDrawing(f)"></span>
+            <div v-if="isGone(f)" class="plant" :style="plantStyle(f)">
+              <span v-if="f.score > 0" class="name" :class="outlined ? 'is-outline' : 'nnz-pill'" :style="plantNameStyle(f)">{{ f.player }}</span>
+              <span class="landed art" :style="landedStyle(f)" v-html="landedDrawing(f)"></span>
+            </div>
             <span v-if="effectFor(f)" class="effect art" :style="effectStyle(f, effectFor(f)!.size)" v-html="drawing(effectFor(f)?.src)"></span>
           </template>
 
@@ -410,14 +463,23 @@ onUnmounted(() => {
             :key="'drop' + f.id"
             :ref="(el) => fly(el as Element | null, f)"
             class="drop"
-            :class="{ 'is-down': f.down, 'is-miss': f.down && f.score <= 0 }"
-            :style="{ width: slots.payload.size.w + 'px', height: slots.payload.size.h + 'px', zIndex: String(slots.payload.z ?? 3) }"
+            :class="{ 'is-down': f.down, 'is-gone': isGone(f) }"
+            :style="dropStyle()"
           >
-            <span v-if="slots.carrier" class="carrier art" :style="boxStyle(slots.carrier.size, slots.carrier.z)" v-html="drawing(slots.carrier.src)"></span>
-            <span class="tile nnz-title">{{ initial(f.player) }}</span>
-            <span class="frame art" v-html="drawing(slots.payload.src)"></span>
+            <div class="sway" :style="swayStyle(f)">
+              <span v-if="slots.carrier" class="carrier art" :style="boxStyle(slots.carrier.size, slots.carrier.z)" v-html="drawing(slots.carrier.src)"></span>
+              <img
+                v-if="f.image && !f.imageFailed"
+                class="frame picture"
+                :class="{ 'is-round': f.image.round }"
+                :src="f.image.src"
+                alt=""
+                @error="f.imageFailed = true"
+              />
+              <span v-else class="frame art" v-html="drawing(slots.payload.src)"></span>
+              <span class="name flying" :class="outlined ? 'is-outline' : 'nnz-pill'" :style="labelStyle()">{{ f.player }}</span>
+            </div>
             <span v-if="f.down && f.score > 0" class="score nnz-chip">{{ f.score }}</span>
-            <span class="nnz-pill name" :style="labelStyle()">{{ f.player }}</span>
           </div>
 
           <span v-if="slots.foreground" class="layer art" :style="boxStyle(stage, slots.foreground.z)" v-html="drawing(slots.foreground.src)"></span>
@@ -460,7 +522,6 @@ onUnmounted(() => {
   --drop-canopy-alt: var(--nnz-line);
   --drop-outline: var(--nnz-line);
   --drop-gold: var(--nnz-accent);
-  --drop-sparkle-dot: var(--nnz-surface);
 }
 .scene {
   position: absolute;
@@ -492,9 +553,17 @@ onUnmounted(() => {
   height: 100%;
   overflow: visible;
 }
+.marker,
 .landed {
+  filter: drop-shadow(5px 5px 5px rgb(0 0 0 / 0.55)); /* theme-exempt: SeedlingDrop's ground shadow, a shade not a color */
+}
+/* The plant and the name above it grow from nothing at the ground point, linear like SeedlingDrop. */
+.plant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   transform-origin: 50% 100%;
-  animation: grow 900ms var(--nnz-ease) both;
+  animation: grow 900ms linear both;
 }
 .effect {
   animation: burst 900ms var(--nnz-ease) both;
@@ -504,55 +573,74 @@ onUnmounted(() => {
   top: 0;
   will-change: transform;
 }
+.sway {
+  position: absolute;
+  inset: 0;
+  animation: sway 1s ease-in-out infinite alternate;
+}
+.is-down .sway {
+  animation: none;
+}
 .carrier {
   position: absolute;
   left: 50%;
-  bottom: 88%;
+  bottom: calc(100% - var(--drop-tuck, 0px));
   translate: -50% 0;
   transform-origin: 50% 100%;
-  transition: opacity var(--nnz-out) ease-in, scale var(--nnz-out) ease-in;
+  transition: scale 1s;
 }
 .is-down .carrier {
-  opacity: 0;
-  scale: 1 0.1;
-}
-.tile {
-  position: absolute;
-  inset: 12%;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--nnz-surface);
-  color: var(--nnz-text);
-  font-size: 40px;
-  line-height: 1;
-  margin: 0;
+  scale: 0;
 }
 .frame {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  transition: opacity 1s;
+}
+/* A dropped picture fills the payload box whole; an avatar is cut to a circle. */
+.picture {
+  object-fit: contain;
+}
+.picture.is-round {
+  object-fit: cover;
+  border-radius: 50%;
+}
+.is-gone .frame,
+.is-gone .flying {
+  opacity: 0;
 }
 .name {
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 10px);
-  translate: -50% 0;
   padding: 4px 14px;
   font-size: 22px;
   font-weight: 800;
+  line-height: 1.1;
   white-space: nowrap;
-  max-width: 260px;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   box-shadow: none;
   zoom: 1;
 }
-/* Once down, the plant takes the spot; the name stays in the grass under it. */
-.is-down .tile,
-.is-down .frame {
-  animation: settle 700ms ease-in 500ms both;
+/* In flight the name rides above the canopy; on a miss it drops to just above the payload that stays. */
+.flying {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + var(--drop-lift, 0px));
+  translate: -50% 0;
+  transition: translate 1s, opacity 1s;
+}
+.is-down .flying {
+  translate: -50% var(--drop-lift, 0px);
+}
+.is-outline {
+  padding: 0 2px;
+  background: none;
+  font-size: 32px;
+  text-shadow:
+    2px 0 0 var(--drop-edge), -2px 0 0 var(--drop-edge), 0 2px 0 var(--drop-edge), 0 -2px 0 var(--drop-edge),
+    2px 2px 0 var(--drop-edge), -2px -2px 0 var(--drop-edge), 2px -2px 0 var(--drop-edge), -2px 2px 0 var(--drop-edge);
 }
 .score {
   position: absolute;
@@ -561,12 +649,6 @@ onUnmounted(() => {
   translate: -50% 0;
   font-size: 26px;
   animation: pop 1800ms var(--nnz-ease) both;
-}
-.is-miss .tile,
-.is-miss .frame,
-.is-miss .name {
-  opacity: 0.6;
-  filter: grayscale(1);
 }
 .board {
   width: 300px;
@@ -578,9 +660,9 @@ onUnmounted(() => {
   0% { scale: 0; }
   100% { scale: 1; }
 }
-@keyframes settle {
-  0% { opacity: 1; scale: 1; }
-  100% { opacity: 0; scale: 0.4; }
+@keyframes sway {
+  0% { rotate: calc(var(--drop-sway, 0deg) * -1); }
+  100% { rotate: var(--drop-sway, 0deg); }
 }
 @keyframes burst {
   0% { opacity: 0; scale: 0.3; }

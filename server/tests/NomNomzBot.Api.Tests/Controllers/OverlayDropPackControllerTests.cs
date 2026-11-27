@@ -44,7 +44,6 @@ public sealed class OverlayDropPackControllerTests
             slots.GetProperty("carrier").GetProperty("src").GetString()!,
             slots.GetProperty("payload").GetProperty("src").GetString()!,
             slots.GetProperty("target").GetProperty("marker").GetProperty("src").GetString()!,
-            slots.GetProperty("landed").GetProperty("miss").GetProperty("src").GetString()!,
             .. slots
                 .GetProperty("landed")
                 .GetProperty("stages")

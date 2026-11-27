@@ -112,12 +112,83 @@ public sealed class DropPackTests
         thresholds.Should().NotBeEmpty().And.BeInAscendingOrder();
         thresholds
             .Should()
-            .OnlyContain(t => t > 0, "a score of 0 is a miss, which draws the miss art");
-        landed.GetProperty("miss").GetProperty("src").GetString().Should().NotBeNullOrEmpty();
+            .OnlyContain(t => t > 0, "a score of 0 is a miss, which draws the miss slot");
+        landed
+            .TryGetProperty("miss", out _)
+            .Should()
+            .BeTrue("the miss slot is declared, even when the payload itself stays");
 
-        pack.GetProperty("effects").GetArrayLength().Should().BePositive();
+        pack.GetProperty("effects").ValueKind.Should().Be(JsonValueKind.Array);
         pack.GetProperty("sounds").ValueKind.Should().Be(JsonValueKind.Object);
         pack.GetProperty("labels").GetProperty("tag").GetString().Should().NotBeNullOrEmpty();
+    }
+
+    /// <summary>
+    /// The parachute pack re-creates Coding Garden's SeedlingDrop as it played with its parachute (commit 88eeffd,
+    /// client/styles.css and client/app.js): a 150 px canopy, a 56 px seed tucked 20 px into its lines, the name
+    /// above the canopy in outlined type, a steady 10 degree sway, a seedling of score x 1.5 px grown over 5 s,
+    /// the seed left standing on a miss, the ground on the screen's bottom edge, and no extra effects.
+    /// </summary>
+    [Fact]
+    public void The_parachute_pack_matches_the_seedling_drop_reference()
+    {
+        JsonElement pack = Manifest();
+        JsonElement slots = pack.GetProperty("slots");
+
+        pack.GetProperty("motion").GetProperty("sway").GetDouble().Should().Be(10);
+
+        JsonElement carrier = slots.GetProperty("carrier");
+        carrier.GetProperty("size").GetProperty("w").GetInt32().Should().Be(150);
+        carrier.GetProperty("size").GetProperty("h").GetInt32().Should().Be(135);
+
+        JsonElement payload = slots.GetProperty("payload");
+        payload.GetProperty("src").GetString().Should().Be("seed.svg", "the seed is what falls");
+        payload.GetProperty("size").GetProperty("w").GetInt32().Should().Be(56);
+        payload.GetProperty("size").GetProperty("h").GetInt32().Should().Be(72);
+        payload
+            .GetProperty("tuck")
+            .GetInt32()
+            .Should()
+            .Be(20, "the seed hangs 20 px into the canopy lines");
+
+        JsonElement target = slots.GetProperty("target");
+        target
+            .GetProperty("hitbox")
+            .GetProperty("y")
+            .GetInt32()
+            .Should()
+            .Be(
+                target.GetProperty("size").GetProperty("h").GetInt32(),
+                "drops land on the bottom edge"
+            );
+        JsonElement marker = target.GetProperty("marker").GetProperty("size");
+        marker
+            .GetProperty("w")
+            .GetInt32()
+            .Should()
+            .Be(
+                target.GetProperty("hitbox").GetProperty("w").GetInt32(),
+                "the hill is the scoring zone"
+            );
+
+        JsonElement landed = slots.GetProperty("landed");
+        landed
+            .GetProperty("size")
+            .GetProperty("h")
+            .GetInt32()
+            .Should()
+            .Be(150, "score 100 is 150 px");
+        landed.GetProperty("growWithScore").GetProperty("minScale").GetDouble().Should().Be(0);
+        landed.GetProperty("growWithScore").GetProperty("maxScale").GetDouble().Should().Be(1);
+        landed.GetProperty("growMs").GetInt32().Should().Be(5000);
+        landed
+            .TryGetProperty("miss", out JsonElement miss)
+            .Should()
+            .BeTrue("the miss slot is declared");
+        miss.ValueKind.Should().Be(JsonValueKind.Null, "a miss leaves the seed itself standing");
+
+        pack.GetProperty("effects").GetArrayLength().Should().Be(0, "SeedlingDrop has no burst");
+        pack.GetProperty("labels").GetProperty("tag").GetString().Should().Be("outline");
     }
 
     [Fact]
@@ -125,7 +196,8 @@ public sealed class DropPackTests
     {
         List<string> sources = [.. Sources(Manifest()).Distinct(StringComparer.Ordinal)];
 
-        sources.Should().HaveCountGreaterThanOrEqualTo(6);
+        // SeedlingDrop's four pictures: parachute, seed, grass hill, seedling.
+        sources.Should().HaveCountGreaterThanOrEqualTo(4);
         foreach (string src in sources)
         {
             byte[]? file = FirstPartyDropPacks.ReadFile("parachute", src);

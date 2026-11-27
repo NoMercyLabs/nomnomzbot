@@ -210,6 +210,101 @@ public sealed class DropGameTests
         frame["hit"].Should().Be(true, "the hit rule stays distance <= radius");
     }
 
+    private const string Avatar =
+        "https://static-cdn.jtvnw.net/jtv_user_pictures/alice-profile_image-300x300.png";
+    private const string KappaUrl = "https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/3.0";
+
+    private static readonly LiveGameInputMedia AliceMedia = new(
+        Avatar,
+        [new LiveGameInputEmote("Kappa", KappaUrl)]
+    );
+
+    // Drops Alice with the chat message as typed (keyword first) and the pictures it carried.
+    private static async Task<Dictionary<string, object?>> DropSaying(
+        string message,
+        LiveGameInputMedia? media
+    )
+    {
+        DropGame game = new();
+        Dictionary<string, object?> data = [];
+        LiveGameParticipant alice = Player(PlayerA, "Alice", 40);
+        SeedRandom random = new(0.50, 777UL);
+        await game.OnStartAsync(State(random, [alice], data), CancellationToken.None);
+        string[] tokens = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        LiveGameTransition drop = await game.OnInputAsync(
+            State(random, [alice], data),
+            new(alice, tokens[0], [.. tokens.Skip(1)], message, media),
+            CancellationToken.None
+        );
+        return (Dictionary<string, object?>)drop.OverlayPayload!;
+    }
+
+    private static Dictionary<string, object?> ImageOf(Dictionary<string, object?> frame) =>
+        frame["image"].Should().BeOfType<Dictionary<string, object?>>().Subject;
+
+    [Theory]
+    [InlineData("!drop me")]
+    [InlineData("!drop ME")]
+    [InlineData("!drop 50 me")]
+    public async Task Drop_me_drops_the_viewers_own_avatar_as_a_round_picture(string message)
+    {
+        Dictionary<string, object?> image = ImageOf(await DropSaying(message, AliceMedia));
+
+        image["src"].Should().Be(Avatar);
+        image["round"].Should().Be(true, "an avatar is drawn as a circle");
+    }
+
+    [Fact]
+    public async Task Drop_with_an_emote_drops_that_emotes_platform_image()
+    {
+        Dictionary<string, object?> image = ImageOf(await DropSaying("!drop Kappa", AliceMedia));
+
+        image["src"].Should().Be(KappaUrl);
+        image["round"].Should().Be(false);
+    }
+
+    [Theory]
+    [InlineData("!drop \U0001F331", "1f331")]
+    [InlineData("!drop ❤️", "2764")]
+    [InlineData("!drop \U0001F469‍\U0001F4BB", "1f469-200d-1f4bb")]
+    [InlineData("!drop \U0001F44D\U0001F3FD", "1f44d-1f3fd")]
+    [InlineData("!drop \U0001F1F3\U0001F1F1", "1f1f3-1f1f1")]
+    public async Task Drop_with_an_emoji_drops_its_twemoji_picture(string message, string file)
+    {
+        Dictionary<string, object?> image = ImageOf(await DropSaying(message, AliceMedia));
+
+        image["src"]
+            .Should()
+            .Be($"https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/{file}.svg");
+        image["round"].Should().Be(false);
+    }
+
+    [Theory]
+    [InlineData("!drop")]
+    [InlineData("!drop 50")]
+    [InlineData("!drop hello")]
+    [InlineData("!drop https://evil.example/x.png")]
+    [InlineData("!drop abc\U0001F331")]
+    public async Task A_drop_without_a_known_picture_falls_back_to_the_packs_own_art(string message)
+    {
+        Dictionary<string, object?> frame = await DropSaying(message, AliceMedia);
+
+        frame.Should().ContainKey("image");
+        frame["image"]
+            .Should()
+            .BeNull("only the viewer's avatar, a message emote or an emoji become a picture");
+    }
+
+    [Fact]
+    public async Task Drop_me_without_a_known_avatar_falls_back_to_the_packs_own_art()
+    {
+        Dictionary<string, object?> frame = await DropSaying("!drop me", new(null, []));
+        frame["image"].Should().BeNull();
+
+        Dictionary<string, object?> noMedia = await DropSaying("!drop Kappa", null);
+        noMedia["image"].Should().BeNull("an input without media carries no emote");
+    }
+
     [Fact]
     public async Task A_drop_halfway_to_the_edge_scores_50_and_beyond_the_edge_scores_0()
     {
