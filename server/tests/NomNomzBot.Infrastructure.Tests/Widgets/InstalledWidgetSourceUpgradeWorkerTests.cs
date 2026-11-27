@@ -54,7 +54,7 @@ public sealed class InstalledWidgetSourceUpgradeWorkerTests
     {
         List<Type> offenders =
         [
-            .. typeof(NomNomzBot.Infrastructure.DependencyInjection)
+            .. typeof(DependencyInjection)
                 .Assembly.GetTypes()
                 .Where(type => type is { IsAbstract: false, IsClass: true })
                 .Where(type => typeof(ISeeder).IsAssignableFrom(type))
