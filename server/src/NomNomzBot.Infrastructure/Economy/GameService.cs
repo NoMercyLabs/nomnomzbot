@@ -64,6 +64,8 @@ public sealed class GameService(
     // which are never listed again.
     private static readonly string[] RemovedGames = ["heist", "crash"];
 
+    private static readonly HashSet<string> EnabledOnSeed = ["drop_game"];
+
     // Safe baseline (limits-safety-baseline-then-tier): a GAMBLING game always has at least this per-user
     // cooldown, even if configured to 0 — otherwise a chat command that debits/credits the wallet is a
     // machine-gun (the "!coinflip spam" the owner hit). Rate limiting is measured in MINUTES, not seconds:
@@ -94,29 +96,45 @@ public sealed class GameService(
             .OrderBy(g => g.GameType)
             .ToListAsync(ct);
 
-        if (rows.Count == 0)
+        // A channel seeded before a game joined the catalog gets that game's row on its next list.
+        // A deleted row counts as present: the streamer removed that game, so it never comes back by itself.
+        List<string> known = await db
+            .GameConfigs.Where(g => g.BroadcasterId == broadcasterId)
+            .Select(g => g.GameType)
+            .ToListAsync(ct);
+        List<GameConfig> missing = SeedDefaultGames(broadcasterId, known.ToHashSet());
+        if (missing.Count > 0)
         {
-            rows = SeedDefaultGames(broadcasterId);
-            db.GameConfigs.AddRange(rows);
+            db.GameConfigs.AddRange(missing);
             await db.SaveChangesAsync(ct);
+            rows = [.. rows.Concat(missing).OrderBy(g => g.GameType)];
         }
 
         return Result.Success<IReadOnlyList<GameConfigDto>>([.. rows.Select(ToDto)]);
     }
 
-    private static List<GameConfig> SeedDefaultGames(Guid broadcasterId) =>
+    /// <summary>
+    /// The catalog rows the channel does not have yet. Every game seeds disabled, except a game that only
+    /// acts where the streamer placed its overlay widget (the drop game): placing the widget is the opt-in.
+    /// </summary>
+    private static List<GameConfig> SeedDefaultGames(
+        Guid broadcasterId,
+        IReadOnlySet<string> existing
+    ) =>
         [
-            .. DefaultGames.Select(g =>
-            {
-                GameConfig game = new()
+            .. DefaultGames
+                .Where(g => !existing.Contains(g.GameType))
+                .Select(g =>
                 {
-                    BroadcasterId = broadcasterId,
-                    GameType = g.GameType,
-                    IsEnabled = false,
-                };
-                ApplyDefaults(game, g);
-                return game;
-            }),
+                    GameConfig game = new()
+                    {
+                        BroadcasterId = broadcasterId,
+                        GameType = g.GameType,
+                        IsEnabled = EnabledOnSeed.Contains(g.GameType),
+                    };
+                    ApplyDefaults(game, g);
+                    return game;
+                }),
         ];
 
     /// <summary>

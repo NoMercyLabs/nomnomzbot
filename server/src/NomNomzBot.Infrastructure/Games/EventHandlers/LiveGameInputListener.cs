@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Games;
+using NomNomzBot.Application.Games.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
@@ -29,6 +30,7 @@ namespace NomNomzBot.Infrastructure.Games.EventHandlers;
 /// </summary>
 public sealed class LiveGameInputListener(
     LiveGameSessionRegistry registry,
+    ILiveGameCatalog catalog,
     IServiceScopeFactory scopeFactory,
     IUserService userService
 ) : IEventHandler<ChatMessageReceivedEvent>
@@ -40,19 +42,24 @@ public sealed class LiveGameInputListener(
     {
         if (@event.BroadcasterId == Guid.Empty || string.IsNullOrWhiteSpace(@event.Message))
             return;
-        if (
-            !registry.TryGet(@event.BroadcasterId, out LiveGameSessionRuntime? runtime)
-            || runtime.Terminal
-            || runtime.Phase is not (LiveGamePhase.Lobby or LiveGamePhase.Running)
-        )
-            return;
 
         string first = @event.Message.TrimStart().Split(' ', 2)[0];
-        bool matches = runtime.Game.Manifest.InputKeywords.Any(k =>
-            string.Equals(k, first, StringComparison.OrdinalIgnoreCase)
-        );
-        if (!matches)
-            return;
+        ILiveGame? autoStart = null;
+        if (registry.TryGet(@event.BroadcasterId, out LiveGameSessionRuntime? runtime))
+        {
+            if (
+                runtime.Terminal
+                || runtime.Phase is not (LiveGamePhase.Lobby or LiveGamePhase.Running)
+                || !IsKeyword(runtime.Game.Manifest, first)
+            )
+                return;
+        }
+        else
+        {
+            autoStart = AutoStartGameFor(first);
+            if (autoStart is null)
+                return;
+        }
 
         Result<UserDto> user = await userService.GetOrCreateAsync(
             @event.UserId,
@@ -66,6 +73,16 @@ public sealed class LiveGameInputListener(
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
         LiveGameEngine engine = scope.ServiceProvider.GetRequiredService<LiveGameEngine>();
+        if (
+            autoStart is not null
+            && !await engine.TryAutoStartAsync(
+                @event.BroadcasterId,
+                autoStart,
+                viewerUserId,
+                cancellationToken
+            )
+        )
+            return;
         await engine.HandleChatInputAsync(
             @event.BroadcasterId,
             viewerUserId,
@@ -75,6 +92,22 @@ public sealed class LiveGameInputListener(
             ChatMentionName.For(@event.UserDisplayName, @event.UserLogin),
             new(user.Value.ProfileImageUrl, [.. Emotes(@event.Fragments)])
         );
+    }
+
+    private static bool IsKeyword(LiveGameManifest manifest, string word) =>
+        manifest.InputKeywords.Any(k => string.Equals(k, word, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The self-starting game whose join keyword the message opens with, if any.</summary>
+    private ILiveGame? AutoStartGameFor(string word)
+    {
+        foreach (KeyValuePair<string, LiveGameManifest> entry in catalog.All)
+            if (
+                entry.Value.AutoStartOnInput
+                && IsKeyword(entry.Value, word)
+                && catalog.TryGet(entry.Key, out ILiveGame? game)
+            )
+                return game;
+        return null;
     }
 
     /// <summary>

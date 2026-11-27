@@ -101,7 +101,11 @@ public sealed class RemovedLiveGamesTests
         Result<IReadOnlyList<GameConfigDto>> listed = await games.ListGamesAsync(Channel);
 
         listed.IsSuccess.Should().BeTrue(listed.ErrorMessage);
-        listed.Value.Select(g => g.GameType).Should().BeEquivalentTo(["coinflip", "raffle"]);
+        // The list tops up the games added to the catalog since; the removed ones never come back.
+        listed
+            .Value.Select(g => g.GameType)
+            .Should()
+            .BeEquivalentTo(["coinflip", "dice", "slots", "duel", "drop_game", "raffle"]);
     }
 
     [Fact]

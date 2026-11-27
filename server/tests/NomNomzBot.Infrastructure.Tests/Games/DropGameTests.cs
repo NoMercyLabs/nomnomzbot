@@ -440,7 +440,7 @@ public sealed class DropGameTests
     }
 
     [Fact]
-    public async Task The_default_games_seed_ships_a_disabled_drop_game_config()
+    public async Task The_default_games_seed_ships_the_drop_game_on_and_every_other_game_off()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         EventStoreTestDbContext db = database.NewContext();
@@ -470,7 +470,12 @@ public sealed class DropGameTests
             .ContainSingle(g => g.GameType == "drop_game")
             .Subject;
         drop.Category.Should().Be(nameof(GameCategory.Minigame));
-        drop.IsEnabled.Should().BeFalse("every seeded game is opt-in");
+        drop.IsEnabled.Should()
+            .BeTrue("placing the drop widget on an overlay is the opt-in, not a second switch");
+        listed
+            .Value.Where(g => g.GameType != "drop_game")
+            .Should()
+            .OnlyContain(g => !g.IsEnabled, "every other seeded game stays opt-in");
         drop.PayoutMultiplier.Should().Be(2m);
         (await Task.FromResult(db.GameConfigs.Count(g => g.BroadcasterId == Channel)))
             .Should()

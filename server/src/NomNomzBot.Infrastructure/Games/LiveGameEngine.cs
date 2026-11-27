@@ -107,6 +107,7 @@ public sealed class LiveGameEngine(
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
         LiveGameManifest manifest = game.Manifest;
+        GameConfigView configView = ToConfigView(config);
         GameSession session = new()
         {
             BroadcasterId = broadcasterId,
@@ -115,7 +116,7 @@ public sealed class LiveGameEngine(
             Status = GameSessionStatus.Lobby,
             StartedByUserId = command.StartedByUserId,
             StartedAt = now,
-            JoinClosesAt = now + manifest.LobbyWindow,
+            JoinClosesAt = now + LiveGameTiming.LobbyWindow(manifest, configView.Config),
         };
         db.GameSessions.Add(session);
         await db.SaveChangesAsync(ct);
@@ -126,7 +127,7 @@ public sealed class LiveGameEngine(
             BroadcasterId = broadcasterId,
             Game = game,
             GameConfigId = config.Id,
-            Config = ToConfigView(config),
+            Config = configView,
             JoinClosesAt = session.JoinClosesAt.Value,
             OverlayWidgetId = await overlayResolver.ResolveAsync(
                 broadcasterId,
@@ -151,10 +152,101 @@ public sealed class LiveGameEngine(
             },
             ct
         );
-        if (!runtime.Terminal)
+        // A self-started round opens on a viewer's own drop, so an "is open" line would only echo it.
+        if (!runtime.Terminal && !manifest.AutoStartOnInput)
             await announcer.AnnounceOpenedAsync(broadcasterId, manifest, config.MinBet ?? 1, ct);
         return Result.Success(ToDto(session));
     }
+
+    /// <summary>
+    /// Opens a round for a self-starting game when a viewer types its join keyword and no round runs. It
+    /// opens only when the channel shows the game's overlay widget, the game is enabled, and the restart
+    /// cooldown since the last round has passed. Returns whether a round is open afterwards.
+    /// </summary>
+    internal async Task<bool> TryAutoStartAsync(
+        Guid broadcasterId,
+        ILiveGame game,
+        Guid starterUserId,
+        CancellationToken ct = default
+    )
+    {
+        if (!game.Manifest.AutoStartOnInput)
+            return false;
+
+        SemaphoreSlim startGate = registry.StartGate(broadcasterId);
+        await startGate.WaitAsync(ct);
+        try
+        {
+            if (registry.TryGet(broadcasterId, out LiveGameSessionRuntime? running))
+                return !running.Terminal;
+            if (!await CanAutoStartAsync(broadcasterId, game, ct))
+                return false;
+
+            Result<GameSessionDto> started = await StartAsync(
+                broadcasterId,
+                new(game.GameKey, starterUserId),
+                ct
+            );
+            if (started.IsFailure)
+                logger.LogInformation(
+                    "Live game {GameKey} did not self-start for {BroadcasterId}: {Code}",
+                    game.GameKey,
+                    broadcasterId,
+                    started.ErrorCode
+                );
+            return started.IsSuccess;
+        }
+        finally
+        {
+            startGate.Release();
+        }
+    }
+
+    private async Task<bool> CanAutoStartAsync(
+        Guid broadcasterId,
+        ILiveGame game,
+        CancellationToken ct
+    )
+    {
+        if (
+            await overlayResolver.ResolveAsync(broadcasterId, game.Manifest.OverlayWidgetKey, ct)
+            is null
+        )
+            return false;
+
+        GameConfig? config = await FindConfigAsync(broadcasterId, game.GameKey, ct);
+        if (config is null)
+        {
+            // A channel seeded before this game existed has no row yet; the game list tops it up.
+            await games.ListGamesAsync(broadcasterId, ct);
+            config = await FindConfigAsync(broadcasterId, game.GameKey, ct);
+        }
+        if (config is null || !config.IsEnabled)
+            return false;
+
+        DateTime? lastEnded = await db
+            .GameSessions.AsNoTracking()
+            .Where(s =>
+                s.BroadcasterId == broadcasterId
+                && s.GameType == game.GameKey
+                && s.ResolvedAt != null
+            )
+            .OrderByDescending(s => s.ResolvedAt)
+            .Select(s => s.ResolvedAt)
+            .FirstOrDefaultAsync(ct);
+        TimeSpan cooldown = LiveGameTiming.RestartCooldown(ToConfigView(config).Config);
+        return lastEnded is null || clock.GetUtcNow().UtcDateTime - lastEnded.Value >= cooldown;
+    }
+
+    private Task<GameConfig?> FindConfigAsync(
+        Guid broadcasterId,
+        string gameKey,
+        CancellationToken ct
+    ) =>
+        db.GameConfigs.FirstOrDefaultAsync(
+            g => g.BroadcasterId == broadcasterId && g.GameType == gameKey && g.DeletedAt == null,
+            ct
+        );
 
     public async Task<Result> CancelAsync(
         Guid broadcasterId,
@@ -565,6 +657,9 @@ public sealed class LiveGameEngine(
             ct
         );
         await PushFrameAsync(runtime, resolution.FinalOverlayPayload, ct);
+        // A self-started round repeats all stream long; a summary line after each one would flood the chat.
+        if (manifest.AutoStartOnInput)
+            return;
         await announcer.AnnounceSettledAsync(
             runtime.BroadcasterId,
             manifest,

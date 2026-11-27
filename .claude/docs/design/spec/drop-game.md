@@ -3,6 +3,8 @@
 **Status:** decided 2026-10-08. Builds on `live-games.md` (engine, `ILiveGame`, `GameSession`) and `widgets-overlays.md` (row 12, `drop_game`). Replaces plan item S082. Benchmark: `benchmarks/drop-game.md` (every slice below comes from a row there).
 **Owner words (2026-10-07):** "i like the drop game to be interchangable with other assets or versions, so make the logic generic and configurable and make the assets responsive and dynamically changable. for example i like a birds nest with an eagle that drops 'meat' (the user) to the nest... this is not now but needs to be prepared for" / "give the lucky feather holder more drop luck" / "look at PixelPush for their config options to see what we can onboard" / "do we calculate the random path with a seed or something? how do you intend to do this server side and how much would this cost saas?"
 
+**Owner words (2026-11-27), verbatim:** "i told you to look at the source from godinggarden, and it does not work. the game needs to have a continuous cycle, the game is active for 90 (configurable) seconds and everyone can drop if they want, the game automatically closes after the 90 seconds after the first !drop command and then waits for the first new !drop command  (with a configurable rate limit before it can start again). the scores need to be counted across all streams to get a publicly accessible scoreboard per streamer and globally. everyone on twitch is familiar with https://www.pixelplush.dev/ so take what they do and apply our seeded luck option and make sure all their configuration options are there. as it stands using !drop does nothing in my overlay"
+
 Items marked "default, owner may change" are open in `questions.md`; the default ships until the owner answers.
 
 ## 1. Split: game logic, theme pack, overlay
@@ -94,9 +96,16 @@ Swap: the channel setting `pack_id` changes in the dashboard. The server pushes 
 
 Responsive: the overlay draws into the stage (1920x1080 units) and scales by `min(width/1920, height/1080)` (fit) or `max(...)` (fill, a pack setting). A `ResizeObserver` rescales live; there is no pixel constant in the widget code. Text uses stage units. SVG is preferred; PNG must be @2x. Check: a 1280x720 and a 3840x2160 browser source show the same layout.
 
-Modes (`mode`; default single, owner may change):
-- `single`: each valid `!drop` flies at once; one live drop per viewer; ready cooldown `cooldown_s` (default 0).
-- `group`: a lobby window (`lobby_s`, default 60, existing manifest value) collects drops; all fly together on start.
+Round cycle (owner decision 2026-11-27, replaces the old `single` and `group` modes):
+- No round runs. The first chat `!drop` opens a round by itself and that drop flies at once. No mod starts it.
+- The round stays open `round_s` seconds (default 90). Every viewer may drop once in it. Each drop flies at once. A drop is free.
+- The round closes by itself `round_s` after the first drop and the results frame is sent.
+- After it closes, a `!drop` opens nothing until `restart_cooldown_s` (default 30) has passed. The next `!drop` after that opens the next round.
+- A round opens only when the channel has an overlay that shows the `drop_game` widget, and the `drop_game` game is on. Placing the widget is the opt-in: the `drop_game` row is seeded on, and a channel seeded before the game existed gets the row on first use.
+- The self-started round posts no "is open" and no summary line in chat. Scores in chat come from `announce_enabled` and the score commands (section 10).
+- Engine: `LiveGameManifest.AutoStartOnInput`, `LiveGameTiming` (`round_s`, `restart_cooldown_s`), `LiveGameEngine.TryAutoStartAsync` under a per-channel start gate.
+
+Other modes (`mode`):
 - `queue`: mods use `!queuedrop` to collect and `!startdrop` to release (PixelPlush parity); `!resetdrop` cancels and refunds.
 - `raid`: a raid starts a group round for `raid_window_s` (default 30).
 - Triggers: chat command (`command`, default `!drop`), channel-point redemption (`redeem_cost`, group variant `redeem_group_cost`), bit cheer (`cheer_min_bits`). Drop arguments: emoji, `me` (avatar), channel emote. The server builds the image URL itself from fixed patterns only: the viewer's Twitch profile image, the Twitch emote CDN for an emote fragment of the message, and twemoji for an emoji. A viewer can never supply a URL, so there is no fetch proxy and no SSRF surface. (Decision 2026-11-27, replaces "the server fetches and caches the image": the overlay runs in the streamer's OBS, never in a viewer's browser, so a cache protected no viewer, and the chat and feather overlays already load the same CDN images.) The frame carries `image: { src, round }`; null means the pack's own payload art.
@@ -145,7 +154,8 @@ Source: Parachute Drop setup form, https://www.pixelplush.dev/twitch.html?type=p
 | Channel point cheers | redemption cost, cheer variant | 0 | yes (`redeem_cheer_cost`) |
 | Channel point group drop | redemption cost, group | 0 | yes (`redeem_group_cost`) |
 | Refresh timer (secs) | landed items stay this long | 90 | yes (`landed_ttl_s`) |
-| Time til ready (secs) | cooldown between drops | 0 | yes (`cooldown_s`) |
+| Time til ready (secs) | wait before the next round can open | 0 | yes (`restart_cooldown_s`, default 30) |
+| (round length) | how long a round stays open | n/a | yes (`round_s`, default 90) |
 | Raid drop timer (secs) | raid starts a drop | 0 (off) | yes (`raid_window_s`) |
 | Group drop only | no single drops | off | yes (`mode = group`) |
 | Set target pos (screen %) | fixed target position | empty (random) | yes (`target_x`) |
@@ -153,6 +163,13 @@ Source: Parachute Drop setup form, https://www.pixelplush.dev/twitch.html?type=p
 | Premium add-on and bundle price | paid themes | n/a | no (paid theme market is not-doing, benchmark row) |
 
 All of these live in one dashboard settings form built from the generic settings schema (`WidgetSettingsSchemaProvider`), saved to the `drop_game` `GameConfig`. Wording of labels comes from locale keys, not from code.
+
+## 10. Scores across streams and public scoreboards (S-DROP-SCORES, S-DROP-BOARD)
+
+- Every landed drop is stored with its score (2 decimals, PixelPlush shape), the viewer, the channel and the time. It is kept across streams. Both migration sets get the change.
+- Public scoreboard per streamer and one global board, readable without sign-in. Periods: Recent 12 h, Recent 24 h, Weekly, Monthly, All time.
+- Chat score commands: `!droptop`, `!drophigh` / `!dropbest`, `!droplow` / `!dropworst`, `!droprecent` (24 h). Cooldown 2 s.
+- Mod commands from PixelPlush (`!queuedrop`, `!startdrop`, `!resetdrop`, `!cleardrop`) and every PixelPlush setting in section 8 land in S-DROP-CONFIG.
 
 ## 9. Testing rules for the slices
 

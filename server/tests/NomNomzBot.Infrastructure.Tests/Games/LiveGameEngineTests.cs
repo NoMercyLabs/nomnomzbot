@@ -304,7 +304,8 @@ public sealed class LiveGameEngineTests
         LiveGameSessionRegistry Registry,
         FakeTimeProvider Clock,
         RecordingChatProvider Chat,
-        LiveGameFrameStore Frames
+        LiveGameFrameStore Frames,
+        LiveGameCatalog Catalog
     );
 
     /// <summary>The real announcer over the real composer and template engine — the line asserted is the line chat reads.</summary>
@@ -313,7 +314,20 @@ public sealed class LiveGameEngineTests
         RecordingChatProvider chat
     ) => new(TestBuiltinComposer.Create(), db, chat, NullLogger<LiveGameAnnouncer>.Instance);
 
-    private static Harness New(SqliteTestDatabase database, params ILiveGame[] games)
+    private static Harness New(SqliteTestDatabase database, params ILiveGame[] games) =>
+        Build(database, WidgetId, games);
+
+    /// <summary>A channel whose overlays do not show any game widget.</summary>
+    private static Harness NewWithoutOverlay(
+        SqliteTestDatabase database,
+        params ILiveGame[] games
+    ) => Build(database, null, games);
+
+    private static Harness Build(
+        SqliteTestDatabase database,
+        Guid? overlayWidgetId,
+        ILiveGame[] games
+    )
     {
         FakeTimeProvider clock = new(new(2026, 7, 17, 14, 0, 0, TimeSpan.Zero));
         EventStoreTestDbContext db = database.NewContext();
@@ -347,13 +361,14 @@ public sealed class LiveGameEngineTests
         LiveGameSessionRegistry registry = new();
         LiveGameFrameStore frames = new();
         RecordingChatProvider chat = new();
+        LiveGameCatalog catalog = new(games);
         LiveGameEngine engine = new(
             db,
             gameService,
             chat,
             overlay,
-            new LiveGameCatalog(games),
-            new FixedOverlayResolver(WidgetId),
+            catalog,
+            new FixedOverlayResolver(overlayWidgetId),
             registry,
             frames,
             new FixedRandomizer(),
@@ -362,7 +377,7 @@ public sealed class LiveGameEngineTests
             clock,
             NullLogger<LiveGameEngine>.Instance
         );
-        return new(engine, db, gameService, bus, overlay, registry, clock, chat, frames);
+        return new(engine, db, gameService, bus, overlay, registry, clock, chat, frames, catalog);
     }
 
     private static Guid SeedConfig(
@@ -691,7 +706,6 @@ public sealed class LiveGameEngineTests
         };
 
     [Theory]
-    [InlineData("drop_game", "Drop Game", "!drop", 60)]
     [InlineData("raffle", "Raffle", "!raffle", 90)]
     public async Task Opening_a_round_tells_chat_the_join_word_the_lobby_time_and_the_minimum_bet(
         string gameKey,
@@ -763,13 +777,14 @@ public sealed class LiveGameEngineTests
     public async Task A_real_game_that_pays_out_announces_its_result()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
-        Harness h = New(database, new DropGame());
-        SeedConfig(h.Db, "drop_game");
-        await h.Engine.StartAsync(Channel, new("drop_game", null));
-        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!drop 40");
+        Harness h = New(database, new RaffleGame());
+        SeedConfig(h.Db, "raffle");
+        await h.Engine.StartAsync(Channel, new("raffle", null));
+        await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!raffle 40");
+        await h.Engine.HandleChatInputAsync(Channel, PlayerB, "Bob", "!raffle 40");
         h.Chat.SentMessages.Clear();
 
-        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        h.Clock.Advance(TimeSpan.FromSeconds(91));
         await h.Engine.AdvanceClockAsync(Channel);
 
         GameSession session = await h.Db.GameSessions.AsNoTracking().SingleAsync();
@@ -777,7 +792,7 @@ public sealed class LiveGameEngineTests
         h.Chat.SentMessages.Should()
             .ContainSingle()
             .Which.Should()
-            .MatchRegex(@"^Drop Game is over\. Winners: \d+\. Paid out: \d+\.$");
+            .MatchRegex(@"^Raffle is over\. Winners: [1-9]\d*\. Paid out: [1-9]\d*\.$");
     }
 
     [Fact]
@@ -974,6 +989,20 @@ public sealed class LiveGameEngineTests
         IReadOnlyList<ChatMessageFragment> fragments
     )
     {
+        await ChatAsync(h, PlayerA, "Alice", message, fragments);
+
+        return DropFrames(h).Single();
+    }
+
+    /// <summary>One chat message from <paramref name="viewer"/> through the real listener into the real engine.</summary>
+    private static async Task ChatAsync(
+        Harness h,
+        Guid viewer,
+        string name,
+        string message,
+        IReadOnlyList<ChatMessageFragment>? fragments = null
+    )
+    {
         IUserService users = Substitute.For<IUserService>();
         users
             .GetOrCreateAsync(
@@ -986,9 +1015,9 @@ public sealed class LiveGameEngineTests
             .Returns(
                 Result.Success(
                     new UserDto(
-                        PlayerA.ToString(),
-                        "alice",
-                        "Alice",
+                        viewer.ToString(),
+                        name.ToLowerInvariant(),
+                        name,
                         AliceAvatar,
                         null,
                         DateTime.UnixEpoch,
@@ -1001,6 +1030,7 @@ public sealed class LiveGameEngineTests
             .BuildServiceProvider();
         LiveGameInputListener listener = new(
             h.Registry,
+            h.Catalog,
             services.GetRequiredService<IServiceScopeFactory>(),
             users
         );
@@ -1009,13 +1039,13 @@ public sealed class LiveGameEngineTests
             new ChatMessageReceivedEvent
             {
                 BroadcasterId = Channel,
-                MessageId = "m-drop-1",
+                MessageId = $"m-{Guid.NewGuid()}",
                 TwitchBroadcasterId = "channel",
-                UserId = "1001",
-                UserDisplayName = "Alice",
-                UserLogin = "alice",
+                UserId = viewer.ToString(),
+                UserDisplayName = name,
+                UserLogin = name.ToLowerInvariant(),
                 Message = message,
-                Fragments = fragments,
+                Fragments = fragments ?? [new() { Type = "text", Text = message }],
                 Badges = [],
                 IsSubscriber = false,
                 IsVip = false,
@@ -1023,11 +1053,179 @@ public sealed class LiveGameEngineTests
                 IsBroadcaster = false,
             }
         );
+    }
 
-        return h
-            .Overlay.Sent.Select(f => f.Data)
-            .OfType<Dictionary<string, object?>>()
-            .Single(d => Equals(d.GetValueOrDefault("kind"), "drop"));
+    private static List<Dictionary<string, object?>> DropFrames(Harness h) =>
+        [
+            .. h
+                .Overlay.Sent.Select(f => f.Data)
+                .OfType<Dictionary<string, object?>>()
+                .Where(d => Equals(d.GetValueOrDefault("kind"), "drop")),
+        ];
+
+    private static Guid SeedDropConfig(
+        EventStoreTestDbContext db,
+        bool enabled = true,
+        string? configJson = null
+    )
+    {
+        GameConfig config = new()
+        {
+            BroadcasterId = Channel,
+            GameType = "drop_game",
+            Category = GameCategory.Minigame,
+            IsEnabled = enabled,
+            PayoutMultiplier = 2m,
+            Permission = "Everyone",
+            ConfigJson = configJson,
+        };
+        db.GameConfigs.Add(config);
+        db.SaveChanges();
+        return config.Id;
+    }
+
+    [Fact]
+    public async Task The_first_chat_drop_opens_a_free_90_second_round_by_itself_and_lands_that_drop()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedDropConfig(h.Db);
+        DateTime openedAt = h.Clock.GetUtcNow().UtcDateTime;
+
+        await ChatAsync(h, PlayerA, "Alice", "!drop");
+        await ChatAsync(h, PlayerB, "Bob", "!drop");
+
+        GameSession session = await h.Db.GameSessions.AsNoTracking().SingleAsync();
+        session.GameType.Should().Be("drop_game");
+        session.Status.Should().Be(GameSessionStatus.Lobby);
+        session.StartedByUserId.Should().Be(PlayerA, "the first dropper opened the round");
+        session.JoinClosesAt.Should().Be(openedAt.AddSeconds(90));
+        session.ParticipantCount.Should().Be(2);
+
+        List<string?> kinds =
+        [
+            .. h
+                .Overlay.Sent.Select(f => f.Data)
+                .OfType<Dictionary<string, object?>>()
+                .Select(d => d.GetValueOrDefault("kind") as string),
+        ];
+        kinds.Should().Equal("round_open", "drop", "drop");
+        DropFrames(h).Select(d => d["player"]).Should().Equal("Alice", "Bob");
+
+        (await h.Db.CurrencyLedgerEntries.CountAsync())
+            .Should()
+            .Be(0, "a drop costs nothing, so no stake is taken");
+        h.Chat.SentMessages.Should().BeEmpty("a self-started round has no open line in chat");
+    }
+
+    [Fact]
+    public async Task The_round_closes_after_round_s_and_the_next_drop_waits_out_the_restart_cooldown()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedDropConfig(h.Db, configJson: """{"round_s":45,"restart_cooldown_s":20}""");
+
+        await ChatAsync(h, PlayerA, "Alice", "!drop");
+        h.Clock.Advance(TimeSpan.FromSeconds(44));
+        await h.Engine.AdvanceClockAsync(Channel);
+        (await h.Db.GameSessions.AsNoTracking().SingleAsync())
+            .Status.Should()
+            .Be(GameSessionStatus.Lobby, "the round is still open one second before round_s");
+
+        h.Clock.Advance(TimeSpan.FromSeconds(1));
+        await h.Engine.AdvanceClockAsync(Channel);
+        GameSession first = await h.Db.GameSessions.AsNoTracking().SingleAsync();
+        first.Status.Should().Be(GameSessionStatus.Settled);
+        h.Registry.TryGet(Channel, out _).Should().BeFalse();
+        h.Chat.SentMessages.Should().BeEmpty("a self-started round ends without a summary line");
+
+        h.Clock.Advance(TimeSpan.FromSeconds(19));
+        await ChatAsync(h, PlayerB, "Bob", "!drop");
+        (await h.Db.GameSessions.CountAsync())
+            .Should()
+            .Be(1, "a drop inside the restart cooldown opens nothing");
+        DropFrames(h).Should().HaveCount(1);
+
+        h.Clock.Advance(TimeSpan.FromSeconds(1));
+        await ChatAsync(h, PlayerB, "Bob", "!drop");
+        GameSession second = await h
+            .Db.GameSessions.AsNoTracking()
+            .OrderByDescending(s => s.StartedAt)
+            .FirstAsync();
+        second.Id.Should().NotBe(first.Id);
+        second.Status.Should().Be(GameSessionStatus.Lobby);
+        second.StartedByUserId.Should().Be(PlayerB);
+        DropFrames(h).Select(d => d["player"]).Should().Equal("Alice", "Bob");
+    }
+
+    [Fact]
+    public async Task A_second_drop_by_the_same_viewer_in_one_round_does_not_fly()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedDropConfig(h.Db);
+
+        await ChatAsync(h, PlayerA, "Alice", "!drop");
+        await ChatAsync(h, PlayerA, "Alice", "!drop");
+
+        DropFrames(h).Should().HaveCount(1);
+        (await h.Db.GameSessions.AsNoTracking().SingleAsync()).ParticipantCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_chat_drop_opens_nothing_on_a_channel_whose_overlays_have_no_drop_widget()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = NewWithoutOverlay(database, new DropGame());
+        SeedDropConfig(h.Db);
+
+        await ChatAsync(h, PlayerA, "Alice", "!drop");
+
+        (await h.Db.GameSessions.CountAsync()).Should().Be(0);
+        h.Overlay.Sent.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_chat_drop_opens_nothing_when_the_streamer_turned_the_drop_game_off()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedDropConfig(h.Db, enabled: false);
+
+        await ChatAsync(h, PlayerA, "Alice", "!drop");
+
+        (await h.Db.GameSessions.CountAsync()).Should().Be(0);
+        h.Overlay.Sent.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_channel_seeded_before_the_drop_game_existed_gets_it_on_the_first_drop()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        // The channel's game list was seeded long ago, before drop_game joined the catalog.
+        SeedConfig(h.Db, "coinflip");
+
+        await ChatAsync(h, PlayerA, "Alice", "!drop");
+
+        GameConfig drop = await h
+            .Db.GameConfigs.AsNoTracking()
+            .SingleAsync(g => g.BroadcasterId == Channel && g.GameType == "drop_game");
+        drop.IsEnabled.Should().BeTrue("placing the drop widget is the opt-in");
+        (await h.Db.GameSessions.AsNoTracking().SingleAsync()).GameType.Should().Be("drop_game");
+        DropFrames(h).Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_chat_message_that_is_not_a_join_word_opens_no_round()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Harness h = New(database, new DropGame());
+        SeedDropConfig(h.Db);
+
+        await ChatAsync(h, PlayerA, "Alice", "hello !drop");
+
+        (await h.Db.GameSessions.CountAsync()).Should().Be(0);
     }
 
     [Fact]

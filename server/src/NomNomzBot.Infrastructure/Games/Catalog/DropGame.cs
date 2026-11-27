@@ -16,10 +16,11 @@ using NomNomzBot.Domain.Economy.Enums;
 namespace NomNomzBot.Infrastructure.Games.Catalog;
 
 /// <summary>
-/// The reference drop-in game (live-games.md §4.1): a round opens with a random target on a 0–100 track;
-/// each <c>!drop</c> lands the chatter at a random position (one drop per player); on resolve, everyone
-/// inside the win radius takes <c>PayoutMultiplier × stake</c>. Pure logic — the engine owns every side
-/// effect. Config (<c>GameConfig.ConfigJson</c>): <c>win_radius</c> (default 10).
+/// The reference drop-in game (live-games.md §4.1, drop-game.md): the first <c>!drop</c> opens a round
+/// with a random target on a 0–100 track; the round stays open <c>round_s</c> (default 90) and every
+/// viewer may drop once, free; then it closes on its own and the next <c>!drop</c> after
+/// <c>restart_cooldown_s</c> opens the next one. Pure logic — the engine owns every side effect. Config
+/// (<c>GameConfig.ConfigJson</c>): <c>win_radius</c> (default 10), <c>spread</c> (default 50).
 /// </summary>
 public sealed class DropGame : ILiveGame
 {
@@ -36,9 +37,10 @@ public sealed class DropGame : ILiveGame
             "drop_game",
             MinPlayers: 1,
             MaxPlayers: 0,
-            LobbyWindow: TimeSpan.FromSeconds(60),
+            LobbyWindow: TimeSpan.FromSeconds(90),
             TickInterval: null,
-            RequiresEntryFee: true
+            RequiresEntryFee: false,
+            AutoStartOnInput: true
         );
 
     public Task<LiveGameTransition> OnStartAsync(LiveGameState state, CancellationToken ct)
@@ -54,7 +56,8 @@ public sealed class DropGame : ILiveGame
                     ["kind"] = "round_open",
                     ["target"] = target,
                     ["radius"] = radius,
-                    ["lobbySeconds"] = (int)Manifest.LobbyWindow.TotalSeconds,
+                    ["lobbySeconds"] = (int)
+                        LiveGameTiming.LobbyWindow(Manifest, state.Config.Config).TotalSeconds,
                 }
             )
         );

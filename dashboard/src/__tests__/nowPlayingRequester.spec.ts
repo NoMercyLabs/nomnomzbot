@@ -32,6 +32,7 @@ const sdk = {
     return sdk;
   },
   data: { nowPlaying: () => Promise.resolve(null) },
+  image: (url: string) => url,
 };
 
 beforeEach(() => {

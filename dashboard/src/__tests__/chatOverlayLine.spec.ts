@@ -40,6 +40,7 @@ const sdk = {
 
     return sdk;
   },
+  image: (url: string) => url,
 };
 
 interface OverlayLine {

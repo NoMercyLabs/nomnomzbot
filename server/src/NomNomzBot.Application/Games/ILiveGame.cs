@@ -38,7 +38,11 @@ public interface ILiveGame
     Task<LiveGameResolution> OnResolveAsync(LiveGameState state, CancellationToken ct);
 }
 
-/// <summary>How the engine runs a game: its join keywords, overlay widget, player bounds, and timing.</summary>
+/// <summary>
+/// How the engine runs a game: its join keywords, overlay widget, player bounds, and timing. An
+/// <paramref name="AutoStartOnInput"/> game needs no start: the first join keyword opens a round on a
+/// channel that shows the game's overlay widget, and the round closes on its own after the lobby window.
+/// </summary>
 public sealed record LiveGameManifest(
     string DisplayName,
     IReadOnlyList<string> InputKeywords,
@@ -47,5 +51,45 @@ public sealed record LiveGameManifest(
     int MaxPlayers,
     TimeSpan LobbyWindow,
     TimeSpan? TickInterval,
-    bool RequiresEntryFee
+    bool RequiresEntryFee,
+    bool AutoStartOnInput = false
 );
+
+/// <summary>
+/// The per-channel timing a streamer may set on any live game (<c>GameConfig.ConfigJson</c>):
+/// <c>round_s</c> replaces the manifest's lobby window, <c>restart_cooldown_s</c> is the wait after a round
+/// ends before a join keyword may open the next one.
+/// </summary>
+public static class LiveGameTiming
+{
+    public const string RoundSecondsKey = "round_s";
+    public const string RestartCooldownSecondsKey = "restart_cooldown_s";
+
+    /// <summary>The default wait between two self-started rounds when the channel has set none.</summary>
+    public static readonly TimeSpan DefaultRestartCooldown = TimeSpan.FromSeconds(30);
+
+    public static TimeSpan LobbyWindow(
+        LiveGameManifest manifest,
+        IReadOnlyDictionary<string, object?>? config
+    ) => Seconds(config, RoundSecondsKey, minimum: 1) ?? manifest.LobbyWindow;
+
+    public static TimeSpan RestartCooldown(IReadOnlyDictionary<string, object?>? config) =>
+        Seconds(config, RestartCooldownSecondsKey, minimum: 0) ?? DefaultRestartCooldown;
+
+    private static TimeSpan? Seconds(
+        IReadOnlyDictionary<string, object?>? config,
+        string key,
+        int minimum
+    ) =>
+        config is not null
+        && config.TryGetValue(key, out object? raw)
+        && int.TryParse(
+            raw?.ToString(),
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out int seconds
+        )
+        && seconds >= minimum
+            ? TimeSpan.FromSeconds(seconds)
+            : null;
+}

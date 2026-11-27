@@ -34,6 +34,7 @@ const sdk = {
   off: (type: string): void => {
     delete handlers[type];
   },
+  image: (url: string): string => url,
   data: {
     streamStats: vi.fn<(options: Record<string, unknown>) => Promise<unknown>>(),
   },

@@ -53,6 +53,13 @@ public sealed class LiveGameSessionRuntime
 public sealed class LiveGameSessionRegistry
 {
     private readonly ConcurrentDictionary<Guid, LiveGameSessionRuntime> _active = new();
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _startGates = new();
+
+    /// <summary>
+    /// The channel's start lock: two join keywords that arrive at once must open one round, not two.
+    /// </summary>
+    public SemaphoreSlim StartGate(Guid broadcasterId) =>
+        _startGates.GetOrAdd(broadcasterId, _ => new SemaphoreSlim(1, 1));
 
     public bool TryGet(
         Guid broadcasterId,

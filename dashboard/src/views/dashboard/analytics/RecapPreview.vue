@@ -37,6 +37,7 @@ type Host = {
   on: (type: string, callback: Handler) => void;
   off: (type: string) => void;
   data: { streamStats: () => Promise<StreamRecap['stats']> };
+  image: (url: string) => string;
 };
 
 const handlers: Record<string, Handler> = {};
@@ -83,6 +84,8 @@ scope.NomNomz = {
     delete handlers[type];
   },
   data: { streamStats: async () => props.recap.stats },
+  // The overlay's image optimizer needs an overlay token; the signed-in page loads each image as it is.
+  image: (url) => url,
 };
 
 const frame = ref<HTMLElement | null>(null);
