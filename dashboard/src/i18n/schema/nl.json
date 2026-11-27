@@ -3062,8 +3062,19 @@
       "accentColor": {
         "label": "Accentkleur"
       },
+      "boardAnchor": {
+        "help": "Waar het scorebord staat als een ronde uitslagen heeft. Houd het weg van je chat.",
+        "label": "Plek van het scorebord"
+      },
       "hideAfterMs": {
         "label": "Verbergen na (ms)"
+      },
+      "pack_id": {
+        "help": "De tekeningen van het spel: wat er valt, waar het landt en wat daar groeit.",
+        "label": "Themapakket",
+        "option": {
+          "parachute": "Parachute"
+        }
       }
     },
     "emote_wall": {

@@ -3062,8 +3062,19 @@
       "accentColor": {
         "label": "Accent color"
       },
+      "boardAnchor": {
+        "help": "Where the scoreboard shows when a round has results. Keep it clear of your chat.",
+        "label": "Scoreboard position"
+      },
       "hideAfterMs": {
         "label": "Hide after (ms)"
+      },
+      "pack_id": {
+        "help": "The art of the game: what falls, where it lands and what grows there.",
+        "label": "Theme pack",
+        "option": {
+          "parachute": "Parachute"
+        }
       }
     },
     "emote_wall": {
