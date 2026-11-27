@@ -73,6 +73,16 @@
     />
   </ItemGroup>
 
+  <!-- Drop game theme packs (pack.json + SVG/PNG art), read by FirstPartyDropPacks and served at
+       /overlay/drop-packs/<id>/<file>. LogicalName keeps the folder structure: DropPacks/<id>/<file>. -->
+  <ItemGroup>
+    <None Remove="Content\Widgets\DropPacks\**" />
+    <EmbeddedResource
+      Include="Content\Widgets\DropPacks\**"
+      LogicalName="NomNomzBot.Infrastructure.Content.Widgets.DropPacks/%(RecursiveDir)%(Filename)%(Extension)"
+    />
+  </ItemGroup>
+
   <!-- The curated spam seed corpus (skeletons + malicious domains), embedded so SpamCorpusSeeder reads it at seed
        time with no filesystem dependency. LogicalName pins a stable manifest name (the default derivation mangles
        the hyphens in the file name). -->

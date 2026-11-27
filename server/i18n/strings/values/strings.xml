@@ -5205,6 +5205,11 @@
     <string name="widget_labels_accentColor_label">Accent color</string>
     <string name="widget_drop_game_hideAfterMs_label">Hide after (ms)</string>
     <string name="widget_drop_game_accentColor_label">Accent color</string>
+    <string name="widget_drop_game_pack_id_label">Theme pack</string>
+    <string name="widget_drop_game_pack_id_help">The art of the game: what falls, where it lands and what grows there.</string>
+    <string name="widget_drop_game_pack_id_option_parachute">Parachute</string>
+    <string name="widget_drop_game_boardAnchor_label">Scoreboard position</string>
+    <string name="widget_drop_game_boardAnchor_help">Where the scoreboard shows when a round has results. Keep it clear of your chat.</string>
     <string name="widget_raffle_hideAfterMs_label">Hide after (ms)</string>
     <string name="widget_raffle_accentColor_label">Accent color</string>
     <string name="widget_lucky_feather_idleText_label">Text while nobody holds it</string>

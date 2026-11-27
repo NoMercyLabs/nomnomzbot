@@ -5189,6 +5189,11 @@
     <string name="widget_labels_accentColor_label">Accentkleur</string>
     <string name="widget_drop_game_hideAfterMs_label">Verbergen na (ms)</string>
     <string name="widget_drop_game_accentColor_label">Accentkleur</string>
+    <string name="widget_drop_game_pack_id_label">Themapakket</string>
+    <string name="widget_drop_game_pack_id_help">De tekeningen van het spel: wat er valt, waar het landt en wat daar groeit.</string>
+    <string name="widget_drop_game_pack_id_option_parachute">Parachute</string>
+    <string name="widget_drop_game_boardAnchor_label">Plek van het scorebord</string>
+    <string name="widget_drop_game_boardAnchor_help">Waar het scorebord staat als een ronde uitslagen heeft. Houd het weg van je chat.</string>
     <string name="widget_raffle_hideAfterMs_label">Verbergen na (ms)</string>
     <string name="widget_raffle_accentColor_label">Accentkleur</string>
     <string name="widget_lucky_feather_idleText_label">Tekst als niemand hem heeft</string>

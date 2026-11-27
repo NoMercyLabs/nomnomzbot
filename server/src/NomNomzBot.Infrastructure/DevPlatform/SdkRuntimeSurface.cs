@@ -377,6 +377,7 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  inFlight: boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
+        AppendDropPackTypes(sb);
         sb.AppendLine(
             "/** Reads of the channel's current state. Each rejects when the request fails. */"
         );
@@ -397,6 +398,14 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "  streamStats<K extends NnzStreamMetricKey>(options: NnzStreamStatsOptions<K>): Promise<NnzStreamStats<K>>;"
         );
+        sb.AppendLine(
+            "  /** A drop-game theme pack by id: its manifest and the URL its art paths resolve against. An unknown id is the default pack. */"
+        );
+        sb.AppendLine("  dropPack(packId: string): Promise<NnzDropPack>;");
+        sb.AppendLine(
+            "  /** The text of one drop-pack file (an inline drawing) by the URL resolved against NnzDropPack.url. Only pack files load. */"
+        );
+        sb.AppendLine("  dropArt(url: string): Promise<string>;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzOverlaySpotify {");
@@ -548,6 +557,82 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "type NnzDeclaredSettings<D extends NnzSettingsDeclaration> = { [F in D['fields'][number] as F['key']]: NnzSettingValue<F> };"
         );
+        sb.AppendLine();
+    }
+
+    // The drop-game theme pack (drop-game spec section 4): the manifest a pack.json holds, in stage pixels.
+    private static void AppendDropPackTypes(StringBuilder sb)
+    {
+        sb.AppendLine("/** A width and height in the pack's stage pixels. */");
+        sb.AppendLine("interface NnzDropPackSize { w: number; h: number; }");
+        sb.AppendLine();
+        sb.AppendLine("/** One picture of a pack; src is relative to the pack's own URL. */");
+        sb.AppendLine("interface NnzDropPackSlot {");
+        sb.AppendLine("  src: string;");
+        sb.AppendLine("  anchor?: string;");
+        sb.AppendLine("  size: NnzDropPackSize;");
+        sb.AppendLine("  z?: number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** The landing band (src null: no band art). hitbox.y is where a payload stands; hitbox.w is the marker art's scoring width. */"
+        );
+        sb.AppendLine("interface NnzDropPackTarget extends Omit<NnzDropPackSlot, 'src'> {");
+        sb.AppendLine("  src: string | null;");
+        sb.AppendLine("  repeat?: 'x' | 'none';");
+        sb.AppendLine("  hitbox: { y: number; w: number };");
+        sb.AppendLine("  marker?: NnzDropPackSlot;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** What stays on the ground: a stage picture by score, scaled from minScale to maxScale. */"
+        );
+        sb.AppendLine("interface NnzDropPackLanded {");
+        sb.AppendLine("  anchor?: string;");
+        sb.AppendLine("  size: NnzDropPackSize;");
+        sb.AppendLine("  z?: number;");
+        sb.AppendLine("  growWithScore?: { minScale: number; maxScale: number };");
+        sb.AppendLine("  stages: { minScore: number; src: string }[];");
+        sb.AppendLine("  miss?: { src: string };");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** The pack.json of a drop-game theme pack. */");
+        sb.AppendLine("interface NnzDropPackManifest {");
+        sb.AppendLine("  id: string;");
+        sb.AppendLine("  name: string;");
+        sb.AppendLine("  version: string;");
+        sb.AppendLine("  kind: string;");
+        sb.AppendLine("  author: string;");
+        sb.AppendLine("  license: string;");
+        sb.AppendLine("  credits: string[];");
+        sb.AppendLine("  stage: NnzDropPackSize;");
+        sb.AppendLine(
+            "  motion: { carrier: string; releaseAt?: number; sway?: number; windSensitivity?: number };"
+        );
+        sb.AppendLine("  slots: {");
+        sb.AppendLine("    background: NnzDropPackSlot | null;");
+        sb.AppendLine("    foreground: NnzDropPackSlot | null;");
+        sb.AppendLine("    carrier: NnzDropPackSlot | null;");
+        sb.AppendLine("    payload: NnzDropPackSlot;");
+        sb.AppendLine("    target: NnzDropPackTarget;");
+        sb.AppendLine("    landed: NnzDropPackLanded;");
+        sb.AppendLine("  };");
+        sb.AppendLine(
+            "  effects?: { name: string; on: 'hit' | 'land' | 'miss'; src: string; size: NnzDropPackSize }[];"
+        );
+        sb.AppendLine("  sounds?: { spawn?: string; land?: string; hit?: string; miss?: string };");
+        sb.AppendLine(
+            "  labels?: { tag?: string; font?: string; colors?: { text?: string; background?: string } };"
+        );
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** A loaded pack: the manifest and the URL its src paths resolve against. */"
+        );
+        sb.AppendLine("interface NnzDropPack {");
+        sb.AppendLine("  url: string;");
+        sb.AppendLine("  manifest: NnzDropPackManifest;");
+        sb.AppendLine("}");
         sb.AppendLine();
     }
 

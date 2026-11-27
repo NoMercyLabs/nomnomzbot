@@ -232,11 +232,20 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Text(d, "formatString", Content, help: true),
                 Accent(d),
             ],
-            "drop_game" or "raffle" =>
+            "drop_game" =>
             [
                 NumberField(d, "hideAfterMs", Behaviour, min: 0, step: 100),
+                SelectField(
+                    d,
+                    "pack_id",
+                    Appearance,
+                    Opts(d, "pack_id", [.. FirstPartyDropPacks.Ids]),
+                    help: true
+                ),
+                SelectField(d, "boardAnchor", Layout, AnchorOptions, help: true),
                 Accent(d),
             ],
+            "raffle" => [NumberField(d, "hideAfterMs", Behaviour, min: 0, step: 100), Accent(d)],
             "event_ticker" =>
             [
                 Multi(d, "events", Content, EventOptions),

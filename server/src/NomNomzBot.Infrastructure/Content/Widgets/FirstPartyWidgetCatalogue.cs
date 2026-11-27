@@ -299,12 +299,18 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "drop_game",
-            // Full screen: parachutes fall the whole height onto a ground that spans the width (sizes follow vh and vw).
+            // Full screen: the theme pack's 1920x1080 stage scales to the source; the board sits at boardAnchor.
             ObsSetup: FullCanvas,
             Name: "Drop Game",
             Description: "The live drop-game round on a horizontal track: the target zone, every chatter's landing "
                 + "marker as they type !drop, and the payout scoreboard when the round resolves.",
-            DefaultSettings: new() { ["accentColor"] = "", ["hideAfterMs"] = 12000 },
+            DefaultSettings: new()
+            {
+                ["accentColor"] = "",
+                ["hideAfterMs"] = 12000,
+                ["pack_id"] = FirstPartyDropPacks.DefaultId,
+                ["boardAnchor"] = "top",
+            },
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(

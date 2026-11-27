@@ -2225,6 +2225,65 @@ interface NnzMusicQueueItem {
   inFlight: boolean;
 }
 
+/** A width and height in the pack's stage pixels. */
+interface NnzDropPackSize { w: number; h: number; }
+
+/** One picture of a pack; src is relative to the pack's own URL. */
+interface NnzDropPackSlot {
+  src: string;
+  anchor?: string;
+  size: NnzDropPackSize;
+  z?: number;
+}
+
+/** The landing band (src null: no band art). hitbox.y is where a payload stands; hitbox.w is the marker art's scoring width. */
+interface NnzDropPackTarget extends Omit<NnzDropPackSlot, 'src'> {
+  src: string | null;
+  repeat?: 'x' | 'none';
+  hitbox: { y: number; w: number };
+  marker?: NnzDropPackSlot;
+}
+
+/** What stays on the ground: a stage picture by score, scaled from minScale to maxScale. */
+interface NnzDropPackLanded {
+  anchor?: string;
+  size: NnzDropPackSize;
+  z?: number;
+  growWithScore?: { minScale: number; maxScale: number };
+  stages: { minScore: number; src: string }[];
+  miss?: { src: string };
+}
+
+/** The pack.json of a drop-game theme pack. */
+interface NnzDropPackManifest {
+  id: string;
+  name: string;
+  version: string;
+  kind: string;
+  author: string;
+  license: string;
+  credits: string[];
+  stage: NnzDropPackSize;
+  motion: { carrier: string; releaseAt?: number; sway?: number; windSensitivity?: number };
+  slots: {
+    background: NnzDropPackSlot | null;
+    foreground: NnzDropPackSlot | null;
+    carrier: NnzDropPackSlot | null;
+    payload: NnzDropPackSlot;
+    target: NnzDropPackTarget;
+    landed: NnzDropPackLanded;
+  };
+  effects?: { name: string; on: 'hit' | 'land' | 'miss'; src: string; size: NnzDropPackSize }[];
+  sounds?: { spawn?: string; land?: string; hit?: string; miss?: string };
+  labels?: { tag?: string; font?: string; colors?: { text?: string; background?: string } };
+}
+
+/** A loaded pack: the manifest and the URL its src paths resolve against. */
+interface NnzDropPack {
+  url: string;
+  manifest: NnzDropPackManifest;
+}
+
 /** Reads of the channel's current state. Each rejects when the request fails. */
 interface NnzOverlayData {
   /** The track playing now, or null when nothing plays. Use it on mount, before the next music.nowPlaying event. */
@@ -2235,6 +2294,10 @@ interface NnzOverlayData {
   storage(key: string): Promise<string | null>;
   /** Any metrics of one stream, by key. Rejects on an unknown key or when the channel has no such stream. */
   streamStats<K extends NnzStreamMetricKey>(options: NnzStreamStatsOptions<K>): Promise<NnzStreamStats<K>>;
+  /** A drop-game theme pack by id: its manifest and the URL its art paths resolve against. An unknown id is the default pack. */
+  dropPack(packId: string): Promise<NnzDropPack>;
+  /** The text of one drop-pack file (an inline drawing) by the URL resolved against NnzDropPack.url. Only pack files load. */
+  dropArt(url: string): Promise<string>;
 }
 
 interface NnzOverlaySpotify {

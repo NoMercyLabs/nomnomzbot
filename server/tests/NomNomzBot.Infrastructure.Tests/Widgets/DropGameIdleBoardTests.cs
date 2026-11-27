@@ -28,21 +28,24 @@ public sealed class DropGameIdleBoardTests
     }
 
     [Fact]
-    public void The_board_card_is_hidden_until_the_round_ends_or_a_drop_has_landed()
+    public void The_board_card_exists_only_with_rows_and_sits_at_its_own_anchor()
     {
-        string source = Source();
-
-        source
+        Source()
             .Should()
             .MatchRegex(
-                @"<div\s+v-if=""[^""]*best\.length[^""]*""\s+class=""nnz-card board""",
-                "an empty lobby board would sit on top of the chat"
+                @"<div\s+v-if=""boardRows\.length""\s+class=""nnz-card nnz-placed board""\s+:data-anchor=""cfg\.boardAnchor""",
+                "an empty board, or one pinned over the chat corner, would cover other widgets"
             );
-        source
+    }
+
+    [Fact]
+    public void The_stage_draws_nothing_until_a_drop_is_in_the_air()
+    {
+        Source()
             .Should()
             .MatchRegex(
-                @"v-if=""[^""]*phase !== 'lobby'[^""]*best\.length|v-if=""[^""]*best\.length[^""]*phase !== 'lobby'",
-                "a resolved or cancelled round still shows its card"
+                @"<div\s+v-if=""flights\.length""\s+class=""stage""",
+                "a lobby with no drops shows nothing on screen"
             );
     }
 }

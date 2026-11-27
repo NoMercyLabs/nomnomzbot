@@ -694,6 +694,36 @@ public sealed class OverlaySdkController : ControllerBase
             return readData(q).then(function (text) { return text == null ? "" : String(text); });
           }
 
+          // A drop-game theme pack: its manifest and the URL its art paths resolve against. An unknown id serves the default pack.
+          function dropPack(id) {
+            var url = new URL("/overlay/drop-packs/" + encodeURIComponent(String(id || "parachute")) + "/pack.json", location.href).href;
+            return fetch(url)
+              .then(function (r) {
+                if (!r.ok) {
+                  var err = new Error("drop pack request failed: " + r.status);
+                  err.status = r.status;
+                  throw err;
+                }
+                return r.json();
+              })
+              .then(function (manifest) { return { url: url, manifest: manifest }; });
+          }
+
+          // The text of one drop-pack file (an inline drawing), by the URL dropPack resolved. Only pack files load.
+          function dropArt(url) {
+            var target = new URL(String(url), location.href);
+            if (target.origin !== location.origin || target.pathname.indexOf("/overlay/drop-packs/") !== 0)
+              return Promise.reject(new Error("not a drop pack file: " + target.pathname));
+            return fetch(target.href).then(function (r) {
+              if (!r.ok) {
+                var err = new Error("drop pack file request failed: " + r.status);
+                err.status = r.status;
+                throw err;
+              }
+              return r.text();
+            });
+          }
+
           var api = {
             on: on,
             off: off,
@@ -710,6 +740,8 @@ public sealed class OverlaySdkController : ControllerBase
               queue: queue,
               storage: storage,
               streamStats: streamStats,
+              dropPack: dropPack,
+              dropArt: dropArt,
             },
             spotify: {
               playbackToken: playbackToken,

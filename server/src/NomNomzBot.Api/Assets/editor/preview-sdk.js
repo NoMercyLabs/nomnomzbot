@@ -197,6 +197,15 @@
     metrics.forEach(function (key) { if (sample && sample[key] != null) answer[key] = sample[key]; });
     return readData("streamStats", metrics.join(","), answer);
   }
+  // The sandboxed preview frame cannot fetch a theme pack, so it reports the call and rejects; the widget keeps its state.
+  function dropPack(id) {
+    tell({ kind: "data", what: "dropPack", key: id == null ? null : String(id) });
+    return Promise.reject(new Error("drop packs do not load in the editor preview"));
+  }
+  function dropArt(url) {
+    tell({ kind: "data", what: "dropArt", key: url == null ? null : String(url) });
+    return Promise.reject(new Error("drop packs do not load in the editor preview"));
+  }
   function playbackToken() {
     tell({ kind: "data", what: "spotify.playbackToken", key: null });
     return Promise.resolve({ error: "error" });
@@ -225,6 +234,8 @@
       queue: queue,
       storage: storage,
       streamStats: streamStats,
+      dropPack: dropPack,
+      dropArt: dropArt,
     },
     spotify: {
       playbackToken: playbackToken,

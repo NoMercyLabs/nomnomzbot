@@ -1,0 +1,44 @@
+{
+  "id": "parachute",
+  "name": "Parachute",
+  "version": "1.0.0",
+  "kind": "drop",
+  "author": "NoMercy Labs",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "credits": [
+    "Game: SeedlingDrop by Coding Garden (github.com/CodingGarden/SeedlingDrop), after PenguinDrop by Instafluff",
+    "Parachute traced from the SeedlingDrop parachute by shidotmoe (twitch.tv/shidotmoe)",
+    "Grass hill traced from the SeedlingDrop grass, from pixabay (pixabay.com/vectors/hill-soil-grass-ground-meadow-576592/)",
+    "Seed traced from the SeedlingDrop seed, from imgbin (imgbin.com/png/jfZgaEp4/cheek-nose-cartoon-ear-png)",
+    "Seedling traced from the SeedlingDrop seedling by Pixel perfect, from flaticon (flaticon.com/free-icon/plant_892926)",
+    "The NomNomz mouth replaces the seed's mouth and the parachute logos"
+  ],
+  "stage": { "w": 1920, "h": 1080 },
+  "motion": { "carrier": "attached", "releaseAt": 1, "sway": 9, "windSensitivity": 0.35 },
+  "slots": {
+    "background": null,
+    "foreground": null,
+    "carrier": { "src": "parachute.svg", "anchor": "bottom-center", "size": { "w": 190, "h": 171 }, "z": 2 },
+    "payload": { "src": "frame.svg", "anchor": "center", "size": { "w": 96, "h": 96 }, "z": 3 },
+    "target": {
+      "src": null,
+      "anchor": "bottom",
+      "size": { "w": 1920, "h": 110 },
+      "repeat": "none",
+      "z": 1,
+      "hitbox": { "y": 34, "w": 300 },
+      "marker": { "src": "grass.svg", "anchor": "center", "size": { "w": 320, "h": 138 } }
+    },
+    "landed": {
+      "anchor": "bottom-center",
+      "size": { "w": 132, "h": 120 },
+      "z": 2,
+      "growWithScore": { "minScale": 0.55, "maxScale": 1.3 },
+      "stages": [{ "minScore": 1, "src": "seedling.svg" }],
+      "miss": { "src": "seed.svg" }
+    }
+  },
+  "effects": [{ "name": "sparkle", "on": "hit", "src": "sparkle.svg", "size": { "w": 220, "h": 220 } }],
+  "sounds": {},
+  "labels": { "tag": "pill", "font": "theme", "colors": { "text": "--nnz-chip-text", "background": "--nnz-chip-bg" } }
+}
