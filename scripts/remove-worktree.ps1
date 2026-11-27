@@ -26,9 +26,17 @@ $ErrorActionPreference = 'Stop'
 # Windows PowerShell 5 leaves $PSScriptRoot empty inside a param default under -File.
 if (-not $Repo) { $Repo = Split-Path -Parent $PSScriptRoot }
 
-[string]$repoRoot = [System.IO.Path]::GetFullPath($Repo.Replace('/', '\')).TrimEnd('\')
-[string]$full = [System.IO.Path]::GetFullPath($WorktreePath.Replace('/', '\')).TrimEnd('\')
-[string[]]$roots = @("$repoRoot\.scratch\", "$repoRoot\.claude\worktrees\")
+# Paths use the OS separator: forcing '\' made every Linux path relative and refused it (2026-11-27).
+[char]$sep = [System.IO.Path]::DirectorySeparatorChar
+function ConvertTo-FullPath([string]$path) {
+    [System.IO.Path]::GetFullPath($path.Replace('/', $sep).Replace('\', $sep)).TrimEnd($sep)
+}
+[string]$repoRoot = ConvertTo-FullPath $Repo
+[string]$full = ConvertTo-FullPath $WorktreePath
+[string[]]$roots = @(
+    ((Join-Path $repoRoot '.scratch') + $sep),
+    ((Join-Path (Join-Path $repoRoot '.claude') 'worktrees') + $sep)
+)
 [bool]$allowed = @($roots | Where-Object {
         $full.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) -and $full.Length -gt $_.Length
     }).Count -gt 0
@@ -36,7 +44,7 @@ if (-not $allowed) { throw "remove-worktree: refused: '$full' is not under $($ro
 if (-not (Test-Path -LiteralPath $full -PathType Container)) { throw "remove-worktree: '$full' is not a folder" }
 
 # The \\?\ form reads paths past 260 characters; .Delete() on a reparse point removes the link, not its target.
-[string]$long = '\\?\' + $full
+[string]$long = if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { '\\?\' + $full } else { $full }
 [object[]]$links = @(Get-ChildItem -LiteralPath $long -Recurse -Force -Attributes ReparsePoint)
 foreach ($link in $links) {
     (Get-Item -LiteralPath $link.FullName -Force).Delete()
