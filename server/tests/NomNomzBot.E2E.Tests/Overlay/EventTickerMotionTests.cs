@@ -22,15 +22,28 @@ namespace NomNomzBot.E2E.Tests.Overlay;
 /// </summary>
 public sealed class EventTickerMotionTests : PageTest
 {
-    private const string TestChipLeft = """
+    // The test chip's left edge, and the right edge of the chip in front of it that is already on screen (the
+    // chip it must wait behind), or null when the band edge is free.
+    private const string TestChipPlace = """
         () => {
-            const chip = [...document.querySelectorAll('.nnz-ticker .chip')]
-                .find(c => c.textContent.includes('TestFollower'));
-            return chip ? chip.getBoundingClientRect().left : null;
+            const chips = [...document.querySelectorAll('.nnz-ticker .chip')].map(c => ({
+                test: c.textContent.includes('TestFollower'),
+                box: c.getBoundingClientRect(),
+            }));
+            const test = chips.find(c => c.test);
+            if (!test) return null;
+            const front = chips
+                .filter(c => !c.test && c.box.left < 1920 && c.box.left < test.box.left)
+                .map(c => c.box.right);
+            return [test.box.left, front.length ? Math.max(...front) : null];
         }
         """;
 
-    private static readonly TimeSpan ShowsWithin = TimeSpan.FromSeconds(3);
+    // The ticker's least gap between two chips (GAP in event_ticker.vue).
+    private const double Gap = 18;
+
+    // The test chip waits behind at most one chip on the band edge: a chip of about 330 px at 60 px/s.
+    private static readonly TimeSpan ShowsWithin = TimeSpan.FromSeconds(8);
 
     public override BrowserNewContextOptions ContextOptions() =>
         new()
@@ -56,21 +69,30 @@ public sealed class EventTickerMotionTests : PageTest
         Assert.Equal(200, fire.Status);
 
         double? entered = null;
+        double allowed = 1920;
         double? shown = null;
         DateTime deadline = DateTime.UtcNow + ShowsWithin;
         while (DateTime.UtcNow < deadline && shown is null)
         {
-            double? left = await Page.EvaluateAsync<double?>(TestChipLeft);
-            entered ??= left;
-            if (left < 1920)
-                shown = left;
+            double?[]? place = await Page.EvaluateAsync<double?[]?>(TestChipPlace);
+            if (place is [double left, _])
+            {
+                double? front = place[1];
+                if (entered is null)
+                {
+                    entered = left;
+                    allowed = Math.Max(1920, (front ?? 0) + Gap);
+                }
+                if (left < 1920)
+                    shown = left;
+            }
             await Task.Delay(100);
         }
 
         Assert.True(entered is not null, "The test chip never reached the ticker page.");
         Assert.True(
-            entered <= 1920 + 1,
-            $"The test chip came in at x {entered:0}, past the right edge of the 1920 px band."
+            entered <= allowed + 1,
+            $"The test chip came in at x {entered:0}; it belongs at x {allowed:0}, the band edge or right behind the chip on it."
         );
         Assert.True(
             shown is not null,

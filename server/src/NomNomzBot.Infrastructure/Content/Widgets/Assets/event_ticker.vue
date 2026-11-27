@@ -58,7 +58,6 @@ function useBandSize(c: TickerConfig) {
 }
 const bandStyle = useBandSize(cfg)
 
-const TEST_SHOW_MS = 10000
 const GAP = 18 // the least room between two chips
 
 interface Chip { id: number; icon: string; text: string }
@@ -87,15 +86,21 @@ function isOffscreen(s: Slot): boolean {
   return s.x >= bandWidth.value
 }
 
+// The room in front of a chip. A one-off chip (a test fire, a chip riding out) is not part of the loop, so it keeps
+// the least room: the wide loop gap would hold a test chip off screen for many seconds.
+function gapBefore(prev: Slot, s: Slot): number {
+  return prev.once || s.once ? GAP : spacing
+}
+
 // A new chip joins behind the other new chips that wait off screen, so a burst shows in the order it came. It goes
 // before the chips that come round again, so it shows up next, not after a full loop. A test fire goes before every
-// waiting chip: it lives only TEST_SHOW_MS, so it must come on screen at once.
+// waiting chip, right behind the chip on screen, so it comes on screen at once.
 function addSlot(chip: Chip, once: boolean): Slot {
   const slot: Slot = { key: ++keySeq, chip, x: bandWidth.value, w: 0, once, fresh: true, el: null }
   let at: number = belt.findIndex((s: Slot) => isOffscreen(s) && (once || !s.fresh))
   if (at === -1) at = belt.length
   const before: Slot | undefined = belt[at - 1]
-  slot.x = Math.max(bandWidth.value, before ? rightOf(before) + spacing : 0)
+  slot.x = Math.max(bandWidth.value, before ? rightOf(before) + gapBefore(before, slot) : 0)
   belt.splice(at, 0, slot)
   slots.value = slots.value.concat([slot])
   return slot
@@ -152,9 +157,8 @@ function handle(type: string, data: unknown, meta?: NnzEventMeta): void {
   const chip: Chip | null = chipFor(type, data)
   if (!chip) return
   if (meta && meta.test) {
-    // A dashboard test fire is shown for a short time and never stays in the real ticker.
-    const slot: Slot = addSlot(chip, true)
-    window.setTimeout(() => { if (belt.includes(slot)) retire(slot) }, TEST_SHOW_MS)
+    // A dashboard test fire rides across once and never stays in the real ticker.
+    addSlot(chip, true)
     return
   }
   addSlot(chip, false)
@@ -190,7 +194,7 @@ function advance(step: number): void {
     s.x -= step
     const prev: Slot | undefined = belt[i - 1]
     if (prev) {
-      const behind: number = rightOf(prev) + spacing
+      const behind: number = rightOf(prev) + gapBefore(prev, s)
       if (s.x > band) s.x = Math.max(behind, band)
       else if (s.x < behind) s.x = Math.min(behind, from)
     }
@@ -208,7 +212,7 @@ function recycle(): void {
     return
   }
   const tail: Slot | undefined = belt[belt.length - 1]
-  head.x = Math.max(bandWidth.value, tail ? rightOf(tail) + spacing : 0)
+  head.x = Math.max(bandWidth.value, tail ? rightOf(tail) + gapBefore(tail, head) : 0)
   belt.push(head)
 }
 
