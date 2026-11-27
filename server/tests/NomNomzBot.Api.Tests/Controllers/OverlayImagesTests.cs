@@ -369,11 +369,10 @@ public sealed class OverlayImagesTests : IDisposable
     [Fact]
     public async Task The_cache_drops_its_oldest_file_first_when_it_passes_its_cap()
     {
-        long oneEntry = 0;
         (OverlayImagesController probe, _) = Build(_ => Ok(Png(300)));
         PhysicalFileResult first = (PhysicalFileResult)
             await probe.Get(Cdn + "/1", 64, CancellationToken.None);
-        oneEntry = new FileInfo(first.FileName).Length;
+        long oneEntry = new FileInfo(first.FileName).Length;
         Directory.Delete(_cacheDir, recursive: true);
 
         (OverlayImagesController controller, CountingHandler handler) = Build(
