@@ -46,6 +46,10 @@ public static class RateLimitPolicyNames
     /// cached costs a real synthesis; partitioned per IP.</summary>
     public const string ReadAloud = "read-aloud";
 
+    /// <summary>The overlay image optimizer — wider than <see cref="Anonymous"/>, because one OBS machine loads
+    /// every widget's images from one IP; partitioned per IP.</summary>
+    public const string OverlayImages = "overlay-images";
+
     /// <summary>Platform-admin reads/non-destructive writes — partitioned per principal.</summary>
     public const string Admin = "admin";
 

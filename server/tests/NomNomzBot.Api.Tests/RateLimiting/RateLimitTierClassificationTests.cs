@@ -49,6 +49,7 @@ public sealed class RateLimitTierClassificationTests
         [RateLimitPolicyNames.DevicePoll] = DevicePollRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.Anonymous] = AnonymousRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.ReadAloud] = ReadAloudRateLimitPolicy.PermitLimit,
+        [RateLimitPolicyNames.OverlayImages] = OverlayImagesRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.Read] = ReadRateLimitPolicy.PermitLimit,
     };
 
@@ -199,5 +200,17 @@ public sealed class RateLimitTierClassificationTests
             );
 
         Assert.Equal(RateLimitPolicyNames.Auth, action.EffectiveTier);
+    }
+
+    [Fact]
+    public void Overlay_images_have_their_own_tier_so_a_busy_chat_never_drains_the_anonymous_overlay_calls()
+    {
+        ActionRecord action = AllActions()
+            .Single(record =>
+                record.Controller == typeof(OverlayImagesController)
+                && record.ActionName == nameof(OverlayImagesController.Get)
+            );
+
+        Assert.Equal(RateLimitPolicyNames.OverlayImages, action.EffectiveTier);
     }
 }

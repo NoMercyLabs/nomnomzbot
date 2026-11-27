@@ -274,6 +274,41 @@ public sealed class RateLimitTierTests
         otherIp.IsAcquired.Should().BeTrue();
     }
 
+    // Stoney 2026-11-27: overlay images are optimized wherever they come from. One OBS machine loads every
+    // widget's images from one IP; they must not eat the anonymous budget the overlay calls themselves need.
+    [Fact]
+    public async Task OverlayImages_AllowAChatFullOfNewEmotesByOneIp_ThenRejects_AndNeverTouchTheAnonymousBucket()
+    {
+        using PartitionedRateLimiter<HttpContext> images = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(OverlayImagesRateLimitPolicy.Partition);
+        using PartitionedRateLimiter<HttpContext> anonymous = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(AnonymousRateLimitPolicy.Partition);
+
+        HttpContext Context() => ContextForIp("203.0.113.9");
+
+        for (int i = 0; i < OverlayImagesRateLimitPolicy.PermitLimit; i++)
+        {
+            using RateLimitLease lease = await images.AcquireAsync(Context());
+            lease.IsAcquired.Should().BeTrue();
+        }
+
+        using RateLimitLease rejected = await images.AcquireAsync(Context());
+        rejected.IsAcquired.Should().BeFalse();
+        OverlayImagesRateLimitPolicy
+            .PermitLimit.Should()
+            .BeGreaterThan(AnonymousRateLimitPolicy.PermitLimit);
+
+        using RateLimitLease otherBucket = await anonymous.AcquireAsync(Context());
+        otherBucket.IsAcquired.Should().BeTrue();
+
+        using RateLimitLease otherIp = await images.AcquireAsync(ContextForIp("203.0.113.10"));
+        otherIp.IsAcquired.Should().BeTrue();
+    }
+
     /// <summary>Minimal fake lease exposing only a Retry-After metadata value, for the OnRejected test above.</summary>
     private sealed class FixedRateLimitLeaseWithRetryAfter(TimeSpan retryAfter) : RateLimitLease
     {
